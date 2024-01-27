@@ -33,7 +33,7 @@ FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 FILE_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BUCKET_OBJECT, in_package=False)
+@node(NodeType.BUCKET_OBJECT)
 class BucketObject(Node):
     """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
 

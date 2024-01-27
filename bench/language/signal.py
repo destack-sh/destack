@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from bench.language import Block
 
 
-@node(NodeType.SIGNAL, local=True, index_in_os=True, passthrough=(("value", _Passthrough.Full),))
+@node(NodeType.SIGNAL, passthrough=(("value", _Passthrough.Full),), index_in_os=True, local=True)
 class Signal(HasValue):
     """A signal received in this Bench. May be emitted by a Bench or an external source."""
 

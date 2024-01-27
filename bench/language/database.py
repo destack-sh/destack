@@ -34,7 +34,6 @@ from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync, describe_type
-from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Field, View
@@ -49,10 +48,9 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
 @node(
     NodeType.RECORD,
     passthrough=(("value", _Passthrough.Full),),
-    local=True,
     stored_custom=True,
-    # records can be materialized, that's why we added the local PG database
     index_in_os=True,
+    local=True,
 )
 class Record(HasValue, Node):
     """A record in a database. The containing table is usually a real Postgres table."""
@@ -66,6 +64,7 @@ class Record(HasValue, Node):
         primitive_type=PrimitiveType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
+
     # could also have Record.secret_value_packed as in Block (no materialization needed?)
 
     @staticmethod
@@ -545,7 +544,6 @@ class RecordList(NodeListBase[Record], RecordQuery):
             self._parent.session.create(node)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
-        nodes = flatten(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
         # 'create' nodes

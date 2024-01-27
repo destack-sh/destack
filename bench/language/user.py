@@ -6,18 +6,14 @@ from bench.language.node import Node, ScopeNode, node, node_parent, struct_inter
 from bench.utils.casing import IdentifierType
 
 
-@node(
-    NodeType.HANDLE, root=None, in_package=False, in_bench=False, identifier=IdentifierType.VARIABLE
-)
+@node(NodeType.HANDLE, root=None, identifier=IdentifierType.VARIABLE)
 class Handle(Node):
     """A (global) Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
-@node(
-    NodeType.USER, root=None, in_package=False, in_bench=False, identifier=IdentifierType.VARIABLE
-)
+@node(NodeType.USER, root=None, identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
     """A (global) Bench user."""
 
@@ -34,13 +30,7 @@ class User(ScopeNode):
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
 
 
-@node(
-    NodeType.ORGANIZATION,
-    root=None,
-    in_package=False,
-    in_bench=False,
-    identifier=IdentifierType.VARIABLE,
-)
+@node(NodeType.ORGANIZATION, root=None, identifier=IdentifierType.VARIABLE)
 class Organization(ScopeNode):
     """A (global) Bench organization."""
 
@@ -49,13 +39,7 @@ class Organization(ScopeNode):
     name: str = struct_property(32)
 
 
-@node(
-    NodeType.CLIENT,
-    root=NodeType.USER,
-    in_bench=False,
-    in_package=False,
-    identifier=IdentifierType.VARIABLE,
-)
+@node(NodeType.CLIENT, root=NodeType.USER, identifier=IdentifierType.VARIABLE)
 class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
@@ -68,12 +52,18 @@ class Client(Node):
         34, default=None, system=True, defer=True, unique=True
     )
 
+    def __content_str__(self) -> str:
+        if self.browser_name:
+            return f"{self.device_name} {self.browser_name}"
+        else:
+            return self.device_name
+
     @property
     def user(self) -> User:
         return self.parent
 
 
-@node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_package=False)
+@node(NodeType.NOTIFICATION, root=NodeType.USER)
 class Notification(Node):
     """A notification for a user."""
 

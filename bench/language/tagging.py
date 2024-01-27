@@ -61,7 +61,7 @@ class Tagging(HasValue, Node):
 
     @staticmethod
     def to_python(
-        node: "Tagging", props: dict, for_parent: Union["Block", "Field"] = None
+        node, props: dict, for_parent: Union["Block", "Field"] = None
     ) -> tuple[str, dict, dict]:
         assert node.reference is not None, f"missing reference for {node!r}"
         if isinstance(node.reference, Node) and node.reference._type == NodeType.BLOCK:

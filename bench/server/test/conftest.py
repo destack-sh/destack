@@ -7,9 +7,9 @@ async def prepared_test_db():
     from bench.language.node import NODE_CLASSES
     from bench.sql.client import async_pg_cursor
     from bench.sql.migration import (
-        introspect_tables_from_pg,
-        generate_migration_ops,
         apply_migration_ops,
+        generate_migration_ops,
+        introspect_tables_from_pg,
     )
 
     # create database (connect to bench since we can't drop active db)
@@ -25,7 +25,10 @@ async def prepared_test_db():
         await apply_migration_ops(cur, blank_ops)
         await cur.connection.commit()
 
-    # set as global & local pg
+    # ensure it's set as global db
+    from bench.sql.client import GLOBAL_PG_NAME
+
+    assert GLOBAL_PG_NAME == "test", f"GLOBAL_PG_NAME={GLOBAL_PG_NAME}"
 
 
 @pytest.fixture(scope="module")

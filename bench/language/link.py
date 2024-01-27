@@ -1,6 +1,7 @@
 import abc
 import enum
 import functools
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
@@ -32,9 +33,9 @@ from bench.language.const import (
     active_session,
 )
 from bench.language.validation import on_invalid_raise
+from bench.proto.wire import AnyNodeData
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import _auto_async_to_sync, nextn
-from bench.utils.utils import flatten
 
 if TYPE_CHECKING:
     from bench.language import Expression, Field, Node, Property, ScopeNode, Session, TypeInfo
@@ -182,7 +183,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
     def create_many(self, *nodes: Collection[Any | dict]) -> list[NodeT]:
         """Creates a new node in the list."""
         created = []
-        for n in flatten(nodes):
+        for n in nodes:
             if isinstance(n, dict):
                 node = self.create(**n, _append=False)
             elif isinstance(n, tuple):
@@ -333,7 +334,6 @@ class NodeList(NodeListBase[NodeT]):
         before: NodeT = None,
         _trigger: _NC = _NC.Full,
     ) -> None:
-        nodes = flatten(*nodes)
         if not nodes:
             return
 
@@ -537,13 +537,19 @@ class _TypeExpressionBase:
 
     # string comparison
 
+    @_require_expression_op(ConditionalOp.MATCHES)
+    def matches(self, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.MATCHES, self, value=value)
+
     @_require_expression_op(ConditionalOp.STARTS_WITH)
     def starts_with(self, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
 
-    @_require_expression_op(ConditionalOp.MATCHES)
-    def matches(self, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.MATCHES, self, value=value)
+    @_require_expression_op(ConditionalOp.REGEX)
+    def regex(self, value: str | re.Pattern) -> "Expression":
+        if isinstance(value, re.Pattern):
+            value = value.pattern
+        return _to_conditional(ConditionalOp.REGEX, self, value=value)
 
     # containment
 
@@ -602,7 +608,7 @@ FieldOrProperty = Union["Field", "Property"]
 _NodeFetchResult = NamedTuple(
     "_NodeFetchResult",
     [
-        ("nodes", list["AnyNodeData"]),
+        ("nodes", list[AnyNodeData]),
         ("cursors", list[str]),
         ("start_cursor", str | None),
         ("total", int),

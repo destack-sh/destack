@@ -131,7 +131,7 @@ class NodeReferenceKind(enum.StrEnum):
     CHILD = "child"
 
 
-@dataclass
+@dataclass(eq=False)
 class Property(_TypeExpressionBase):
     """A property of a package node or struct."""
 
@@ -215,15 +215,8 @@ class Property(_TypeExpressionBase):
                 continue
             elif k == "id":
                 non_default.append(str(v))
-            elif k in ("custom_copy", "custom_validate"):
-                func_str = f"{v.__name__}@{hex(id(v))}"
-                non_default.append(f"{k}={func_str}")
-            elif k == "children_flags":
-                flags_str = ", ".join([f.name for f in NodeRelationType if v & f])
-                if flags_str:
-                    non_default.append(flags_str)
             elif k == "reference_types":
-                types_str = "|".join(t.name for t in v)
+                types_str = "|".join(t.bench_name for t in v)
                 if types_str:
                     non_default.append(f"references={types_str}")
             else:
@@ -318,7 +311,7 @@ class Property(_TypeExpressionBase):
     def is_enum(self):
         return isinstance(self.py_type_stripped, enum.EnumMeta)
 
-    def equals_type(self, other: "Property") -> bool:
+    def _equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
             if k.name in (
@@ -336,7 +329,7 @@ class Property(_TypeExpressionBase):
                 return False
         return True
 
-    def _finalize_type(self) -> None:
+    def _finalize(self) -> None:
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not indicated otherwise)
@@ -869,7 +862,7 @@ def _process_struct_base_cls(
                     prop = prop.clone()
                     prop.component = cls
                     properties_by_name[name] = prop
-            elif not prop.equals_type(existing):
+            elif not prop._equals_type(existing):
                 if existing.ignore_conflicts_with and any(
                     issubclass(component, c) for c in existing.ignore_conflicts_with
                 ):
@@ -1076,8 +1069,6 @@ def node(
     index_in_os: bool = False,
     local: bool = False,
     root: NodeType | None = NodeType.BENCH,
-    in_package: bool = True,
-    in_bench: bool = True,
     reserved: set[str | int] = None,
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
@@ -1085,6 +1076,9 @@ def node(
     identifier: IdentifierType | None = None,
 ):
     """Register a class as a concrete node for the given node type."""
+
+    in_package = node_type in IN_PACKAGE_NODE_TYPES
+    in_bench = node_type in IN_BENCH_NODE_TYPES
 
     def decorate(cls):
         cls = node_component(
@@ -2293,7 +2287,7 @@ class Link(Node):
     )
 
 
-@node(NodeType.BENCH, in_package=False, identifier=IdentifierType.VARIABLE, root=None)
+@node(NodeType.BENCH, root=None, identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """
     A Bench is the AI-native operating system for a new generation of fully integrated apps.
@@ -2570,7 +2564,7 @@ def _complete_bench_setup():
         for name, prop in cls.__properties__.items():
             prop: Property
             # finalize type info
-            prop._finalize_type()
+            prop._finalize()
 
             # set properties (that exist at runtime) on class
             if prop.is_runtime and not prop.is_runtime_only and not prop.is_computed:

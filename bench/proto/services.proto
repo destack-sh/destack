@@ -41,7 +41,7 @@ message SignupUserResponse {
 
 message LoginUserRequest {
   oneof user {
-    string user_id = 1;
+    string id = 1;
     string slug = 2;
     string email = 3;
   }
@@ -50,7 +50,8 @@ message LoginUserRequest {
 }
 message LoginUserResponse {
   UserData user = 1;
-  string access_token = 2;
+  ClientData client = 2;
+  string access_token = 3;
 }
 
 message LogoutUserRequest {
