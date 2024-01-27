@@ -187,7 +187,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         if not prop.is_stored:
             continue
         column = Column(
-            _source=prop.id,
             name=prop.name,
             type=prop.primitive_type,
             is_array=prop.is_array,
@@ -195,6 +194,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             is_encrypted=prop.is_encrypted,
             is_primary_key=prop.name == "id",
             is_unique=prop.is_unique,
+            _source=prop.id,
         )
         # default
         if prop.default is not UNSET and prop.default is not None:
@@ -210,9 +210,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
                 column.default = f"'{prop.default}'::character varying"
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
-        # is_encrypted
-        if prop.is_encrypted:
-            column.type = PrimitiveType.BYTES  # all encrypted columns are bytes
         # references
         if (
             prop.reference_types
@@ -305,11 +302,8 @@ def map_database_to_pg_table(database: Block) -> Table:
             type=type.primitive_type,
             is_array=type.is_array,
             is_nullable=True,
+            is_encrypted=type.is_secret,
         )
-        if type.is_secret:
-            column.type = PrimitiveType.BYTES  # all encrypted columns are bytes
-            column.is_encrypted = True
-
         columns.append(column)
 
     return Table(
@@ -571,10 +565,10 @@ async def pg_select(
     first: int | None = None,
     skip: int | None = None,
     params: Sequence | Mapping | None = None,
-) -> list[dict[str, any]]:
+) -> list[RowOut]:
     """Selects from the given table."""
     columns = columns or table.columns
-    block = pg_select_sql(
+    statement = _pg_select_sql(
         table=table,
         columns=columns,
         joins=joins,
@@ -583,15 +577,15 @@ async def pg_select(
         first=first,
         skip=skip,
     )
-    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, block))
+    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(block, params)
+        await cur.execute(statement, params)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return await cur.fetchall()
 
 
-def pg_select_sql(
+def _pg_select_sql(
     table: Table,
     columns: list[Column],
     joins: list[SqlJoin] | None = None,
@@ -600,21 +594,21 @@ def pg_select_sql(
     first: int | None = None,
     skip: int | None = None,
 ):
-    block = sql.SQL("SELECT {fields} FROM {table}").format(
+    statement = sql.SQL("SELECT {fields} FROM {table}").format(
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
         table=sql.Identifier(table.name),
     )
     if joins:
-        block += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if order_by:
-        block += sql.SQL(" ORDER BY {}").format(sql_node_to_sql(order_by))
+        statement += sql.SQL(" ORDER BY {}").format(sql_node_to_sql(order_by))
     if first:
-        block += sql.SQL(" LIMIT {}").format(sql.Literal(first))
+        statement += sql.SQL(" LIMIT {}").format(sql.Literal(first))
     if skip:
-        block += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
-    return block
+        statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
+    return statement
 
 
 async def pg_count(
@@ -624,14 +618,14 @@ async def pg_count(
     where: SqlNode | None = None,
 ) -> int:
     """Counts rows matching the given query."""
-    block = sql.SQL("SELECT COUNT(*) FROM {table}").format(
+    statement = sql.SQL("SELECT COUNT(*) FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, block))
+        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(block)
+        await cur.execute(statement)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["count"]
@@ -645,17 +639,17 @@ async def pg_exists(
     joins: list[SqlJoin] | None = None,
 ) -> bool:
     """Checks if rows matching the given query exist."""
-    block = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
+    statement = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if joins:
-        block += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    block += sql.SQL(")")
-    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, block))
+        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+    statement += sql.SQL(")")
+    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(block)
+        await cur.execute(statement)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["exists"]
@@ -669,19 +663,19 @@ async def pg_insert(
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Inserts into the given table."""
-    block = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+    statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
         values=sql.SQL(", ".join(["%s"] * len(table.columns))),
     )
     if returning:
-        block += sql.SQL(" RETURNING {}").format(
+        statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
     try:
-        await cur.executemany(block, values, returning=bool(returning))
+        await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -720,7 +714,7 @@ async def pg_upsert(
     else:
         dynamic_update = ()
 
-    block = sql.SQL(
+    statement = sql.SQL(
         "INSERT INTO {table} ({fields}) VALUES ({values}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
     ).format(
         table=sql.Identifier(table.name),
@@ -730,13 +724,13 @@ async def pg_upsert(
         updates=sql.SQL(", ").join(chain(static_update, dynamic_update)),
     )
     if returning:
-        block += sql.SQL(" RETURNING {}").format(
+        statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
     try:
-        await cur.executemany(block, values, returning=bool(returning))
+        await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -752,7 +746,7 @@ async def pg_update_static(
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with static values."""
-    block = sql.SQL("UPDATE {table} SET {values}").format(
+    statement = sql.SQL("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
         values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
@@ -760,14 +754,14 @@ async def pg_update_static(
         ),
     )
     if where:
-        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        block += sql.SQL(" RETURNING {}").format(
+        statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, block))
+    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(block)
+        await cur.execute(statement)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -796,17 +790,17 @@ async def pg_update_dynamic(
             (sql.SQL("{} = %s").format(sql.Identifier(c.name)) for c in dynamic_columns),
         ),
     )
-    block = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
+    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
         table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
-        block += sql.SQL(" RETURNING {}").format(
+        statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.SQL("{}").format(sql.Identifier(c.name)) for c in returning)
         )
     logger.debug(
         "pg.update_rows.list",
         table=table,
-        query=sql_to_str(cur, block),
+        query=sql_to_str(cur, statement),
         rows=len(dynamic_values),
     )
     dynamic_values = [
@@ -814,7 +808,7 @@ async def pg_update_dynamic(
         for value in dynamic_values
     ]
     try:
-        await cur.executemany(block, dynamic_values, returning=bool(returning))
+        await cur.executemany(statement, dynamic_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -830,18 +824,18 @@ async def pg_delete(
 ) -> list[RowOut] | None:
     """Deletes from the given table."""
 
-    block = sql.SQL("DELETE FROM {table}").format(
+    statement = sql.SQL("DELETE FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        block += sql.SQL(" RETURNING {}").format(
+        statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, block))
+    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(block)
+        await cur.execute(statement)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:

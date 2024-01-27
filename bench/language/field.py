@@ -188,7 +188,7 @@ class TypeInfo(Struct):
         if self.is_array:
             key += "a"
         if self.is_secret:
-            key += "s"
+            key += "e"
         if self.length:
             key += f"l{self.length}"
         if self.precision:
