@@ -580,6 +580,13 @@ async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) 
     await _apply_inline(cur)
 
 
+async def force_create_tables(cur: psycopg.AsyncCursor, tables: Collection[Table]) -> None:
+    """Creates and applies the migrations to create the given objects in the database."""
+    # ignore existing tables
+    ops = generate_migration_ops([], tables)
+    await apply_migration_ops(cur, ops)
+
+
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
     """Writes the Python migration file."""
     migration_path = (

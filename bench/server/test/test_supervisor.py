@@ -38,7 +38,7 @@ def raises_grpc_error(status: grpclib.const.Status):
     assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
 
 
-async def test_user_signup_flow(supervisor: GlobalSupervisorStub, event_loop):
+async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     """Tests user account creation, login & logout."""
 
     user = User(slug="test", email="test@symbolx.com")

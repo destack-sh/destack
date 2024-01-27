@@ -920,7 +920,7 @@ def _process_struct_base_cls(
                 computed_prop = _node_computed_attr(computed_attr, prop, prop.reference_wired_ptr)
                 setattr(cls, prop.name + "_" + computed_attr, computed_prop)
 
-    # nocheckin: use slots for struct/node classes
+    # TODO @Performance: use slots for struct/node classes?
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
     # collect methods implemented in this class (specifically)

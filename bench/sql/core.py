@@ -84,7 +84,13 @@ class Object:
         for field_idx, field in enumerate(fields):
             if field.name.startswith("_"):
                 continue
-            value = getattr(self, field.name)
+            if self.kind == ObjectKind.COLUMN and field.name == "type":
+                # we want to reproduce the original type, not the encrypted type
+                #  (we sneakily change the type in __post_init__)
+                self: Column
+                value = self._unencrypted_type or self.type
+            else:
+                value = getattr(self, field.name)
             if value == field.default:
                 continue
             value = _source_repr(value)
@@ -201,13 +207,19 @@ class Column(TableObject):
     on_delete: CascadeAction | None = None
     is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
-    is_encrypted: bool = False
+    is_encrypted: bool = False  # encrypted columns are always stored as bytes
     length: int | None = None
     precision: int | None = None
     scale: int | None = None
     default: str | None = None
     _source: str | int | None = None
     _table: Union["Table", None] = None
+    _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
+
+    def __post_init__(self):
+        if self.is_encrypted:  # sneakily change the type
+            self._unencrypted_type = self.type
+            self.type = PrimitiveType.BYTES
 
     def __str__(self):
         args_str = ", ".join(
