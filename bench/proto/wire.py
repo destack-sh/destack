@@ -1347,7 +1347,6 @@ class SessionData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(30)
     worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     worker_process_id: Optional[str] = betterproto.string_field(32, optional=True)
     trigger_type: Optional["TriggerType"] = betterproto.enum_field(33, optional=True)
@@ -1547,28 +1546,28 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    link: "LinkData" = betterproto.message_field(1, group="node")
-    pause: "PauseData" = betterproto.message_field(2, group="node")
-    run: "RunData" = betterproto.message_field(3, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(4, group="node")
-    record: "RecordData" = betterproto.message_field(5, group="node")
-    view: "ViewData" = betterproto.message_field(6, group="node")
-    user: "UserData" = betterproto.message_field(7, group="node")
-    block: "BlockData" = betterproto.message_field(8, group="node")
-    organization: "OrganizationData" = betterproto.message_field(9, group="node")
-    field: "FieldData" = betterproto.message_field(10, group="node")
-    badge: "BadgeData" = betterproto.message_field(11, group="node")
-    signal: "SignalData" = betterproto.message_field(12, group="node")
-    notification: "NotificationData" = betterproto.message_field(13, group="node")
-    issue: "IssueData" = betterproto.message_field(14, group="node")
-    package: "PackageData" = betterproto.message_field(15, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
-    tagging: "TaggingData" = betterproto.message_field(17, group="node")
-    client: "ClientData" = betterproto.message_field(18, group="node")
-    worker: "WorkerData" = betterproto.message_field(19, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(1, group="node")
+    client: "ClientData" = betterproto.message_field(2, group="node")
+    pause: "PauseData" = betterproto.message_field(3, group="node")
+    bench: "BenchData" = betterproto.message_field(4, group="node")
+    handle: "HandleData" = betterproto.message_field(5, group="node")
+    run: "RunData" = betterproto.message_field(6, group="node")
+    link: "LinkData" = betterproto.message_field(7, group="node")
+    notification: "NotificationData" = betterproto.message_field(8, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(9, group="node")
+    signal: "SignalData" = betterproto.message_field(10, group="node")
+    record: "RecordData" = betterproto.message_field(11, group="node")
+    tagging: "TaggingData" = betterproto.message_field(12, group="node")
+    view: "ViewData" = betterproto.message_field(13, group="node")
+    block: "BlockData" = betterproto.message_field(14, group="node")
+    user: "UserData" = betterproto.message_field(15, group="node")
+    worker: "WorkerData" = betterproto.message_field(16, group="node")
+    badge: "BadgeData" = betterproto.message_field(17, group="node")
+    field: "FieldData" = betterproto.message_field(18, group="node")
+    organization: "OrganizationData" = betterproto.message_field(19, group="node")
     trigger: "TriggerData" = betterproto.message_field(20, group="node")
-    handle: "HandleData" = betterproto.message_field(21, group="node")
-    bench: "BenchData" = betterproto.message_field(22, group="node")
+    issue: "IssueData" = betterproto.message_field(21, group="node")
+    package: "PackageData" = betterproto.message_field(22, group="node")
     session: "SessionData" = betterproto.message_field(23, group="node")
 
 
@@ -3103,31 +3102,42 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    LinkData,
+    WorkerSetData,
+    ClientData,
     PauseData,
+    BenchData,
+    HandleData,
     RunData,
-    BucketObjectData,
-    RecordData,
-    ViewData,
-    UserData,
-    BlockData,
-    OrganizationData,
-    FieldData,
-    BadgeData,
-    SignalData,
+    LinkData,
     NotificationData,
+    BucketObjectData,
+    SignalData,
+    RecordData,
+    TaggingData,
+    ViewData,
+    BlockData,
+    UserData,
+    WorkerData,
+    BadgeData,
+    FieldData,
+    OrganizationData,
+    TriggerData,
     IssueData,
     PackageData,
-    WorkerSetData,
-    TaggingData,
-    ClientData,
-    WorkerData,
-    TriggerData,
-    HandleData,
-    BenchData,
     SessionData,
 ]
 AnyStructData = Union[
+    RichTextData,
+    RunCodeFrameData,
+    RequestContextData,
+    BenchPathData,
+    IconData,
+    AggregationData,
+    FileData,
+    RunErrorData,
+    RichTextSpanData,
+    DependencyData,
+    PropertyPathData,
     FieldPathSegmentData,
     AggregationBucketData,
     NodeReferenceData,
@@ -3137,20 +3147,9 @@ AnyStructData = Union[
     ValueReferenceData,
     PolicyRuleData,
     ExpressionData,
-    TypeInfoData,
-    RichTextData,
-    DependencyData,
-    RequestContextData,
     LogEntryData,
-    IconData,
-    BenchPathData,
-    RunErrorData,
-    FileData,
-    AggregationData,
     WorkerImageData,
-    RichTextSpanData,
-    PropertyPathData,
-    RunCodeFrameData,
+    TypeInfoData,
 ]
 
-VERSION = "2024.01.27.2"
+VERSION = "2024.01.28.0"

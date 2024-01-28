@@ -42,14 +42,15 @@ def hash_password(password: str, salt: bytes) -> bytes:
     )
 
 
-MIN_CHECK_PASSWORD_DURATION = 0.005  # seconds
+MIN_CHECK_PASSWORD_DURATION = 0.005  # =5ms
 
 
 async def check_password(password: str, salt: bytes, password_hash: bytes) -> bool:
     """Check if a password matches its hash. Adds a small random delay to prevent timing attacks."""
-    start = asyncio.get_running_loop().time()
+    loop = asyncio.get_running_loop()
+    start = loop.time()
     result = hash_password(password, salt) == password_hash
-    duration = asyncio.get_running_loop().time() - start
+    duration = loop.time() - start
     if duration < MIN_CHECK_PASSWORD_DURATION:
         await asyncio.sleep(MIN_CHECK_PASSWORD_DURATION - duration)
     return result

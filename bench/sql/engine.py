@@ -549,9 +549,24 @@ def _wrap_pg_error(resource: Any, e: psycopg.errors.Error) -> Exception:
 
 
 async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list[dict[str, any]]:
+    """Executes an arbitrary select without any wrapping."""
     logger.debug("pg.select_raw", query=sql_to_str(cur, query))
     await cur.execute(query)
     return await cur.fetchall()
+
+
+def _pg_wrap_write(column: Column, sql: SqlNode) -> SqlNode:
+    if column.is_encrypted:
+        return sql  # nocheckin column encrypt
+    else:
+        return sql
+
+
+def _pg_wrap_read(column: Column, sql: SqlNode) -> SqlNode:
+    if column.is_encrypted:
+        return sql  # nocheckin column decrypt
+    else:
+        return sql
 
 
 async def pg_select(
@@ -595,7 +610,7 @@ def _pg_select_sql(
     skip: int | None = None,
 ):
     statement = sql.SQL("SELECT {fields} FROM {table}").format(
-        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
+        fields=sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in columns),
         table=sql.Identifier(table.name),
     )
     if joins:
@@ -666,7 +681,7 @@ async def pg_insert(
     statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ".join(["%s"] * len(table.columns))),
+        values=sql.SQL(", ".join(_pg_wrap_write(c, "%s") for c in table.columns)),
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
@@ -719,13 +734,13 @@ async def pg_upsert(
     ).format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ".join(("%s",) * len(table.columns))),
+        values=sql.SQL(", ".join(_pg_wrap_write(c, "%s") for c in table.columns)),
         conflict=sql.SQL(", ").join(sql.Identifier(c.name) for c in conflict_columns),
         updates=sql.SQL(", ").join(chain(static_update, dynamic_update)),
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in returning)
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
@@ -749,7 +764,9 @@ async def pg_update_static(
     statement = sql.SQL("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
         values=sql.SQL(", ").join(
-            sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
+            sql.SQL("{} = {}").format(
+                sql.Identifier(k), _pg_wrap_write(table._columns_by_name[k], sql_node_to_sql(v))
+            )
             for k, v in static_value.items()
         ),
     )
@@ -757,7 +774,7 @@ async def pg_update_static(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in returning)
         )
     logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
     try:
@@ -778,24 +795,32 @@ async def pg_update_dynamic(
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with a list of values (corresponding to rows)."""
-    assert not any(c.is_primary_key for c in dynamic_columns), f"primary key in {dynamic_columns}"
+    assert not any(
+        c.is_primary_key for c in dynamic_columns
+    ), f"{table!r} primary key not in {dynamic_columns!r}"
     table_name = sql.Identifier(table.name)
     # join fixed and dynamic values
+    static_values_sql = (
+        sql.SQL("{} = {}").format(
+            sql.Identifier(k), _pg_wrap_write(table._columns_by_name[k], sql_node_to_sql(v))
+        )
+        for k, v in static_values.items()
+    )
+    dynamic_values_sql = (
+        sql.SQL("{} = %s").format(_pg_wrap_write(c, sql.Identifier(c.name)))
+        for c in dynamic_columns
+    )
     values_sql = sql.SQL(", ").join(
-        chain(
-            (
-                sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-                for k, v in static_values.items()
-            ),
-            (sql.SQL("{} = %s").format(sql.Identifier(c.name)) for c in dynamic_columns),
-        ),
+        chain(static_values_sql, dynamic_values_sql),
     )
     statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
         table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.SQL("{}").format(sql.Identifier(c.name)) for c in returning)
+            sql.SQL(", ").join(
+                sql.SQL("{}").format(_pg_wrap_read(c, sql.Identifier(c.name))) for c in returning
+            )
         )
     logger.debug(
         "pg.update_rows.list",
@@ -963,9 +988,6 @@ PgSelectNodesDataResult = NamedTuple(
     "PgSelectNodesDataResult",
     [("nodes", list[wire.AnyNodeData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
-
-
-# nocheckin: handle colum encrypt/decrypt
 
 
 async def pg_select_nodes_data(
