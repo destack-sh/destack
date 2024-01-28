@@ -15,12 +15,14 @@ GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", default=None)
 GLOBAL_PG_PORT = get_from_env("GLOBAL_PG_PORT", default=5432, type_cast=int)
 GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", default=None)
 GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", default=None)
+GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
 
 LOCAL_PG_HOST = get_from_env("LOCAL_PG_HOST", alt="USER_PG_HOST")
 LOCAL_PG_NAME = get_from_env("LOCAL_PG_NAME", optional=True)
 LOCAL_PG_PORT = get_from_env("LOCAL_PG_PORT", default=5432, type_cast=int, alt="USER_PG_PORT")
 LOCAL_PG_USERNAME = get_from_env("LOCAL_PG_USERNAME", alt="USER_PG_USERNAME")
 LOCAL_PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
+LOCAL_PG_CRYPTO_KEY = get_from_env("LOCAL_PG_CRYPTO_KEY", default=None)
 
 # TODO @Robustness: figure out how to fix the psycopg pool warning
 #  (what we're doing should be fine according to docs and the warning)

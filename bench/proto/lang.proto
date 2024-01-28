@@ -1136,7 +1136,6 @@ message SessionData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 30;
   optional NodeReferenceData worker_ptr = 31;
   optional string worker_process_id = 32;
   optional TriggerType trigger_type = 33;
@@ -1284,28 +1283,28 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    LinkData link = 1;
-    PauseData pause = 2;
-    RunData run = 3;
-    BucketObjectData bucket_object = 4;
-    RecordData record = 5;
-    ViewData view = 6;
-    UserData user = 7;
-    BlockData block = 8;
-    OrganizationData organization = 9;
-    FieldData field = 10;
-    BadgeData badge = 11;
-    SignalData signal = 12;
-    NotificationData notification = 13;
-    IssueData issue = 14;
-    PackageData package = 15;
-    WorkerSetData worker_set = 16;
-    TaggingData tagging = 17;
-    ClientData client = 18;
-    WorkerData worker = 19;
+    WorkerSetData worker_set = 1;
+    ClientData client = 2;
+    PauseData pause = 3;
+    BenchData bench = 4;
+    HandleData handle = 5;
+    RunData run = 6;
+    LinkData link = 7;
+    NotificationData notification = 8;
+    BucketObjectData bucket_object = 9;
+    SignalData signal = 10;
+    RecordData record = 11;
+    TaggingData tagging = 12;
+    ViewData view = 13;
+    BlockData block = 14;
+    UserData user = 15;
+    WorkerData worker = 16;
+    BadgeData badge = 17;
+    FieldData field = 18;
+    OrganizationData organization = 19;
     TriggerData trigger = 20;
-    HandleData handle = 21;
-    BenchData bench = 22;
+    IssueData issue = 21;
+    PackageData package = 22;
     SessionData session = 23;
   };
 }

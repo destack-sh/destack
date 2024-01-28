@@ -379,7 +379,7 @@ class Property(_TypeExpressionBase):
                 self.primitive_type = PrimitiveType.INT64
             elif issubclass(annotation.type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
-                self.primitive_type = PrimitiveType.BYTES
+                self.primitive_type = PrimitiveType.JSON  # robust json
             elif issubclass(annotation.type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:

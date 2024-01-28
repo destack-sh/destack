@@ -3,12 +3,21 @@ import string
 from typing import Callable, Mapping
 
 import psycopg
+from psycopg import sql
 from psycopg.types.json import Jsonb
 import pytest
 
 from bench.language import PrimitiveType
 from bench.sql.core import Table, Column
-from bench.sql.engine import RowIn, pg_insert, pg_select
+from bench.sql.engine import (
+    RowIn,
+    pg_insert,
+    pg_select,
+    pg_upsert,
+    pg_update_dynamic,
+    pg_delete,
+    pg_update_static,
+)
 from bench.sql.migration import force_create_tables
 
 _ENCRYPTED_TYPES = (
@@ -46,12 +55,40 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
 
 
 async def test_crud_encrypted_columns(test_cur: psycopg.AsyncCursor):
-    initial_rows: list[RowIn] = []
-    for id in range(5):
+    def _generate_row(id: int) -> dict[str, any]:
         row = {f"secret_{t.name.lower()}": COLUMN_VALUE_GENERATORS[t]() for t in _ENCRYPTED_TYPES}
         row["id"] = id
-        initial_rows.append(row)
+        return row
 
+    # insert
+    initial_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(0, 3))
+    target_rows = list(initial_rows)
     await pg_insert(test_cur, _ENCRYPTED_TABLE, initial_rows)
+    db_rows = await pg_select(test_cur, _ENCRYPTED_TABLE, order_by=sql.SQL("id"))
+    assert db_rows == target_rows
 
-    rows = await pg_select(test_cur, _ENCRYPTED_TABLE)
+    # upsert
+    upsert_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(2, 5))
+    target_rows = target_rows[:2] + list(upsert_rows)
+    await pg_upsert(test_cur, _ENCRYPTED_TABLE, upsert_rows)
+    db_rows = await pg_select(test_cur, _ENCRYPTED_TABLE, order_by=sql.SQL("id"))
+    assert db_rows == target_rows
+
+    # update per row
+    update_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(1, 4))
+    await pg_update_dynamic(test_cur, _ENCRYPTED_TABLE, dynamic_values=update_rows)
+    target_rows = target_rows[:1] + list(update_rows) + target_rows[4:]
+    db_rows = await pg_select(test_cur, _ENCRYPTED_TABLE, order_by=sql.SQL("id"))
+    assert db_rows == target_rows
+
+    # update statically
+    await pg_update_static(test_cur, _ENCRYPTED_TABLE, static_value={"secret_int32": 42})
+    target_rows = [{**row, "secret_int32": 42} for row in target_rows]
+    db_rows = await pg_select(test_cur, _ENCRYPTED_TABLE, order_by=sql.SQL("id"))
+    assert db_rows == target_rows
+
+    # delete
+    await pg_delete(test_cur, _ENCRYPTED_TABLE, where=sql.SQL("id > 3"))
+    target_rows = target_rows[:3]
+    db_rows = await pg_select(test_cur, _ENCRYPTED_TABLE, order_by=sql.SQL("id"))
+    assert db_rows == target_rows

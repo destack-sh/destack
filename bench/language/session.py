@@ -120,7 +120,6 @@ class Session(ScopeNode):
     """
 
     parent: Package = node_parent(4, NodeType.PACKAGE)
-    policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
     worker: Optional["Worker"] = struct_internal(
         31, require=False, array=False, references=NodeType.WORKER
     )

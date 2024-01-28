@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.27.2"
+VERSION = "2024.01.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -24,7 +24,7 @@ BENCH_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("policies", PrimitiveType.BYTES, is_array=True, is_nullable=True),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_unique=True),
         Column("name", PrimitiveType.STRING),
         Column("description", PrimitiveType.STRING, is_nullable=True),
@@ -86,7 +86,7 @@ PACKAGE_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("policies", PrimitiveType.BYTES, is_array=True, is_nullable=True),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("is_snapshot", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
@@ -135,10 +135,10 @@ BLOCK_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("visibility", PrimitiveType.STRING, default="'PUBLIC'::character varying"),
-        Column("policies", PrimitiveType.BYTES, is_array=True, is_nullable=True),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("type", PrimitiveType.STRING, default="'blank'::character varying"),
         Column("bases_block_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("builtin_base", PrimitiveType.BYTES, is_nullable=True),
+        Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
@@ -288,7 +288,7 @@ FIELD_TABLE = Table(
         Column("bench_type", PrimitiveType.STRING, is_nullable=True),
         Column("base_type_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("format_hint", PrimitiveType.STRING, is_nullable=True),
-        Column("condition", PrimitiveType.BYTES, is_nullable=True),
+        Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("length", PrimitiveType.INT32, is_nullable=True),
         Column("precision", PrimitiveType.INT32, is_nullable=True),
         Column("scale", PrimitiveType.INT32, is_nullable=True),
@@ -339,8 +339,8 @@ VIEW_TABLE = Table(
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("node_type", PrimitiveType.STRING),
-        Column("filter", PrimitiveType.BYTES, is_nullable=True),
-        Column("sort", PrimitiveType.BYTES, is_array=True, is_nullable=True),
+        Column("filter", PrimitiveType.JSON, is_nullable=True),
+        Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -389,7 +389,7 @@ ISSUE_TABLE = Table(
         Column("type", PrimitiveType.STRING),
         Column("kind", PrimitiveType.STRING),
         Column("message", PrimitiveType.STRING),
-        Column("path", PrimitiveType.BYTES, is_nullable=True),
+        Column("path", PrimitiveType.JSON, is_nullable=True),
         Column("properties", PrimitiveType.INT32, is_array=True, is_nullable=True),
     ),
     indexes=(
@@ -471,7 +471,6 @@ SESSION_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("policies", PrimitiveType.BYTES, is_array=True, is_nullable=True),
         Column("worker_id", PrimitiveType.UUID, is_nullable=True),
         Column("worker_process_id", PrimitiveType.STRING, is_nullable=True),
         Column("trigger_type", PrimitiveType.STRING, is_nullable=True),
@@ -665,7 +664,7 @@ BADGE_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("type", PrimitiveType.STRING),
         Column("name", PrimitiveType.STRING, is_nullable=True),
-        Column("policy", PrimitiveType.BYTES),
+        Column("policy", PrimitiveType.JSON),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("link_token", PrimitiveType.UUID, is_nullable=True),
         Column("link_password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
@@ -746,7 +745,7 @@ WORKER_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("external_id", PrimitiveType.STRING, is_unique=True),
         Column("profile", PrimitiveType.STRING),
-        Column("image", PrimitiveType.BYTES, is_nullable=True),
+        Column("image", PrimitiveType.JSON, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
