@@ -1,8 +1,8 @@
 import asyncio
 import os
 
-import pytest
 import psycopg
+import pytest
 
 
 def pytest_configure(config):
@@ -33,6 +33,7 @@ async def prepared_test_db():
     from bench.language.node import NODE_CLASSES
     from bench.sql.client import async_pg_cursor
     from bench.sql.migration import (
+        EXTENSIONS,
         apply_migration_ops,
         generate_migration_ops,
         introspect_tables_from_pg,
@@ -45,6 +46,8 @@ async def prepared_test_db():
 
     # migrate to current schema
     async with async_pg_cursor("test") as cur:
+        for extension in EXTENSIONS:
+            await cur.execute(f"CREATE EXTENSION IF NOT EXISTS {extension}")
         blank_tables = await introspect_tables_from_pg(cur)
         new_tables = [node.__table__ for node in NODE_CLASSES if node.__table__]
         blank_ops = generate_migration_ops(blank_tables, new_tables)

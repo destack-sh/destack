@@ -37,6 +37,8 @@ from bench.utils.utils import format_python
 MIGRATIONS_PATH = "bench/sql/migrations"
 MIGRATIONS_TEMPLATE_PATH = "bench/sql/migrations/0000_template.py"
 
+EXTENSIONS = ("pgcrypto",)
+
 logger = structlog.get_logger(__name__)
 
 

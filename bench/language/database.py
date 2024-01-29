@@ -36,7 +36,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync, describe_type
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Field, View
+    from bench.language import Block, Field, Query
     from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
@@ -596,7 +596,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
 @node_component
 class HasDatabase(Node):
     dynamic_key: str | None = struct_internal(UNSET, default=None)
-    views: NodeList["View"] = node_children(NodeType.VIEW, NRel.NAMED | NRel.ORDERED)
+    queries: NodeList["Query"] = node_children(
+        NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
+    )
     records: RecordList[Record] = node_children(
         NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
     )

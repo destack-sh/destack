@@ -46,9 +46,8 @@ class HasValue(Node):
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type is not None:
             try:
-                get_k = (
-                    lambda f: f.py_ident if self._status == NS.TRACKED else f.storage_key
-                )  # noqa
+                def get_k(f):
+                    return f.py_ident if self._status == NS.TRACKED else f.storage_key  # noqa
                 check_type(self.value or {}, self._type, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])

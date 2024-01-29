@@ -97,7 +97,7 @@ const GLOBAL_PG_VARS = [
     },
   },
   { name: "GLOBAL_PG_PORT", value: globalDbInstance.port.apply((port) => port.toString()) },
-  { name: "PGCRYPTO_KEY", value: config.requireSecret("PGCRYPTO_KEY") },
+  { name: "GLOBAL_PG_CRYPTO_KEY", value: config.requireSecret("globalPgCryptoKey") },
 ];
 const { dbInstance: userDbInstance } = makeRds("user-db", "db.t3.medium", {
   password: config.requireSecret("userDbPassword"),

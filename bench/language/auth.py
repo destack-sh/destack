@@ -20,7 +20,6 @@ from bench.language.node import (
     node_parent,
     struct,
     struct_internal,
-    struct_runtime,
 )
 
 if TYPE_CHECKING:

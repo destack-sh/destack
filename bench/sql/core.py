@@ -221,13 +221,34 @@ class Column(TableObject):
             self._unencrypted_type = self.type
             self.type = PrimitiveType.BYTES
 
+    @property
+    def underlying_type(self):
+        return self._unencrypted_type or self.type
+
+    def __flags_str__(self):
+        parts = []
+        if self.is_primary_key:
+            parts.append("P")
+        if self.is_foreign_key_to is not None:
+            parts.append("F")
+        if self.is_unique:
+            parts.append("U")
+        if not self.is_nullable:
+            parts.append("!")
+        if self.is_encrypted:
+            parts.append("E")
+        if self.is_array:
+            parts.append("[]")
+        return "".join(parts)
+
     def __str__(self):
         args_str = ", ".join(
-            f"{name}={self.__dict__[name]}"
+            (f"{name}={self.__dict__[name]}" if not isinstance(self.__dict__[name], bool) else name)
             for name in (
                 "is_array",
                 "is_unique",
                 "is_nullable",
+                "is_encrypted",
                 "default",
                 "is_primary_key",
                 "is_foreign_key_to",
@@ -236,7 +257,9 @@ class Column(TableObject):
             if self.__dict__[name]
         )
         table_name = self._table.name if self._table else None
-        return f"{table_name or '<detached>'}.{self.name} ({self.type}) [{args_str}])"
+        if args_str:
+            args_str = ", " + args_str
+        return f"{table_name or '<detached>'}.{self.name} ({self.underlying_type}{args_str}))"
 
     def __repr__(self):
         return f"<Column {self}>"
@@ -423,7 +446,9 @@ class Table(TableObject):
         self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
-        columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)
+        columns_str = ", ".join(
+            f"{c.name} {c.underlying_type}{c.__flags_str__()}" for c in self.columns
+        )
         constraints_str = ", ".join(f"{c.name} {c.type}" for c in self.constraints)
         indexes_str = ", ".join(f"{c.name} {c.type}" for c in self.indexes)
         return (
@@ -565,9 +590,7 @@ RECORD_BASE_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME, default="now()", _source=16),
-        Column("last_edited_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_key", PrimitiveType.STRING, _source=20),
     ),
     indexes=(

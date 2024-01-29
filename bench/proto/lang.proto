@@ -69,7 +69,7 @@ enum BenchType {
   BENCH_TYPE_TAGGING = 23;
   BENCH_TYPE_FIELD = 24;
   BENCH_TYPE_RECORD = 25;
-  BENCH_TYPE_VIEW = 26;
+  BENCH_TYPE_QUERY = 26;
   BENCH_TYPE_ISSUE = 29;
   BENCH_TYPE_LINK = 30;
   BENCH_TYPE_SESSION = 50;
@@ -127,7 +127,7 @@ enum BlockType {
   BLOCK_TYPE_SCRIPT = 32;
   BLOCK_TYPE_FLOW = 33;
   BLOCK_TYPE_MODEL = 34;
-  BLOCK_TYPE_VIEW = 40;
+  BLOCK_TYPE_QUERY = 40;
   BLOCK_TYPE_DATABASE = 41;
   BLOCK_TYPE_SCREEN = 42;
 }
@@ -304,7 +304,7 @@ enum NodeType {
   NODE_TYPE_TAGGING = 23;
   NODE_TYPE_FIELD = 24;
   NODE_TYPE_RECORD = 25;
-  NODE_TYPE_VIEW = 26;
+  NODE_TYPE_QUERY = 26;
   NODE_TYPE_ISSUE = 29;
   NODE_TYPE_LINK = 30;
   NODE_TYPE_SESSION = 50;
@@ -1074,6 +1074,27 @@ message PauseData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
+// A persistent query.
+message QueryData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional string name = 30;
+  optional string order_key = 31;
+  NodeType node_type = 32;
+  repeated NodeReferenceData bases_ptr = 33;
+  optional ExpressionData filter = 34;
+  repeated ExpressionData sort = 35;
+}
+
 // A record in a database. The containing table is usually a real Postgres table.
 message RecordData {
   BenchType metatype = 1;
@@ -1220,26 +1241,6 @@ message UserData {
   optional google.protobuf.Timestamp last_logged_in_at = 36;
 }
 
-// View(parent: ForwardRef('Block') = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, filter: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
-message ViewData {
-  BenchType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 6;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
-  optional string name = 30;
-  optional string order_key = 31;
-  NodeType node_type = 32;
-  optional ExpressionData filter = 33;
-  repeated ExpressionData sort = 34;
-}
-
 // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message WorkerData {
   BenchType metatype = 1;
@@ -1283,29 +1284,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    WorkerSetData worker_set = 1;
-    ClientData client = 2;
-    PauseData pause = 3;
-    BenchData bench = 4;
-    HandleData handle = 5;
+    ClientData client = 1;
+    IssueData issue = 2;
+    TriggerData trigger = 3;
+    PackageData package = 4;
+    FieldData field = 5;
     RunData run = 6;
-    LinkData link = 7;
+    PauseData pause = 7;
     NotificationData notification = 8;
-    BucketObjectData bucket_object = 9;
-    SignalData signal = 10;
+    BenchData bench = 9;
+    QueryData query = 10;
     RecordData record = 11;
-    TaggingData tagging = 12;
-    ViewData view = 13;
-    BlockData block = 14;
-    UserData user = 15;
-    WorkerData worker = 16;
-    BadgeData badge = 17;
-    FieldData field = 18;
-    OrganizationData organization = 19;
-    TriggerData trigger = 20;
-    IssueData issue = 21;
-    PackageData package = 22;
-    SessionData session = 23;
+    UserData user = 12;
+    WorkerData worker = 13;
+    LinkData link = 14;
+    SessionData session = 15;
+    BadgeData badge = 16;
+    SignalData signal = 17;
+    BucketObjectData bucket_object = 18;
+    HandleData handle = 19;
+    WorkerSetData worker_set = 20;
+    OrganizationData organization = 21;
+    BlockData block = 22;
+    TaggingData tagging = 23;
   };
 }
 

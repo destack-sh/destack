@@ -82,7 +82,7 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
         client_kind=wire.ClientKind.USER,
         client_token=login_rep.access_token,
     )
-    read_user_rep = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
+    await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
     # nocheckin ...
 
     # logout, invalid token -> fail
