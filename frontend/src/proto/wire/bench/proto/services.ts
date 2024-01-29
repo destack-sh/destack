@@ -10,10 +10,10 @@ import { Empty } from "../../google/protobuf/empty";
 import { ServiceType } from "@protobuf-ts/runtime-rpc";
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
+import { WireType } from "@protobuf-ts/runtime";
 import type { BinaryReadOptions } from "@protobuf-ts/runtime";
 import type { IBinaryReader } from "@protobuf-ts/runtime";
 import { UnknownFieldHandler } from "@protobuf-ts/runtime";
-import { WireType } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
@@ -27,56 +27,15 @@ import { LogEntryData } from "./lang";
 import { WorkerSetData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
+import { ExpressionData } from "./lang";
+import { NodeType } from "./lang";
 import { SomeNodeData } from "./lang";
+import { ReadOptionsData } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
-import { ExpressionData } from "./lang";
-import { PropertyReferenceData } from "./lang";
-import { NodeType } from "./lang";
-/**
- * @generated from protobuf message symbolx.bench.ReadNodesOptions
- */
-export interface ReadNodesOptions {
-    /**
-     * Load all ancestors of these nodes.
-     *
-     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 1;
-     */
-    ancestorTypes: NodeType[];
-    /**
-     * Load all descendants of these types.
-     *
-     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 2;
-     */
-    descendantTypes: NodeType[];
-    /**
-     * Additional deferred or related properties to load.
-     *
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties = 3;
-     */
-    includeProperties: PropertyReferenceData[];
-    /**
-     * Additional regular properties to defer.
-     *
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties = 4;
-     */
-    excludeProperties: PropertyReferenceData[];
-    /**
-     * Select only these properties (override include/exclude).
-     *
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties = 5;
-     */
-    selectProperties: PropertyReferenceData[];
-    /**
-     * Additional filter for every node (incl. root node, e.g. to load non-deleted, only archived, etc.).
-     *
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 6;
-     */
-    globalFilter?: ExpressionData;
-}
 // 
 // Global supervisor
 // 
@@ -220,9 +179,9 @@ export interface ReadNodesRequest {
      */
     roots: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ReadNodesOptions options = 2;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 2;
      */
-    options?: ReadNodesOptions;
+    options?: ReadOptionsData;
 }
 /**
  * @generated from protobuf message symbolx.bench.ReadNodesResponse
@@ -262,9 +221,9 @@ export interface SearchNodesRequest {
      */
     after?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ReadNodesOptions options = 7;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 7;
      */
-    options?: ReadNodesOptions;
+    options?: ReadOptionsData;
     /**
      * @generated from protobuf field: optional bool count = 8;
      */
@@ -791,108 +750,6 @@ export interface KillRunResponse {
     run?: RunData;
 }
 // @generated message type with reflection information, may provide speed optimized methods
-class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
-    constructor() {
-        super("symbolx.bench.ReadNodesOptions", [
-            { no: 1, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "include_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 4, name: "exclude_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 5, name: "select_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 6, name: "global_filter", kind: "message", T: () => ExpressionData }
-        ]);
-    }
-    create(value?: PartialMessage<ReadNodesOptions>): ReadNodesOptions {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.ancestorTypes = [];
-        message.descendantTypes = [];
-        message.includeProperties = [];
-        message.excludeProperties = [];
-        message.selectProperties = [];
-        if (value !== undefined)
-            reflectionMergePartial<ReadNodesOptions>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadNodesOptions): ReadNodesOptions {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeType ancestor_types */ 1:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ancestorTypes.push(reader.int32());
-                    else
-                        message.ancestorTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.NodeType descendant_types */ 2:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.descendantTypes.push(reader.int32());
-                    else
-                        message.descendantTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData include_properties */ 3:
-                    message.includeProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties */ 4:
-                    message.excludeProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData select_properties */ 5:
-                    message.selectProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.ExpressionData global_filter */ 6:
-                    message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ReadNodesOptions, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeType ancestor_types = 1; */
-        if (message.ancestorTypes.length) {
-            writer.tag(1, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ancestorTypes.length; i++)
-                writer.int32(message.ancestorTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.NodeType descendant_types = 2; */
-        if (message.descendantTypes.length) {
-            writer.tag(2, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.descendantTypes.length; i++)
-                writer.int32(message.descendantTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.PropertyReferenceData include_properties = 3; */
-        for (let i = 0; i < message.includeProperties.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.includeProperties[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData exclude_properties = 4; */
-        for (let i = 0; i < message.excludeProperties.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.excludeProperties[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData select_properties = 5; */
-        for (let i = 0; i < message.selectProperties.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.selectProperties[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData global_filter = 6; */
-        if (message.globalFilter)
-            ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ReadNodesOptions
- */
-export const ReadNodesOptions = new ReadNodesOptions$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
         super("symbolx.bench.SignupUserRequest", [
@@ -1392,7 +1249,7 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     constructor() {
         super("symbolx.bench.ReadNodesRequest", [
             { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 2, name: "options", kind: "message", T: () => ReadNodesOptions }
+            { no: 2, name: "options", kind: "message", T: () => ReadOptionsData }
         ]);
     }
     create(value?: PartialMessage<ReadNodesRequest>): ReadNodesRequest {
@@ -1410,8 +1267,8 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
                 case /* repeated symbolx.bench.NodeReferenceData roots */ 1:
                     message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ReadNodesOptions options */ 2:
-                    message.options = ReadNodesOptions.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                case /* optional symbolx.bench.ReadOptionsData options */ 2:
+                    message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1428,9 +1285,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         /* repeated symbolx.bench.NodeReferenceData roots = 1; */
         for (let i = 0; i < message.roots.length; i++)
             NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ReadNodesOptions options = 2; */
+        /* optional symbolx.bench.ReadOptionsData options = 2; */
         if (message.options)
-            ReadNodesOptions.internalBinaryWrite(message.options, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1498,7 +1355,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 7, name: "options", kind: "message", T: () => ReadNodesOptions },
+            { no: 7, name: "options", kind: "message", T: () => ReadOptionsData },
             { no: 8, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -1533,8 +1390,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional string after */ 6:
                     message.after = reader.string();
                     break;
-                case /* optional symbolx.bench.ReadNodesOptions options */ 7:
-                    message.options = ReadNodesOptions.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                case /* optional symbolx.bench.ReadOptionsData options */ 7:
+                    message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
                 case /* optional bool count */ 8:
                     message.count = reader.bool();
@@ -1569,9 +1426,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional string after = 6; */
         if (message.after !== undefined)
             writer.tag(6, WireType.LengthDelimited).string(message.after);
-        /* optional symbolx.bench.ReadNodesOptions options = 7; */
+        /* optional symbolx.bench.ReadOptionsData options = 7; */
         if (message.options)
-            ReadNodesOptions.internalBinaryWrite(message.options, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* optional bool count = 8; */
         if (message.count !== undefined)
             writer.tag(8, WireType.Varint).bool(message.count);

@@ -2318,8 +2318,8 @@ class Bench(ScopeNode):
     """
 
     parent: None = node_parent(4)
-    policies: Optional[list["Policy"]] = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY
+    policies: list["Policy"] | None = struct_internal(
+        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
     )
     slug: str = struct_internal(30, system=True, unique=True)
     name: str = struct_property(31)
@@ -2332,8 +2332,10 @@ class Bench(ScopeNode):
     )
     # status: BenchStatus = struct_internal(35, system=True)
 
-    # *per* environment/.../? stuff (will be moved there later)
+    # *per* universe/environment/??? stuff (will be moved there later)
     head = struct_internal(40, system=True, require=False, array=False, references=NodeType.PACKAGE)
+
+    # resources (should probably be managed separately)
     pg_name: Optional[str] = struct_internal(41, system=True, sensitive=True, default=None)
     pg_username: Optional[str] = struct_internal(
         42, system=True, sensitive=True, default=None, defer=True
@@ -2348,7 +2350,6 @@ class Bench(ScopeNode):
     os_password: Optional[str] = struct_internal(
         46, system=True, default=None, defer=True, encrypt=True, sensitive=True
     )
-
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)
 
     # versions: NodeList["Package"] = node_children(NodeType.PACKAGE, NRel.Remote)
@@ -2391,8 +2392,8 @@ class Package(ScopeNode):
     """A package is a semi-isolated version of a Bench, containing the actual blocks and so on."""
 
     parent: Bench = node_parent(4, NodeType.BENCH)
-    policies: Optional[list["Policy"]] = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY
+    policies: list["Policy"] | None = struct_internal(
+        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
     )
     is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
 

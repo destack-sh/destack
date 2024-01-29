@@ -81,10 +81,9 @@ class BenchRegion(betterproto.Enum):
 
 class BenchStatus(betterproto.Enum):
     UNSPECIFIED = 0
-    RESERVED = 1
-    PREPARING = 2
+    PREPARING = 1
+    MIGRATING = 2
     AVAILABLE = 3
-    MIGRATING = 4
 
 
 class BenchType(betterproto.Enum):
@@ -125,6 +124,7 @@ class BenchType(betterproto.Enum):
     POLICY = 230
     POLICY_RULE = 231
     REQUEST_CONTEXT = 232
+    READ_OPTIONS = 233
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -500,6 +500,7 @@ class StructType(betterproto.Enum):
     POLICY = 230
     POLICY_RULE = 231
     REQUEST_CONTEXT = 232
+    READ_OPTIONS = 233
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -743,7 +744,7 @@ class PolicyRuleData(betterproto.Message):
     effect: "PolicyEffect" = betterproto.enum_field(40)
     verb: List["ActionKind"] = betterproto.enum_field(41)
     object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_properties: List["PropertyReferenceData"] = betterproto.message_field(51)
+    object_is_sensitive: bool = betterproto.bool_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -757,16 +758,33 @@ class PropertyPathData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: bench.language.const.BenchType = <factory>, id:
-    Optional[int] = <factory>, references_type:
-    Optional[bench.language.const.NodeType] = <factory>, _status:
-    bench.language.const.NodeStatus = None)
+    PropertyReference(type: bench.language.const.BenchType = <factory>, id: int
+    = <factory>, references_type: Optional[bench.language.const.NodeType] =
+    <factory>, _resolved_property: Optional[bench.language.node.Property] =
+    None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     type: "BenchType" = betterproto.enum_field(30)
-    id: Optional[int] = betterproto.int32_field(31, optional=True)
+    id: int = betterproto.int32_field(31)
     references_type: Optional["NodeType"] = betterproto.enum_field(32, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ReadOptionsData(betterproto.Message):
+    """
+    ReadOptions(ancestor_types: list[bench.language.const.NodeType] | None =
+    None, descendant_types: list[bench.language.const.NodeType] | None = None,
+    include_sensitive: bool = False, global_filter:
+    Optional[ForwardRef('Expression')] = None, _status:
+    bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    ancestor_types: List["NodeType"] = betterproto.enum_field(30)
+    descendant_types: List["NodeType"] = betterproto.enum_field(31)
+    include_sensitive: bool = betterproto.bool_field(32)
+    global_filter: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -778,7 +796,7 @@ class RequestContextData(betterproto.Message):
     subject_is_authenticated: bool = betterproto.bool_field(31)
     verbs: List["ActionKind"] = betterproto.enum_field(41)
     object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_properties: List["PropertyReferenceData"] = betterproto.message_field(51)
+    object_is_sensitive: bool = betterproto.bool_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -1595,30 +1613,6 @@ class EditData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ReadNodesOptions(betterproto.Message):
-    ancestor_types: List["NodeType"] = betterproto.enum_field(1)
-    """Load all ancestors of these nodes."""
-
-    descendant_types: List["NodeType"] = betterproto.enum_field(2)
-    """Load all descendants of these types."""
-
-    include_properties: List["PropertyReferenceData"] = betterproto.message_field(3)
-    """Additional deferred or related properties to load."""
-
-    exclude_properties: List["PropertyReferenceData"] = betterproto.message_field(4)
-    """Additional regular properties to defer."""
-
-    select_properties: List["PropertyReferenceData"] = betterproto.message_field(5)
-    """Select only these properties (override include/exclude)."""
-
-    global_filter: Optional["ExpressionData"] = betterproto.message_field(6, optional=True)
-    """
-    Additional filter for every node (incl. root node, e.g. to load non-
-    deleted, only archived, etc.).
-    """
-
-
-@dataclass(eq=False, repr=False)
 class SignupUserRequest(betterproto.Message):
     user: "UserData" = betterproto.message_field(1)
     password: str = betterproto.string_field(2)
@@ -1680,7 +1674,7 @@ class CreateBenchResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReadNodesRequest(betterproto.Message):
     roots: List["NodeReferenceData"] = betterproto.message_field(1)
-    options: Optional["ReadNodesOptions"] = betterproto.message_field(2, optional=True)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(2, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1696,7 +1690,7 @@ class SearchNodesRequest(betterproto.Message):
     sort: List["ExpressionData"] = betterproto.message_field(4)
     limit: Optional[int] = betterproto.int32_field(5, optional=True)
     after: Optional[str] = betterproto.string_field(6, optional=True)
-    options: Optional["ReadNodesOptions"] = betterproto.message_field(7, optional=True)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(7, optional=True)
     count: Optional[bool] = betterproto.bool_field(8, optional=True)
 
 
@@ -3082,54 +3076,55 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    WorkerSetData,
-    PauseData,
-    RunData,
-    BadgeData,
-    TriggerData,
-    IssueData,
-    BucketObjectData,
-    SignalData,
-    OrganizationData,
-    PackageData,
-    RecordData,
-    TaggingData,
-    WorkerData,
-    QueryData,
-    FieldData,
-    SessionData,
-    ClientData,
     BenchData,
-    NotificationData,
-    BlockData,
-    LinkData,
     HandleData,
+    LinkData,
+    FieldData,
+    IssueData,
+    OrganizationData,
+    RecordData,
+    NotificationData,
+    ClientData,
+    SessionData,
+    SignalData,
+    WorkerSetData,
+    TriggerData,
+    TaggingData,
     UserData,
+    BucketObjectData,
+    RunData,
+    BlockData,
+    PauseData,
+    PackageData,
+    BadgeData,
+    QueryData,
+    WorkerData,
 ]
 AnyStructData = Union[
-    FieldPathData,
-    FileData,
-    BenchPathData,
-    RunCodeFrameData,
-    NodeReferenceData,
-    RichTextData,
-    PolicyData,
-    PolicyRuleData,
-    DependencyData,
-    RichTextSpanData,
     TypeInfoData,
-    WorkerImageData,
+    DependencyData,
+    AggregationBucketData,
+    RunCodeFrameData,
     FieldPathSegmentData,
+    PolicyData,
+    ValueReferenceData,
+    RichTextData,
+    IconData,
     ExpressionData,
-    PropertyPathData,
+    RunErrorData,
     PropertyReferenceData,
     LogEntryData,
-    AggregationData,
-    IconData,
-    ValueReferenceData,
-    RunErrorData,
-    AggregationBucketData,
+    WorkerImageData,
+    RichTextSpanData,
+    ReadOptionsData,
+    NodeReferenceData,
+    PropertyPathData,
     RequestContextData,
+    FileData,
+    BenchPathData,
+    AggregationData,
+    PolicyRuleData,
+    FieldPathData,
 ]
 
-VERSION = "2024.01.29.1"
+VERSION = "2024.01.29.2"

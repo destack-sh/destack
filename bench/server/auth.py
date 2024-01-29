@@ -2,6 +2,11 @@ import asyncio
 from os import urandom
 
 import structlog
+from grpclib import GRPCError, Status as GRPCStatus
+
+from bench.language import Client, Worker
+from bench.proto.wire import RpcMetadata, ClientKind
+from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -59,3 +64,32 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
 def generate_access_token() -> str:
     """Generate a random access token."""
     return urandom(ACCESS_TOKEN_LENGTH).hex()
+
+
+async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:
+    if metadata.client_kind == ClientKind.USER:
+        client = await Client.get(id=to_uuid(metadata.client_id))
+        if client.access_token != metadata.access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+        return client
+    elif metadata.client_kind == ClientKind.WORKER:
+        worker = await Worker.get(id=to_uuid(metadata.client_id))
+        if worker.access_token != metadata.access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+        return worker
+    else:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
+
+
+async def check_authenticated_client(metadata: RpcMetadata) -> Client:
+    client = await check_authenticated(metadata)
+    if not isinstance(client, Client):
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected user client")
+    return client
+
+
+async def check_authenticated_worker(metadata: RpcMetadata) -> Worker:
+    worker = await check_authenticated(metadata)
+    if not isinstance(worker, Worker):
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected worker client")
+    return worker

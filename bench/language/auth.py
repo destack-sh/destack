@@ -10,8 +10,8 @@ from bench.language.const import (
     NodeType,
     PolicyEffect,
     StructType,
+    ActionKindSet,
 )
-from bench.language.expression import PropertyReference
 from bench.language.node import (
     Node,
     Package,
@@ -23,7 +23,13 @@ from bench.language.node import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Block
+    from bench.language import Block, Expression
+
+
+#
+# Basics of auth:
+#  1. Owner is a user with owner-level access to the root node (Bench/User/Organization/...)
+#
 
 
 @struct(StructType.POLICY)
@@ -35,7 +41,7 @@ class Policy(Struct):
         31, default_factory=list, struct_t=StructType.POLICY_RULE
     )
     hidden: bool = struct_internal(
-        32, default=False, description="Hide this policy and its effects from the denied."
+        32, default=False, description="Hide this policy and its effects by default."
     )
 
     def __content_str__(self) -> str:
@@ -52,20 +58,17 @@ class PolicyRule(Struct):
     # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
-    effect: PolicyEffect = struct_internal(40)
-    verb: list[ActionKind] = struct_internal(41)
+    verb_effect: PolicyEffect = struct_internal(40)
+    verb_actions: list[ActionKind] | None = struct_internal(41)
+    verb_sets: list[ActionKindSet] | None = struct_internal(42)
 
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
-    object_properties: list[PropertyReference] | None = struct_internal(
-        51, require=False, array=True, struct_t=StructType.PROPERTY_REFERENCE
-    )
-    # object_nodes, object_fields, ...
+    object_is_sensitive: bool = struct_internal(51, default=False)
+    # object_properties, object_nodes, object_fields, ...
 
     # [condition]
-    # condition: Optional["Expression"] = struct_internal(
-    #     60, default=None, struct_t=StructType.EXPRESSION
-    # )
+    # condition: Expression ...
 
 
 @struct(StructType.REQUEST_CONTEXT)
@@ -75,7 +78,6 @@ class RequestContext(Struct):
     # subject
     subject_is_owner: bool = struct_internal(30, default=False)
     subject_is_authenticated: bool = struct_internal(31, default=False)
-    subject_is_staff: bool = struct_internal(32, default=False)
     # subject_user, subject_groups, subject_identities, subject_roles, ...
 
     # verb
@@ -83,10 +85,8 @@ class RequestContext(Struct):
 
     # object
     object_types: list[BenchType] = struct_internal(50, default_factory=list)
-    object_properties: list[PropertyReference] | None = struct_internal(
-        51, default_factory=list, struct_t=StructType.PROPERTY_REFERENCE
-    )
-    # object_nodes, object_fields, ...
+    object_is_sensitive: bool = struct_internal(51, default=False)
+    # object_properties, object_nodes, object_fields, ...
 
     # [condition]
     # ... any extra values for evaluating the condition
@@ -115,6 +115,16 @@ class Badge(Node):
     )
     key_value_digest: Optional[str] = struct_internal(
         51, default=None, encrypt=True, defer=True, sensitive=True
+    )
+
+
+@struct(StructType.READ_OPTIONS)
+class ReadOptions(Struct):
+    ancestor_types: list[NodeType] | None = struct_internal(30, default=None)
+    descendant_types: list[NodeType] | None = struct_internal(31, default=None)
+    include_sensitive: bool = struct_internal(32, default=False)
+    global_filter: Optional["Expression"] = struct_internal(
+        35, default=None, struct_t=StructType.EXPRESSION
     )
 
 

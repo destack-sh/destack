@@ -61,10 +61,9 @@ enum BenchRegion {
 
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
-  BENCH_STATUS_RESERVED = 1;
-  BENCH_STATUS_PREPARING = 2;
+  BENCH_STATUS_PREPARING = 1;
+  BENCH_STATUS_MIGRATING = 2;
   BENCH_STATUS_AVAILABLE = 3;
-  BENCH_STATUS_MIGRATING = 4;
 }
 
 enum BenchType {
@@ -105,6 +104,7 @@ enum BenchType {
   BENCH_TYPE_POLICY = 230;
   BENCH_TYPE_POLICY_RULE = 231;
   BENCH_TYPE_REQUEST_CONTEXT = 232;
+  BENCH_TYPE_READ_OPTIONS = 233;
   BENCH_TYPE_EXPRESSION = 240;
   BENCH_TYPE_AGGREGATION = 241;
   BENCH_TYPE_AGGREGATION_BUCKET = 242;
@@ -470,6 +470,7 @@ enum StructType {
   STRUCT_TYPE_POLICY = 230;
   STRUCT_TYPE_POLICY_RULE = 231;
   STRUCT_TYPE_REQUEST_CONTEXT = 232;
+  STRUCT_TYPE_READ_OPTIONS = 233;
   STRUCT_TYPE_EXPRESSION = 240;
   STRUCT_TYPE_AGGREGATION = 241;
   STRUCT_TYPE_AGGREGATION_BUCKET = 242;
@@ -670,7 +671,7 @@ message PolicyRuleData {
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
   repeated BenchType object_types = 50;
-  repeated PropertyReferenceData object_properties = 51;
+  bool object_is_sensitive = 51;
 }
 
 // A path of Node/Struct properties.
@@ -679,12 +680,21 @@ message PropertyPathData {
   repeated PropertyReferenceData properties = 30;
 }
 
-// PropertyReference(type: bench.language.const.BenchType = <factory>, id: Optional[int] = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+// PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _resolved_property: Optional[bench.language.node.Property] = None, _status: bench.language.const.NodeStatus = None)
 message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
-  optional int32 id = 31;
+  int32 id = 31;
   optional NodeType references_type = 32;
+}
+
+// ReadOptions(ancestor_types: list[bench.language.const.NodeType] | None = None, descendant_types: list[bench.language.const.NodeType] | None = None, include_sensitive: bool = False, global_filter: Optional[ForwardRef('Expression')] = None, _status: bench.language.const.NodeStatus = None)
+message ReadOptionsData {
+  BenchType metatype = 1;
+  repeated NodeType ancestor_types = 30;
+  repeated NodeType descendant_types = 31;
+  bool include_sensitive = 32;
+  optional ExpressionData global_filter = 35;
 }
 
 // The context of a request for evaluating a policy.
@@ -694,7 +704,7 @@ message RequestContextData {
   bool subject_is_authenticated = 31;
   repeated ActionKind verbs = 41;
   repeated BenchType object_types = 50;
-  repeated PropertyReferenceData object_properties = 51;
+  bool object_is_sensitive = 51;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)

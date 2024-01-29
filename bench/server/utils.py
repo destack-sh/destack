@@ -9,9 +9,9 @@ from botocore.config import Config
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, Worker, Session
-from bench.proto.wire import AnyNodeData, AnyStructData, ClientKind, RpcMetadata, PackageHostStub
-from bench.utils.func import to_uuid, uuid_to_str
+from bench.language import Session
+from bench.proto.wire import AnyNodeData, AnyStructData, PackageHostStub
+from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -59,35 +59,6 @@ def validate_bench_data_many(
 ) -> None:
     for d in data:
         validate_bench_data(d, in_package=in_package)
-
-
-async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:
-    if metadata.client_kind == ClientKind.USER:
-        client = await Client.get(id=to_uuid(metadata.client_id))
-        if client.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
-        return client
-    elif metadata.client_kind == ClientKind.WORKER:
-        worker = await Worker.get(id=to_uuid(metadata.client_id))
-        if worker.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
-        return worker
-    else:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
-
-
-async def check_authenticated_client(metadata: RpcMetadata) -> Client:
-    client = await check_authenticated(metadata)
-    if not isinstance(client, Client):
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected user client")
-    return client
-
-
-async def check_authenticated_worker(metadata: RpcMetadata) -> Worker:
-    worker = await check_authenticated(metadata)
-    if not isinstance(worker, Worker):
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected worker client")
-    return worker
 
 
 _s3_client: Optional["boto3.client"] = None

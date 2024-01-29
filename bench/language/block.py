@@ -134,8 +134,8 @@ class Block(ScopeNode, HasTags):
     )
 
     visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
-    policies: Optional[list["Policy"]] = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY
+    policies: list["Policy"] | None = struct_internal(
+        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
     )
     type: BlockType = struct_internal(30, default=BlockType.BLANK)
     bases: list["Block"] | None = struct_internal(

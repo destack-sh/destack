@@ -14,7 +14,6 @@ from grpclib import Status as GRPCStatus
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
-from bench.proto import wire
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -52,8 +51,6 @@ from bench.proto.wire import (
     PackageHostStub,
 )
 from bench.server.utils import (
-    check_authenticated,
-    check_authenticated_worker,
     detached_session,
     get_s3_client,
     validate_bench_data_many,
@@ -181,29 +178,16 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
-        if read_nodes_request.node_type == wire.NodeType.RECORD:
-            # forward to record query (stored custom)
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        async with detached_session(read_only=True):
-            await check_authenticated(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        if search_nodes_request.node_type == wire.NodeType.RECORD:
-            # forward to record query (stored custom)
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        else:
-            pass
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def aggregate_nodes(
         self, aggregate_nodes_request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
-        if aggregate_nodes_request.node_type == wire.NodeType.RECORD:
-            # forward to record query (stored custom)
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
@@ -221,7 +205,6 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     #
 
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
-        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
@@ -292,7 +275,6 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def push_worker_logs(
         self, push_worker_logs_request: "PushWorkerLogsRequest"
     ) -> "PushWorkerLogsRequest":
-        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
@@ -308,5 +290,4 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def run_proxy_block(
         self, run_proxy_block_request: "RunProxyBlockRequest"
     ) -> "RunProxyBlockResponse":
-        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

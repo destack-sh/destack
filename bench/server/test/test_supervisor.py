@@ -12,9 +12,9 @@ from bench.proto.wire import (
     LoginUserRequest,
     SignupUserRequest,
     ReadNodesRequest,
-    ReadNodesOptions,
     RpcMetadata,
     LogoutUserRequest,
+    ReadOptionsData,
 )
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
@@ -70,12 +70,20 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
-    # read user, invalid token -> fail
+    # read user without sensitive data, no token -> success
     read_user_req = ReadNodesRequest(
         roots=[user.as_reference._to_data()],
-        options=ReadNodesOptions(descendant_types=[wire.NodeType.CLIENT]),
+        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT]),
     )
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+        _ = await supervisor.read_nodes(read_user_req)
+
+    # read user with sensitive data, no token -> fail
+    read_user_req = ReadNodesRequest(
+        roots=[user.as_reference._to_data()],
+        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT], include_sensitive=True),
+    )
+    with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
         _ = await supervisor.read_nodes(read_user_req)
 
     # read user, valid token -> success

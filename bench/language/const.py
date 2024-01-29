@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.29.1"
+VERSION = "2024.01.29.2"
 
 
 #
@@ -106,6 +106,7 @@ class StructType(ProtoStrEnum):
     POLICY = "POLICY", 230
     POLICY_RULE = "POLICY_RULE", 231
     REQUEST_CONTEXT = "REQUEST_CONTEXT", 232
+    READ_OPTIONS = "READ_OPTIONS", 233
 
     EXPRESSION = "EXPRESSION", 240
     AGGREGATION = "AGGREGATION", 241
@@ -334,11 +335,23 @@ else:
     )
     ActionKind.bench_name = ReadKind.bench_name
 
+READ_KINDS: tuple[ReadKind, ...] = tuple(ReadKind)
+EDIT_KINDS: tuple[EditKind, ...] = tuple(EditKind)
+RUN_KINDS: tuple[RunKind, ...] = tuple(RunKind)
+ACTION_KINDS: tuple[ActionKind, ...] = tuple(ActionKind)
 
-class ActionKindGroup(ProtoStrEnum):
+
+class ActionKindSet(ProtoStrEnum):
     READ = "READ", 1
     EDIT = "EDIT", 20
     RUN = "RUN", 40
+
+
+ACTIONS_BY_SET: dict[ActionKindSet, set[ActionKind]] = {
+    ActionKindSet.READ: set(READ_KINDS),
+    ActionKindSet.EDIT: set(EDIT_KINDS),
+    ActionKindSet.RUN: set(RUN_KINDS),
+}
 
 
 #
@@ -347,10 +360,9 @@ class ActionKindGroup(ProtoStrEnum):
 
 
 class BenchStatus(ProtoStrEnum):
-    RESERVED = "RESERVED", 1
-    PREPARING = "PREPARING", 2
+    PREPARING = "PREPARING", 1
+    MIGRATING = "MIGRATING", 2
     AVAILABLE = "AVAILABLE", 3
-    MIGRATING = "MIGRATING", 4
 
 
 class BadgeType(ProtoStrEnum):
