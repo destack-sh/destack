@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -39,6 +46,13 @@ class ActionKind(betterproto.Enum):
     PAUSE = 41
     RESUME = 42
     KILL = 43
+
+
+class ActionKindGroup(betterproto.Enum):
+    UNSPECIFIED = 0
+    READ = 1
+    EDIT = 20
+    RUN = 40
 
 
 class AggregationOp(betterproto.Enum):
@@ -411,14 +425,6 @@ class ReadKind(betterproto.Enum):
     AGGREGATE_BUCKET = 4
 
 
-class RichTextFlag(betterproto.Enum):
-    NONE = 0
-    BOLD = 1
-    ITALIC = 2
-    UNDERLINE = 4
-    STRIKETHROUGH = 8
-
-
 class RunErrorKind(betterproto.Enum):
     UNSPECIFIED = 0
     Internal = 1
@@ -732,16 +738,12 @@ class PolicyRuleData(betterproto.Message):
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    subject_is_system: bool = betterproto.bool_field(30)
-    subject_is_owner: bool = betterproto.bool_field(31)
-    subject_is_authenticated: bool = betterproto.bool_field(32)
-    subject_users_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
+    subject_is_owner: bool = betterproto.bool_field(30)
+    subject_is_authenticated: bool = betterproto.bool_field(31)
     effect: "PolicyEffect" = betterproto.enum_field(40)
     verb: List["ActionKind"] = betterproto.enum_field(41)
     object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(51)
-    object_properties: List["PropertyReferenceData"] = betterproto.message_field(52)
-    condition: Optional["ExpressionData"] = betterproto.message_field(60, optional=True)
+    object_properties: List["PropertyReferenceData"] = betterproto.message_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -772,15 +774,11 @@ class RequestContextData(betterproto.Message):
     """The context of a request for evaluating a policy."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    subject_is_system: bool = betterproto.bool_field(30)
-    subject_is_owner: bool = betterproto.bool_field(31)
-    subject_is_authenticated: bool = betterproto.bool_field(32)
-    subject_user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    subject_worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    subject_is_owner: bool = betterproto.bool_field(30)
+    subject_is_authenticated: bool = betterproto.bool_field(31)
     verbs: List["ActionKind"] = betterproto.enum_field(41)
     object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(51)
-    object_properties: List["PropertyReferenceData"] = betterproto.message_field(52)
+    object_properties: List["PropertyReferenceData"] = betterproto.message_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -798,16 +796,19 @@ class RichTextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RichTextSpanData(betterproto.Message):
     """
-    RichTextSpan(text: str = '', flags: bench.language.const.RichTextFlag =
-    <RichTextFlag.NONE: 0>, reference: bench.language.node.Node | None = None,
-    reference_ptr: 'NodeReference' = None, _status:
-    bench.language.const.NodeStatus = None)
+    RichTextSpan(text: str = '', reference: bench.language.node.Node | None =
+    None, is_bold: bool = False, is_italic: bool = False, is_underline: bool =
+    False, is_strikethrough: bool = False, reference_ptr: 'NodeReference' =
+    None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     text: str = betterproto.string_field(30)
-    flags: int = betterproto.int64_field(31)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    is_bold: bool = betterproto.bool_field(33)
+    is_italic: bool = betterproto.bool_field(34)
+    is_underline: bool = betterproto.bool_field(35)
+    is_strikethrough: bool = betterproto.bool_field(36)
 
 
 @dataclass(eq=False, repr=False)
@@ -1043,11 +1044,12 @@ class ClientData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    name: Optional[str] = betterproto.string_field(30, optional=True)
-    device_name: str = betterproto.string_field(31)
-    browser_name: Optional[str] = betterproto.string_field(32, optional=True)
-    last_seen_at: datetime = betterproto.message_field(33)
-    access_token: Optional[str] = betterproto.string_field(34, optional=True)
+    name: Optional[str] = betterproto.string_field(31, optional=True)
+    device_name: str = betterproto.string_field(32)
+    browser_name: Optional[str] = betterproto.string_field(33, optional=True)
+    last_seen_at: datetime = betterproto.message_field(34)
+    logged_in_at: Optional[datetime] = betterproto.message_field(35, optional=True)
+    access_token: Optional[str] = betterproto.string_field(36, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1524,29 +1526,29 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    client: "ClientData" = betterproto.message_field(1, group="node")
-    issue: "IssueData" = betterproto.message_field(2, group="node")
-    trigger: "TriggerData" = betterproto.message_field(3, group="node")
-    package: "PackageData" = betterproto.message_field(4, group="node")
-    field: "FieldData" = betterproto.message_field(5, group="node")
-    run: "RunData" = betterproto.message_field(6, group="node")
-    pause: "PauseData" = betterproto.message_field(7, group="node")
-    notification: "NotificationData" = betterproto.message_field(8, group="node")
-    bench: "BenchData" = betterproto.message_field(9, group="node")
-    query: "QueryData" = betterproto.message_field(10, group="node")
-    record: "RecordData" = betterproto.message_field(11, group="node")
-    user: "UserData" = betterproto.message_field(12, group="node")
-    worker: "WorkerData" = betterproto.message_field(13, group="node")
-    link: "LinkData" = betterproto.message_field(14, group="node")
-    session: "SessionData" = betterproto.message_field(15, group="node")
-    badge: "BadgeData" = betterproto.message_field(16, group="node")
-    signal: "SignalData" = betterproto.message_field(17, group="node")
+    bench: "BenchData" = betterproto.message_field(1, group="node")
+    package: "PackageData" = betterproto.message_field(2, group="node")
+    block: "BlockData" = betterproto.message_field(3, group="node")
+    trigger: "TriggerData" = betterproto.message_field(4, group="node")
+    tagging: "TaggingData" = betterproto.message_field(5, group="node")
+    field: "FieldData" = betterproto.message_field(6, group="node")
+    record: "RecordData" = betterproto.message_field(7, group="node")
+    query: "QueryData" = betterproto.message_field(8, group="node")
+    issue: "IssueData" = betterproto.message_field(9, group="node")
+    link: "LinkData" = betterproto.message_field(10, group="node")
+    session: "SessionData" = betterproto.message_field(11, group="node")
+    run: "RunData" = betterproto.message_field(12, group="node")
+    pause: "PauseData" = betterproto.message_field(13, group="node")
+    signal: "SignalData" = betterproto.message_field(14, group="node")
+    badge: "BadgeData" = betterproto.message_field(15, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
+    worker: "WorkerData" = betterproto.message_field(17, group="node")
     bucket_object: "BucketObjectData" = betterproto.message_field(18, group="node")
     handle: "HandleData" = betterproto.message_field(19, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(20, group="node")
+    user: "UserData" = betterproto.message_field(20, group="node")
     organization: "OrganizationData" = betterproto.message_field(21, group="node")
-    block: "BlockData" = betterproto.message_field(22, group="node")
-    tagging: "TaggingData" = betterproto.message_field(23, group="node")
+    client: "ClientData" = betterproto.message_field(22, group="node")
+    notification: "NotificationData" = betterproto.message_field(23, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3075,59 +3077,59 @@ class WorkerProcessBase(ServiceBase):
         }
 
 
-from typing import Union  # noqa
-
 import bench.proto.monkey  # noqa
 
+from typing import Union  # noqa
+
 AnyNodeData = Union[
-    ClientData,
-    IssueData,
-    TriggerData,
-    PackageData,
-    FieldData,
-    RunData,
-    PauseData,
-    NotificationData,
-    BenchData,
-    QueryData,
-    RecordData,
-    UserData,
-    WorkerData,
-    LinkData,
-    SessionData,
-    BadgeData,
-    SignalData,
-    BucketObjectData,
-    HandleData,
     WorkerSetData,
+    PauseData,
+    RunData,
+    BadgeData,
+    TriggerData,
+    IssueData,
+    BucketObjectData,
+    SignalData,
     OrganizationData,
-    BlockData,
+    PackageData,
+    RecordData,
     TaggingData,
+    WorkerData,
+    QueryData,
+    FieldData,
+    SessionData,
+    ClientData,
+    BenchData,
+    NotificationData,
+    BlockData,
+    LinkData,
+    HandleData,
+    UserData,
 ]
 AnyStructData = Union[
-    RichTextData,
-    LogEntryData,
-    PolicyData,
-    BenchPathData,
-    RichTextSpanData,
-    IconData,
-    FileData,
-    AggregationData,
-    DependencyData,
-    PropertyPathData,
-    NodeReferenceData,
-    PropertyReferenceData,
-    FieldPathSegmentData,
-    RunCodeFrameData,
-    AggregationBucketData,
     FieldPathData,
-    RunErrorData,
-    ValueReferenceData,
+    FileData,
+    BenchPathData,
+    RunCodeFrameData,
+    NodeReferenceData,
+    RichTextData,
+    PolicyData,
     PolicyRuleData,
-    RequestContextData,
+    DependencyData,
+    RichTextSpanData,
     TypeInfoData,
     WorkerImageData,
+    FieldPathSegmentData,
     ExpressionData,
+    PropertyPathData,
+    PropertyReferenceData,
+    LogEntryData,
+    AggregationData,
+    IconData,
+    ValueReferenceData,
+    RunErrorData,
+    AggregationBucketData,
+    RequestContextData,
 ]
 
-VERSION = "2024.01.29.0"
+VERSION = "2024.01.29.1"

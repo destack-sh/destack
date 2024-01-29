@@ -566,6 +566,7 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
         if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
             value = Jsonb(value)  # adapt json
+        original_value = value
         # first to bytea
         if column._unencrypted_type == PrimitiveType.BYTES:
             value = sql.SQL("{}::bytea").format(value)
@@ -578,6 +579,10 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
         value = sql.SQL("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
             sql_node_to_sql(value)
         )
+        # bail if original value is null
+        # value = sql.SQL("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+        #     sql_node_to_sql(original_value), value
+        # )
         return value
     else:
         return value
@@ -586,6 +591,7 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
 def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        original = value
         # first decrypt with pgp_sym_decrypt_bytea
         value = sql.SQL("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
             sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
@@ -598,6 +604,11 @@ def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
             value = sql.SQL("convert_from({}::bytea, 'UTF8')::text::{}").format(
                 value, sql.SQL(cast)
             )
+        # and bail if original value is null
+        value = sql.SQL("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+            sql_node_to_sql(original), value
+        )
+        # and label column
         value = sql.SQL("{} as {}").format(value, sql.Identifier(column.name))
         return value
     else:
@@ -608,10 +619,12 @@ def _pg_adapt_row(table: Table, row: Mapping[str, any]) -> Mapping[str, any]:
     """Adapts and wraps any values"""
     wrapped = {}
     for column in table.columns:
+        if column.name not in row:
+            continue
         value = row.get(column.name)
         if value is None:
-            continue
-        if column.underlying_type == PrimitiveType.JSON:
+            pass
+        elif column.underlying_type == PrimitiveType.JSON:
             if column.is_array:
                 value = [Jsonb(v) for v in value]
             else:
@@ -969,12 +982,12 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.is_struct:
         value = value.to_robust_dict(prop.struct_type)
         return wiring.pack_json_value(value)
+    elif prop.is_enum:
+        return value.value
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
         return Jsonb(wiring.unpack_json_value(value))
-    elif prop.is_enum:
-        return value.value
     else:
         return value
 
@@ -988,6 +1001,8 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
         value = wiring.unpack_json_value(value)
         return proto_cls().from_robust_dict(value, prop.struct_type)
+    elif prop.is_enum:
+        return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
     elif prop.primitive_type == PrimitiveType.DATETIME:
         if value.tzinfo is None:
             return value.replace(tzinfo=pytz.utc)
@@ -997,8 +1012,6 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.pack_json_value(value)
-    elif prop.is_enum:
-        return prop.py_type_stripped(value)
     else:
         return value
 
@@ -1034,7 +1047,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
-        data = proto_cls(metatype=node_cls.metatype)
+        data = proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
         for prop in node_cls.__stored_properties__.values():
             value = row.get(prop.name)
             if value is None:
@@ -1124,9 +1137,10 @@ async def pg_read_node_data_tree(
     descendant_types: tuple[NodeType, ...] | None = None,
     global_filter: Expression = DEFAULT_GLOBAL_FILTER,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
+    _tree: NodeDataTree | None = None,
 ) -> NodeDataTree | None:
-    """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""
-    visited_tree = NodeDataTree()
+    """Reads 'regular' nodes from the given PG database. Returns a tree of nodes."""
+    visited_tree = _tree if _tree is not None else NodeDataTree()
 
     # select "roots"
     roots = await pg_select_nodes_data(

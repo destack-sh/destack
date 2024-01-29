@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from dataclasses import replace
 
 import grpclib
 import pytest
@@ -13,6 +14,7 @@ from bench.proto.wire import (
     ReadNodesRequest,
     ReadNodesOptions,
     RpcMetadata,
+    LogoutUserRequest,
 )
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
@@ -83,10 +85,15 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
         client_token=login_rep.access_token,
     )
     await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
-    # nocheckin ...
 
     # logout, invalid token -> fail
+    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+        bad_access_metadata = replace(access_metadata, client_token="bad")
+        _ = await supervisor.logout_user(LogoutUserRequest(), bad_access_metadata.to_headers())
 
     # logout, valid token -> success
+    await supervisor.logout_user(LogoutUserRequest(), access_metadata.to_headers())
 
     # read user, logged out, "valid" (but expired) token -> fail
+    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+        _ = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())

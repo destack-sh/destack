@@ -29,11 +29,12 @@ _TEST_TYPES = (
     PrimitiveType.JSON,
     PrimitiveType.BYTES,
 )
-_MINI_TABLE = Table(
+_MINI_REGULAR_TABLE = Table(
     "_test_mini_table",
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
         Column("foo", PrimitiveType.STRING),
+        Column("foo_n", PrimitiveType.STRING, is_nullable=True),
     ),
 )
 _REGULAR_TABLE = Table(
@@ -41,7 +42,16 @@ _REGULAR_TABLE = Table(
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
         *(Column(f"regular_{t.name.lower()}", t) for t in _TEST_TYPES),
-        *(Column(f"regular_{t.name.lower()}a", t, is_array=True) for t in _TEST_TYPES),
+        *(Column(f"regular_{t.name.lower()}_n", t, is_nullable=True) for t in _TEST_TYPES),
+        *(Column(f"regular_{t.name.lower()}_a", t, is_array=True) for t in _TEST_TYPES),
+    ),
+)
+_MINI_ENCRYPTED_TABLE = Table(
+    "_test_mini_encrypted_table",
+    columns=(
+        Column("id", PrimitiveType.INT32, is_primary_key=True),
+        Column("secret", PrimitiveType.STRING, is_encrypted=True),
+        Column("secret_n", PrimitiveType.STRING, is_encrypted=True, is_nullable=True),
     ),
 )
 _ENCRYPTED_TABLE = Table(
@@ -49,9 +59,13 @@ _ENCRYPTED_TABLE = Table(
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
         *(Column(f"secret_{t.name.lower()}", t, is_encrypted=True) for t in _TEST_TYPES),
+        *(
+            Column(f"secret_{t.name.lower()}_n", t, is_encrypted=True, is_nullable=True)
+            for t in _TEST_TYPES
+        ),
     ),
 )
-_TEST_TABLES = [_MINI_TABLE, _REGULAR_TABLE, _ENCRYPTED_TABLE]
+_TEST_TABLES = [_MINI_REGULAR_TABLE, _REGULAR_TABLE, _MINI_ENCRYPTED_TABLE, _ENCRYPTED_TABLE]
 
 COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
     PrimitiveType.BOOLEAN: lambda: random.choice((True, False)),
@@ -77,7 +91,9 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
         for column in table.columns:
             if column.is_primary_key:
                 continue
-            if column.is_array:
+            elif column.is_nullable and random.random() < 0.5:
+                row[column.name] = None
+            elif column.is_array:
                 row[column.name] = [
                     COLUMN_VALUE_GENERATORS[column.underlying_type]() for _ in range(0, 3)
                 ]
@@ -120,8 +136,8 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
     # update with fixed values
     static_value = {
         column.name: COLUMN_VALUE_GENERATORS[column.underlying_type]()
-        for column in table.columns
-        if not column.is_primary_key and not column.is_array and random.random() < 0.5
+        for i, column in enumerate(table.columns)
+        if not column.is_primary_key and not column.is_array and i % 2 == 0
     }
     target_rows = [{**row, **static_value} for row in target_rows]
     db_rows = await pg_update_static(

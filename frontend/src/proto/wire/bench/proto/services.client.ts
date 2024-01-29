@@ -67,7 +67,7 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * Frontend connects to this directly.
  *
  *
- * User
+ * User management
  *
  *
  * @generated from protobuf service symbolx.bench.GlobalSupervisor
@@ -91,6 +91,10 @@ export interface IGlobalSupervisorClient {
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */
     logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
+    // 
+    // Bench management
+    // 
+
     /**
      * Create a Bench.
      *
@@ -154,7 +158,7 @@ export interface IGlobalSupervisorClient {
  * Frontend connects to this directly.
  *
  *
- * User
+ * User management
  *
  *
  * @generated from protobuf service symbolx.bench.GlobalSupervisor
@@ -192,6 +196,10 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         const method = this.methods[2], opt = this._transport.mergeOptions(options);
         return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
     }
+    // 
+    // Bench management
+    // 
+
     /**
      * Create a Bench.
      *

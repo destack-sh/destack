@@ -1,7 +1,7 @@
 import enum
 from collections import OrderedDict
 from copy import copy
-from typing import Any, Union, cast
+from typing import Any, Union, cast, TypeVar
 from uuid import UUID
 
 import betterproto
@@ -42,8 +42,13 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[
     type[Union[AnyNodeData, AnyStructData]], type[Union[Node, Struct]]
 ] = {cls: BENCH_CLASS_BY_TYPE[bench_type] for cls, bench_type in BENCH_TYPE_BY_PROTO_CLASS.items()}
 
+NodeT = TypeVar("NodeT", bound=Node)
+NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
+StructT = TypeVar("StructT", bound=Struct)
+StructDataT = TypeVar("StructDataT", bound=AnyStructData)
 
-def copy_struct_data(data: AnyStructData) -> AnyStructData:
+
+def copy_struct_data(data: StructDataT) -> StructDataT:
     """Deepcopy a struct data object."""
     data_cls = PROTO_CLASS_BY_TYPE[data.metatype.name]
     bench_cls = BENCH_CLASS_BY_TYPE[data.metatype.name]
@@ -79,6 +84,23 @@ def unpack_json_value(value: BetterprotoStruct) -> dict:
     return value.to_dict()
 
 
+def pack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
+    if issubclass(enum_cls, enum.IntFlag):
+        return int(value)
+    else:
+        proto_enum_cls = getattr(wire, enum_cls.__name__)
+        return proto_enum_cls[value.name]
+
+
+def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
+    if issubclass(enum_cls, int):
+        return enum_cls(value)
+    elif type(value) == str:  # noqa
+        return enum_cls(value)
+    else:
+        return enum_cls[value.name]
+
+
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
@@ -101,14 +123,6 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return BetterprotoStruct.from_dict(value)
     else:
         return value
-
-
-def pack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
-    if issubclass(enum_cls, enum.IntFlag):
-        return int(value)
-    else:
-        proto_enum_cls = getattr(wire, enum_cls.__name__)
-        return proto_enum_cls[value.name]
 
 
 def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -139,19 +153,11 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
-def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
-    if issubclass(enum_cls, int):
-        return enum_cls(value)
-    elif type(value) == str:  # noqa
-        return enum_cls(value)
-    else:
-        return enum_cls[value.name]
-
-
-def pack_struct(struct: Struct) -> AnyStructData:
+def pack_struct(struct: StructT) -> StructDataT:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
-    data = data_cls()
+    metatype = pack_enum(BenchType, struct.metatype)
+    data = data_cls(metatype=metatype)
     try:
         for prop in struct.__wired_properties__.values():
             value = getattr(struct, prop.name)
@@ -162,13 +168,13 @@ def pack_struct(struct: Struct) -> AnyStructData:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
 
-def pack_struct_maybe(struct: Struct | None) -> AnyStructData | None:
+def pack_struct_maybe(struct: StructT | None) -> StructDataT | None:
     if struct is None:
         return None
     return pack_struct(struct)
 
 
-def unpack_struct(struct_data: AnyStructData) -> Struct:
+def unpack_struct(struct_data: StructDataT) -> StructT:
     """Unpack a struct and any contained structs."""
     struct_cls = BENCH_CLASS_BY_TYPE[BenchType(struct_data.metatype.name)]
     struct_kwargs = {}
@@ -183,23 +189,23 @@ def unpack_struct(struct_data: AnyStructData) -> Struct:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
 
-def unpack_struct_maybe(struct_data: AnyStructData | None) -> Struct | None:
+def unpack_struct_maybe(struct_data: StructDataT | None) -> StructT | None:
     if struct_data is None:
         return None
     return unpack_struct(struct_data)
 
 
-def pack_node(node: Node) -> AnyNodeData:
+def pack_node(node: NodeT) -> NodeDataT:
     return cast(AnyNodeData, pack_struct(node))
 
 
-def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
+def pack_node_maybe(node: NodeT | None) -> NodeDataT | None:
     if node is None:
         return None
     return pack_node(node)
 
 
-def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | None) -> Node:
+def unpack_node(node_data: NodeDataT, parent: Node | None, session: Session | None) -> NodeT:
     node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:
@@ -215,7 +221,7 @@ def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | 
 
 def pack_node_inline(
     root: Node, exclude: set[NodeType] = None
-) -> tuple[AnyNodeData, list[AnyNodeData]]:
+) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its inline descendants"""
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
@@ -235,7 +241,7 @@ def unpack_node_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
-) -> Node:
+) -> NodeT:
     """Unpack a node and all its inline descendants"""
     exclude = exclude or tuple()
     unpacked_tree = NodeTree()
@@ -286,7 +292,7 @@ def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     return wrapper
 
 
-def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
+def unwrap_some_node(node: wire.SomeNodeData) -> NodeDataT:
     """Unwraps a generic node type into a concrete node type."""
     _, wrapped_node = betterproto.which_one_of(node, "node")
     assert wrapped_node is not None, f"node not set in {node!r}"

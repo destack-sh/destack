@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple, Optional, Union
 from uuid import UUID
 
-from bench.language.const import NodeType, RichTextFlag, StructType
+from bench.language.const import NodeType, StructType
 from bench.language.node import (
     LINK_TARGET_NODE_TYPES,
     Node,
@@ -217,10 +217,13 @@ class RichText(Struct):
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
     text: str = struct_property(30, default="")
-    flags: RichTextFlag = struct_property(31, default=RichTextFlag.NONE)
     reference: Node | None = struct_property(
         32, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
+    is_bold: bool = struct_property(33, default=False)
+    is_italic: bool = struct_property(34, default=False)
+    is_underline: bool = struct_property(35, default=False)
+    is_strikethrough: bool = struct_property(36, default=False)
 
     def __content_str__(self):
         return self.text

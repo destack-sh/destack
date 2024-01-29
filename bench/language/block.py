@@ -155,7 +155,13 @@ class Block(ScopeNode, HasTags):
         44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     secret_value_packed: Any | None = struct_internal(
-        45, default=None, encrypt=True, defer=True, copy=deepcopy, primitive_type=PrimitiveType.JSON
+        45,
+        default=None,
+        encrypt=True,
+        defer=True,
+        sensitive=True,
+        copy=deepcopy,
+        primitive_type=PrimitiveType.JSON,
     )
     # primary_screen: Optional["Block"] = struct_internal(
     #     46, require=False, array=False, references=NodeType.BLOCK
