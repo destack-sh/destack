@@ -15,12 +15,21 @@ from bench.language.const import (
     SortOp,
     StructType,
 )
-from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
+from bench.language.node import (
+    BENCH_CLASS_BY_TYPE,
+    Node,
+    Property,
+    Struct,
+    node,
+    node_parent,
+    struct,
+    struct_property,
+)
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Field, TypeInfo
+    from bench.language import Block, Field, TypeInfo
     from bench.language.field import HasFields
 
 
@@ -465,7 +474,7 @@ def _check_field_supports(type: "TypeInfo", op: ExpressionOp):
         if op not in _ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
             type.primitive_type, _EMPTY_SET
         ):
-            raise UnsupportedExpressionError(field, op)
+            raise UnsupportedExpressionError(type, op)
 
 
 # should probably also have expression support per query engine?
@@ -485,3 +494,28 @@ SUPPORTED_OPS_BY_TYPE: dict[PrimitiveType, set[ConditionalOp]] = {
     | {ConditionalOp.MATCHES, ConditionalOp.STARTS_WITH, ConditionalOp.REGEX},
 }
 _EMPTY_SET = set()
+
+
+#
+# Queries
+#
+
+
+@node(NodeType.QUERY)
+class Query(Node):
+    """A persistent query."""
+
+    parent: Union["Block"] = node_parent(4, NodeType.BLOCK)
+    name: str | None = struct_property(30, default=None)
+    order_key: str | None = struct_property(31, default=None)
+    node_type: NodeType = struct_property(32)
+    bases: list["Block"] | None = struct_property(
+        33, array=True, require=False, default=None, references=NodeType.BLOCK
+    )
+    filter: Optional[Expression] = struct_property(34, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list[Expression]] = struct_property(
+        35, default=None, struct=StructType.EXPRESSION
+    )
+
+    def __content_str__(self):
+        return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"

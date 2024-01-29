@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.28.0"
+VERSION = "2024.01.29.0"
 
 
 #
@@ -41,8 +41,8 @@ class NodeType(ProtoStrEnum):
     TAGGING = "TAGGING", 23
     FIELD = "FIELD", 24
     RECORD = "RECORD", 25  # (local)
-    VIEW = "VIEW", 26
-    # TILE = "TILE", 27
+    QUERY = "QUERY", 26
+    # VIEW = "VIEW", 27
     # STEP = "STEP", 28
     ISSUE = "ISSUE", 29
     LINK = "LINK", 30
@@ -122,7 +122,7 @@ class StructType(ProtoStrEnum):
     RICH_TEXT = "RICH_TEXT", 300
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
-    # tiles
+    # views
     # ...
 
     # shapes
@@ -175,9 +175,9 @@ class BlockType(ProtoStrEnum):
     FLOW = "flow", 33  # define a flow with steps and fields (optionally incl. input/output)
     MODEL = "model", 34  # define a model 'function' with input/output fields (incl. input/output)
 
-    VIEW = "view", 40  # define a set of views
-    DATABASE = "database", 41  # define a database with views
-    SCREEN = "screen", 42  # define a screen with tiles
+    QUERY = "query", 40  # define a set of queries
+    DATABASE = "database", 41  # define a database with queries
+    SCREEN = "screen", 42  # define a screen with views
 
     # ROLE = "role", 50  # define a role with policies
     # IDENTITY = "identity", 51  # define an identity with roles
@@ -376,9 +376,9 @@ class PrimitiveType(ProtoStrEnum):
     BOOLEAN = "Boolean", 1
     INT32 = "Int32", 2  # range: -2147483648 to 2147483647
     INT64 = "Int64", 3  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT32 = "Float32", 4
-    FLOAT64 = "Float64", 5
-    DECIMAL = "Decimal", 6
+    FLOAT32 = "Float32", 4  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = "Float64", 5  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    DECIMAL = "Decimal", 6  # numeric(precision, scale)
     STRING = "String", 7
     DATETIME = "DateTime", 8
     INTERVAL = "Interval", 9

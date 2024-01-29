@@ -7,7 +7,6 @@ from itertools import chain
 from typing import (
     Any,
     Collection,
-    Iterable,
     Mapping,
     NamedTuple,
     Optional,
@@ -26,7 +25,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
-from bench.language.const import NODE_TYPES, EditKind, NodeType, SortOp, BenchError
+from bench.language.const import NODE_TYPES, BenchError, EditKind, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -49,7 +48,12 @@ from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
-from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
+from bench.sql.client import (
+    GLOBAL_PG_CRYPTO_KEY,
+    UNIVERSAL_RO_PASSWORD,
+    UNIVERSAL_RO_USERNAME,
+    async_pg_cursor,
+)
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
@@ -71,7 +75,7 @@ from bench.utils.utils import IS_DEBUG, IS_LOCAL, IS_TEST
 
 logger = structlog.get_logger(__name__)
 
-CAST_TYPE_BY_STORAGE_FORMAT: dict[PrimitiveType, str] = {
+PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
     PrimitiveType.BOOLEAN: "boolean",
     PrimitiveType.INT32: "int",
     PrimitiveType.INT64: "bigint",
@@ -418,7 +422,7 @@ def compile_pg_conditional(
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_expression_ref(node, cond)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
-            pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
+            pg_type = PG_CAST_PRIMITIVE_TYPE[cond.field._storage_format]
             left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
         # map IN to ANY() construct (IN/NOT IN doesn't work in psycopg)
         if cond.op in (ConditionalOp.IN, ConditionalOp.NOT_IN):
@@ -531,7 +535,7 @@ RowIn = dict[str, SqlPrimitive | SqlExpression]
 RowOut = dict[str, SqlPrimitive]
 
 
-def _wrap_pg_error(resource: Any, e: psycopg.errors.Error) -> Exception:
+def _pg_wrap_error(resource: Any, e: psycopg.errors.Error) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
         wrapped_t = SqlUndefinedObjectError
     elif isinstance(e, (psycopg.errors.UniqueViolation,)):
@@ -555,18 +559,71 @@ async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list
     return await cur.fetchall()
 
 
-def _pg_wrap_write(column: Column, sql: SqlNode) -> SqlNode:
+def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
-        return sql  # nocheckin column encrypt
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
+            value = Jsonb(value)  # adapt json
+        # first to bytea
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sql.SQL("{}::bytea").format(value)
+        elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
+            value = sql.SQL("convert_to({}::text, 'UTF8')").format(value)
+        else:
+            cast = PG_CAST_PRIMITIVE_TYPE[column._unencrypted_type]
+            value = sql.SQL("{}::{}::text::bytea").format(value, sql.SQL(cast))
+        # then encrypt with pgp_sym_encrypt
+        # nocheckin: move pgcrypto key to (named) parameter
+        value = sql.SQL("pgp_sym_encrypt_bytea({}, {}::text)").format(
+            sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
+        )
+        return value
     else:
-        return sql
+        return value
 
 
-def _pg_wrap_read(column: Column, sql: SqlNode) -> SqlNode:
+def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
-        return sql  # nocheckin column decrypt
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        # first decrypt with pgp_sym_decrypt
+        # nocheckin: move pgcrypto key to (named) parameter
+        value = sql.SQL("pgp_sym_decrypt_bytea({}, {}::text)").format(
+            sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
+        )
+        # then cast to the correct type
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sql.SQL("{}::bytea").format(value)
+        else:
+            cast = PG_CAST_PRIMITIVE_TYPE[column._unencrypted_type]
+            value = sql.SQL("convert_from({}::bytea, 'UTF8')::text::{}").format(
+                value, sql.SQL(cast)
+            )
+        value = sql.SQL("{} as {}").format(value, sql.Identifier(column.name))
+        return value
     else:
-        return sql
+        return value
+
+
+def _pg_adapt_row(table: Table, row: Mapping[str, any]) -> Mapping[str, any]:
+    """Adapts and wraps any values"""
+    wrapped = {}
+    for column in table.columns:
+        value = row.get(column.name)
+        if value is None:
+            continue
+        if column.underlying_type == PrimitiveType.JSON:
+            if column.is_array:
+                value = [Jsonb(v) for v in value]
+            else:
+                value = Jsonb(value)
+        wrapped[column.name] = value
+    return wrapped
+
+
+def _pg_adapt_rows(
+    table: Table, rows: tuple[Mapping[str, any], ...]
+) -> tuple[Mapping[str, any], ...]:
+    return tuple(_pg_adapt_row(table, row) for row in rows)
 
 
 async def pg_select(
@@ -596,7 +653,7 @@ async def pg_select(
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     return await cur.fetchall()
 
 
@@ -610,7 +667,7 @@ def _pg_select_sql(
     skip: int | None = None,
 ):
     statement = sql.SQL("SELECT {fields} FROM {table}").format(
-        fields=sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in columns),
+        fields=sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in columns),
         table=sql.Identifier(table.name),
     )
     if joins:
@@ -642,7 +699,7 @@ async def pg_count(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     return (await cur.fetchone())["count"]
 
 
@@ -666,7 +723,7 @@ async def pg_exists(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     return (await cur.fetchone())["exists"]
 
 
@@ -677,11 +734,11 @@ async def pg_insert(
     *,
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
-    """Inserts into the given table."""
+    """Inserts into the given table. Expects rows to be adapted and wrapped."""
     statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ".join(_pg_wrap_write(c, "%s") for c in table.columns)),
+        values=sql.SQL(", ").join(_pg_wrap_write_column(c, sql.SQL("%s")) for c in table.columns),
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
@@ -692,7 +749,7 @@ async def pg_insert(
     try:
         await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -707,7 +764,7 @@ async def pg_upsert(
     update_values: RowIn | None = None,
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
-    """Upserts into the given table."""
+    """Upserts into the given table. Expect rows to be adapted and wrapped."""
     if conflict_columns is None:
         conflict_columns = (table._primary_key,)
     if update_columns is None:
@@ -734,20 +791,20 @@ async def pg_upsert(
     ).format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ".join(_pg_wrap_write(c, "%s") for c in table.columns)),
+        values=sql.SQL(", ").join(_pg_wrap_write_column(c, sql.SQL("%s")) for c in table.columns),
         conflict=sql.SQL(", ").join(sql.Identifier(c.name) for c in conflict_columns),
         updates=sql.SQL(", ").join(chain(static_update, dynamic_update)),
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
     try:
         await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -760,12 +817,13 @@ async def pg_update_static(
     static_value: RowIn,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table with static values."""
+    """Updates the given table with static values. Expects values to be adapted and wrapped."""
     statement = sql.SQL("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
         values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(
-                sql.Identifier(k), _pg_wrap_write(table._columns_by_name[k], sql_node_to_sql(v))
+                sql.Identifier(k),
+                _pg_wrap_write_column(table._columns_by_name[k], sql_node_to_sql(v)),
             )
             for k, v in static_value.items()
         ),
@@ -774,13 +832,13 @@ async def pg_update_static(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(_pg_wrap_read(c, sql.Identifier(c.name)) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
     logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -789,25 +847,28 @@ async def pg_update_dynamic(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
-    static_values: RowIn,
-    dynamic_columns: Iterable[Column],
-    dynamic_values: Iterable[RowIn],
+    dynamic_columns: Collection[Column],
+    dynamic_values: Collection[RowIn],
+    static_values: RowIn = None,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table with a list of values (corresponding to rows)."""
-    assert not any(
-        c.is_primary_key for c in dynamic_columns
-    ), f"{table!r} primary key not in {dynamic_columns!r}"
+    """Updates the given table with a list of values (corresponding to rows). Expects values to be adapted and wrapped."""
+    if not any(c.is_primary_key for c in dynamic_columns):
+        raise ValueError(
+            f"dynamic_columns {dynamic_columns!r} do not contain {table._primary_key!r}"
+        )
+
     table_name = sql.Identifier(table.name)
+    static_values = static_values or {}
     # join fixed and dynamic values
     static_values_sql = (
         sql.SQL("{} = {}").format(
-            sql.Identifier(k), _pg_wrap_write(table._columns_by_name[k], sql_node_to_sql(v))
+            sql.Identifier(k), _pg_wrap_write_column(table._columns_by_name[k], v)
         )
         for k, v in static_values.items()
     )
     dynamic_values_sql = (
-        sql.SQL("{} = %s").format(_pg_wrap_write(c, sql.Identifier(c.name)))
+        sql.SQL("{} = {}").format(sql.Identifier(c.name), _pg_wrap_write_column(c, sql.SQL("%s")))
         for c in dynamic_columns
     )
     values_sql = sql.SQL(", ").join(
@@ -819,7 +880,8 @@ async def pg_update_dynamic(
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(
-                sql.SQL("{}").format(_pg_wrap_read(c, sql.Identifier(c.name))) for c in returning
+                sql.SQL("{}").format(_pg_wrap_read_column(c, sql.Identifier(c.name)))
+                for c in returning
             )
         )
     logger.debug(
@@ -835,7 +897,7 @@ async def pg_update_dynamic(
     try:
         await cur.executemany(statement, dynamic_values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -862,7 +924,7 @@ async def pg_delete(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, e) from e
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -892,7 +954,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return wiring.unpack_json_value(value)
+        return Jsonb(wiring.unpack_json_value(value))
     elif prop.is_enum:
         return value.value
     else:
@@ -1594,11 +1656,9 @@ def pg_pack_record_data_row(database: Block, record: wire.RecordData) -> RowIn:
         "id": record.id,
         "ck": record.ck,
         "created_at": record.created_at,
-        "created_by_id": None,
         "updated_at": record.updated_at,
         "deleted_at": record.deleted_at,
         "last_edited_at": record.last_edited_at,
-        "last_edited_by_id": None,
         "revision": record.revision,
         "block_key": database.dynamic_key,
     }

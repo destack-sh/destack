@@ -17,7 +17,6 @@ from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
 from bench.language.session import Run
-from bench.language.text import Text, render_text_simple
 from bench.utils.func import describe_type
 from bench.utils.utils import format_python, omit_empty
 

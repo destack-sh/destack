@@ -103,7 +103,7 @@ _block(BlockType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _block(BlockType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
-_block(BlockType.VIEW, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.QUERY, (HasFields,), IdentT.VARIABLE)
 _block(BlockType.SCREEN, (), IdentT.VARIABLE)
 
 assert len(_BLOCK_DESCRIPTORS) == len(BlockType), "missing block descriptors"

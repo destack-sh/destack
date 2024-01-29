@@ -58,7 +58,7 @@ from bench.utils.utils import IS_DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Policy, Record, Trigger, Worker
+    from bench.language import Block, Record, Trigger, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)

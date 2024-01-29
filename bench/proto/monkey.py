@@ -79,7 +79,7 @@ class _PatchedMessage(BetterprotoMessage):
         # we assume this is only called for Bench types, so a bench class must exist
         struct_cls = BENCH_CLASS_BY_PROTO_CLASS[self.__class__]
         output: dict[str, Any] = {}
-        field_types = self._type_hints()
+        self._type_hints()
         defaults = self._betterproto.default_gen
         for field_name, meta in self._betterproto.meta_by_field_name.items():
             field_is_repeated = defaults[field_name] is list

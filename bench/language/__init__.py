@@ -16,7 +16,15 @@ from .const import (
     TriggerType,
 )
 from .database import Record
-from .expression import A, C, E, Expression, NodeReference, PropertyReference, S
+from .expression import (
+    A,
+    C,
+    Expression,
+    NodeReference,
+    PropertyReference,
+    Query,
+    S,
+)
 from .field import Field, HasFields, TypeInfo
 from .file import File
 from .issue import Issue
@@ -38,7 +46,6 @@ from .signal import Signal
 from .tagging import Tagging
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
-from .view import View
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
@@ -94,7 +101,7 @@ __all__ = [
     "TypeInfo",
     "User",
     "VERSION",
-    "View",
+    "Query",
     "Worker",
     "WorkerImage",
     "WorkerSet",
