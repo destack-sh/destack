@@ -152,7 +152,7 @@ message PingWorkerSetResponse {
 // Frontend connects to this directly.
 service GlobalSupervisor {
   //
-  // User
+  // User management
   //
 
   // Create user account.
@@ -161,6 +161,11 @@ service GlobalSupervisor {
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
   // Logout user account.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+
+  //
+  // Bench management
+  //
+
   // Create a Bench.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 

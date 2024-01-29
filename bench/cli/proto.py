@@ -24,11 +24,13 @@ app = typer.Typer(short_help="proto management")
 
 def _generate_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
+    node_classes = list(NODE_CLASSES)
+    node_classes.sort(key=lambda cls: cls.metatype.id)
     proto = generate_proto_schema(
         name="symbolx.bench",
         bench_classes=[*FINAL_BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
-        unions={"SomeNode": ("node", NODE_CLASSES)},
+        unions={"SomeNode": ("node", node_classes)},
         extras=[
             Message(
                 name="PackageTreeData",

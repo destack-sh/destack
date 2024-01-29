@@ -23,7 +23,7 @@ from bench.language.node import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, User, Worker
+    from bench.language import Block
 
 
 @struct(StructType.POLICY)
@@ -47,34 +47,25 @@ class PolicyRule(Struct):
     """A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition]."""
 
     # subject
-    subject_is_system: bool = struct_internal(30, default=False)
-    subject_is_owner: bool = struct_internal(31, default=False)
-    subject_is_authenticated: bool = struct_internal(32, default=False)
-    subject_users: Optional[list["User"]] = struct_internal(
-        33, require=False, array=True, references=NodeType.USER
-    )
-    # subject_groups, subject_identities, subject_roles, ...
+    subject_is_owner: bool = struct_internal(30, default=False)
+    subject_is_authenticated: bool = struct_internal(31, default=False)
+    # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
     effect: PolicyEffect = struct_internal(40)
-    verb: Optional[list[ActionKind]] = struct_internal(41)
+    verb: list[ActionKind] = struct_internal(41)
 
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
-    object_nodes: list[Node] | None = struct_internal(
-        51, require=False, array=True, references=tuple(NodeType)
-    )
     object_properties: list[PropertyReference] | None = struct_internal(
-        52, require=False, array=True, struct_t=StructType.PROPERTY_REFERENCE
+        51, require=False, array=True, struct_t=StructType.PROPERTY_REFERENCE
     )
-    # object_fields: list["Field"] | None = struct_internal(
-    #     53, require=False, array=True, references=NodeType.FIELD
-    # )
+    # object_nodes, object_fields, ...
 
     # [condition]
-    condition: Optional["Expression"] = struct_internal(
-        60, default=None, struct_t=StructType.EXPRESSION
-    )
+    # condition: Optional["Expression"] = struct_internal(
+    #     60, default=None, struct_t=StructType.EXPRESSION
+    # )
 
 
 @struct(StructType.REQUEST_CONTEXT)
@@ -82,27 +73,23 @@ class RequestContext(Struct):
     """The context of a request for evaluating a policy."""
 
     # subject
-    subject_is_system: bool = struct_internal(30, default=False)
-    subject_is_owner: bool = struct_internal(31, default=False)
-    subject_is_authenticated: bool = struct_internal(32, default=False)
-    subject_user: Optional["User"] = struct_internal(
-        33, array=False, require=False, references=NodeType.USER
-    )
-    subject_worker: Optional["Worker"] = struct_internal(
-        34, array=False, require=False, references=NodeType.WORKER
-    )
+    subject_is_owner: bool = struct_internal(30, default=False)
+    subject_is_authenticated: bool = struct_internal(31, default=False)
+    subject_is_staff: bool = struct_internal(32, default=False)
+    # subject_user, subject_groups, subject_identities, subject_roles, ...
 
     # verb
     verbs: list[ActionKind] = struct_internal(41, default_factory=list)
 
     # object
     object_types: list[BenchType] = struct_internal(50, default_factory=list)
-    object_nodes: list[Node] | None = struct_internal(
-        51, array=True, require=False, default_factory=list, references=tuple(NodeType)
-    )
     object_properties: list[PropertyReference] | None = struct_internal(
-        52, default_factory=list, struct_t=StructType.PROPERTY_REFERENCE
+        51, default_factory=list, struct_t=StructType.PROPERTY_REFERENCE
     )
+    # object_nodes, object_fields, ...
+
+    # [condition]
+    # ... any extra values for evaluating the condition
 
 
 @node(NodeType.BADGE)
@@ -116,11 +103,19 @@ class Badge(Node):
     expires_at: Optional[datetime] = struct_internal(33, default=None)
     # sharing link badge
     link_token: Optional[UUID] = struct_internal(40, default=None)
-    link_password: Optional[str] = struct_internal(41, default=None, encrypt=True, defer=True)
-    link_password_digest: Optional[str] = struct_internal(42, default=None, encrypt=True)
+    link_password: Optional[str] = struct_internal(
+        41, default=None, encrypt=True, defer=True, sensitive=True
+    )
+    link_password_digest: Optional[str] = struct_internal(
+        42, default=None, encrypt=True, defer=True, sensitive=True
+    )
     # access key badge
-    key_value: Optional[str] = struct_internal(50, default=None, encrypt=True, defer=True)
-    key_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)
+    key_value: Optional[str] = struct_internal(
+        50, default=None, encrypt=True, defer=True, sensitive=True
+    )
+    key_value_digest: Optional[str] = struct_internal(
+        51, default=None, encrypt=True, defer=True, sensitive=True
+    )
 
 
 class AccessError(BenchError, ValueError):

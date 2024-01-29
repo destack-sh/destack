@@ -145,16 +145,17 @@ class Property(_TypeExpressionBase):
 
     is_array: bool = UNSET
     is_required: bool = False  # = must be non-null
-    is_internal: bool = False  # = not directly editable for user
+    is_internal: bool = False  # = not directly editable, only via accessors
     is_system: bool = False  # = only editable by system
     is_reflected: bool = UNSET  # eventually all properties should be reflected, for now only some
     is_computed: bool = False
-    is_runtime: bool = UNSET  # exists on runtime instance?
-    is_wired: bool = UNSET  # serialized onto wire?
-    is_stored: bool = UNSET  # stored in DB?
+    is_runtime: bool = UNSET  # exists on runtime instance
+    is_wired: bool = UNSET  # serialized onto wire (in proto)
+    is_stored: bool = UNSET  # stored in DB
     is_indexed_in_pg: bool = False  # indexed in DB?
     is_unique: bool = False  # unique index in DB?
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
+    is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
 
     is_ancestor_nearest: bool | None = None  # for ancestor relations
@@ -388,6 +389,14 @@ class Property(_TypeExpressionBase):
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
 
+        # sanity check some stuff
+        if self.is_encrypted and not self.is_sensitive:
+            raise ValueError(f"encrypted properties should be sensitive {self!r}")
+        if self.is_encrypted and not self.is_deferred:
+            raise ValueError(f"encrypted properties should be deferred {self!r}")
+        if self.is_struct and self.is_deferred:
+            raise ValueError(f"cannot defer properties in structs {self!r}")
+
     def _contribute_ptrs(self) -> tuple["Property", ...]:
         """
         Contribute the wired and stored pointer properties required by this property..
@@ -579,6 +588,7 @@ def struct_internal(
     encrypt: bool = False,
     unique: bool = False,
     system: bool = False,
+    sensitive: bool = False,
 ):
     """Internal only struct/node property."""
     return Property(
@@ -600,6 +610,7 @@ def struct_internal(
         is_array=array,
         is_deferred=defer,
         is_encrypted=encrypt,
+        is_sensitive=sensitive,
         is_indexed_in_pg=index_in_pg,
         is_unique=unique,
     )
@@ -2323,15 +2334,19 @@ class Bench(ScopeNode):
 
     # *per* environment/.../? stuff (will be moved there later)
     head = struct_internal(40, system=True, require=False, array=False, references=NodeType.PACKAGE)
-    pg_name: Optional[str] = struct_internal(41, system=True, default=None)
-    pg_username: Optional[str] = struct_internal(42, system=True, default=None, defer=True)
-    pg_password: Optional[str] = struct_internal(
-        43, system=True, default=None, defer=True, encrypt=True
+    pg_name: Optional[str] = struct_internal(41, system=True, sensitive=True, default=None)
+    pg_username: Optional[str] = struct_internal(
+        42, system=True, sensitive=True, default=None, defer=True
     )
-    os_name: Optional[str] = struct_internal(44, system=True, default=None)
-    os_username: Optional[str] = struct_internal(45, system=True, default=None, defer=True)
+    pg_password: Optional[str] = struct_internal(
+        43, system=True, default=None, defer=True, encrypt=True, sensitive=True
+    )
+    os_name: Optional[str] = struct_internal(44, system=True, sensitive=True, default=None)
+    os_username: Optional[str] = struct_internal(
+        45, system=True, sensitive=True, default=None, defer=True
+    )
     os_password: Optional[str] = struct_internal(
-        46, system=True, default=None, defer=True, encrypt=True
+        46, system=True, default=None, defer=True, encrypt=True, sensitive=True
     )
 
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)

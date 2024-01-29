@@ -28,6 +28,13 @@ enum ActionKind {
   ACTION_KIND_KILL = 43;
 }
 
+enum ActionKindGroup {
+  ACTION_KIND_GROUP_UNSPECIFIED = 0;
+  ACTION_KIND_GROUP_READ = 1;
+  ACTION_KIND_GROUP_EDIT = 20;
+  ACTION_KIND_GROUP_RUN = 40;
+}
+
 enum AggregationOp {
   AGGREGATION_OP_UNSPECIFIED = 0;
   AGGREGATION_OP_EXISTS = 101;
@@ -389,14 +396,6 @@ enum ReadKind {
   READ_KIND_AGGREGATE_BUCKET = 4;
 }
 
-enum RichTextFlag {
-  RICH_TEXT_FLAG_NONE = 0;
-  RICH_TEXT_FLAG_BOLD = 1;
-  RICH_TEXT_FLAG_ITALIC = 2;
-  RICH_TEXT_FLAG_UNDERLINE = 4;
-  RICH_TEXT_FLAG_STRIKETHROUGH = 8;
-}
-
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_Internal = 1;
@@ -666,16 +665,12 @@ message PolicyData {
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 message PolicyRuleData {
   BenchType metatype = 1;
-  bool subject_is_system = 30;
-  bool subject_is_owner = 31;
-  bool subject_is_authenticated = 32;
-  repeated NodeReferenceData subject_users_ptr = 33;
+  bool subject_is_owner = 30;
+  bool subject_is_authenticated = 31;
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
   repeated BenchType object_types = 50;
-  repeated NodeReferenceData object_nodes_ptr = 51;
-  repeated PropertyReferenceData object_properties = 52;
-  optional ExpressionData condition = 60;
+  repeated PropertyReferenceData object_properties = 51;
 }
 
 // A path of Node/Struct properties.
@@ -695,15 +690,11 @@ message PropertyReferenceData {
 // The context of a request for evaluating a policy.
 message RequestContextData {
   BenchType metatype = 1;
-  bool subject_is_system = 30;
-  bool subject_is_owner = 31;
-  bool subject_is_authenticated = 32;
-  optional NodeReferenceData subject_user_ptr = 33;
-  optional NodeReferenceData subject_worker_ptr = 34;
+  bool subject_is_owner = 30;
+  bool subject_is_authenticated = 31;
   repeated ActionKind verbs = 41;
   repeated BenchType object_types = 50;
-  repeated NodeReferenceData object_nodes_ptr = 51;
-  repeated PropertyReferenceData object_properties = 52;
+  repeated PropertyReferenceData object_properties = 51;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -713,12 +704,15 @@ message RichTextData {
   optional string plain_text = 31;
 }
 
-// RichTextSpan(text: str = '', flags: bench.language.const.RichTextFlag = <RichTextFlag.NONE: 0>, reference: bench.language.node.Node | None = None, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+// RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, is_bold: bool = False, is_italic: bool = False, is_underline: bool = False, is_strikethrough: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
 message RichTextSpanData {
   BenchType metatype = 1;
   string text = 30;
-  int64 flags = 31;
   optional NodeReferenceData reference_ptr = 32;
+  bool is_bold = 33;
+  bool is_italic = 34;
+  bool is_underline = 35;
+  bool is_strikethrough = 36;
 }
 
 // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, node_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
@@ -903,11 +897,12 @@ message ClientData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional string name = 30;
-  string device_name = 31;
-  optional string browser_name = 32;
-  google.protobuf.Timestamp last_seen_at = 33;
-  optional string access_token = 34;
+  optional string name = 31;
+  string device_name = 32;
+  optional string browser_name = 33;
+  google.protobuf.Timestamp last_seen_at = 34;
+  optional google.protobuf.Timestamp logged_in_at = 35;
+  optional string access_token = 36;
 }
 
 // A used-defined attribute of some value.
@@ -1284,29 +1279,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ClientData client = 1;
-    IssueData issue = 2;
-    TriggerData trigger = 3;
-    PackageData package = 4;
-    FieldData field = 5;
-    RunData run = 6;
-    PauseData pause = 7;
-    NotificationData notification = 8;
-    BenchData bench = 9;
-    QueryData query = 10;
-    RecordData record = 11;
-    UserData user = 12;
-    WorkerData worker = 13;
-    LinkData link = 14;
-    SessionData session = 15;
-    BadgeData badge = 16;
-    SignalData signal = 17;
+    BenchData bench = 1;
+    PackageData package = 2;
+    BlockData block = 3;
+    TriggerData trigger = 4;
+    TaggingData tagging = 5;
+    FieldData field = 6;
+    RecordData record = 7;
+    QueryData query = 8;
+    IssueData issue = 9;
+    LinkData link = 10;
+    SessionData session = 11;
+    RunData run = 12;
+    PauseData pause = 13;
+    SignalData signal = 14;
+    BadgeData badge = 15;
+    WorkerSetData worker_set = 16;
+    WorkerData worker = 17;
     BucketObjectData bucket_object = 18;
     HandleData handle = 19;
-    WorkerSetData worker_set = 20;
+    UserData user = 20;
     OrganizationData organization = 21;
-    BlockData block = 22;
-    TaggingData tagging = 23;
+    ClientData client = 22;
+    NotificationData notification = 23;
   };
 }
 

@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.29.0"
+VERSION = "2024.01.29.1"
 
 
 #
@@ -69,6 +69,7 @@ class NodeType(ProtoStrEnum):
     ORGANIZATION = "ORGANIZATION", 122
     CLIENT = "CLIENT", 123
     NOTIFICATION = "NOTIFICATION", 124
+
     # SPACE = "SPACE", 125
 
     # INVITE = "INVITE", 140
@@ -163,7 +164,7 @@ class BlockType(ProtoStrEnum):
     CHOICE = "choice", 11  # define a choice type with fields
     TAG = "tag", 12  # define a tag type with fields
     SIGNAL = "signal", 13  # define a signal type with fields
-    # BLOCK = "block", 14  # define a new block type?
+    # BLOCK = "block", 14  # define a new block type? maybe also new issue types?
 
     SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
     MULTI_VARIABLE = "multi_variable", 21  # define a variable with (multiple) fields
@@ -209,7 +210,7 @@ class BlockTypes:
     TYPES = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20)
     RUNNABLE = tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40)
     SCRIPTABLE = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,)
-    LEAVES = (BlockType.BLANK, BlockType.TEXT)
+    LEAVES = (BlockType.BLANK, BlockType.TEXT, BlockType.QUERY)
     NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 
@@ -334,6 +335,12 @@ else:
     ActionKind.bench_name = ReadKind.bench_name
 
 
+class ActionKindGroup(ProtoStrEnum):
+    READ = "READ", 1
+    EDIT = "EDIT", 20
+    RUN = "RUN", 40
+
+
 #
 # Other stuff
 #
@@ -408,14 +415,6 @@ class FormatHint(ProtoStrEnum):
     IMAGE = "image", 30
     VIDEO = "video", 31
     AUDIO = "audio", 32
-
-
-class RichTextFlag(enum.IntFlag):
-    NONE = 0
-    BOLD = 2**0
-    ITALIC = 2**1
-    UNDERLINE = 2**2
-    STRIKETHROUGH = 2**3
 
 
 class FileStatus(ProtoStrEnum):

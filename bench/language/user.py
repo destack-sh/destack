@@ -20,12 +20,12 @@ class User(ScopeNode):
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: Optional[str] = struct_property(32, default=None)
-    email: str = struct_internal(33, defer=True, unique=True, system=True)
+    email: str = struct_internal(33, defer=True, unique=True, system=True, sensitive=True)
     password_salt: Optional[bytes] = struct_internal(
-        34, default=None, defer=True, encrypt=True, system=True
+        34, default=None, defer=True, encrypt=True, system=True, sensitive=True
     )
     password_hash: Optional[bytes] = struct_internal(
-        35, default=None, defer=True, encrypt=True, system=True
+        35, default=None, defer=True, encrypt=True, system=True, sensitive=True
     )
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
 
@@ -44,12 +44,14 @@ class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
     parent: User = node_parent(4, NodeType.USER)
-    name: Optional[str] = struct_internal(30, default=None)
-    device_name: str = struct_internal(31)
-    browser_name: Optional[str] = struct_internal(32, default=None)
-    last_seen_at: datetime = struct_internal(33)
+    # type: ClientType = struct_internal(30)
+    name: Optional[str] = struct_internal(31, default=None)
+    device_name: str = struct_internal(32)
+    browser_name: Optional[str] = struct_internal(33, default=None)
+    last_seen_at: datetime = struct_internal(34)
+    logged_in_at: Optional[datetime] = struct_internal(35, default=None, system=True)
     access_token: Optional[str] = struct_internal(
-        34, default=None, system=True, defer=True, unique=True
+        36, default=None, system=True, defer=True, unique=True, sensitive=True
     )
 
     def __content_str__(self) -> str:

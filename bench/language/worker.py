@@ -49,7 +49,7 @@ class Worker(Node):
     image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
     version: Optional[str] = struct_internal(33, index_in_pg=True)
     access_token: Optional[str] = struct_internal(
-        34, default=None, system=True, encrypt=True, defer=True
+        34, default=None, system=True, encrypt=True, defer=True, sensitive=True
     )
 
 

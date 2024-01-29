@@ -1,4 +1,5 @@
 from typing import AsyncIterator, cast
+from uuid import UUID
 
 import betterproto
 import grpclib
@@ -6,10 +7,11 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Expression, Handle, User
+from bench.language import Expression, Handle, User, Client
 from bench.language.const import NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
-from bench.proto import wiring
+from bench.language.tree import NodeDataTree
+from bench.proto import wiring, wire
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -35,6 +37,7 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
+    NodeReferenceData,
 )
 from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.server.utils import (
@@ -42,6 +45,10 @@ from bench.server.utils import (
     detached_session,
     validate_bench_data_many,
 )
+from bench.sql.client import async_pg_cursor
+from bench.sql.engine import pg_read_node_data_tree
+from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import group_by
 
 logger = structlog.get_logger("global_supervisor")
 
@@ -75,11 +82,13 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
     async def signup_user(self, signup_user_request: "SignupUserRequest") -> "SignupUserResponse":
         validate_bench_data_many(signup_user_request.user, signup_user_request.client)
         async with detached_session() as session:
-            user = wiring.unpack_node(signup_user_request.user, parent=None, session=session)
+            user: User = wiring.unpack_node(signup_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
             user.password_hash = hash_password(signup_user_request.password, user.password_salt)
             user.handle = Handle(slug=user.slug)
-            client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
+            client: Client = wiring.unpack_node(
+                signup_user_request.client, parent=user, session=session
+            )
             client.token = generate_access_token()
             session.create_many(user.handle, user, client)
             await session.commit()
@@ -96,19 +105,29 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             ):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
 
-            client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
-            client.token = generate_access_token()
+            client: Client = wiring.unpack_node(
+                login_user_request.client, parent=user, session=session
+            )
+            client.logged_in_at = client.last_seen_at = utcnow_with_tz()
+            client.access_token = generate_access_token()
             session.upsert(client)
             await session.commit()
         return LoginUserResponse(
-            user=user._to_data(), client=client._to_data(), access_token=client.token
+            user=user._to_data(), client=client._to_data(), access_token=client.access_token
         )
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
-        async with detached_session(commit=True):
-            client = await check_authenticated_client(self.metadata)
+        async with detached_session() as session:
+            client: Client = await check_authenticated_client(self.metadata)
+            client.logged_in_at = None
             client.access_token = None
+            client.last_seen_at = utcnow_with_tz()
+            await session.commit()
         return LogoutUserResponse()
+
+    #
+    # Bench management
+    #
 
     async def create_bench(
         self, create_bench_request: "CreateBenchRequest"
@@ -120,13 +139,29 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
-        for root in read_nodes_request.roots:
-            node_type = wiring.unpack_enum(NodeType, root.type)
-            node_cls = NODE_CLASS_BY_TYPE[node_type]
-            if node_cls.__is_in_package__:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't read package in global scope")
+        tree = NodeDataTree()
+        roots_by_type: dict[wire.NodeType, list[NodeReferenceData]] = group_by(
+            read_nodes_request.roots, lambda r: r.type
+        )
 
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+        # nocheckin check auth
+        async with async_pg_cursor() as cur:
+            for root_node_type, root_node_references in roots_by_type.items():
+                node_type = wiring.unpack_enum(NodeType, root_node_type)
+                node_cls = NODE_CLASS_BY_TYPE[node_type]
+                if node_cls.__is_in_package__:
+                    raise GRPCError(
+                        GRPCStatus.INVALID_ARGUMENT, "can't read package in global scope"
+                    )
+                _ = await pg_read_node_data_tree(
+                    cur=cur,
+                    root_type=node_type,
+                    root_ids=tuple(UUID(r.id) for r in root_node_references),
+                    _tree=tree,  # accumulate into tree
+                )
+
+        nodes = [wiring.wrap_some_node(n) for n in tree.nodes]
+        return ReadNodesResponse(nodes=nodes)
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
