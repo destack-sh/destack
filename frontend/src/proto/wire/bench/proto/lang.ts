@@ -410,9 +410,9 @@ export interface PolicyRuleData {
      */
     objectTypes: BenchType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties = 51;
+     * @generated from protobuf field: bool object_is_sensitive = 51;
      */
-    objectProperties: PropertyReferenceData[];
+    objectIsSensitive: boolean;
 }
 /**
  * A path of Node/Struct properties.
@@ -430,7 +430,7 @@ export interface PropertyPathData {
     properties: PropertyReferenceData[];
 }
 /**
- * PropertyReference(type: bench.language.const.BenchType = <factory>, id: Optional[int] = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+ * PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _resolved_property: Optional[bench.language.node.Property] = None, _status: bench.language.const.NodeStatus = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -444,13 +444,40 @@ export interface PropertyReferenceData {
      */
     type: BenchType;
     /**
-     * @generated from protobuf field: optional int32 id = 31;
+     * @generated from protobuf field: int32 id = 31;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeType references_type = 32;
      */
     referencesType?: NodeType;
+}
+/**
+ * ReadOptions(ancestor_types: list[bench.language.const.NodeType] | None = None, descendant_types: list[bench.language.const.NodeType] | None = None, include_sensitive: bool = False, global_filter: Optional[ForwardRef('Expression')] = None, _status: bench.language.const.NodeStatus = None)
+ *
+ * @generated from protobuf message symbolx.bench.ReadOptionsData
+ */
+export interface ReadOptionsData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 30;
+     */
+    ancestorTypes: NodeType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 31;
+     */
+    descendantTypes: NodeType[];
+    /**
+     * @generated from protobuf field: bool include_sensitive = 32;
+     */
+    includeSensitive: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 35;
+     */
+    globalFilter?: ExpressionData;
 }
 /**
  * The context of a request for evaluating a policy.
@@ -479,9 +506,9 @@ export interface RequestContextData {
      */
     objectTypes: BenchType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties = 51;
+     * @generated from protobuf field: bool object_is_sensitive = 51;
      */
-    objectProperties: PropertyReferenceData[];
+    objectIsSensitive: boolean;
 }
 /**
  * RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -2807,21 +2834,17 @@ export enum BenchStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BENCH_STATUS_RESERVED = 1;
+     * @generated from protobuf enum value: BENCH_STATUS_PREPARING = 1;
      */
-    RESERVED = 1,
+    PREPARING = 1,
     /**
-     * @generated from protobuf enum value: BENCH_STATUS_PREPARING = 2;
+     * @generated from protobuf enum value: BENCH_STATUS_MIGRATING = 2;
      */
-    PREPARING = 2,
+    MIGRATING = 2,
     /**
      * @generated from protobuf enum value: BENCH_STATUS_AVAILABLE = 3;
      */
-    AVAILABLE = 3,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_MIGRATING = 4;
-     */
-    MIGRATING = 4
+    AVAILABLE = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.BenchType
@@ -2975,6 +2998,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_REQUEST_CONTEXT = 232;
      */
     REQUEST_CONTEXT = 232,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 233;
+     */
+    READ_OPTIONS = 233,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 240;
      */
@@ -4200,6 +4227,10 @@ export enum StructType {
      */
     REQUEST_CONTEXT = 232,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 233;
+     */
+    READ_OPTIONS = 233,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 240;
      */
     EXPRESSION = 240,
@@ -5267,7 +5298,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 40, name: "effect", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 41, name: "verb", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
             { no: 50, name: "object_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 51, name: "object_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 51, name: "object_is_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
@@ -5278,7 +5309,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         message.effect = 0;
         message.verb = [];
         message.objectTypes = [];
-        message.objectProperties = [];
+        message.objectIsSensitive = false;
         if (value !== undefined)
             reflectionMergePartial<PolicyRuleData>(this, message, value);
         return message;
@@ -5314,8 +5345,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                     else
                         message.objectTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.PropertyReferenceData object_properties */ 51:
-                    message.objectProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* bool object_is_sensitive */ 51:
+                    message.objectIsSensitive = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5355,9 +5386,9 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 writer.int32(message.objectTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.PropertyReferenceData object_properties = 51; */
-        for (let i = 0; i < message.objectProperties.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.objectProperties[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* bool object_is_sensitive = 51; */
+        if (message.objectIsSensitive !== false)
+            writer.tag(51, WireType.Varint).bool(message.objectIsSensitive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -5429,7 +5460,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "references_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
     }
@@ -5437,6 +5468,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
+        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<PropertyReferenceData>(this, message, value);
         return message;
@@ -5452,7 +5484,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
                 case /* symbolx.bench.BenchType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional int32 id */ 31:
+                case /* int32 id */ 31:
                     message.id = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeType references_type */ 32:
@@ -5476,8 +5508,8 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         /* symbolx.bench.BenchType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional int32 id = 31; */
-        if (message.id !== undefined)
+        /* int32 id = 31; */
+        if (message.id !== 0)
             writer.tag(31, WireType.Varint).int32(message.id);
         /* optional symbolx.bench.NodeType references_type = 32; */
         if (message.referencesType !== undefined)
@@ -5493,6 +5525,100 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
  */
 export const PropertyReferenceData = new PropertyReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
+    constructor() {
+        super("symbolx.bench.ReadOptionsData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 32, name: "include_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 35, name: "global_filter", kind: "message", T: () => ExpressionData }
+        ]);
+    }
+    create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
+        message.includeSensitive = false;
+        if (value !== undefined)
+            reflectionMergePartial<ReadOptionsData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadOptionsData): ReadOptionsData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 30:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 31:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* bool include_sensitive */ 32:
+                    message.includeSensitive = reader.bool();
+                    break;
+                case /* optional symbolx.bench.ExpressionData global_filter */ 35:
+                    message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReadOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.NodeType ancestor_types = 30; */
+        if (message.ancestorTypes.length) {
+            writer.tag(30, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 31; */
+        if (message.descendantTypes.length) {
+            writer.tag(31, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* bool include_sensitive = 32; */
+        if (message.includeSensitive !== false)
+            writer.tag(32, WireType.Varint).bool(message.includeSensitive);
+        /* optional symbolx.bench.ExpressionData global_filter = 35; */
+        if (message.globalFilter)
+            ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ReadOptionsData
+ */
+export const ReadOptionsData = new ReadOptionsData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class RequestContextData$Type extends MessageType<RequestContextData> {
     constructor() {
         super("symbolx.bench.RequestContextData", [
@@ -5501,7 +5627,7 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
             { no: 31, name: "subject_is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 41, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
             { no: 50, name: "object_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 51, name: "object_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 51, name: "object_is_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<RequestContextData>): RequestContextData {
@@ -5511,7 +5637,7 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
         message.subjectIsAuthenticated = false;
         message.verbs = [];
         message.objectTypes = [];
-        message.objectProperties = [];
+        message.objectIsSensitive = false;
         if (value !== undefined)
             reflectionMergePartial<RequestContextData>(this, message, value);
         return message;
@@ -5544,8 +5670,8 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
                     else
                         message.objectTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.PropertyReferenceData object_properties */ 51:
-                    message.objectProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* bool object_is_sensitive */ 51:
+                    message.objectIsSensitive = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5582,9 +5708,9 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
                 writer.int32(message.objectTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.PropertyReferenceData object_properties = 51; */
-        for (let i = 0; i < message.objectProperties.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.objectProperties[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* bool object_is_sensitive = 51; */
+        if (message.objectIsSensitive !== false)
+            writer.tag(51, WireType.Varint).bool(message.objectIsSensitive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
