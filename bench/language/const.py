@@ -32,7 +32,6 @@ class NodeType(ProtoStrEnum):
     # BRANCH = "BRANCH", 4
     # DEPENDENCY = "DEPENDENCY", 5
     # UPGRADE = "UPGRADE", 6
-    # SPACE = "SPACE", 7
 
     # source
     PACKAGE = "PACKAGE", 20
@@ -70,11 +69,11 @@ class NodeType(ProtoStrEnum):
     ORGANIZATION = "ORGANIZATION", 122
     CLIENT = "CLIENT", 123
     NOTIFICATION = "NOTIFICATION", 124
+    # SPACE = "SPACE", 125
 
-    # INVITE = "INVITE", 130
-    # MEMBERSHIP = "MEMBERSHIP", 131
-    # COMMENT = "COMMENT", 132
-    # MESSAGE = "MESSAGE", 133
+    # INVITE = "INVITE", 140
+    # MEMBERSHIP = "MEMBERSHIP", 141
+    # COMMENT = "COMMENT", 142
 
     @property
     def bench_name(self):

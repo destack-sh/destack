@@ -29,6 +29,13 @@ _TEST_TYPES = (
     PrimitiveType.JSON,
     PrimitiveType.BYTES,
 )
+_MINI_TABLE = Table(
+    "_test_mini_table",
+    columns=(
+        Column("id", PrimitiveType.INT32, is_primary_key=True),
+        Column("foo", PrimitiveType.STRING),
+    ),
+)
 _REGULAR_TABLE = Table(
     "_test_regular_table",
     columns=(
@@ -44,7 +51,7 @@ _ENCRYPTED_TABLE = Table(
         *(Column(f"secret_{t.name.lower()}", t, is_encrypted=True) for t in _TEST_TYPES),
     ),
 )
-TABLES = [_REGULAR_TABLE, _ENCRYPTED_TABLE]
+_TEST_TABLES = [_MINI_TABLE, _REGULAR_TABLE, _ENCRYPTED_TABLE]
 
 COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
     PrimitiveType.BOOLEAN: lambda: random.choice((True, False)),
@@ -58,10 +65,10 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
 
 @pytest.fixture(autouse=True, scope="module")
 async def test_tables(test_cur: psycopg.AsyncCursor):
-    await force_create_tables(test_cur, TABLES)
+    await force_create_tables(test_cur, _TEST_TABLES)
 
 
-@pytest.mark.parametrize("table", TABLES, ids=lambda t: t.name)
+@pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
 async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
     random.seed(42)
 
@@ -81,26 +88,32 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
     # insert
     initial_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(0, 3))
     target_rows = list(initial_rows)
-    await pg_insert(test_cur, table, _pg_adapt_rows(table, initial_rows))
+    db_rows = await pg_insert(
+        test_cur, table, _pg_adapt_rows(table, initial_rows), returning=table.columns
+    )
+    assert db_rows == target_rows
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # upsert
     upsert_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(2, 5))
-    target_rows = target_rows[:2] + list(upsert_rows)
     await pg_upsert(test_cur, table, _pg_adapt_rows(table, upsert_rows))
+    target_rows = target_rows[:2] + list(upsert_rows)
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
-    # update per row
+    # update with dynamic values
     update_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(1, 4))
-    await pg_update_dynamic(
+    target_rows = target_rows[:1] + list(update_rows) + target_rows[4:]
+    db_rows = await pg_update_dynamic(
         cur=test_cur,
         table=table,
         dynamic_columns=table.columns,
         dynamic_values=_pg_adapt_rows(table, update_rows),
+        returning=table.columns,
     )
-    target_rows = target_rows[:1] + list(update_rows) + target_rows[4:]
+    db_rows.sort(key=lambda r: r["id"])
+    assert db_rows == target_rows[1:4]
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
@@ -110,8 +123,12 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
         for column in table.columns
         if not column.is_primary_key and not column.is_array and random.random() < 0.5
     }
-    await pg_update_static(test_cur, table, static_value=_pg_adapt_row(table, static_value))
     target_rows = [{**row, **static_value} for row in target_rows]
+    db_rows = await pg_update_static(
+        test_cur, table, static_value=_pg_adapt_row(table, static_value), returning=table.columns
+    )
+    db_rows.sort(key=lambda r: r["id"])
+    assert db_rows == target_rows
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
@@ -119,4 +136,5 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
     await pg_delete(test_cur, table, where=sql.SQL("id > 3"))
     target_rows = target_rows[:4]
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows.sort(key=lambda r: r["id"])
     assert db_rows == target_rows

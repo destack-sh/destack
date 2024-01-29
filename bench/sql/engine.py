@@ -10,7 +10,6 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
-    Sequence,
     TypeVar,
     Union,
     cast,
@@ -559,6 +558,9 @@ async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list
     return await cur.fetchall()
 
 
+# TODO @Cleanup @Security: parameterize pg crypto key per database & pass more selectively
+
+
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
@@ -572,10 +574,9 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
         else:
             cast = PG_CAST_PRIMITIVE_TYPE[column._unencrypted_type]
             value = sql.SQL("{}::{}::text::bytea").format(value, sql.SQL(cast))
-        # then encrypt with pgp_sym_encrypt
-        # nocheckin: move pgcrypto key to (named) parameter
-        value = sql.SQL("pgp_sym_encrypt_bytea({}, {}::text)").format(
-            sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
+        # then encrypt with pgp_sym_encrypt_bytea
+        value = sql.SQL("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+            sql_node_to_sql(value)
         )
         return value
     else:
@@ -585,12 +586,11 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
 def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
-        # first decrypt with pgp_sym_decrypt
-        # nocheckin: move pgcrypto key to (named) parameter
-        value = sql.SQL("pgp_sym_decrypt_bytea({}, {}::text)").format(
+        # first decrypt with pgp_sym_decrypt_bytea
+        value = sql.SQL("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
             sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
         )
-        # then cast to the correct type
+        # then convert from bytea to the correct type
         if column._unencrypted_type == PrimitiveType.BYTES:
             value = sql.SQL("{}::bytea").format(value)
         else:
@@ -626,6 +626,18 @@ def _pg_adapt_rows(
     return tuple(_pg_adapt_row(table, row) for row in rows)
 
 
+async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> list[RowOut]:
+    # see https://www.psycopg.org/psycopg3/docs/api/cursors.html#psycopg.Cursor.executemany
+    results: list[RowOut] = []
+    while True:
+        row = await cur.fetchone()
+        results.append(row)
+        if not cur.nextset():
+            break
+    assert len(results) == expected, f"wanted {expected} results, got {len(results)}"
+    return results
+
+
 async def pg_select(
     cur: psycopg.AsyncCursor,
     table: Table,
@@ -636,36 +648,10 @@ async def pg_select(
     order_by: SqlNode | None = None,
     first: int | None = None,
     skip: int | None = None,
-    params: Sequence | Mapping | None = None,
+    params: Mapping | None = None,
 ) -> list[RowOut]:
     """Selects from the given table."""
     columns = columns or table.columns
-    statement = _pg_select_sql(
-        table=table,
-        columns=columns,
-        joins=joins,
-        where=where,
-        order_by=order_by,
-        first=first,
-        skip=skip,
-    )
-    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    try:
-        await cur.execute(statement, params)
-    except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
-    return await cur.fetchall()
-
-
-def _pg_select_sql(
-    table: Table,
-    columns: list[Column],
-    joins: list[SqlJoin] | None = None,
-    where: SqlNode | None = None,
-    order_by: SqlNode | None = None,
-    first: int | None = None,
-    skip: int | None = None,
-):
     statement = sql.SQL("SELECT {fields} FROM {table}").format(
         fields=sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in columns),
         table=sql.Identifier(table.name),
@@ -680,7 +666,14 @@ def _pg_select_sql(
         statement += sql.SQL(" LIMIT {}").format(sql.Literal(first))
     if skip:
         statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
-    return statement
+    logger.debug("pg.select", table=table, query=sql_to_str(cur, statement))
+    if any(c.is_encrypted for c in columns):
+        params = {**(params or {}), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+    try:
+        await cur.execute(statement, params)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
+    return await cur.fetchall()
 
 
 async def pg_count(
@@ -695,7 +688,7 @@ async def pg_count(
     )
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.count", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
@@ -738,20 +731,26 @@ async def pg_insert(
     statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ").join(_pg_wrap_write_column(c, sql.SQL("%s")) for c in table.columns),
+        values=sql.SQL(", ").join(
+            _pg_wrap_write_column(c, sql.SQL(f"%({c.name})s")) for c in table.columns
+        ),
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
-    values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
+    logger.debug("pg.insert", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY} for row in rows)
+    else:
+        templated_values = rows
     try:
-        await cur.executemany(statement, values, returning=bool(returning))
+        await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, e) from e
     if returning:
-        return await cur.fetchall()
+        return await _pg_fetchall_from_many(cur, len(rows))
 
 
 async def pg_upsert(
@@ -791,7 +790,9 @@ async def pg_upsert(
     ).format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ").join(_pg_wrap_write_column(c, sql.SQL("%s")) for c in table.columns),
+        values=sql.SQL(", ").join(
+            _pg_wrap_write_column(c, sql.SQL(f"%({c.name})s")) for c in table.columns
+        ),
         conflict=sql.SQL(", ").join(sql.Identifier(c.name) for c in conflict_columns),
         updates=sql.SQL(", ").join(chain(static_update, dynamic_update)),
     )
@@ -799,14 +800,18 @@ async def pg_upsert(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
-    values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
+    logger.debug("pg.upsert", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY} for row in rows)
+    else:
+        templated_values = rows
     try:
-        await cur.executemany(statement, values, returning=bool(returning))
+        await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, e) from e
     if returning:
-        return await cur.fetchall()
+        return await _pg_fetchall_from_many(cur, len(rows))
 
 
 async def pg_update_static(
@@ -823,9 +828,9 @@ async def pg_update_static(
         values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(
                 sql.Identifier(k),
-                _pg_wrap_write_column(table._columns_by_name[k], sql_node_to_sql(v)),
+                _pg_wrap_write_column(table._columns_by_name[k], sql.SQL(f"%({k})s")),
             )
-            for k, v in static_value.items()
+            for k in static_value.keys()
         ),
     )
     if where:
@@ -834,9 +839,14 @@ async def pg_update_static(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.update_static", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        template_values = {**static_value, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+    else:
+        template_values = static_value
     try:
-        await cur.execute(statement)
+        await cur.execute(statement, template_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, e) from e
     if returning:
@@ -857,9 +867,9 @@ async def pg_update_dynamic(
         raise ValueError(
             f"dynamic_columns {dynamic_columns!r} do not contain {table._primary_key!r}"
         )
-
     table_name = sql.Identifier(table.name)
     static_values = static_values or {}
+
     # join fixed and dynamic values
     static_values_sql = (
         sql.SQL("{} = {}").format(
@@ -868,13 +878,15 @@ async def pg_update_dynamic(
         for k, v in static_values.items()
     )
     dynamic_values_sql = (
-        sql.SQL("{} = {}").format(sql.Identifier(c.name), _pg_wrap_write_column(c, sql.SQL("%s")))
+        sql.SQL("{} = {}").format(
+            sql.Identifier(c.name), _pg_wrap_write_column(c, sql.SQL(f"%({c.name})s"))
+        )
         for c in dynamic_columns
     )
     values_sql = sql.SQL(", ").join(
         chain(static_values_sql, dynamic_values_sql),
     )
-    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
+    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %(pk)s").format(
         table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
@@ -885,21 +897,27 @@ async def pg_update_dynamic(
             )
         )
     logger.debug(
-        "pg.update_rows.list",
+        "pg.update_dynamic",
         table=table,
         query=sql_to_str(cur, statement),
         rows=len(dynamic_values),
     )
-    dynamic_values = [
-        (*(value.get(c.name) for c in dynamic_columns), value.get(table._primary_key.name))
-        for value in dynamic_values
-    ]
+
+    if any(c.is_encrypted for c in table.columns):
+        templated_values = tuple(
+            {**row, "pk": row.get(table._primary_key.name), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+            for row in dynamic_values
+        )
+    else:
+        templated_values = tuple(
+            {**row, "pk": row.get(table._primary_key.name)} for row in dynamic_values
+        )
     try:
-        await cur.executemany(statement, dynamic_values, returning=bool(returning))
+        await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, e) from e
     if returning:
-        return await cur.fetchall()
+        return await _pg_fetchall_from_many(cur, len(dynamic_values))
 
 
 async def pg_delete(
@@ -918,9 +936,9 @@ async def pg_delete(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+            sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.delete", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:

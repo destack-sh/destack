@@ -20,7 +20,7 @@ def pytest_configure(config):
     _complete_bench_setup()
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="session")
 def event_loop():
     # ensure we have one global event loop, lest our async fixtures are fucked
     loop = asyncio.new_event_loop()

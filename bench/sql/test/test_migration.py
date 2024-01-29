@@ -5,25 +5,28 @@ import structlog
 from bench.language.node import NODE_CLASSES
 from bench.sql.client import async_pg_cursor
 from bench.sql.migration import (
-    introspect_tables_from_pg,
-    generate_migration_ops,
     apply_migration_ops,
+    generate_migration_ops,
+    introspect_tables_from_pg,
 )
 
 logger = structlog.get_logger(__name__)
 
 
 @pytest.fixture(scope="function")
-async def blank_test_db():
+async def blank_test_db(request: pytest.FixtureRequest):
+    db_name = request.function.__name__
     async with async_pg_cursor(autocommit=True) as cur:
-        await cur.execute("DROP DATABASE IF EXISTS migrate_test")
-        await cur.execute("CREATE DATABASE migrate_test")
+        await cur.execute(f"CREATE DATABASE migrate_test_{db_name}")
+        yield
+        await cur.execute(f"DROP DATABASE migrate_test_{db_name}")
 
 
 @pytest.fixture(scope="function")
 async def blank_test_cur(blank_test_db) -> psycopg.AsyncCursor:
     async with async_pg_cursor("migrate_test") as cur:
         yield cur
+    await cur.connection.close()
 
 
 async def test_remigrate_from_scratch(blank_test_cur: psycopg.AsyncCursor):
