@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.30.0"
+VERSION = "2024.01.30.1"
 
 
 #
@@ -74,6 +74,7 @@ class NodeType(ProtoStrEnum):
 
     # INVITE = "INVITE", 140
     MEMBERSHIP = "MEMBERSHIP", 141
+
     # COMMENT = "COMMENT", 142
 
     @property
@@ -107,8 +108,13 @@ class StructType(ProtoStrEnum):
 
     POLICY = "POLICY", 230
     POLICY_RULE = "POLICY_RULE", 231
-    REQUEST_CONTEXT = "REQUEST_CONTEXT", 232
-    READ_OPTIONS = "READ_OPTIONS", 233
+    ACTION = "ACTION", 232
+    REQUEST = "REQUEST", 233
+    REQUEST_SUBJECT = "REQUEST_SUBJECT", 234
+    REQUEST_OBJECT = "REQUEST_OBJECT", 235
+    REQUEST_EVALUATION = "REQUEST_EVALUATION", 236
+    ACTION_EVALUATION = "ACTION_EVALUATION", 237
+    READ_OPTIONS = "READ_OPTIONS", 238
 
     EXPRESSION = "EXPRESSION", 240
     AGGREGATION = "AGGREGATION", 241
@@ -146,7 +152,7 @@ if typing.TYPE_CHECKING:
 else:
     BenchType = ProtoStrEnum(
         "BenchType",
-        {bt.name: (bt.name, bt.id) for bt in chain(NodeType, StructType)},
+        {bt.name: (bt.name, bt.id) for bt in chain(NODE_TYPES, STRUCT_TYPES)},
     )
     BenchType.bench_name = NodeType.bench_name
 
@@ -288,8 +294,10 @@ UNSET = object()
 #
 
 
-class ReadKind(ProtoStrEnum):
-    READ = "READ", 1  # any read action
+class ReadType(ProtoStrEnum):
+    """A type of Read action on nodes."""
+
+    GET = "GET", 1  # any direct read action
     LIST = "LIST", 2  # list, search, filter, etc.
     AGGREGATE_SCALAR = "AGGREGATE", 3  # count, sum, min, etc.
     AGGREGATE_BUCKET = "AGGREGATE_BUCKET", 4  # histogram, etc.
@@ -298,8 +306,14 @@ class ReadKind(ProtoStrEnum):
     def bench_name(self):
         return to_casing(self.name, Casing.CAMEL)
 
+    @property
+    def kind(self) -> ActionKind:
+        return ActionKind.READ
 
-class EditKind(ProtoStrEnum):
+
+class EditType(ProtoStrEnum):
+    """A type of Edit action on nodes."""
+
     CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
     UPSERT = "UPSERT", 21
     UPDATE = "UPDATE", 22
@@ -316,8 +330,14 @@ class EditKind(ProtoStrEnum):
     def bench_name(self):
         return to_casing(self.name, Casing.CAMEL)
 
+    @property
+    def kind(self) -> ActionKind:
+        return ActionKind.EDIT
 
-class RunKind(ProtoStrEnum):
+
+class RunType(ProtoStrEnum):
+    """A type of Run action on nodes."""
+
     START = "START", 40
     PAUSE = "PAUSE", 41
     RESUME = "RESUME", 42
@@ -327,32 +347,45 @@ class RunKind(ProtoStrEnum):
     def bench_name(self):
         return to_casing(self.name, Casing.CAMEL)
 
+    @property
+    def kind(self) -> ActionKind:
+        return ActionKind.RUN
+
+
+READ_TYPES: tuple[ReadType, ...] = tuple(ReadType)
+EDIT_TYPES: tuple[EditType, ...] = tuple(EditType)
+RUN_TYPES: tuple[RunType, ...] = tuple(RunType)
 
 if typing.TYPE_CHECKING:
-    ActionKind = ReadKind | EditKind | RunKind
+    ActionType = ReadType | EditType | RunType
 else:
-    ActionKind = ProtoStrEnum(
-        "ActionKind",
-        {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
+    ActionType = ProtoStrEnum(
+        "ActionType",
+        {ak.name: (ak.name, ak.id) for ak in chain(READ_TYPES, EDIT_TYPES, RUN_TYPES)},
     )
-    ActionKind.bench_name = ReadKind.bench_name
+    ActionType.bench_name = ReadType.bench_name
+    ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
 
-READ_KINDS: tuple[ReadKind, ...] = tuple(ReadKind)
-EDIT_KINDS: tuple[EditKind, ...] = tuple(EditKind)
-RUN_KINDS: tuple[RunKind, ...] = tuple(RunKind)
-ACTION_KINDS: tuple[ActionKind, ...] = tuple(ActionKind)
+ACTION_TYPES: tuple[ActionType, ...] = tuple(ActionType)
 
 
-class ActionKindSet(ProtoStrEnum):
+class ActionKind(ProtoStrEnum):
     READ = "READ", 1
     EDIT = "EDIT", 20
     RUN = "RUN", 40
 
+    @property
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
 
-ACTIONS_BY_SET: dict[ActionKindSet, set[ActionKind]] = {
-    ActionKindSet.READ: set(READ_KINDS),
-    ActionKindSet.EDIT: set(EDIT_KINDS),
-    ActionKindSet.RUN: set(RUN_KINDS),
+
+ACTIONS_BY_KIND: dict[ActionKind, set[ActionType]] = {
+    ActionKind.READ: set(READ_TYPES),
+    ActionKind.EDIT: set(EDIT_TYPES),
+    ActionKind.RUN: set(RUN_TYPES),
+}
+KIND_BY_ACTION: dict[ActionType, ActionKind] = {
+    action: kind for kind, actions in ACTIONS_BY_KIND.items() for action in actions
 }
 
 

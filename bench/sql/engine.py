@@ -24,7 +24,8 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
-from bench.language.const import NODE_TYPES, BenchError, EditKind, NodeType, SortOp
+from bench.language.access import ReadOptions
+from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -975,6 +976,18 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 
 NodeT = TypeVar("NodeT", bound=Node)
 
+GLOBAL_FILTER_DEFAULT: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
+SELECT_DEFAULT_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
+    node.metatype: tuple(
+        prop for prop in node.__stored_properties__.values() if not prop.is_deferred
+    )
+    for node in NODE_CLASSES
+}
+SELECT_ALL_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
+    node.metatype: tuple(prop for prop in node.__stored_properties__.values())
+    for node in NODE_CLASSES
+}
+
 
 def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
@@ -1096,6 +1109,7 @@ async def pg_select_nodes_data(
     skip: int | None = None,
     after: str | None = None,
 ) -> PgSelectNodesDataResult:
+    """Selects regular nodes from the given PG database."""
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
@@ -1117,39 +1131,23 @@ async def pg_select_nodes_data(
     return PgSelectNodesDataResult(nodes_data, cursors, after)
 
 
-DEFAULT_GLOBAL_FILTER: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
-DEFAULT_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
-    node.metatype: tuple(
-        prop for prop in node.__stored_properties__.values() if not prop.is_deferred
-    )
-    for node in NODE_CLASSES
-}
-ALL_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
-    node.metatype: tuple(prop for prop in node.__stored_properties__.values())
-    for node in NODE_CLASSES
-}
-
-
 async def pg_read_node_data_tree(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
-    *,
-    ancestor_types: tuple[NodeType, ...] | None = None,
-    descendant_types: tuple[NodeType, ...] | None = None,
-    global_filter: Expression = DEFAULT_GLOBAL_FILTER,
-    select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
+    options: ReadOptions,
     _tree: NodeDataTree | None = None,
 ) -> NodeDataTree | None:
-    """Reads 'regular' nodes from the given PG database. Returns a tree of nodes."""
+    """Reads regular nodes from the given PG database. Returns a tree of nodes."""
+
     visited_tree = _tree if _tree is not None else NodeDataTree()
 
     # select "roots"
     roots = await pg_select_nodes_data(
         cur=cur,
         node_type=root_type,
-        where=global_filter & Node.filter(id__in=root_ids)._filter,
-        properties=select_properties_by_type[root_type],
+        where=options.global_filter & Node.filter(id__in=root_ids)._filter,
+        properties=options.select_properties_by_type[root_type],
     )
     if not roots.nodes:
         return None
@@ -1158,7 +1156,7 @@ async def pg_read_node_data_tree(
 
     # select ancestors (recursively)
     # (basically, walk parent pointer if type is in ancestor_types)
-    if ancestor_types:
+    if options.ancestor_types:
         current_parents: list[wire.AnyNodeData] = roots.nodes
         to_select_by_type: dict[NodeType, list[str]] = defaultdict(list)
         while current_parents:
@@ -1168,7 +1166,7 @@ async def pg_read_node_data_tree(
             for node in current_parents:
                 if (
                     node.parent_ptr is not None
-                    and node.parent_ptr.type in ancestor_types
+                    and node.parent_ptr.type in options.ancestor_types
                     and node.parent_ptr.id not in visited_tree
                 ):
                     to_select_by_type[node.parent_ptr.type].append(node.parent_ptr.id)
@@ -1179,8 +1177,8 @@ async def pg_read_node_data_tree(
                 layer = await pg_select_nodes_data(
                     cur=cur,
                     node_type=node_type,
-                    where=global_filter & Node.filter(id__in=node_ids)._filter,
-                    select_properties_by_type=select_properties_by_type,
+                    where=options.global_filter & Node.filter(id__in=node_ids)._filter,
+                    select_properties_by_type=options.select_properties_by_type,
                 )
                 next_parents.extend(layer.nodes)
                 for node in layer.nodes:
@@ -1188,12 +1186,12 @@ async def pg_read_node_data_tree(
             current_parents = next_parents
 
     # select descendants (recursively)
-    if descendant_types:
+    if options.descendant_types:
         current_parents: list[wire.AnyNodeData] = roots.nodes
         while current_parents:
             next_parents: list[wire.AnyNodeData] = []
             # traverse all direct children of plausible types
-            for child_type in descendant_types:
+            for child_type in options.descendant_types:
                 # collect possible parents
                 parents_by_type: dict[NodeType, list[str]] = defaultdict(list)
                 for parent in current_parents:
@@ -1221,8 +1219,8 @@ async def pg_read_node_data_tree(
                 children = await pg_select_nodes_data(
                     cur=cur,
                     node_type=child_type,
-                    where=global_filter & parent_filter,
-                    properties=select_properties_by_type[child_type],
+                    where=options.global_filter & parent_filter,
+                    properties=options.select_properties_by_type[child_type],
                 )
                 next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
                 for child in children.nodes:
@@ -1233,32 +1231,66 @@ async def pg_read_node_data_tree(
     return visited_tree
 
 
+async def pg_search_nodes_data(
+    cur: psycopg.AsyncCursor,
+    node_type: NodeType,
+    *,
+    where: Expression | None = None,
+    sort: Collection[Expression] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+    options: ReadOptions,
+) -> NodeDataTree:
+    """Select root nodes and then read the tree of nodes from the given PG database."""
+
+    if options.ancestor_types or options.descendant_types:
+        # split into two passes if we have other nodes to fetch
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=node_type,
+            where=where,
+            sort=sort,
+            first=first,
+            skip=skip,
+            after=after,
+            properties=(node_cls.__properties__["id"],),
+        )
+        if not roots.nodes:
+            return NodeDataTree()
+        return await pg_read_node_data_tree(
+            cur=cur,
+            root_type=node_type,
+            root_ids=tuple(to_uuid(node.id) for node in roots.nodes),
+            options=options,
+        )
+    else:
+        # otherwise just select in one go
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=node_type,
+            where=where,
+            sort=sort,
+            first=first,
+            skip=skip,
+            after=after,
+            properties=options.select_properties_by_type[node_type],
+        )
+        return NodeDataTree(nodes=roots.nodes)
+
+
 async def pg_read_nodes(
     session: Session,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
-    ancestor_types: tuple[NodeType, ...] | None = None,
-    descendant_types: tuple[NodeType, ...] | None = None,
-    global_filter: Expression = DEFAULT_GLOBAL_FILTER,
-    filter_by_type: Mapping[NodeType, Expression] | None = None,
-    select_properties_by_type: Mapping[
-        NodeType, tuple[Property, ...]
-    ] = DEFAULT_SELECTED_PROPERTIES,
+    options: ReadOptions,
     parent: Node | None = None,
 ) -> tuple[NodeT, ...]:
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
     cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
-    source_tree = await pg_read_node_data_tree(
-        cur=cur,
-        root_type=root_type,
-        root_ids=root_ids,
-        ancestor_types=ancestor_types,
-        descendant_types=descendant_types,
-        global_filter=global_filter,
-        filter_by_type=filter_by_type,
-        select_properties_by_type=select_properties_by_type,
-    )
+    source_tree = await pg_read_node_data_tree(cur, root_type, root_ids, options)
     if source_tree is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
     root = wiring.unpack_node_inline(source_tree, parent=parent, session=session)
@@ -1269,19 +1301,11 @@ async def pg_read_node(
     session: Session,
     root_type: NodeType,
     root_id: UUID,
-    ancestor_types: tuple[NodeType, ...] | None = None,
-    descendant_types: tuple[NodeType, ...] | None = None,
+    options: ReadOptions,
     parent: Node | None = None,
 ) -> NodeT:
     """Reads a 'regular' node from the given PG database and unpacks it into the session."""
-    roots = await pg_read_nodes(
-        session,
-        root_type=root_type,
-        root_ids=(root_id,),
-        ancestor_types=ancestor_types,
-        descendant_types=descendant_types,
-        parent=parent,
-    )
+    roots = await pg_read_nodes(session, root_type, (root_id,), options, parent)
     if len(roots) != 1:
         raise ValueError(f"could not find root {root_type.name}:{root_id} (in {session!r})")
     return roots[0]
@@ -1296,7 +1320,7 @@ async def pg_write_regular_edits(
     *,
     return_nodes: bool = False,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]]
-    | None = DEFAULT_SELECTED_PROPERTIES,
+    | None = SELECT_DEFAULT_PROPERTIES,
 ) -> list["AnyNodeData"] | None:
     """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
     if not edits:
@@ -1320,10 +1344,10 @@ async def pg_write_regular_edits(
         # new op or end, flush batch
         if (
             next_edit is None
-            or edit.kind != next_edit.kind
+            or edit.type != next_edit.type
             or edit.node_type != next_edit.node_type
         ):
-            edit_kind: EditKind = wiring.unpack_enum(EditKind, edit.kind)
+            edit_kind: EditType = wiring.unpack_enum(EditType, edit.type)
             node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
             batch_changed_nodes = await _pg_write_regular_edit_batch(
                 cur=cur,
@@ -1349,7 +1373,7 @@ async def pg_write_regular_edits(
 async def _pg_write_regular_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
-    edit_kind: EditKind,
+    edit_kind: EditType,
     node_type: NodeType,
     batch: list[EditData],
     updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
@@ -1365,7 +1389,7 @@ async def _pg_write_regular_edit_batch(
     else:
         selected_columns = None
 
-    if edit_kind == EditKind.CREATE:
+    if edit_kind == EditType.CREATE:
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
         rows = tuple(pg_pack_node_data_row(node) for node in nodes)
         _ = await pg_insert(cur=cur, table=table, rows=rows)
@@ -1374,7 +1398,7 @@ async def _pg_write_regular_edit_batch(
         else:
             return None
 
-    elif edit_kind == EditKind.UPSERT:
+    elif edit_kind == EditType.UPSERT:
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
         rows = tuple(pg_pack_node_data_row(node) for node in nodes)
         rows = await pg_upsert(
@@ -1391,7 +1415,7 @@ async def _pg_write_regular_edit_batch(
         else:
             return None
 
-    elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+    elif edit_kind in (EditType.UPDATE, EditType.MOVE):
         assert updated_properties, f"no updated properties for {edit_kind} {node_type} ({batch!r})"
         now = utcnow_with_tz()
         dynamic_values = []
@@ -1427,20 +1451,20 @@ async def _pg_write_regular_edit_batch(
             return None
 
     elif edit_kind in (
-        EditKind.SOFT_DELETE,
-        EditKind.RESTORE,
-        EditKind.ARCHIVE,
-        EditKind.UNARCHIVE,
+        EditType.SOFT_DELETE,
+        EditType.RESTORE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
     ):
         nodes_ids = tuple(edit.node.id for edit in batch)
         now = utcnow_with_tz()
-        if edit_kind == EditKind.SOFT_DELETE:
+        if edit_kind == EditType.SOFT_DELETE:
             row = {"deleted_at": now}
-        elif edit_kind == EditKind.RESTORE:
+        elif edit_kind == EditType.RESTORE:
             row = {"deleted_at": None}
-        elif edit_kind == EditKind.ARCHIVE:
+        elif edit_kind == EditType.ARCHIVE:
             row = {"archived_at": now}
-        elif edit_kind == EditKind.UNARCHIVE:
+        elif edit_kind == EditType.UNARCHIVE:
             row = {"archived_at": None}
         where = SqlComparison(
             left=sql.Identifier("id"),
@@ -1459,7 +1483,7 @@ async def _pg_write_regular_edit_batch(
         else:
             return None
 
-    elif edit_kind == EditKind.DELETE:
+    elif edit_kind == EditType.DELETE:
         nodes_ids = tuple(edit.node.id for edit in batch)
         where = SqlComparison(
             left=sql.Identifier("id"),
@@ -1521,13 +1545,13 @@ async def pg_write_record_edits(
         # new op or end, flush current batch
         if (
             next_edit is None
-            or edit.kind != next_edit.kind
+            or edit.type != next_edit.type
             or edit.node.parent_id != next_edit.node.parent_id
         ):
             database = all_databases_by_id[edit.node.parent_id]
             batch_changed_nodes = await _pg_write_record_edit_batch(
                 cur=cur,
-                edit_kind=wiring.unpack_enum(EditKind, edit.kind),
+                edit_kind=wiring.unpack_enum(EditType, edit.type),
                 database=database,
                 batch=current_batch,
                 return_nodes=return_nodes,
@@ -1548,7 +1572,7 @@ async def _pg_write_record_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
     database: Block,
-    edit_kind: EditKind,
+    edit_kind: EditType,
     batch: list[EditData],
     updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
     return_nodes: bool,
@@ -1556,7 +1580,7 @@ async def _pg_write_record_edit_batch(
     """Writes a batch of record edits of the same kind."""
 
     table = database._table
-    if edit_kind == EditKind.CREATE:
+    if edit_kind == EditType.CREATE:
         records = cast(tuple[wire.RecordData, ...], tuple(edit.node for edit in batch))
         rows = tuple(pg_pack_record_data_row(database, record) for record in records)
         _ = await pg_insert(cur=cur, table=table, rows=rows)
@@ -1565,7 +1589,7 @@ async def _pg_write_record_edit_batch(
         else:
             return None
 
-    elif edit_kind == EditKind.UPSERT:
+    elif edit_kind == EditType.UPSERT:
         records = cast(tuple[wire.RecordData, ...], tuple(edit.node for edit in batch))
         rows = tuple(pg_pack_record_data_row(database, record) for record in records)
         rows = await pg_upsert(
@@ -1582,7 +1606,7 @@ async def _pg_write_record_edit_batch(
         else:
             return None
 
-    elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+    elif edit_kind in (EditType.UPDATE, EditType.MOVE):
         updated_non_value_columns: tuple[str, ...] = tuple(
             Record.__properties_name_by_id__[p] for p in updated_properties if p != Record.value.id
         )
@@ -1627,20 +1651,20 @@ async def _pg_write_record_edit_batch(
             return None
 
     elif edit_kind in (
-        EditKind.SOFT_DELETE,
-        EditKind.RESTORE,
-        EditKind.ARCHIVE,
-        EditKind.UNARCHIVE,
+        EditType.SOFT_DELETE,
+        EditType.RESTORE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
     ):
         records_ids = tuple(edit.node.id for edit in batch)
         now = utcnow_with_tz()
-        if edit_kind == EditKind.SOFT_DELETE:
+        if edit_kind == EditType.SOFT_DELETE:
             row = {"deleted_at": now}
-        elif edit_kind == EditKind.RESTORE:
+        elif edit_kind == EditType.RESTORE:
             row = {"deleted_at": None}
-        elif edit_kind == EditKind.ARCHIVE:
+        elif edit_kind == EditType.ARCHIVE:
             row = {"archived_at": now}
-        elif edit_kind == EditKind.UNARCHIVE:
+        elif edit_kind == EditType.UNARCHIVE:
             row = {"archived_at": None}
         where = SqlComparison(
             sql.Identifier("id"),
@@ -1659,7 +1683,7 @@ async def _pg_write_record_edit_batch(
         else:
             return None
 
-    elif edit_kind == EditKind.DELETE:
+    elif edit_kind == EditType.DELETE:
         records_ids = tuple(edit.node.id for edit in batch)
         where = SqlComparison(
             sql.Identifier("id"),

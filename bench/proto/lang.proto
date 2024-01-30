@@ -8,31 +8,31 @@ import "google/protobuf/struct.proto";
 enum ActionKind {
   ACTION_KIND_UNSPECIFIED = 0;
   ACTION_KIND_READ = 1;
-  ACTION_KIND_LIST = 2;
-  ACTION_KIND_AGGREGATE_SCALAR = 3;
-  ACTION_KIND_AGGREGATE_BUCKET = 4;
-  ACTION_KIND_CREATE = 20;
-  ACTION_KIND_UPSERT = 21;
-  ACTION_KIND_UPDATE = 22;
-  ACTION_KIND_MOVE = 23;
-  ACTION_KIND_SOFT_DELETE = 24;
-  ACTION_KIND_RESTORE = 25;
-  ACTION_KIND_ARCHIVE = 26;
-  ACTION_KIND_UNARCHIVE = 27;
-  ACTION_KIND_DELETE = 28;
-  ACTION_KIND_BUMP_CHANGED = 29;
-  ACTION_KIND_BUMP_ACTIVE = 30;
-  ACTION_KIND_START = 40;
-  ACTION_KIND_PAUSE = 41;
-  ACTION_KIND_RESUME = 42;
-  ACTION_KIND_KILL = 43;
+  ACTION_KIND_EDIT = 20;
+  ACTION_KIND_RUN = 40;
 }
 
-enum ActionKindSet {
-  ACTION_KIND_SET_UNSPECIFIED = 0;
-  ACTION_KIND_SET_READ = 1;
-  ACTION_KIND_SET_EDIT = 20;
-  ACTION_KIND_SET_RUN = 40;
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_GET = 1;
+  ACTION_TYPE_LIST = 2;
+  ACTION_TYPE_AGGREGATE_SCALAR = 3;
+  ACTION_TYPE_AGGREGATE_BUCKET = 4;
+  ACTION_TYPE_CREATE = 20;
+  ACTION_TYPE_UPSERT = 21;
+  ACTION_TYPE_UPDATE = 22;
+  ACTION_TYPE_MOVE = 23;
+  ACTION_TYPE_SOFT_DELETE = 24;
+  ACTION_TYPE_RESTORE = 25;
+  ACTION_TYPE_ARCHIVE = 26;
+  ACTION_TYPE_UNARCHIVE = 27;
+  ACTION_TYPE_DELETE = 28;
+  ACTION_TYPE_BUMP_CHANGED = 29;
+  ACTION_TYPE_BUMP_ACTIVE = 30;
+  ACTION_TYPE_START = 40;
+  ACTION_TYPE_PAUSE = 41;
+  ACTION_TYPE_RESUME = 42;
+  ACTION_TYPE_KILL = 43;
 }
 
 enum AggregationOp {
@@ -106,8 +106,11 @@ enum BenchType {
   BENCH_TYPE_ICON = 221;
   BENCH_TYPE_POLICY = 230;
   BENCH_TYPE_POLICY_RULE = 231;
-  BENCH_TYPE_REQUEST_CONTEXT = 232;
-  BENCH_TYPE_READ_OPTIONS = 233;
+  BENCH_TYPE_ACTION = 232;
+  BENCH_TYPE_REQUEST = 233;
+  BENCH_TYPE_REQUEST_SUBJECT = 234;
+  BENCH_TYPE_REQUEST_OBJECT = 235;
+  BENCH_TYPE_READ_OPTIONS = 236;
   BENCH_TYPE_EXPRESSION = 240;
   BENCH_TYPE_AGGREGATION = 241;
   BENCH_TYPE_AGGREGATION_BUCKET = 242;
@@ -176,19 +179,20 @@ enum ConditionalOp {
   CONDITIONAL_OP_NEAR = 50;
 }
 
-enum EditKind {
-  EDIT_KIND_UNSPECIFIED = 0;
-  EDIT_KIND_CREATE = 20;
-  EDIT_KIND_UPSERT = 21;
-  EDIT_KIND_UPDATE = 22;
-  EDIT_KIND_MOVE = 23;
-  EDIT_KIND_SOFT_DELETE = 24;
-  EDIT_KIND_RESTORE = 25;
-  EDIT_KIND_ARCHIVE = 26;
-  EDIT_KIND_UNARCHIVE = 27;
-  EDIT_KIND_DELETE = 28;
-  EDIT_KIND_BUMP_CHANGED = 29;
-  EDIT_KIND_BUMP_ACTIVE = 30;
+// A type of Edit action on nodes.
+enum EditType {
+  EDIT_TYPE_UNSPECIFIED = 0;
+  EDIT_TYPE_CREATE = 20;
+  EDIT_TYPE_UPSERT = 21;
+  EDIT_TYPE_UPDATE = 22;
+  EDIT_TYPE_MOVE = 23;
+  EDIT_TYPE_SOFT_DELETE = 24;
+  EDIT_TYPE_RESTORE = 25;
+  EDIT_TYPE_ARCHIVE = 26;
+  EDIT_TYPE_UNARCHIVE = 27;
+  EDIT_TYPE_DELETE = 28;
+  EDIT_TYPE_BUMP_CHANGED = 29;
+  EDIT_TYPE_BUMP_ACTIVE = 30;
 }
 
 enum ExpressionKind {
@@ -396,12 +400,13 @@ enum QueryEngine {
   QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
 }
 
-enum ReadKind {
-  READ_KIND_UNSPECIFIED = 0;
-  READ_KIND_READ = 1;
-  READ_KIND_LIST = 2;
-  READ_KIND_AGGREGATE_SCALAR = 3;
-  READ_KIND_AGGREGATE_BUCKET = 4;
+// A type of Read action on nodes.
+enum ReadType {
+  READ_TYPE_UNSPECIFIED = 0;
+  READ_TYPE_GET = 1;
+  READ_TYPE_LIST = 2;
+  READ_TYPE_AGGREGATE_SCALAR = 3;
+  READ_TYPE_AGGREGATE_BUCKET = 4;
 }
 
 enum RunErrorKind {
@@ -411,14 +416,6 @@ enum RunErrorKind {
   RUN_ERROR_KIND_Validation = 3;
   RUN_ERROR_KIND_Runtime = 4;
   RUN_ERROR_KIND_Untrusted = 5;
-}
-
-enum RunKind {
-  RUN_KIND_UNSPECIFIED = 0;
-  RUN_KIND_START = 40;
-  RUN_KIND_PAUSE = 41;
-  RUN_KIND_RESUME = 42;
-  RUN_KIND_KILL = 43;
 }
 
 enum RunStatus {
@@ -432,6 +429,15 @@ enum RunStatus {
   RUN_STATUS_ABORTED = 7;
   RUN_STATUS_FAILED = 8;
   RUN_STATUS_COMPLETED = 9;
+}
+
+// A type of Run action on nodes.
+enum RunType {
+  RUN_TYPE_UNSPECIFIED = 0;
+  RUN_TYPE_START = 40;
+  RUN_TYPE_PAUSE = 41;
+  RUN_TYPE_RESUME = 42;
+  RUN_TYPE_KILL = 43;
 }
 
 // Schedules for blocks.
@@ -477,8 +483,11 @@ enum StructType {
   STRUCT_TYPE_ICON = 221;
   STRUCT_TYPE_POLICY = 230;
   STRUCT_TYPE_POLICY_RULE = 231;
-  STRUCT_TYPE_REQUEST_CONTEXT = 232;
-  STRUCT_TYPE_READ_OPTIONS = 233;
+  STRUCT_TYPE_ACTION = 232;
+  STRUCT_TYPE_REQUEST = 233;
+  STRUCT_TYPE_REQUEST_SUBJECT = 234;
+  STRUCT_TYPE_REQUEST_OBJECT = 235;
+  STRUCT_TYPE_READ_OPTIONS = 236;
   STRUCT_TYPE_EXPRESSION = 240;
   STRUCT_TYPE_AGGREGATION = 241;
   STRUCT_TYPE_AGGREGATION_BUCKET = 242;
@@ -519,6 +528,13 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNHEALTHY = 5;
   WORKER_SET_STATUS_UNAVAILABLE = 6;
   WORKER_SET_STATUS_UNKNOWN = 7;
+}
+
+// A set of sub-requests by the same subject.
+message ActionData {
+  BenchType metatype = 1;
+  RequestSubjectData subject = 30;
+  repeated RequestData requests = 31;
 }
 
 // The result of an aggregation expression.
@@ -672,14 +688,20 @@ message PolicyData {
 }
 
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
+//     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
+//     If no property is set per category, it's a wildcard (matches any subject/verb/object).
 message PolicyRuleData {
   BenchType metatype = 1;
-  bool subject_is_owner = 30;
-  bool subject_is_authenticated = 31;
-  PolicyEffect verb_effect = 40;
-  repeated ActionKindSet verb_sets = 41;
-  repeated BenchType object_types = 50;
-  bool object_is_sensitive = 51;
+  optional bool subject_is_authenticated = 30;
+  optional bool subject_is_member = 31;
+  optional bool subject_is_owner = 32;
+  optional bool subject_is_staff = 33;
+  PolicyEffect effect = 50;
+  repeated ActionType verbs = 51;
+  repeated ActionKind verb_kinds = 52;
+  repeated BenchType object_types = 70;
+  optional bool object_is_sensitive = 71;
+  optional bool object_is_system = 72;
 }
 
 // A path of Node/Struct properties.
@@ -696,23 +718,40 @@ message PropertyReferenceData {
   optional NodeType references_type = 32;
 }
 
-// Basic read request for nodes with relations & properties.
+// Load configuration for a read request.
 message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
-  bool include_sensitive = 32;
+  optional bool include_sensitive = 32;
   optional ExpressionData global_filter = 35;
 }
 
-// The context of a request for evaluating a policy.
-message RequestContextData {
+// The context of a single request.
+message RequestData {
   BenchType metatype = 1;
-  bool subject_is_owner = 30;
-  bool subject_is_authenticated = 31;
-  repeated ActionKind verbs = 41;
-  repeated BenchType object_types = 50;
-  bool object_is_sensitive = 51;
+  RequestSubjectData subject = 30;
+  ActionType verb = 31;
+  RequestObjectData object = 32;
+}
+
+// The object of a request.
+message RequestObjectData {
+  BenchType metatype = 1;
+  BenchType type = 30;
+  bool is_sensitive = 31;
+  bool is_system = 32;
+}
+
+// The subject of a request.
+message RequestSubjectData {
+  BenchType metatype = 1;
+  bool is_authenticated = 30;
+  optional bool is_owner = 31;
+  optional bool is_member = 32;
+  optional bool is_staff = 33;
+  optional NodeReferenceData client_ptr = 34;
+  optional NodeReferenceData user_ptr = 35;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -972,7 +1011,7 @@ message HandleData {
   string slug = 30;
 }
 
-// Attach and optionally define (inline) a block or member. Assumed by the parent, applies globally.
+// Attach an identity to a block or member. Assumed by the parent, applies globally.
 message IdentityData {
   BenchType metatype = 1;
   string id = 2;
@@ -1299,6 +1338,7 @@ message UserData {
   optional bytes password_salt = 34;
   optional bytes password_hash = 35;
   optional google.protobuf.Timestamp last_logged_in_at = 36;
+  bool is_staff = 37;
 }
 
 // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)

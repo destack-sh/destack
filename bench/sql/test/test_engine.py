@@ -85,7 +85,7 @@ async def test_tables():
 
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
-async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
+async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     random.seed(42)
 
     def _generate_row(id: int) -> Mapping[str, any]:
@@ -156,3 +156,6 @@ async def test_crud(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     db_rows.sort(key=lambda r: r["id"])
     assert db_rows == target_rows
+
+
+# TODO @Test: test node-level operations

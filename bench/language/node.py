@@ -992,10 +992,12 @@ def struct(
     struct_type: StructType,
     reserved: set[str | int] = None,
     index_in_os: bool = False,
+    identifier: IdentifierType | None = None,
 ):
     def decorate(cls):
         cls = struct_component(cls, struct_type=struct_type, reserved=reserved, is_final=True)
         cls.__is_indexed_in_os__ = index_in_os
+        cls.__identifier_type__ = identifier
         return cls
 
     return decorate
@@ -1282,6 +1284,7 @@ class Struct(abc.ABC):
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
+    __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}

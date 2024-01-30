@@ -1,5 +1,4 @@
 from typing import AsyncIterator, cast
-from uuid import UUID
 
 import betterproto
 import grpclib
@@ -7,11 +6,20 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Expression, Handle, User, Client
-from bench.language.const import NodeType
+from bench.language import Expression, Handle, User, Client, NodeReference
+from bench.language.access import (
+    ReadOptions,
+    Request,
+    check_access_pre_read,
+    SYSTEM_POLICIES,
+    RequestSubject,
+    Action,
+    RequestObject,
+)
+from bench.language.const import NodeType, ReadType
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
-from bench.proto import wiring, wire
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -37,14 +45,12 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    NodeReferenceData,
 )
 from bench.server.auth import (
     check_password,
     generate_access_token,
     generate_salt,
     hash_password,
-    get_authenticated_client,
     check_authenticated_client,
     get_authentication,
 )
@@ -147,12 +153,31 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         client, badge = await get_authentication(self.metadata)
-        tree = NodeDataTree()
-        roots_by_type: dict[wire.NodeType, list[NodeReferenceData]] = group_by(
-            read_nodes_request.roots, lambda r: r.type
+        subject = RequestSubject(
+            is_authenticated=client is not None,
+            is_staff=client.user.is_staff if client is not None else False,
+            client=client,
+            user=client.user if client is not None else None,
         )
 
-        # nocheckin check auth
+        roots: tuple[NodeReference, ...] = tuple(
+            wiring.unpack_struct(r) for r in read_nodes_request.roots
+        )
+        roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
+        options: ReadOptions | None = wiring.unpack_struct_maybe(read_nodes_request.options)
+        options = options or ReadOptions.default()
+        get_root_requests = tuple(
+            Request(
+                subject,
+                ReadType.GET,
+                RequestObject(type=root.type, is_sensitive=(options.include_sensitive or False)),
+            )
+            for root in roots
+        )
+        action = Action(subject, (*Request.from_read_options(options, subject), *get_root_requests))
+        options = check_access_pre_read(action, SYSTEM_POLICIES, options)
+
+        tree = NodeDataTree()
         async with async_pg_cursor() as cur:
             for root_node_type, root_node_references in roots_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
@@ -164,16 +189,39 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 _ = await pg_read_node_data_tree(
                     cur=cur,
                     root_type=node_type,
-                    root_ids=tuple(UUID(r.id) for r in root_node_references),
+                    root_ids=tuple(r.id for r in root_node_references),
+                    options=options,
                     _tree=tree,  # accumulate into tree
                 )
 
-        nodes = [wiring.wrap_some_node(n) for n in tree.nodes]
-        return ReadNodesResponse(nodes=nodes)
+        return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
+        client, badge = await get_authentication(self.metadata)
+        subject = RequestSubject(
+            is_authenticated=client is not None,
+            is_staff=client.user.is_staff if client is not None else False,
+            client=client,
+            user=client.user if client is not None else None,
+        )
+
+        options: ReadOptions | None = wiring.unpack_struct_maybe(search_nodes_request.options)
+        options = options or ReadOptions.default()
+        list_request = Request(
+            subject,
+            ReadType.LIST,
+            RequestObject(
+                type=search_nodes_request.type,
+                is_sensitive=(options.include_sensitive or False),
+            ),
+        )
+        action = Action(
+            subject,
+            (*Request.from_read_options(options, subject), list_request),
+        )
+
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def aggregate_nodes(

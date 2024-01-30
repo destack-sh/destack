@@ -28,6 +28,13 @@ if TYPE_CHECKING:
 class ActionKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
+    EDIT = 20
+    RUN = 40
+
+
+class ActionType(betterproto.Enum):
+    UNSPECIFIED = 0
+    GET = 1
     LIST = 2
     AGGREGATE_SCALAR = 3
     AGGREGATE_BUCKET = 4
@@ -46,13 +53,6 @@ class ActionKind(betterproto.Enum):
     PAUSE = 41
     RESUME = 42
     KILL = 43
-
-
-class ActionKindSet(betterproto.Enum):
-    UNSPECIFIED = 0
-    READ = 1
-    EDIT = 20
-    RUN = 40
 
 
 class AggregationOp(betterproto.Enum):
@@ -126,8 +126,11 @@ class BenchType(betterproto.Enum):
     ICON = 221
     POLICY = 230
     POLICY_RULE = 231
-    REQUEST_CONTEXT = 232
-    READ_OPTIONS = 233
+    ACTION = 232
+    REQUEST = 233
+    REQUEST_SUBJECT = 234
+    REQUEST_OBJECT = 235
+    READ_OPTIONS = 236
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -196,7 +199,9 @@ class ConditionalOp(betterproto.Enum):
     NEAR = 50
 
 
-class EditKind(betterproto.Enum):
+class EditType(betterproto.Enum):
+    """A type of Edit action on nodes."""
+
     UNSPECIFIED = 0
     CREATE = 20
     UPSERT = 21
@@ -425,9 +430,11 @@ class QueryEngine(betterproto.Enum):
     LOCAL_OPENSEARCH = 5
 
 
-class ReadKind(betterproto.Enum):
+class ReadType(betterproto.Enum):
+    """A type of Read action on nodes."""
+
     UNSPECIFIED = 0
-    READ = 1
+    GET = 1
     LIST = 2
     AGGREGATE_SCALAR = 3
     AGGREGATE_BUCKET = 4
@@ -442,14 +449,6 @@ class RunErrorKind(betterproto.Enum):
     Untrusted = 5
 
 
-class RunKind(betterproto.Enum):
-    UNSPECIFIED = 0
-    START = 40
-    PAUSE = 41
-    RESUME = 42
-    KILL = 43
-
-
 class RunStatus(betterproto.Enum):
     UNSPECIFIED = 0
     SCHEDULED = 1
@@ -461,6 +460,16 @@ class RunStatus(betterproto.Enum):
     ABORTED = 7
     FAILED = 8
     COMPLETED = 9
+
+
+class RunType(betterproto.Enum):
+    """A type of Run action on nodes."""
+
+    UNSPECIFIED = 0
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    KILL = 43
 
 
 class ScheduleType(betterproto.Enum):
@@ -507,8 +516,11 @@ class StructType(betterproto.Enum):
     ICON = 221
     POLICY = 230
     POLICY_RULE = 231
-    REQUEST_CONTEXT = 232
-    READ_OPTIONS = 233
+    ACTION = 232
+    REQUEST = 233
+    REQUEST_SUBJECT = 234
+    REQUEST_OBJECT = 235
+    READ_OPTIONS = 236
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -566,6 +578,15 @@ class StartRunResponseErrorType(betterproto.Enum):
     START_RUN_ERROR_TYPE_TIMEOUT = 4
     START_RUN_ERROR_TYPE_RUNTIME = 5
     START_RUN_ERROR_TYPE_DUPLICATE = 6
+
+
+@dataclass(eq=False, repr=False)
+class ActionData(betterproto.Message):
+    """A set of sub-requests by the same subject."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    subject: "RequestSubjectData" = betterproto.message_field(30)
+    requests: List["RequestData"] = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -743,16 +764,22 @@ class PolicyData(betterproto.Message):
 class PolicyRuleData(betterproto.Message):
     """
     A rule in a policy: <subject> + can/cannot <verb> + <object> [if
-    condition].
+    condition].     If set, subject/verb/object are ORed together, i.e. any
+    overlap is a match.     If no property is set per category, it's a wildcard
+    (matches any subject/verb/object).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    subject_is_owner: bool = betterproto.bool_field(30)
-    subject_is_authenticated: bool = betterproto.bool_field(31)
-    verb_effect: "PolicyEffect" = betterproto.enum_field(40)
-    verb_sets: List["ActionKindSet"] = betterproto.enum_field(41)
-    object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_is_sensitive: bool = betterproto.bool_field(51)
+    subject_is_authenticated: Optional[bool] = betterproto.bool_field(30, optional=True)
+    subject_is_member: Optional[bool] = betterproto.bool_field(31, optional=True)
+    subject_is_owner: Optional[bool] = betterproto.bool_field(32, optional=True)
+    subject_is_staff: Optional[bool] = betterproto.bool_field(33, optional=True)
+    effect: "PolicyEffect" = betterproto.enum_field(50)
+    verbs: List["ActionType"] = betterproto.enum_field(51)
+    verb_kinds: List["ActionKind"] = betterproto.enum_field(52)
+    object_types: List["BenchType"] = betterproto.enum_field(70)
+    object_is_sensitive: Optional[bool] = betterproto.bool_field(71, optional=True)
+    object_is_system: Optional[bool] = betterproto.bool_field(72, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -780,25 +807,46 @@ class PropertyReferenceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ReadOptionsData(betterproto.Message):
-    """Basic read request for nodes with relations & properties."""
+    """Load configuration for a read request."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     ancestor_types: List["NodeType"] = betterproto.enum_field(30)
     descendant_types: List["NodeType"] = betterproto.enum_field(31)
-    include_sensitive: bool = betterproto.bool_field(32)
+    include_sensitive: Optional[bool] = betterproto.bool_field(32, optional=True)
     global_filter: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
-class RequestContextData(betterproto.Message):
-    """The context of a request for evaluating a policy."""
+class RequestData(betterproto.Message):
+    """The context of a single request."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    subject_is_owner: bool = betterproto.bool_field(30)
-    subject_is_authenticated: bool = betterproto.bool_field(31)
-    verbs: List["ActionKind"] = betterproto.enum_field(41)
-    object_types: List["BenchType"] = betterproto.enum_field(50)
-    object_is_sensitive: bool = betterproto.bool_field(51)
+    subject: "RequestSubjectData" = betterproto.message_field(30)
+    verb: "ActionType" = betterproto.enum_field(31)
+    object: "RequestObjectData" = betterproto.message_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class RequestObjectData(betterproto.Message):
+    """The object of a request."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    type: "BenchType" = betterproto.enum_field(30)
+    is_sensitive: bool = betterproto.bool_field(31)
+    is_system: bool = betterproto.bool_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class RequestSubjectData(betterproto.Message):
+    """The subject of a request."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    is_authenticated: bool = betterproto.bool_field(30)
+    is_owner: Optional[bool] = betterproto.bool_field(31, optional=True)
+    is_member: Optional[bool] = betterproto.bool_field(32, optional=True)
+    is_staff: Optional[bool] = betterproto.bool_field(33, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1133,8 +1181,8 @@ class HandleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IdentityData(betterproto.Message):
     """
-    Attach and optionally define (inline) a block or member. Assumed by the
-    parent, applies globally.
+    Attach an identity to a block or member. Assumed by the parent, applies
+    globally.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1544,6 +1592,7 @@ class UserData(betterproto.Message):
     password_salt: Optional[bytes] = betterproto.bytes_field(34, optional=True)
     password_hash: Optional[bytes] = betterproto.bytes_field(35, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(36, optional=True)
+    is_staff: bool = betterproto.bool_field(37)
 
 
 @dataclass(eq=False, repr=False)
@@ -1681,12 +1730,11 @@ class EditData(betterproto.Message):
     Node properties inside structs aren't supported.)
     """
 
-    kind: "EditKind" = betterproto.enum_field(1)
+    type: "EditType" = betterproto.enum_field(1)
     node_type: "NodeType" = betterproto.enum_field(2)
-    module_id: str = betterproto.string_field(3)
-    node: "SomeNodeData" = betterproto.message_field(4)
-    properties: List[int] = betterproto.sint32_field(5)
-    origin: "ClientOrigin" = betterproto.message_field(6)
+    node: "SomeNodeData" = betterproto.message_field(3)
+    properties: List[int] = betterproto.sint32_field(4)
+    origin: "ClientOrigin" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -1762,7 +1810,7 @@ class ReadNodesResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SearchNodesRequest(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(1)
-    parent: "NodeReferenceData" = betterproto.message_field(2)
+    bases: List["NodeReferenceData"] = betterproto.message_field(2)
     filter: "ExpressionData" = betterproto.message_field(3)
     sort: List["ExpressionData"] = betterproto.message_field(4)
     limit: Optional[int] = betterproto.int32_field(5, optional=True)
@@ -1782,12 +1830,10 @@ class SearchNodesResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class AggregateNodesRequest(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(1)
-    parent: Optional["NodeReferenceData"] = betterproto.message_field(2, optional=True)
+    bases: List["NodeReferenceData"] = betterproto.message_field(2)
     filter: Optional["ExpressionData"] = betterproto.message_field(3, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(4)
-    limit: Optional[int] = betterproto.int32_field(5, optional=True)
-    after: Optional[str] = betterproto.string_field(6, optional=True)
-    aggregation: "ExpressionData" = betterproto.message_field(7)
+    aggregation: "ExpressionData" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -1807,7 +1853,7 @@ class CommitEditsResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PushEditsRequest(betterproto.Message):
-    bypassed_edits: List["EditData"] = betterproto.message_field(1)
+    local_edits: List["EditData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -3153,58 +3199,61 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    IdentityData,
-    PauseData,
-    SessionData,
-    OrganizationData,
-    RoleData,
-    FieldData,
-    BadgeData,
-    UserData,
-    PackageData,
-    ClientData,
-    BlockData,
-    IssueData,
-    QueryData,
-    BenchData,
-    BucketObjectData,
-    WorkerSetData,
+    TriggerData,
     SignalData,
-    RecordData,
-    LinkData,
-    TagData,
+    RunData,
     WorkerData,
     HandleData,
+    FieldData,
+    LinkData,
+    PauseData,
+    UserData,
     NotificationData,
-    TriggerData,
-    RunData,
     MembershipData,
+    IdentityData,
+    RoleData,
+    PackageData,
+    IssueData,
+    TagData,
+    BucketObjectData,
+    BenchData,
+    RecordData,
+    WorkerSetData,
+    QueryData,
+    OrganizationData,
+    BadgeData,
+    SessionData,
+    BlockData,
+    ClientData,
 ]
 AnyStructData = Union[
-    NodeReferenceData,
-    FileData,
     ValueReferenceData,
-    ExpressionData,
-    RequestContextData,
-    DependencyData,
-    PropertyReferenceData,
-    BenchPathData,
-    LogEntryData,
-    PropertyPathData,
-    ReadOptionsData,
-    PolicyData,
-    RichTextData,
-    AggregationData,
-    FieldPathData,
-    WorkerImageData,
     IconData,
-    RichTextSpanData,
-    TypeInfoData,
-    AggregationBucketData,
-    RunCodeFrameData,
-    RunErrorData,
-    FieldPathSegmentData,
+    WorkerImageData,
+    BenchPathData,
     PolicyRuleData,
+    AggregationBucketData,
+    TypeInfoData,
+    RunErrorData,
+    ActionData,
+    ReadOptionsData,
+    PropertyReferenceData,
+    RequestSubjectData,
+    DependencyData,
+    PropertyPathData,
+    PolicyData,
+    LogEntryData,
+    FieldPathData,
+    RunCodeFrameData,
+    RichTextData,
+    RequestObjectData,
+    NodeReferenceData,
+    ExpressionData,
+    RequestData,
+    AggregationData,
+    FileData,
+    FieldPathSegmentData,
+    RichTextSpanData,
 ]
 
-VERSION = "2024.01.30.0"
+VERSION = "2024.01.30.1"

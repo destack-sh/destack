@@ -14,6 +14,25 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { Struct } from "../../google/protobuf/struct";
 /**
+ * A set of sub-requests by the same subject.
+ *
+ * @generated from protobuf message symbolx.bench.ActionData
+ */
+export interface ActionData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: symbolx.bench.RequestSubjectData subject = 30;
+     */
+    subject?: RequestSubjectData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.RequestData requests = 31;
+     */
+    requests: RequestData[];
+}
+/**
  * The result of an aggregation expression.
  *
  * @generated from protobuf message symbolx.bench.AggregationData
@@ -381,6 +400,8 @@ export interface PolicyData {
 }
 /**
  * A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
+ *     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
+ *     If no property is set per category, it's a wildcard (matches any subject/verb/object).
  *
  * @generated from protobuf message symbolx.bench.PolicyRuleData
  */
@@ -390,29 +411,45 @@ export interface PolicyRuleData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: bool subject_is_owner = 30;
+     * @generated from protobuf field: optional bool subject_is_authenticated = 30;
      */
-    subjectIsOwner: boolean;
+    subjectIsAuthenticated?: boolean;
     /**
-     * @generated from protobuf field: bool subject_is_authenticated = 31;
+     * @generated from protobuf field: optional bool subject_is_member = 31;
      */
-    subjectIsAuthenticated: boolean;
+    subjectIsMember?: boolean;
     /**
-     * @generated from protobuf field: symbolx.bench.PolicyEffect verb_effect = 40;
+     * @generated from protobuf field: optional bool subject_is_owner = 32;
      */
-    verbEffect: PolicyEffect;
+    subjectIsOwner?: boolean;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ActionKindSet verb_sets = 41;
+     * @generated from protobuf field: optional bool subject_is_staff = 33;
      */
-    verbSets: ActionKindSet[];
+    subjectIsStaff?: boolean;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.BenchType object_types = 50;
+     * @generated from protobuf field: symbolx.bench.PolicyEffect effect = 50;
+     */
+    effect: PolicyEffect;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ActionType verbs = 51;
+     */
+    verbs: ActionType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ActionKind verb_kinds = 52;
+     */
+    verbKinds: ActionKind[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.BenchType object_types = 70;
      */
     objectTypes: BenchType[];
     /**
-     * @generated from protobuf field: bool object_is_sensitive = 51;
+     * @generated from protobuf field: optional bool object_is_sensitive = 71;
      */
-    objectIsSensitive: boolean;
+    objectIsSensitive?: boolean;
+    /**
+     * @generated from protobuf field: optional bool object_is_system = 72;
+     */
+    objectIsSystem?: boolean;
 }
 /**
  * A path of Node/Struct properties.
@@ -453,7 +490,7 @@ export interface PropertyReferenceData {
     referencesType?: NodeType;
 }
 /**
- * Basic read request for nodes with relations & properties.
+ * Load configuration for a read request.
  *
  * @generated from protobuf message symbolx.bench.ReadOptionsData
  */
@@ -471,44 +508,94 @@ export interface ReadOptionsData {
      */
     descendantTypes: NodeType[];
     /**
-     * @generated from protobuf field: bool include_sensitive = 32;
+     * @generated from protobuf field: optional bool include_sensitive = 32;
      */
-    includeSensitive: boolean;
+    includeSensitive?: boolean;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 35;
      */
     globalFilter?: ExpressionData;
 }
 /**
- * The context of a request for evaluating a policy.
+ * The context of a single request.
  *
- * @generated from protobuf message symbolx.bench.RequestContextData
+ * @generated from protobuf message symbolx.bench.RequestData
  */
-export interface RequestContextData {
+export interface RequestData {
     /**
      * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: bool subject_is_owner = 30;
+     * @generated from protobuf field: symbolx.bench.RequestSubjectData subject = 30;
      */
-    subjectIsOwner: boolean;
+    subject?: RequestSubjectData;
     /**
-     * @generated from protobuf field: bool subject_is_authenticated = 31;
+     * @generated from protobuf field: symbolx.bench.ActionType verb = 31;
      */
-    subjectIsAuthenticated: boolean;
+    verb: ActionType;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ActionKind verbs = 41;
+     * @generated from protobuf field: symbolx.bench.RequestObjectData object = 32;
      */
-    verbs: ActionKind[];
+    object?: RequestObjectData;
+}
+/**
+ * The object of a request.
+ *
+ * @generated from protobuf message symbolx.bench.RequestObjectData
+ */
+export interface RequestObjectData {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.BenchType object_types = 50;
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
      */
-    objectTypes: BenchType[];
+    metatype: BenchType;
     /**
-     * @generated from protobuf field: bool object_is_sensitive = 51;
+     * @generated from protobuf field: symbolx.bench.BenchType type = 30;
      */
-    objectIsSensitive: boolean;
+    type: BenchType;
+    /**
+     * @generated from protobuf field: bool is_sensitive = 31;
+     */
+    isSensitive: boolean;
+    /**
+     * @generated from protobuf field: bool is_system = 32;
+     */
+    isSystem: boolean;
+}
+/**
+ * The subject of a request.
+ *
+ * @generated from protobuf message symbolx.bench.RequestSubjectData
+ */
+export interface RequestSubjectData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: bool is_authenticated = 30;
+     */
+    isAuthenticated: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_owner = 31;
+     */
+    isOwner?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_member = 32;
+     */
+    isMember?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_staff = 33;
+     */
+    isStaff?: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 34;
+     */
+    clientPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 35;
+     */
+    userPtr?: NodeReferenceData;
 }
 /**
  * RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -1350,7 +1437,7 @@ export interface HandleData {
     slug: string;
 }
 /**
- * Attach and optionally define (inline) a block or member. Assumed by the parent, applies globally.
+ * Attach an identity to a block or member. Assumed by the parent, applies globally.
  *
  * @generated from protobuf message symbolx.bench.IdentityData
  */
@@ -2496,6 +2583,10 @@ export interface UserData {
      * @generated from protobuf field: optional google.protobuf.Timestamp last_logged_in_at = 36;
      */
     lastLoggedInAt?: Timestamp;
+    /**
+     * @generated from protobuf field: bool is_staff = 37;
+     */
+    isStaff: boolean;
 }
 /**
  * Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
@@ -2836,98 +2927,98 @@ export enum ActionKind {
      */
     READ = 1,
     /**
-     * @generated from protobuf enum value: ACTION_KIND_LIST = 2;
-     */
-    LIST = 2,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_AGGREGATE_SCALAR = 3;
-     */
-    AGGREGATE_SCALAR = 3,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_AGGREGATE_BUCKET = 4;
-     */
-    AGGREGATE_BUCKET = 4,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_CREATE = 20;
-     */
-    CREATE = 20,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_UPSERT = 21;
-     */
-    UPSERT = 21,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_UPDATE = 22;
-     */
-    UPDATE = 22,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_MOVE = 23;
-     */
-    MOVE = 23,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_SOFT_DELETE = 24;
-     */
-    SOFT_DELETE = 24,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_RESTORE = 25;
-     */
-    RESTORE = 25,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_ARCHIVE = 26;
-     */
-    ARCHIVE = 26,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_UNARCHIVE = 27;
-     */
-    UNARCHIVE = 27,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_DELETE = 28;
-     */
-    DELETE = 28,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_BUMP_CHANGED = 29;
-     */
-    BUMP_CHANGED = 29,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_BUMP_ACTIVE = 30;
-     */
-    BUMP_ACTIVE = 30,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_KILL = 43;
-     */
-    KILL = 43
-}
-/**
- * @generated from protobuf enum symbolx.bench.ActionKindSet
- */
-export enum ActionKindSet {
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_SET_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_SET_READ = 1;
-     */
-    READ = 1,
-    /**
-     * @generated from protobuf enum value: ACTION_KIND_SET_EDIT = 20;
+     * @generated from protobuf enum value: ACTION_KIND_EDIT = 20;
      */
     EDIT = 20,
     /**
-     * @generated from protobuf enum value: ACTION_KIND_SET_RUN = 40;
+     * @generated from protobuf enum value: ACTION_KIND_RUN = 40;
      */
     RUN = 40
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ActionType
+ */
+export enum ActionType {
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_GET = 1;
+     */
+    GET = 1,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_LIST = 2;
+     */
+    LIST = 2,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_AGGREGATE_SCALAR = 3;
+     */
+    AGGREGATE_SCALAR = 3,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_AGGREGATE_BUCKET = 4;
+     */
+    AGGREGATE_BUCKET = 4,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_CREATE = 20;
+     */
+    CREATE = 20,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_UPSERT = 21;
+     */
+    UPSERT = 21,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_UPDATE = 22;
+     */
+    UPDATE = 22,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_MOVE = 23;
+     */
+    MOVE = 23,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_SOFT_DELETE = 24;
+     */
+    SOFT_DELETE = 24,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_RESTORE = 25;
+     */
+    RESTORE = 25,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_ARCHIVE = 26;
+     */
+    ARCHIVE = 26,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_UNARCHIVE = 27;
+     */
+    UNARCHIVE = 27,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_DELETE = 28;
+     */
+    DELETE = 28,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_BUMP_CHANGED = 29;
+     */
+    BUMP_CHANGED = 29,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_BUMP_ACTIVE = 30;
+     */
+    BUMP_ACTIVE = 30,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_KILL = 43;
+     */
+    KILL = 43
 }
 /**
  * @generated from protobuf enum symbolx.bench.AggregationOp
@@ -3186,13 +3277,25 @@ export enum BenchType {
      */
     POLICY_RULE = 231,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REQUEST_CONTEXT = 232;
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 232;
      */
-    REQUEST_CONTEXT = 232,
+    ACTION = 232,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 233;
+     * @generated from protobuf enum value: BENCH_TYPE_REQUEST = 233;
      */
-    READ_OPTIONS = 233,
+    REQUEST = 233,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REQUEST_SUBJECT = 234;
+     */
+    REQUEST_SUBJECT = 234,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REQUEST_OBJECT = 235;
+     */
+    REQUEST_OBJECT = 235,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 236;
+     */
+    READ_OPTIONS = 236,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 240;
      */
@@ -3438,55 +3541,57 @@ export enum ConditionalOp {
     NEAR = 50
 }
 /**
- * @generated from protobuf enum symbolx.bench.EditKind
+ * A type of Edit action on nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.EditType
  */
-export enum EditKind {
+export enum EditType {
     /**
-     * @generated from protobuf enum value: EDIT_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: EDIT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_CREATE = 20;
+     * @generated from protobuf enum value: EDIT_TYPE_CREATE = 20;
      */
     CREATE = 20,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_UPSERT = 21;
+     * @generated from protobuf enum value: EDIT_TYPE_UPSERT = 21;
      */
     UPSERT = 21,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_UPDATE = 22;
+     * @generated from protobuf enum value: EDIT_TYPE_UPDATE = 22;
      */
     UPDATE = 22,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_MOVE = 23;
+     * @generated from protobuf enum value: EDIT_TYPE_MOVE = 23;
      */
     MOVE = 23,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_SOFT_DELETE = 24;
+     * @generated from protobuf enum value: EDIT_TYPE_SOFT_DELETE = 24;
      */
     SOFT_DELETE = 24,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_RESTORE = 25;
+     * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 25;
      */
     RESTORE = 25,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_ARCHIVE = 26;
+     * @generated from protobuf enum value: EDIT_TYPE_ARCHIVE = 26;
      */
     ARCHIVE = 26,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_UNARCHIVE = 27;
+     * @generated from protobuf enum value: EDIT_TYPE_UNARCHIVE = 27;
      */
     UNARCHIVE = 27,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_DELETE = 28;
+     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 28;
      */
     DELETE = 28,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_BUMP_CHANGED = 29;
+     * @generated from protobuf enum value: EDIT_TYPE_BUMP_CHANGED = 29;
      */
     BUMP_CHANGED = 29,
     /**
-     * @generated from protobuf enum value: EDIT_KIND_BUMP_ACTIVE = 30;
+     * @generated from protobuf enum value: EDIT_TYPE_BUMP_ACTIVE = 30;
      */
     BUMP_ACTIVE = 30
 }
@@ -4168,27 +4273,29 @@ export enum QueryEngine {
     LOCAL_OPENSEARCH = 5
 }
 /**
- * @generated from protobuf enum symbolx.bench.ReadKind
+ * A type of Read action on nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.ReadType
  */
-export enum ReadKind {
+export enum ReadType {
     /**
-     * @generated from protobuf enum value: READ_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: READ_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: READ_KIND_READ = 1;
+     * @generated from protobuf enum value: READ_TYPE_GET = 1;
      */
-    READ = 1,
+    GET = 1,
     /**
-     * @generated from protobuf enum value: READ_KIND_LIST = 2;
+     * @generated from protobuf enum value: READ_TYPE_LIST = 2;
      */
     LIST = 2,
     /**
-     * @generated from protobuf enum value: READ_KIND_AGGREGATE_SCALAR = 3;
+     * @generated from protobuf enum value: READ_TYPE_AGGREGATE_SCALAR = 3;
      */
     AGGREGATE_SCALAR = 3,
     /**
-     * @generated from protobuf enum value: READ_KIND_AGGREGATE_BUCKET = 4;
+     * @generated from protobuf enum value: READ_TYPE_AGGREGATE_BUCKET = 4;
      */
     AGGREGATE_BUCKET = 4
 }
@@ -4220,31 +4327,6 @@ export enum RunErrorKind {
      * @generated from protobuf enum value: RUN_ERROR_KIND_Untrusted = 5;
      */
     Untrusted = 5
-}
-/**
- * @generated from protobuf enum symbolx.bench.RunKind
- */
-export enum RunKind {
-    /**
-     * @generated from protobuf enum value: RUN_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: RUN_KIND_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: RUN_KIND_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: RUN_KIND_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: RUN_KIND_KILL = 43;
-     */
-    KILL = 43
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunStatus
@@ -4290,6 +4372,33 @@ export enum RunStatus {
      * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 9;
      */
     COMPLETED = 9
+}
+/**
+ * A type of Run action on nodes.
+ *
+ * @generated from protobuf enum symbolx.bench.RunType
+ */
+export enum RunType {
+    /**
+     * @generated from protobuf enum value: RUN_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: RUN_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: RUN_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: RUN_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: RUN_TYPE_KILL = 43;
+     */
+    KILL = 43
 }
 /**
  * Schedules for blocks.
@@ -4434,13 +4543,25 @@ export enum StructType {
      */
     POLICY_RULE = 231,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST_CONTEXT = 232;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACTION = 232;
      */
-    REQUEST_CONTEXT = 232,
+    ACTION = 232,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 233;
+     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST = 233;
      */
-    READ_OPTIONS = 233,
+    REQUEST = 233,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST_SUBJECT = 234;
+     */
+    REQUEST_SUBJECT = 234,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST_OBJECT = 235;
+     */
+    REQUEST_OBJECT = 235,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 236;
+     */
+    READ_OPTIONS = 236,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 240;
      */
@@ -4579,6 +4700,68 @@ export enum WorkerSetStatus {
      */
     UNKNOWN = 7
 }
+// @generated message type with reflection information, may provide speed optimized methods
+class ActionData$Type extends MessageType<ActionData> {
+    constructor() {
+        super("symbolx.bench.ActionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
+            { no: 31, name: "requests", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestData }
+        ]);
+    }
+    create(value?: PartialMessage<ActionData>): ActionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.requests = [];
+        if (value !== undefined)
+            reflectionMergePartial<ActionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ActionData): ActionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.RequestSubjectData subject */ 30:
+                    message.subject = RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
+                    break;
+                case /* repeated symbolx.bench.RequestData requests */ 31:
+                    message.requests.push(RequestData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.RequestSubjectData subject = 30; */
+        if (message.subject)
+            RequestSubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.RequestData requests = 31; */
+        for (let i = 0; i < message.requests.length; i++)
+            RequestData.internalBinaryWrite(message.requests[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ActionData
+ */
+export const ActionData = new ActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AggregationData$Type extends MessageType<AggregationData> {
     constructor() {
@@ -5504,23 +5687,25 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     constructor() {
         super("symbolx.bench.PolicyRuleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "subject_is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 31, name: "subject_is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 40, name: "verb_effect", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
-            { no: 41, name: "verb_sets", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKindSet", ActionKindSet, "ACTION_KIND_SET_"] },
-            { no: 50, name: "object_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 51, name: "object_is_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 30, name: "subject_is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 31, name: "subject_is_member", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "subject_is_owner", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 33, name: "subject_is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 50, name: "effect", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
+            { no: 51, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
+            { no: 52, name: "verb_kinds", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
+            { no: 70, name: "object_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 71, name: "object_is_sensitive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 72, name: "object_is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.subjectIsOwner = false;
-        message.subjectIsAuthenticated = false;
-        message.verbEffect = 0;
-        message.verbSets = [];
+        message.effect = 0;
+        message.verbs = [];
+        message.verbKinds = [];
         message.objectTypes = [];
-        message.objectIsSensitive = false;
         if (value !== undefined)
             reflectionMergePartial<PolicyRuleData>(this, message, value);
         return message;
@@ -5533,31 +5718,47 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* bool subject_is_owner */ 30:
-                    message.subjectIsOwner = reader.bool();
-                    break;
-                case /* bool subject_is_authenticated */ 31:
+                case /* optional bool subject_is_authenticated */ 30:
                     message.subjectIsAuthenticated = reader.bool();
                     break;
-                case /* symbolx.bench.PolicyEffect verb_effect */ 40:
-                    message.verbEffect = reader.int32();
+                case /* optional bool subject_is_member */ 31:
+                    message.subjectIsMember = reader.bool();
                     break;
-                case /* repeated symbolx.bench.ActionKindSet verb_sets */ 41:
+                case /* optional bool subject_is_owner */ 32:
+                    message.subjectIsOwner = reader.bool();
+                    break;
+                case /* optional bool subject_is_staff */ 33:
+                    message.subjectIsStaff = reader.bool();
+                    break;
+                case /* symbolx.bench.PolicyEffect effect */ 50:
+                    message.effect = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.ActionType verbs */ 51:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.verbSets.push(reader.int32());
+                            message.verbs.push(reader.int32());
                     else
-                        message.verbSets.push(reader.int32());
+                        message.verbs.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.BenchType object_types */ 50:
+                case /* repeated symbolx.bench.ActionKind verb_kinds */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.verbKinds.push(reader.int32());
+                    else
+                        message.verbKinds.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.BenchType object_types */ 70:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.objectTypes.push(reader.int32());
                     else
                         message.objectTypes.push(reader.int32());
                     break;
-                case /* bool object_is_sensitive */ 51:
+                case /* optional bool object_is_sensitive */ 71:
                     message.objectIsSensitive = reader.bool();
+                    break;
+                case /* optional bool object_is_system */ 72:
+                    message.objectIsSystem = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5574,32 +5775,48 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* bool subject_is_owner = 30; */
-        if (message.subjectIsOwner !== false)
-            writer.tag(30, WireType.Varint).bool(message.subjectIsOwner);
-        /* bool subject_is_authenticated = 31; */
-        if (message.subjectIsAuthenticated !== false)
-            writer.tag(31, WireType.Varint).bool(message.subjectIsAuthenticated);
-        /* symbolx.bench.PolicyEffect verb_effect = 40; */
-        if (message.verbEffect !== 0)
-            writer.tag(40, WireType.Varint).int32(message.verbEffect);
-        /* repeated symbolx.bench.ActionKindSet verb_sets = 41; */
-        if (message.verbSets.length) {
-            writer.tag(41, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.verbSets.length; i++)
-                writer.int32(message.verbSets[i]);
+        /* optional bool subject_is_authenticated = 30; */
+        if (message.subjectIsAuthenticated !== undefined)
+            writer.tag(30, WireType.Varint).bool(message.subjectIsAuthenticated);
+        /* optional bool subject_is_member = 31; */
+        if (message.subjectIsMember !== undefined)
+            writer.tag(31, WireType.Varint).bool(message.subjectIsMember);
+        /* optional bool subject_is_owner = 32; */
+        if (message.subjectIsOwner !== undefined)
+            writer.tag(32, WireType.Varint).bool(message.subjectIsOwner);
+        /* optional bool subject_is_staff = 33; */
+        if (message.subjectIsStaff !== undefined)
+            writer.tag(33, WireType.Varint).bool(message.subjectIsStaff);
+        /* symbolx.bench.PolicyEffect effect = 50; */
+        if (message.effect !== 0)
+            writer.tag(50, WireType.Varint).int32(message.effect);
+        /* repeated symbolx.bench.ActionType verbs = 51; */
+        if (message.verbs.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.verbs.length; i++)
+                writer.int32(message.verbs[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.BenchType object_types = 50; */
+        /* repeated symbolx.bench.ActionKind verb_kinds = 52; */
+        if (message.verbKinds.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.verbKinds.length; i++)
+                writer.int32(message.verbKinds[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.BenchType object_types = 70; */
         if (message.objectTypes.length) {
-            writer.tag(50, WireType.LengthDelimited).fork();
+            writer.tag(70, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.objectTypes.length; i++)
                 writer.int32(message.objectTypes[i]);
             writer.join();
         }
-        /* bool object_is_sensitive = 51; */
-        if (message.objectIsSensitive !== false)
-            writer.tag(51, WireType.Varint).bool(message.objectIsSensitive);
+        /* optional bool object_is_sensitive = 71; */
+        if (message.objectIsSensitive !== undefined)
+            writer.tag(71, WireType.Varint).bool(message.objectIsSensitive);
+        /* optional bool object_is_system = 72; */
+        if (message.objectIsSystem !== undefined)
+            writer.tag(72, WireType.Varint).bool(message.objectIsSystem);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -5742,7 +5959,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 31, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 32, name: "include_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "include_sensitive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 35, name: "global_filter", kind: "message", T: () => ExpressionData }
         ]);
     }
@@ -5751,7 +5968,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         message.metatype = 0;
         message.ancestorTypes = [];
         message.descendantTypes = [];
-        message.includeSensitive = false;
         if (value !== undefined)
             reflectionMergePartial<ReadOptionsData>(this, message, value);
         return message;
@@ -5778,7 +5994,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                     else
                         message.descendantTypes.push(reader.int32());
                     break;
-                case /* bool include_sensitive */ 32:
+                case /* optional bool include_sensitive */ 32:
                     message.includeSensitive = reader.bool();
                     break;
                 case /* optional symbolx.bench.ExpressionData global_filter */ 35:
@@ -5813,8 +6029,8 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* bool include_sensitive = 32; */
-        if (message.includeSensitive !== false)
+        /* optional bool include_sensitive = 32; */
+        if (message.includeSensitive !== undefined)
             writer.tag(32, WireType.Varint).bool(message.includeSensitive);
         /* optional symbolx.bench.ExpressionData global_filter = 35; */
         if (message.globalFilter)
@@ -5830,30 +6046,24 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
  */
 export const ReadOptionsData = new ReadOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RequestContextData$Type extends MessageType<RequestContextData> {
+class RequestData$Type extends MessageType<RequestData> {
     constructor() {
-        super("symbolx.bench.RequestContextData", [
+        super("symbolx.bench.RequestData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "subject_is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 31, name: "subject_is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 41, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
-            { no: 50, name: "object_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 51, name: "object_is_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
+            { no: 31, name: "verb", kind: "enum", T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
+            { no: 32, name: "object", kind: "message", T: () => RequestObjectData }
         ]);
     }
-    create(value?: PartialMessage<RequestContextData>): RequestContextData {
+    create(value?: PartialMessage<RequestData>): RequestData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.subjectIsOwner = false;
-        message.subjectIsAuthenticated = false;
-        message.verbs = [];
-        message.objectTypes = [];
-        message.objectIsSensitive = false;
+        message.verb = 0;
         if (value !== undefined)
-            reflectionMergePartial<RequestContextData>(this, message, value);
+            reflectionMergePartial<RequestData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestContextData): RequestContextData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestData): RequestData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -5861,28 +6071,14 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* bool subject_is_owner */ 30:
-                    message.subjectIsOwner = reader.bool();
+                case /* symbolx.bench.RequestSubjectData subject */ 30:
+                    message.subject = RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
                     break;
-                case /* bool subject_is_authenticated */ 31:
-                    message.subjectIsAuthenticated = reader.bool();
+                case /* symbolx.bench.ActionType verb */ 31:
+                    message.verb = reader.int32();
                     break;
-                case /* repeated symbolx.bench.ActionKind verbs */ 41:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.verbs.push(reader.int32());
-                    else
-                        message.verbs.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.BenchType object_types */ 50:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.objectTypes.push(reader.int32());
-                    else
-                        message.objectTypes.push(reader.int32());
-                    break;
-                case /* bool object_is_sensitive */ 51:
-                    message.objectIsSensitive = reader.bool();
+                case /* symbolx.bench.RequestObjectData object */ 32:
+                    message.object = RequestObjectData.internalBinaryRead(reader, reader.uint32(), options, message.object);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5895,33 +6091,19 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
         }
         return message;
     }
-    internalBinaryWrite(message: RequestContextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RequestData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* bool subject_is_owner = 30; */
-        if (message.subjectIsOwner !== false)
-            writer.tag(30, WireType.Varint).bool(message.subjectIsOwner);
-        /* bool subject_is_authenticated = 31; */
-        if (message.subjectIsAuthenticated !== false)
-            writer.tag(31, WireType.Varint).bool(message.subjectIsAuthenticated);
-        /* repeated symbolx.bench.ActionKind verbs = 41; */
-        if (message.verbs.length) {
-            writer.tag(41, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.verbs.length; i++)
-                writer.int32(message.verbs[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.BenchType object_types = 50; */
-        if (message.objectTypes.length) {
-            writer.tag(50, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.objectTypes.length; i++)
-                writer.int32(message.objectTypes[i]);
-            writer.join();
-        }
-        /* bool object_is_sensitive = 51; */
-        if (message.objectIsSensitive !== false)
-            writer.tag(51, WireType.Varint).bool(message.objectIsSensitive);
+        /* symbolx.bench.RequestSubjectData subject = 30; */
+        if (message.subject)
+            RequestSubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ActionType verb = 31; */
+        if (message.verb !== 0)
+            writer.tag(31, WireType.Varint).int32(message.verb);
+        /* symbolx.bench.RequestObjectData object = 32; */
+        if (message.object)
+            RequestObjectData.internalBinaryWrite(message.object, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -5929,9 +6111,170 @@ class RequestContextData$Type extends MessageType<RequestContextData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RequestContextData
+ * @generated MessageType for protobuf message symbolx.bench.RequestData
  */
-export const RequestContextData = new RequestContextData$Type();
+export const RequestData = new RequestData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RequestObjectData$Type extends MessageType<RequestObjectData> {
+    constructor() {
+        super("symbolx.bench.RequestObjectData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 31, name: "is_sensitive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "is_system", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RequestObjectData>): RequestObjectData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.isSensitive = false;
+        message.isSystem = false;
+        if (value !== undefined)
+            reflectionMergePartial<RequestObjectData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestObjectData): RequestObjectData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.BenchType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* bool is_sensitive */ 31:
+                    message.isSensitive = reader.bool();
+                    break;
+                case /* bool is_system */ 32:
+                    message.isSystem = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RequestObjectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.BenchType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* bool is_sensitive = 31; */
+        if (message.isSensitive !== false)
+            writer.tag(31, WireType.Varint).bool(message.isSensitive);
+        /* bool is_system = 32; */
+        if (message.isSystem !== false)
+            writer.tag(32, WireType.Varint).bool(message.isSystem);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RequestObjectData
+ */
+export const RequestObjectData = new RequestObjectData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RequestSubjectData$Type extends MessageType<RequestSubjectData> {
+    constructor() {
+        super("symbolx.bench.RequestSubjectData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 31, name: "is_owner", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "is_member", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 33, name: "is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 34, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "user_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<RequestSubjectData>): RequestSubjectData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.isAuthenticated = false;
+        if (value !== undefined)
+            reflectionMergePartial<RequestSubjectData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestSubjectData): RequestSubjectData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* bool is_authenticated */ 30:
+                    message.isAuthenticated = reader.bool();
+                    break;
+                case /* optional bool is_owner */ 31:
+                    message.isOwner = reader.bool();
+                    break;
+                case /* optional bool is_member */ 32:
+                    message.isMember = reader.bool();
+                    break;
+                case /* optional bool is_staff */ 33:
+                    message.isStaff = reader.bool();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 34:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 35:
+                    message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RequestSubjectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* bool is_authenticated = 30; */
+        if (message.isAuthenticated !== false)
+            writer.tag(30, WireType.Varint).bool(message.isAuthenticated);
+        /* optional bool is_owner = 31; */
+        if (message.isOwner !== undefined)
+            writer.tag(31, WireType.Varint).bool(message.isOwner);
+        /* optional bool is_member = 32; */
+        if (message.isMember !== undefined)
+            writer.tag(32, WireType.Varint).bool(message.isMember);
+        /* optional bool is_staff = 33; */
+        if (message.isStaff !== undefined)
+            writer.tag(33, WireType.Varint).bool(message.isStaff);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 34; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 35; */
+        if (message.userPtr)
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RequestSubjectData
+ */
+export const RequestSubjectData = new RequestSubjectData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RichTextData$Type extends MessageType<RichTextData> {
     constructor() {
@@ -10246,7 +10589,8 @@ class UserData$Type extends MessageType<UserData> {
             { no: 33, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 35, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 36, name: "last_logged_in_at", kind: "message", T: () => Timestamp }
+            { no: 36, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
+            { no: 37, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<UserData>): UserData {
@@ -10254,6 +10598,7 @@ class UserData$Type extends MessageType<UserData> {
         message.metatype = 0;
         message.id = "";
         message.revision = "0";
+        message.isStaff = false;
         if (value !== undefined)
             reflectionMergePartial<UserData>(this, message, value);
         return message;
@@ -10313,6 +10658,9 @@ class UserData$Type extends MessageType<UserData> {
                     break;
                 case /* optional google.protobuf.Timestamp last_logged_in_at */ 36:
                     message.lastLoggedInAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastLoggedInAt);
+                    break;
+                case /* bool is_staff */ 37:
+                    message.isStaff = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -10377,6 +10725,9 @@ class UserData$Type extends MessageType<UserData> {
         /* optional google.protobuf.Timestamp last_logged_in_at = 36; */
         if (message.lastLoggedInAt)
             Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_staff = 37; */
+        if (message.isStaff !== false)
+            writer.tag(37, WireType.Varint).bool(message.isStaff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

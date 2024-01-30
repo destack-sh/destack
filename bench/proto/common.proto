@@ -43,10 +43,9 @@ message RpcMetadata {
 // Edit describes an edit to a node in a Bench.
 // (Manually defined here since Node properties inside structs aren't supported.)
 message EditData {
-  EditKind kind = 1;
+  EditType type = 1;
   NodeType node_type = 2;
-  string module_id = 3;
-  SomeNodeData node = 4;
-  repeated sint32 properties = 5;
-  ClientOrigin origin = 6;
+  SomeNodeData node = 3;
+  repeated sint32 properties = 4;
+  ClientOrigin origin = 5;
 }
