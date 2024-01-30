@@ -28,11 +28,11 @@ enum ActionKind {
   ACTION_KIND_KILL = 43;
 }
 
-enum ActionKindGroup {
-  ACTION_KIND_GROUP_UNSPECIFIED = 0;
-  ACTION_KIND_GROUP_READ = 1;
-  ACTION_KIND_GROUP_EDIT = 20;
-  ACTION_KIND_GROUP_RUN = 40;
+enum ActionKindSet {
+  ACTION_KIND_SET_UNSPECIFIED = 0;
+  ACTION_KIND_SET_READ = 1;
+  ACTION_KIND_SET_EDIT = 20;
+  ACTION_KIND_SET_RUN = 40;
 }
 
 enum AggregationOp {
@@ -72,7 +72,7 @@ enum BenchType {
   BENCH_TYPE_PACKAGE = 20;
   BENCH_TYPE_BLOCK = 21;
   BENCH_TYPE_TRIGGER = 22;
-  BENCH_TYPE_TAGGING = 23;
+  BENCH_TYPE_TAG = 23;
   BENCH_TYPE_FIELD = 24;
   BENCH_TYPE_RECORD = 25;
   BENCH_TYPE_QUERY = 26;
@@ -83,6 +83,8 @@ enum BenchType {
   BENCH_TYPE_PAUSE = 52;
   BENCH_TYPE_SIGNAL = 53;
   BENCH_TYPE_BADGE = 60;
+  BENCH_TYPE_ROLE = 61;
+  BENCH_TYPE_IDENTITY = 62;
   BENCH_TYPE_WORKER_SET = 80;
   BENCH_TYPE_WORKER = 81;
   BENCH_TYPE_BUCKET_OBJECT = 83;
@@ -91,6 +93,7 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 122;
   BENCH_TYPE_CLIENT = 123;
   BENCH_TYPE_NOTIFICATION = 124;
+  BENCH_TYPE_MEMBERSHIP = 141;
   BENCH_TYPE_BENCH_PATH = 200;
   BENCH_TYPE_NODE_REFERENCE = 201;
   BENCH_TYPE_PROPERTY_REFERENCE = 202;
@@ -137,6 +140,8 @@ enum BlockType {
   BLOCK_TYPE_QUERY = 40;
   BLOCK_TYPE_DATABASE = 41;
   BLOCK_TYPE_SCREEN = 42;
+  BLOCK_TYPE_ROLE = 50;
+  BLOCK_TYPE_IDENTITY = 51;
 }
 
 enum Casing {
@@ -308,7 +313,7 @@ enum NodeType {
   NODE_TYPE_PACKAGE = 20;
   NODE_TYPE_BLOCK = 21;
   NODE_TYPE_TRIGGER = 22;
-  NODE_TYPE_TAGGING = 23;
+  NODE_TYPE_TAG = 23;
   NODE_TYPE_FIELD = 24;
   NODE_TYPE_RECORD = 25;
   NODE_TYPE_QUERY = 26;
@@ -319,6 +324,8 @@ enum NodeType {
   NODE_TYPE_PAUSE = 52;
   NODE_TYPE_SIGNAL = 53;
   NODE_TYPE_BADGE = 60;
+  NODE_TYPE_ROLE = 61;
+  NODE_TYPE_IDENTITY = 62;
   NODE_TYPE_WORKER_SET = 80;
   NODE_TYPE_WORKER = 81;
   NODE_TYPE_BUCKET_OBJECT = 83;
@@ -327,6 +334,7 @@ enum NodeType {
   NODE_TYPE_ORGANIZATION = 122;
   NODE_TYPE_CLIENT = 123;
   NODE_TYPE_NOTIFICATION = 124;
+  NODE_TYPE_MEMBERSHIP = 141;
 }
 
 enum NodeVisibility {
@@ -668,8 +676,8 @@ message PolicyRuleData {
   BenchType metatype = 1;
   bool subject_is_owner = 30;
   bool subject_is_authenticated = 31;
-  PolicyEffect effect = 40;
-  repeated ActionKind verb = 41;
+  PolicyEffect verb_effect = 40;
+  repeated ActionKindSet verb_sets = 41;
   repeated BenchType object_types = 50;
   bool object_is_sensitive = 51;
 }
@@ -688,7 +696,7 @@ message PropertyReferenceData {
   optional NodeType references_type = 32;
 }
 
-// ReadOptions(ancestor_types: list[bench.language.const.NodeType] | None = None, descendant_types: list[bench.language.const.NodeType] | None = None, include_sensitive: bool = False, global_filter: Optional[ForwardRef('Expression')] = None, _status: bench.language.const.NodeStatus = None)
+// Basic read request for nodes with relations & properties.
 message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
@@ -798,7 +806,7 @@ message WorkerImageData {
   repeated DependencyData dependencies = 33;
 }
 
-// A badge for an unknown identity to access (parts of) this Bench.
+// Attach a badge to a node with an inline definition. Assumed by the 'holder', applies at the parent.
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
@@ -813,13 +821,13 @@ message BadgeData {
   google.protobuf.Timestamp last_edited_at = 15;
   BadgeType type = 30;
   optional string name = 31;
-  PolicyData policy = 32;
+  repeated PolicyData assumed_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional string link_token = 40;
   optional string link_password = 41;
-  optional string link_password_digest = 42;
+  optional string link_password_hash = 42;
   optional string key_value = 50;
-  optional string key_value_digest = 51;
+  optional string key_value_hash = 51;
 }
 
 // A Bench is the AI-native operating system for a new generation of fully integrated apps.
@@ -877,6 +885,7 @@ message BlockData {
   optional google.protobuf.Struct secret_value_packed = 45;
   optional string code = 50;
   optional NodeReferenceData reference_ptr = 51;
+  repeated PolicyData assumed_policies = 52;
 }
 
 // The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512.
@@ -949,7 +958,7 @@ message FieldData {
   bool is_option = 62;
 }
 
-// A (global) Bench handle.
+// A Bench handle.
 message HandleData {
   BenchType metatype = 1;
   string id = 2;
@@ -961,6 +970,22 @@ message HandleData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string slug = 30;
+}
+
+// Attach and optionally define (inline) a block or member. Assumed by the parent, applies globally.
+message IdentityData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional NodeReferenceData type_ptr = 30;
 }
 
 // Issue(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
@@ -999,6 +1024,20 @@ message LinkData {
   optional NodeReferenceData reference_ptr = 30;
 }
 
+// A membership to a Bench or Organization.
+message MembershipData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional NodeReferenceData user_ptr = 30;
+}
+
 // A node in a Bench package tree - basically struct + identity, so it can relate nodes.
 //     A node has a per-version unique id (id) and a constant identifier key (ck).
 //     The id is derived from the package id, so it's only assigned when the node is attached.
@@ -1031,7 +1070,7 @@ message NotificationData {
   google.protobuf.Timestamp read_at = 33;
 }
 
-// A (global) Bench organization.
+// A Bench organization.
 message OrganizationData {
   BenchType metatype = 1;
   string id = 2;
@@ -1116,6 +1155,22 @@ message RecordData {
   optional google.protobuf.Struct value_packed = 30;
 }
 
+// Attach a role to a block or member. Assumed by the parent, applies globally.
+message RoleData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional NodeReferenceData type_ptr = 30;
+}
+
 // A 'run' of a block (in a session).
 message RunData {
   BenchType metatype = 1;
@@ -1188,7 +1243,7 @@ message SignalData {
 }
 
 // An association between a tag and a node (with optional value).
-message TaggingData {
+message TagData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -1225,7 +1280,7 @@ message TriggerData {
   optional string cron = 36;
 }
 
-// A (global) Bench user.
+// A Bench user.
 message UserData {
   BenchType metatype = 1;
   string id = 2;
@@ -1293,7 +1348,7 @@ message SomeNodeData {
     PackageData package = 2;
     BlockData block = 3;
     TriggerData trigger = 4;
-    TaggingData tagging = 5;
+    TagData tag = 5;
     FieldData field = 6;
     RecordData record = 7;
     QueryData query = 8;
@@ -1304,14 +1359,17 @@ message SomeNodeData {
     PauseData pause = 13;
     SignalData signal = 14;
     BadgeData badge = 15;
-    WorkerSetData worker_set = 16;
-    WorkerData worker = 17;
-    BucketObjectData bucket_object = 18;
-    HandleData handle = 19;
-    UserData user = 20;
-    OrganizationData organization = 21;
-    ClientData client = 22;
-    NotificationData notification = 23;
+    RoleData role = 16;
+    IdentityData identity = 17;
+    WorkerSetData worker_set = 18;
+    WorkerData worker = 19;
+    BucketObjectData bucket_object = 20;
+    HandleData handle = 21;
+    UserData user = 22;
+    OrganizationData organization = 23;
+    ClientData client = 24;
+    NotificationData notification = 25;
+    MembershipData membership = 26;
   };
 }
 

@@ -36,7 +36,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync, describe_type
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Field, Query
+    from bench.language import Block, Query
     from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
@@ -138,9 +138,6 @@ class RecordQuery:
         database: "HasDatabase",
         filter: Expression | None = None,
         sort: list[Expression] = None,
-        include: list["Field"] = None,
-        select: list["Field"] = None,
-        distinct: list["Field"] = None,
         first: int = None,
         skip: int = None,
         engine: Optional[QueryEngine] = None,
@@ -149,9 +146,6 @@ class RecordQuery:
         self._database = database
         self._filter = filter
         self._sort = sort
-        self._include = include
-        self._select = select
-        self._distinct = distinct
         self._first = first
         self._skip = skip
         self._engine = engine
@@ -161,7 +155,7 @@ class RecordQuery:
 
     def __str__(self):
         args_strs = []
-        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
+        for k in ("filter", "sort", "first", "skip"):
             v = getattr(self, f"_{k}")
             if k == "query":
                 v = f"({v})" if v is not None else None
@@ -187,9 +181,6 @@ class RecordQuery:
             database=self._database,
             filter=self._filter,
             sort=self._sort,
-            include=self._include,
-            select=self._select,
-            distinct=self._distinct,
             first=self._first,
             skip=self._skip,
             engine=self._engine,
@@ -289,18 +280,6 @@ class RecordQuery:
         sort = coerce_sort(self._database, sort, args)
         copy._sort = sort
         return copy
-
-    def select(self, *fields: "Field") -> "RecordQuery":
-        """Selects only the given fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def include(self, *fields: "Field") -> "RecordQuery":
-        """Includes the given related fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def distinct(self, *fields: "Field") -> "RecordQuery":
-        """Returns results with distinct values in the given fields."""
-        raise NotImplementedError("not yet supported")
 
     def first(self, count: int) -> "RecordQuery":
         """Returns the first N results."""

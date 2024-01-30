@@ -638,9 +638,6 @@ class NodeQuery(Generic[NodeT]):
         node_type: NodeType | None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
-        include: list[FieldOrProperty] | None = None,
-        select: list[FieldOrProperty] | None = None,
-        distinct: list[FieldOrProperty] | None = None,
         first: int | None = None,
         skip: int | None = None,
         engine: Optional[QueryEngine] = None,
@@ -652,9 +649,6 @@ class NodeQuery(Generic[NodeT]):
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
         self._filter = filter
         self._sort = sort
-        self._include = include
-        self._select = select
-        self._distinct = distinct
         self._first = first
         self._skip = skip
         self._engine = engine
@@ -664,7 +658,7 @@ class NodeQuery(Generic[NodeT]):
 
     def __str__(self):
         args_strs = []
-        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
+        for k in ("filter", "sort", "first", "skip"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
@@ -681,9 +675,6 @@ class NodeQuery(Generic[NodeT]):
             node_type=self._node_type,
             filter=self._filter,
             sort=self._sort,
-            include=self._include,
-            select=self._select,
-            distinct=self._distinct,
             first=self._first,
             skip=self._skip,
             engine=self._engine,
@@ -765,22 +756,6 @@ class NodeQuery(Generic[NodeT]):
         sort = coerce_sort(self._node_cls, sort, args)
         copy._sort = sort
         return copy
-
-    def select(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
-        """Selects only the given fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def include(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
-        """Includes the given related fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def exclude(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
-        """Excludes the given related fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def distinct(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
-        """Returns results with distinct values in the given fields."""
-        raise NotImplementedError("not yet supported")
 
     def first(self, count: int) -> "NodeQuery[NodeT]":
         """Returns the first N results."""

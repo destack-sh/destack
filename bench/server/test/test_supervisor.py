@@ -71,12 +71,9 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     assert login_rep.access_token
 
     # read user without sensitive data, no token -> success
-    read_user_req = ReadNodesRequest(
-        roots=[user.as_reference._to_data()],
-        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT]),
-    )
-    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
-        _ = await supervisor.read_nodes(read_user_req)
+    read_user_req = ReadNodesRequest(roots=[user.as_reference._to_data()])
+    read_user_rep = await supervisor.read_nodes(read_user_req)
+    assert read_user_rep.nodes[0].user.slug == user.slug
 
     # read user with sensitive data, no token -> fail
     read_user_req = ReadNodesRequest(

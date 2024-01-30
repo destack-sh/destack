@@ -1,21 +1,24 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
 from bench.language.const import NodeType, NotificationKind, NotificationStatus
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
 from bench.utils.casing import IdentifierType
 
+if TYPE_CHECKING:
+    from bench.language import Bench
+
 
 @node(NodeType.HANDLE, root=None, identifier=IdentifierType.VARIABLE)
 class Handle(Node):
-    """A (global) Bench handle."""
+    """A Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
 @node(NodeType.USER, root=None, identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
-    """A (global) Bench user."""
+    """A Bench user."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = struct_internal(31, system=True, unique=True)
@@ -32,11 +35,19 @@ class User(ScopeNode):
 
 @node(NodeType.ORGANIZATION, root=None, identifier=IdentifierType.VARIABLE)
 class Organization(ScopeNode):
-    """A (global) Bench organization."""
+    """A Bench organization."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: str = struct_property(32)
+
+
+@node(NodeType.MEMBERSHIP)
+class Membership(Node):
+    """A membership to a Bench or Organization."""
+
+    parent: Union["Bench", "Organization"] = node_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
+    user: "User" = struct_internal(30, require=True, array=False, references=NodeType.USER)
 
 
 @node(NodeType.CLIENT, root=NodeType.USER, identifier=IdentifierType.VARIABLE)

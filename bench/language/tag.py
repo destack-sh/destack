@@ -22,8 +22,8 @@ if typing.TYPE_CHECKING:
     from bench.language import Block, Field, HasFields, symbolx_lib
 
 
-@node(NodeType.TAGGING)
-class Tagging(HasValue, Node):
+@node(NodeType.TAG)
+class Tag(HasValue, Node):
     """An association between a tag and a node (with optional value)."""
 
     parent: Union["Block", "Field"] | None = node_parent(4, NodeType.BLOCK, NodeType.FIELD)
@@ -36,14 +36,14 @@ class Tagging(HasValue, Node):
 
     @staticmethod
     def new(
-        reference: Union["Block", "Tagging", str],
+        reference: Union["Block", "Tag", str],
         *args,
         for_parent: Union["Block", "Field"] = None,
         **kwargs,
-    ) -> "Tagging":
+    ) -> "Tag":
         from bench.language import Block
 
-        if isinstance(reference, Tagging):
+        if isinstance(reference, Tag):
             reference = reference.reference
         elif isinstance(reference, Block):
             if reference.type != BlockType.TAG:
@@ -57,7 +57,7 @@ class Tagging(HasValue, Node):
         else:
             raise TypeError(f"cannot use {reference!r} as a tag")
 
-        return Tagging(reference=reference, *args, **kwargs)
+        return Tag(reference=reference, *args, **kwargs)
 
     @staticmethod
     def to_python(
@@ -81,4 +81,4 @@ class Tagging(HasValue, Node):
 
 @node_component
 class HasTags(Node):
-    tags: NodeList["Tagging"] = node_children(NodeType.TAGGING, NRel.KEYED)
+    tags: NodeList["Tag"] = node_children(NodeType.TAG, NRel.KEYED)

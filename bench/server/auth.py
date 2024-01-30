@@ -4,7 +4,7 @@ from os import urandom
 import structlog
 from grpclib import GRPCError, Status as GRPCStatus
 
-from bench.language import Client, Worker
+from bench.language import Client, Worker, Badge
 from bench.proto.wire import RpcMetadata, ClientKind
 from bench.utils.func import to_uuid
 
@@ -66,30 +66,60 @@ def generate_access_token() -> str:
     return urandom(ACCESS_TOKEN_LENGTH).hex()
 
 
-async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:
-    if metadata.client_kind == ClientKind.USER:
+async def get_authenticated_client(metadata: RpcMetadata) -> Client | Worker | None:
+    """Gets the authenticated client (if any)."""
+
+    if metadata.client_kind is None:
+        return None
+    elif metadata.client_kind == ClientKind.USER:
         client = await Client.get(id=to_uuid(metadata.client_id))
         if client.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
         return client
     elif metadata.client_kind == ClientKind.WORKER:
         worker = await Worker.get(id=to_uuid(metadata.client_id))
         if worker.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
         return worker
     else:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
 
 
-async def check_authenticated_client(metadata: RpcMetadata) -> Client:
-    client = await check_authenticated(metadata)
-    if not isinstance(client, Client):
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected user client")
+async def check_authenticated_client(metadata: RpcMetadata) -> Client | Worker:
+    """Gets an authenticated client (raises if none)."""
+
+    client = await get_authenticated_client(metadata)
+    if client is None:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED)
     return client
 
 
-async def check_authenticated_worker(metadata: RpcMetadata) -> Worker:
-    worker = await check_authenticated(metadata)
-    if not isinstance(worker, Worker):
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected worker client")
-    return worker
+async def get_authenticated_badge(metadata: RpcMetadata) -> Badge | None:
+    """Gets the authenticated badge (if any)."""
+
+    if metadata.badge_link_token:
+        badge: Badge = await Badge.options(include_sensitive=True).get(
+            link_token=metadata.badge_link_token
+        )
+        if badge is None:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge link token")
+        if badge.link_password and metadata.badge_link_password != badge.link_password:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge link password")
+        return badge
+    elif metadata.badge_id:
+        badge: Badge = await Badge.options(include_sensitive=True).get(
+            id=to_uuid(metadata.badge_id)
+        )
+        if badge.key_value != metadata.badge_key_value:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key value")
+        return badge
+    else:
+        return None
+
+
+async def get_authentication(metadata: RpcMetadata) -> tuple[Client | Worker | None, Badge | None]:
+    """Gets the authenticated client and badge (if any)."""
+
+    client = await get_authenticated_client(metadata)
+    badge = await get_authenticated_badge(metadata)
+    return client, badge
