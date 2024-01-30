@@ -71,7 +71,7 @@ message ReadNodesResponse {
 
 message SearchNodesRequest {
   NodeType node_type = 1;
-  NodeReferenceData parent = 2;
+  repeated NodeReferenceData bases = 2;
   ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
   optional int32 limit = 5;
@@ -88,12 +88,10 @@ message SearchNodesResponse {
 
 message AggregateNodesRequest {
   NodeType node_type = 1;
-  optional NodeReferenceData parent = 2;
+  repeated NodeReferenceData bases = 2;
   optional ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
-  optional int32 limit = 5;
-  optional string after = 6;
-  ExpressionData aggregation = 7;
+  ExpressionData aggregation = 5;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
@@ -107,7 +105,7 @@ message CommitEditsResponse {
 }
 
 message PushEditsRequest {
-  repeated EditData bypassed_edits = 1;
+  repeated EditData local_edits = 1;
 }
 message PushEditsResponse {
 }

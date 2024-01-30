@@ -10,7 +10,7 @@ import structlog
 from psycopg import sql
 
 from bench.language import C, ConditionalOp, Field, Package, QueryEngine, SortMode, SortOp
-from bench.language.const import BenchType, BlockType, EditKind, NodeType
+from bench.language.const import BenchType, BlockType, EditType, NodeType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -766,16 +766,16 @@ async def os_write_edits(module: Package, edits: list[EditData], *, refresh: boo
         index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
         if not node_cls.__is_indexed_in_os__:
             continue  # ignore
-        elif edit.type.kind in (
-            EditKind.CREATE,
-            EditKind.UPDATE,
-            EditKind.MOVE,
-            EditKind.SOFT_DELETE,
-            EditKind.RESTORE,
+        elif edit.type.type in (
+            EditType.CREATE,
+            EditType.UPDATE,
+            EditType.MOVE,
+            EditType.SOFT_DELETE,
+            EditType.RESTORE,
         ):
             ops.append({"index": {"_index": index, "_id": str(edit.node.id)}})
             ops.append(pack_struct(wiring.unwrap_some_node(edit.node)))
-        elif edit.type.kind == EditKind.DELETE:
+        elif edit.type.type == EditType.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(edit.node.id)}})
         else:
             raise ValueError(f"unexpected edit type: {edit!r}")

@@ -31,6 +31,7 @@ class User(ScopeNode):
         35, default=None, defer=True, encrypt=True, system=True, sensitive=True
     )
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
+    is_staff: bool = struct_internal(37, default=False, system=True)
 
 
 @node(NodeType.ORGANIZATION, root=None, identifier=IdentifierType.VARIABLE)
@@ -55,7 +56,7 @@ class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
     parent: User = node_parent(4, NodeType.USER)
-    # type: ClientType = struct_internal(30)
+    # type: ...
     name: Optional[str] = struct_internal(31, default=None)
     device_name: str = struct_internal(32)
     browser_name: Optional[str] = struct_internal(33, default=None)

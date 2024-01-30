@@ -160,10 +160,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def start_quick(self) -> None:
         async with detached_session() as session:
             self._bench: Bench = await pg_read_node(
-                session=session,
-                root_type=NodeType.BENCH,
-                root_id=self.bench_id,
-                descendant_types=(NodeType.BADGE,),
+                session=session, root_type=NodeType.BENCH, root_id=self.bench_id
             )
             self._package: Package = await pg_read_node(
                 session=session,

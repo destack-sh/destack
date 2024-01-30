@@ -201,9 +201,9 @@ export interface SearchNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent = 2;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 2;
      */
-    parent?: NodeReferenceData;
+    bases: NodeReferenceData[];
     /**
      * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
@@ -259,9 +259,9 @@ export interface AggregateNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent = 2;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 2;
      */
-    parent?: NodeReferenceData;
+    bases: NodeReferenceData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 3;
      */
@@ -271,15 +271,7 @@ export interface AggregateNodesRequest {
      */
     sort: ExpressionData[];
     /**
-     * @generated from protobuf field: optional int32 limit = 5;
-     */
-    limit?: number;
-    /**
-     * @generated from protobuf field: optional string after = 6;
-     */
-    after?: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 7;
+     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 5;
      */
     aggregation?: ExpressionData;
 }
@@ -315,9 +307,9 @@ export interface CommitEditsResponse {
  */
 export interface PushEditsRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData bypassed_edits = 1;
+     * @generated from protobuf field: repeated symbolx.bench.EditData local_edits = 1;
      */
-    bypassedEdits: EditData[];
+    localEdits: EditData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.PushEditsResponse
@@ -1350,7 +1342,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodeReferenceData },
+            { no: 2, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -1362,6 +1354,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeType = 0;
+        message.bases = [];
         message.sort = [];
         if (value !== undefined)
             reflectionMergePartial<SearchNodesRequest>(this, message, value);
@@ -1375,8 +1368,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent */ 2:
-                    message.parent = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* repeated symbolx.bench.NodeReferenceData bases */ 2:
+                    message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1411,9 +1404,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.NodeReferenceData parent = 2; */
-        if (message.parent)
-            NodeReferenceData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData bases = 2; */
+        for (let i = 0; i < message.bases.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -1518,17 +1511,16 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodeReferenceData },
+            { no: 2, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 5, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 6, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 7, name: "aggregation", kind: "message", T: () => ExpressionData }
+            { no: 5, name: "aggregation", kind: "message", T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeType = 0;
+        message.bases = [];
         message.sort = [];
         if (value !== undefined)
             reflectionMergePartial<AggregateNodesRequest>(this, message, value);
@@ -1542,8 +1534,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData parent */ 2:
-                    message.parent = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* repeated symbolx.bench.NodeReferenceData bases */ 2:
+                    message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1551,13 +1543,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* repeated symbolx.bench.ExpressionData sort */ 4:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 limit */ 5:
-                    message.limit = reader.int32();
-                    break;
-                case /* optional string after */ 6:
-                    message.after = reader.string();
-                    break;
-                case /* symbolx.bench.ExpressionData aggregation */ 7:
+                case /* symbolx.bench.ExpressionData aggregation */ 5:
                     message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
                 default:
@@ -1575,24 +1561,18 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData parent = 2; */
-        if (message.parent)
-            NodeReferenceData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData bases = 2; */
+        for (let i = 0; i < message.bases.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.ExpressionData sort = 4; */
         for (let i = 0; i < message.sort.length; i++)
             ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 limit = 5; */
-        if (message.limit !== undefined)
-            writer.tag(5, WireType.Varint).int32(message.limit);
-        /* optional string after = 6; */
-        if (message.after !== undefined)
-            writer.tag(6, WireType.LengthDelimited).string(message.after);
-        /* symbolx.bench.ExpressionData aggregation = 7; */
+        /* symbolx.bench.ExpressionData aggregation = 5; */
         if (message.aggregation)
-            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1747,12 +1727,12 @@ export const CommitEditsResponse = new CommitEditsResponse$Type();
 class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
     constructor() {
         super("symbolx.bench.PushEditsRequest", [
-            { no: 1, name: "bypassed_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 1, name: "local_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<PushEditsRequest>): PushEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.bypassedEdits = [];
+        message.localEdits = [];
         if (value !== undefined)
             reflectionMergePartial<PushEditsRequest>(this, message, value);
         return message;
@@ -1762,8 +1742,8 @@ class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.EditData bypassed_edits */ 1:
-                    message.bypassedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.EditData local_edits */ 1:
+                    message.localEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1777,9 +1757,9 @@ class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
         return message;
     }
     internalBinaryWrite(message: PushEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.EditData bypassed_edits = 1; */
-        for (let i = 0; i < message.bypassedEdits.length; i++)
-            EditData.internalBinaryWrite(message.bypassedEdits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditData local_edits = 1; */
+        for (let i = 0; i < message.localEdits.length; i++)
+            EditData.internalBinaryWrite(message.localEdits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

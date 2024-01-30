@@ -75,10 +75,17 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     read_user_rep = await supervisor.read_nodes(read_user_req)
     assert read_user_rep.nodes[0].user.slug == user.slug
 
-    # read user with sensitive data, no token -> fail
+    # read user with owned data, no token -> fail
     read_user_req = ReadNodesRequest(
         roots=[user.as_reference._to_data()],
-        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT], include_sensitive=True),
+        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT]),
+    )
+    with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+        _ = await supervisor.read_nodes(read_user_req)
+
+    # read user with sensitive data, no token -> fail
+    read_user_req = ReadNodesRequest(
+        roots=[user.as_reference._to_data()], options=ReadOptionsData(include_sensitive=True)
     )
     with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
         _ = await supervisor.read_nodes(read_user_req)

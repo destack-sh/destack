@@ -417,9 +417,9 @@ async def watch_our_deployments(
             # map kubernetes event to EventType
             event_type = EventType(event["type"])
             # map kubernetes event to deployment or pod
-            if event["object"].kind == "Deployment":
+            if event["object"].type == "Deployment":
                 yield event_type, Deployment.from_k8(event["object"], None)
-            elif event["object"].kind == "Pod":
+            elif event["object"].type == "Pod":
                 yield event_type, Pod.from_k8(event["object"])
             else:
                 continue  # ignore other events?

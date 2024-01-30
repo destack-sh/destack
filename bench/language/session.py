@@ -23,7 +23,7 @@ import structlog
 
 from bench.language.const import (
     NTL,
-    EditKind,
+    EditType,
     NodeTrackingLevel,
     NodeType,
     RunStatus,
@@ -96,7 +96,7 @@ class LogEntry(Struct):
 _Edit = NamedTuple(
     "_Edit",
     [
-        ("kind", EditKind),
+        ("kind", EditType),
         ("node", Node),
         ("properties", tuple[int, ...] | None),
     ],
@@ -420,83 +420,83 @@ class Session(ScopeNode):
 
     def create(self, n: Node):
         """Creates a new node. Errors if the node already exists."""
-        self._edit(EditKind.CREATE, n=n)
+        self._edit(EditType.CREATE, n=n)
 
     def create_many(self, *nodes: Node):
         for n in nodes:
-            self._edit(EditKind.CREATE, n=n)
+            self._edit(EditType.CREATE, n=n)
 
     def upsert(self, n: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        self._edit(EditKind.UPSERT, n=n)
+        self._edit(EditType.UPSERT, n=n)
 
     def upsert_many(self, *nodes: Node):
         for n in nodes:
-            self._edit(EditKind.UPSERT, n=n)
+            self._edit(EditType.UPSERT, n=n)
 
     def update(self, n: Node, properties: list[str]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if n.ck not in self._created_nodes_ck:
-            self._edit(EditKind.UPDATE, n=n, properties=properties)
+            self._edit(EditType.UPDATE, n=n, properties=properties)
 
     def update_many(self, *nodes: Node, properties: list[str]):
         for n in nodes:
             if n.ck not in self._created_nodes_ck:
-                self._edit(EditKind.UPDATE, n=n, properties=properties)
+                self._edit(EditType.UPDATE, n=n, properties=properties)
 
     def move(self, n: Node, properties: list[str] = None):
         """Moves and updates an existing node. Can update any properties."""
-        self._edit(EditKind.MOVE, n=n, properties=properties)
+        self._edit(EditType.MOVE, n=n, properties=properties)
 
     def move_many(self, *nodes: Node, properties: list[str] = None):
         for n in nodes:
-            self._edit(EditKind.MOVE, n=n, properties=properties)
+            self._edit(EditType.MOVE, n=n, properties=properties)
 
     def soft_delete(self, n: Node):
         """Deletes a node with the option to recover it for a limited time."""
         self._check_not_active(n)
-        self._edit(EditKind.SOFT_DELETE, n=n)
+        self._edit(EditType.SOFT_DELETE, n=n)
 
     def soft_delete_many(self, *nodes: Node):
         for n in nodes:
             self._check_not_active(n)
-            self._edit(EditKind.SOFT_DELETE, n=n)
+            self._edit(EditType.SOFT_DELETE, n=n)
 
     def restore(self, n: Node):
         """Restore a soft deleted node."""
-        self._edit(EditKind.RESTORE, n=n)
+        self._edit(EditType.RESTORE, n=n)
 
     def restore_many(self, *nodes: Node):
         for n in nodes:
-            self._edit(EditKind.RESTORE, n=n)
+            self._edit(EditType.RESTORE, n=n)
 
     def archive(self, n: Node):
         """Marks a node as archived, so it will be hidden by default."""
         self._check_not_active(n)
-        self._edit(EditKind.ARCHIVE, n=n)
+        self._edit(EditType.ARCHIVE, n=n)
 
     def archive_many(self, *nodes: Node):
         for n in nodes:
             self._check_not_active(n)
-            self._edit(EditKind.ARCHIVE, n=n)
+            self._edit(EditType.ARCHIVE, n=n)
 
     def unarchive(self, n: Node):
         """Re-track a node from the archive in its original place."""
-        self._edit(EditKind.UNARCHIVE, n=n)
+        self._edit(EditType.UNARCHIVE, n=n)
 
     def unarchive_many(self, *nodes: Node):
         for n in nodes:
-            self._edit(EditKind.UNARCHIVE, n=n)
+            self._edit(EditType.UNARCHIVE, n=n)
 
     def delete(self, n: Node):
         """Irreversibly deletes a node."""
         self._check_not_active(n)
-        self._edit(EditKind.DELETE, n=n)
+        self._edit(EditType.DELETE, n=n)
 
     def delete_many(self, *nodes: Node):
         for n in nodes:
             self._check_not_active(n)
-            self._edit(EditKind.DELETE, n=n)
+            self._edit(EditType.DELETE, n=n)
 
     def _check_not_active(self, n: Node):
         """Checks if the node or any of its ancestors are active."""
@@ -508,7 +508,7 @@ class Session(ScopeNode):
         self._touched_databases_by_id[database.id] = database
         self._changed_record_ids_by_db_id[database.id].update(record_ids)
 
-    def _edit(self, kind: EditKind, n: Node, properties: list[str] = None):
+    def _edit(self, kind: EditType, n: Node, properties: list[str] = None):
         """Register a non-session edit event to a node (local or global)."""
         assert self.closed_at is None, f"cannot {kind.name} {n!r} in closed session {self!r}"
         assert n._track & NTL.FULL, f"cannot {kind.name} untracked {n!r}"
@@ -520,9 +520,9 @@ class Session(ScopeNode):
             properties = tuple(n.__properties__[p].id for p in properties)
         edits = self._local_edits if n.__is_local__ else self._global_edits
 
-        if kind == EditKind.CREATE:
+        if kind == EditType.CREATE:
             self._created_nodes_ck.add(n.ck)
-        elif kind == EditKind.UPDATE:
+        elif kind == EditType.UPDATE:
             # merge with previous update if there is one
             update_idx = self._updated_nodes_event_by_ck.get(n.ck)
             if update_idx is not None:
@@ -570,7 +570,7 @@ class Session(ScopeNode):
             if local:
                 for event in self._local_edits:
                     edit = EditData(
-                        kind=event.kind,
+                        type=event.kind,
                         node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
                         node=wrap_some_node(pack_node(cast(Record, event.node))),
                         properties=event.properties,
@@ -585,7 +585,7 @@ class Session(ScopeNode):
             if global_:
                 for event in self._global_edits:
                     edit = EditData(
-                        kind=event.kind,
+                        type=event.kind,
                         node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
                         node=wrap_some_node(pack_node(event.node)),
                         properties=event.properties,
@@ -616,7 +616,7 @@ class Session(ScopeNode):
                 for n in chain((self.session,), runs):
                     node_data = pack_node(n)
                     edit = EditData(
-                        kind=EditKind.UPSERT,
+                        type=EditType.UPSERT,
                         node_type=pack_enum(NodeType, n.metatype),
                         node=(wrap_some_node(node_data)),
                     )

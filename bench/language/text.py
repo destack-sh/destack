@@ -50,8 +50,7 @@ TEXT_MENTION_REGEX = re.compile(
 TEXT_MENTION_TEMPLATE = (
     '<span data-ref-ck="{ck}" data-ref-type="{type}" data-ref-path="{path}"></span>'
 )
-NodeReference = Union["Node", str, UUID]
-TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
+_TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
 
 
 @dataclass
@@ -80,7 +79,7 @@ class TextMention:
         return None
 
     @staticmethod
-    def from_reference(reference: TypedNodeReference, path: Optional[str] = None) -> "TextMention":
+    def from_reference(reference: _TypedNodeReference, path: Optional[str] = None) -> "TextMention":
         return TextMention(reference=reference, reference_path=path)
 
 
@@ -108,7 +107,7 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
         ck = UUID(match.group("ck"))
         type = NodeType(match.group("type").upper())
         path = match.group("path") or None
-        spans.append(TextMention(reference=TypedNodeReference(type, ck), reference_path=path))
+        spans.append(TextMention(reference=_TypedNodeReference(type, ck), reference_path=path))
 
         last_end = match.end()
 
@@ -150,7 +149,7 @@ def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str |
     spans = parse_text_html(text_raw)
     for span in spans:
         if isinstance(span, TextMention) and span.reference_ck in target_cks:
-            span.reference = TypedNodeReference(
+            span.reference = _TypedNodeReference(
                 type=span.reference.type, ref=target_cks[span.reference_ck]
             )
     return render_text_html(spans)
@@ -177,7 +176,7 @@ def parse_text_multi(text_raw: str) -> list[TextSpan]:
         ident = match.group("ident") or UUID(match.group("ck"))
         node_type = match.group("type") or NodeType.BLOCK
         spans.append(
-            TextMention(reference=TypedNodeReference(node_type, ident), reference_path=None)
+            TextMention(reference=_TypedNodeReference(node_type, ident), reference_path=None)
         )
 
         last_end = match.end()

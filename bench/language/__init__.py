@@ -3,7 +3,7 @@ from .access import Badge, Policy, PolicyRule
 from .block import Block
 from .const import (
     VERSION,
-    ActionKind,
+    ActionType,
     BlockType,
     ConditionalOp,
     FormatHint,
@@ -51,7 +51,7 @@ from .worker import Dependency, Worker, WorkerImage, WorkerSet
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
-    "ActionKind",
+    "ActionType",
     "Badge",
     "Bench",
     "File",

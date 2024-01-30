@@ -205,7 +205,9 @@ def pack_node_maybe(node: NodeT | None) -> NodeDataT | None:
     return pack_node(node)
 
 
-def unpack_node(node_data: NodeDataT, parent: Node | None, session: Session | None) -> NodeT:
+def unpack_node(
+    node_data: NodeDataT, parent: Node | None = None, session: Session | None = None
+) -> NodeT:
     node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:

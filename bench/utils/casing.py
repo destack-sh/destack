@@ -39,6 +39,15 @@ PYTHON_CASING: dict[IdentifierType, Casing] = {
     IdentifierType.PROPERTY: Casing.SNAKE,
 }
 
+TYPESCRIPT_CASING: dict[IdentifierType, Casing] = {
+    IdentifierType.FILE: Casing.CAMEL,
+    IdentifierType.TYPE: Casing.CAMEL,
+    IdentifierType.CONSTANT: Casing.ALL_CAPS,
+    IdentifierType.FUNCTION: Casing.CAMEL,
+    IdentifierType.VARIABLE: Casing.CAMEL,
+    IdentifierType.PROPERTY: Casing.CAMEL,
+}
+
 IdentT = IdentifierType
 
 
