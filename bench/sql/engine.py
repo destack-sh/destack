@@ -396,7 +396,9 @@ def _compile_expression_ref(
     if expr.property_ptr is not None:
         return sql.Identifier(expr._stored_property_resolved.name)
     elif expr.field is not None:
-        assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
+        assert (
+            expr.field._introspected_from is None
+        ), f"cannot use introspected: {expr!r}->{expr.field!r}"
         if isinstance(node, Block) and node.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [expr.field.storage_key])
         else:

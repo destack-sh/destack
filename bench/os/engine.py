@@ -138,7 +138,9 @@ def _compile_expression_ref(expr: Expression) -> str:
     if expr.property_ptr is not None:
         return expr._stored_property_resolved.name
     if expr.field is not None:
-        assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
+        assert (
+            expr.field._introspected_from is None
+        ), f"cannot use introspected: {expr!r}->{expr.field!r}"
         return expr.field._source_key
     else:
         raise TypeError(f"unexpected field ref: {expr!r}")

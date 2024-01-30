@@ -143,9 +143,9 @@ service GlobalSupervisor {
 
   // Create user account.
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
-  // Login user account.
+  // Login user account with the current client.
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
-  // Logout user account.
+  // Logout user account with the current client.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
   //
@@ -156,7 +156,7 @@ service GlobalSupervisor {
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 
   //
-  // General Bench IO for global nodes (should match PackageHost)  :BenchIO
+  // General Bench IO for global nodes  :BenchIO
   //
 
   // Get global nodes.
@@ -276,7 +276,7 @@ message RunProxyBlockResponse {
 // Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
 service PackageHost {
   //
-  // General Bench IO for this package and global nodes (should match GlobalSupervisor) :BenchIO
+  // General Bench IO for this package and global nodes :BenchIO
   //
 
   // Reads local or global nodes.

@@ -22,7 +22,7 @@ from bench.language.node import (
     struct_property,
 )
 from bench.language.run import HasRun
-from bench.language.tagging import HasTags
+from bench.language.tag import HasTags
 from bench.language.task import HasTask
 from bench.language.trigger import HasTriggers
 from bench.language.validation import validate_is_str, validate_name
@@ -102,9 +102,11 @@ _block(BlockType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _block(BlockType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
-_block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
+_block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.TYPE)
 _block(BlockType.QUERY, (HasFields,), IdentT.VARIABLE)
-_block(BlockType.SCREEN, (), IdentT.VARIABLE)
+_block(BlockType.SCREEN, (), IdentT.TYPE)
+_block(BlockType.ROLE, (), IdentT.TYPE)
+_block(BlockType.IDENTITY, (), IdentT.TYPE)
 
 assert len(_BLOCK_DESCRIPTORS) == len(BlockType), "missing block descriptors"
 del _block
@@ -163,14 +165,14 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    # primary_screen: Optional["Block"] = struct_internal(
-    #     46, require=False, array=False, references=NodeType.BLOCK
-    # )
+    code: str | None = struct_property(50, default=None, validate=validate_is_str)
 
     # specific
-    code: str | None = struct_property(50, default=None, validate=validate_is_str)
     reference: Optional["Block"] = struct_internal(
         51, require=False, array=False, references=NodeType.BLOCK
+    )
+    assumed_policies: list["Policy"] | None = struct_internal(
+        52, default_factory=list, struct_t=StructType.POLICY, sensitive=True
     )
 
     @staticmethod

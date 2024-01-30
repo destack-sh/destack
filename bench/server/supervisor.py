@@ -39,9 +39,16 @@ from bench.proto.wire import (
     WatchEditsResponse,
     NodeReferenceData,
 )
-from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
-from bench.server.utils import (
+from bench.server.auth import (
+    check_password,
+    generate_access_token,
+    generate_salt,
+    hash_password,
+    get_authenticated_client,
     check_authenticated_client,
+    get_authentication,
+)
+from bench.server.utils import (
     detached_session,
     validate_bench_data_many,
 )
@@ -139,6 +146,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+        client, badge = await get_authentication(self.metadata)
         tree = NodeDataTree()
         roots_by_type: dict[wire.NodeType, list[NodeReferenceData]] = group_by(
             read_nodes_request.roots, lambda r: r.type

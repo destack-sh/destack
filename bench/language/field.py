@@ -259,7 +259,7 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     # is_indexed: bool = struct_internal(63, default=False)
     # is_unique: bool = struct_internal(64, default=False)
 
-    _reflected_from: Optional[Property] = struct_runtime(default=None)
+    _introspected_from: Optional[Property] = struct_runtime(default=None)
 
     def _as_type(self) -> "TypeInfo":
         return self._resolved_type

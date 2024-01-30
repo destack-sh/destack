@@ -21,14 +21,21 @@ from bench.language.node import (
     struct,
     struct_internal,
 )
+from bench.language.user import Membership
 
 if TYPE_CHECKING:
     from bench.language import Block, Expression
 
 
 #
-# Basics of auth:
-#  1. Owner is a user with owner-level access to the root node (Bench/User/Organization/...)
+# Basics of access control:
+#  0. Access is always implicitly denied if not otherwise specified.
+#  1. Policies can be attached directly to nodes or via delegates (badges, roles, identities, ...).
+#  2. Policies are scoped to the node their definition or delegate is attached to.
+#  3. Policy rules are evaluated in order up the node tree, first match decides.
+#  4. If multiple subject identities apply, any allow wins (i.e. the most permissive is granted).
+#  5. The 'owner' is a user with owner-level access to the resp. root node (Bench/User/Organization/...).
+#     This is effectively the 'root user' who can do anything.
 #
 
 
@@ -41,7 +48,7 @@ class Policy(Struct):
         31, default_factory=list, struct_t=StructType.POLICY_RULE
     )
     hidden: bool = struct_internal(
-        32, default=False, description="Hide this policy and its effects by default."
+        32, default=False, description="Hide this policy and its effects."
     )
 
     def __content_str__(self) -> str:
@@ -59,8 +66,7 @@ class PolicyRule(Struct):
 
     # verb
     verb_effect: PolicyEffect = struct_internal(40)
-    verb_actions: list[ActionKind] | None = struct_internal(41)
-    verb_sets: list[ActionKindSet] | None = struct_internal(42)
+    verb_sets: list[ActionKindSet] = struct_internal(41)
 
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
@@ -94,32 +100,50 @@ class RequestContext(Struct):
 
 @node(NodeType.BADGE)
 class Badge(Node):
-    """A badge for an unknown identity to access (parts of) this Bench."""
+    """Attach a badge to a node with an inline definition. Assumed by the 'holder', applies at the parent."""
 
     parent: Union[Package, "Block"] = node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
-    policy: Policy = struct_internal(32, struct_t=StructType.POLICY)
+    assumed_policies: list[Policy] = struct_internal(32, array=True, struct_t=StructType.POLICY)
     expires_at: Optional[datetime] = struct_internal(33, default=None)
     # sharing link badge
-    link_token: Optional[UUID] = struct_internal(40, default=None)
+    link_token: Optional[UUID] = struct_internal(40, unique=True, default=None)
     link_password: Optional[str] = struct_internal(
         41, default=None, encrypt=True, defer=True, sensitive=True
     )
-    link_password_digest: Optional[str] = struct_internal(
+    link_password_hash: Optional[str] = struct_internal(
         42, default=None, encrypt=True, defer=True, sensitive=True
     )
     # access key badge
     key_value: Optional[str] = struct_internal(
         50, default=None, encrypt=True, defer=True, sensitive=True
     )
-    key_value_digest: Optional[str] = struct_internal(
+    key_value_hash: Optional[str] = struct_internal(
         51, default=None, encrypt=True, defer=True, sensitive=True
     )
 
 
+@node(NodeType.ROLE)
+class Role(Node):
+    """Attach a role to a block or member. Assumed by the parent, applies globally."""
+
+    parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
+
+
+@node(NodeType.IDENTITY)
+class Identity(Node):
+    """Attach and optionally define (inline) a block or member. Assumed by the parent, applies globally."""
+
+    parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
+
+
 @struct(StructType.READ_OPTIONS)
 class ReadOptions(Struct):
+    """Basic read request for nodes with relations & properties."""
+
     ancestor_types: list[NodeType] | None = struct_internal(30, default=None)
     descendant_types: list[NodeType] | None = struct_internal(31, default=None)
     include_sensitive: bool = struct_internal(32, default=False)

@@ -80,13 +80,13 @@ export interface IGlobalSupervisorClient {
      */
     signupUser(input: SignupUserRequest, options?: RpcOptions): UnaryCall<SignupUserRequest, SignupUserResponse>;
     /**
-     * Login user account.
+     * Login user account with the current client.
      *
      * @generated from protobuf rpc: LoginUser(symbolx.bench.LoginUserRequest) returns (symbolx.bench.LoginUserResponse);
      */
     loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
     /**
-     * Logout user account.
+     * Logout user account with the current client.
      *
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */
@@ -179,7 +179,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<SignupUserRequest, SignupUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Login user account.
+     * Login user account with the current client.
      *
      * @generated from protobuf rpc: LoginUser(symbolx.bench.LoginUserRequest) returns (symbolx.bench.LoginUserResponse);
      */
@@ -188,7 +188,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Logout user account.
+     * Logout user account with the current client.
      *
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */

@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 from grpclib.testing import ChannelFor
 
-from bench.language.auth import AccessError
+from bench.language.access import AccessError
 from bench.language.const import BenchError
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata

@@ -1,5 +1,5 @@
 from ..sql.core import PrimitiveType
-from .auth import Badge, Policy, PolicyRule
+from .access import Badge, Policy, PolicyRule
 from .block import Block
 from .const import (
     VERSION,
@@ -43,7 +43,7 @@ from .render import render
 from .run import Pause, Run, RunError
 from .session import LogEntry, Session
 from .signal import Signal
-from .tagging import Tagging
+from .tag import Tag
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
@@ -95,7 +95,7 @@ __all__ = [
     "SortMode",
     "SortOp",
     "Struct",
-    "Tagging",
+    "Tag",
     "Trigger",
     "TriggerType",
     "TypeInfo",

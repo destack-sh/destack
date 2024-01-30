@@ -7,6 +7,7 @@ import pytest
 from psycopg import sql
 
 from bench.language import PrimitiveType
+from bench.sql.client import async_pg_cursor
 from bench.sql.core import Column, Table
 from bench.sql.engine import (
     RowIn,
@@ -78,8 +79,9 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def test_tables(test_cur: psycopg.AsyncCursor):
-    await force_create_tables(test_cur, _TEST_TABLES)
+async def test_tables():
+    async with async_pg_cursor("test") as cur:
+        await force_create_tables(cur, _TEST_TABLES)
 
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)

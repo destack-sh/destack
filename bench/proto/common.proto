@@ -20,14 +20,23 @@ message ClientOrigin {
 }
 
 // Core metadata for all RPC requests.
-// (This is passed as specially encoded headers, but it's useful to have a common definition here.)
+// (This is passed as specially encoded headers, but it's nice to have a common definition.)
 message RpcMetadata {
+  // Client origin
   optional ClientKind client_kind = 1;
   optional string client_id = 2;
   optional string client_nonce = 3;
   optional string client_token = 4;
+
+  // Scope
   optional string bench_id = 5;
   optional string package_id = 6;
+
+  // Badge
+  optional string badge_id = 7;
+  optional string badge_link_token = 8;
+  optional string badge_link_password = 9;
+  optional string badge_key_value = 10;
 }
 
 
@@ -38,6 +47,6 @@ message EditData {
   NodeType node_type = 2;
   string module_id = 3;
   SomeNodeData node = 4;
-  repeated int32 properties = 5;
+  repeated sint32 properties = 5;
   ClientOrigin origin = 6;
 }

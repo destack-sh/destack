@@ -132,7 +132,10 @@ class ValueReference(Struct):
     path: FieldPath = struct_property(31, require=True, struct=StructType.FIELD_PATH)
 
     def __content_str__(self):
-        return f"{self.node.path}.{self.path.__content_str__()}"
+        if self.node is not None:
+            return f"{self.node.path}.{self.path.__content_str__()}"
+        else:
+            return f"<detached>:{self.path.__content_str__()}"
 
 
 class QueryEngineError(Exception):

@@ -60,7 +60,7 @@ async def prepared_test_db():
     assert GLOBAL_PG_NAME == "test", f"GLOBAL_PG_NAME={GLOBAL_PG_NAME}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 async def test_cur() -> psycopg.AsyncCursor:
     from bench.sql.client import async_pg_cursor
 

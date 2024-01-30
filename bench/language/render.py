@@ -238,7 +238,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
                 p for p in node.parent.__list_properties_by_child__[node.metatype]
             )
             parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-            if node.metatype in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
+            if node.metatype in (NodeType.RECORD, NodeType.TAG, NodeType.TRIGGER):
                 op = _Op(parent_str, _OpType.CREATE, [init_node])
             else:
                 op = _Op(parent_str, _OpType.APPEND, [init_node])

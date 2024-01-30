@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.29.2"
+VERSION = "2024.01.30.0"
 
 
 #
@@ -37,7 +37,7 @@ class NodeType(ProtoStrEnum):
     PACKAGE = "PACKAGE", 20
     BLOCK = "BLOCK", 21
     TRIGGER = "TRIGGER", 22
-    TAGGING = "TAGGING", 23
+    TAG = "TAG", 23
     FIELD = "FIELD", 24
     RECORD = "RECORD", 25  # (local)
     QUERY = "QUERY", 26
@@ -54,8 +54,8 @@ class NodeType(ProtoStrEnum):
 
     # auth
     BADGE = "BADGE", 60
-    # ROLE = "ROLE", 61
-    # IDENTITY = "IDENTITY", 62
+    ROLE = "ROLE", 61
+    IDENTITY = "IDENTITY", 62
 
     # resources (compute/storage/etc.)
     WORKER_SET = "WORKER_SET", 80
@@ -73,7 +73,7 @@ class NodeType(ProtoStrEnum):
     # SPACE = "SPACE", 125
 
     # INVITE = "INVITE", 140
-    # MEMBERSHIP = "MEMBERSHIP", 141
+    MEMBERSHIP = "MEMBERSHIP", 141
     # COMMENT = "COMMENT", 142
 
     @property
@@ -85,7 +85,9 @@ NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 # (we duplicate in-package/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
 IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
-IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100)
+IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100) + (
+    NodeType.MEMBERSHIP,
+)
 
 
 class StructType(ProtoStrEnum):
@@ -180,8 +182,8 @@ class BlockType(ProtoStrEnum):
     DATABASE = "database", 41  # define a database with queries
     SCREEN = "screen", 42  # define a screen with views
 
-    # ROLE = "role", 50  # define a role with policies
-    # IDENTITY = "identity", 51  # define an identity with roles
+    ROLE = "role", 50  # define a role with policies
+    IDENTITY = "identity", 51  # define an identity with roles & policies
 
     @property
     def bench_name(self):
@@ -211,7 +213,7 @@ class BlockTypes:
     TYPES = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20)
     RUNNABLE = tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40)
     SCRIPTABLE = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,)
-    LEAVES = (BlockType.BLANK, BlockType.TEXT, BlockType.QUERY)
+    LEAVES = (BlockType.BLANK, BlockType.TEXT)
     NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 

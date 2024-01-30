@@ -145,9 +145,8 @@ class Property(_TypeExpressionBase):
 
     is_array: bool = UNSET
     is_required: bool = False  # = must be non-null
-    is_internal: bool = False  # = not directly editable, only via accessors
+    is_internal: bool = False  # = should be edited via accessors, but not enforced
     is_system: bool = False  # = only editable by system
-    is_reflected: bool = UNSET  # eventually all properties should be reflected, for now only some
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance
     is_wired: bool = UNSET  # serialized onto wire (in proto)
@@ -202,7 +201,6 @@ class Property(_TypeExpressionBase):
             "is_computed",
             "is_internal",
             "is_system",
-            "is_reflected",
             "is_ancestor_nearest",
             "is_ancestor_self",
             "is_deferred",
@@ -234,7 +232,7 @@ class Property(_TypeExpressionBase):
 
     @functools.cached_property
     def _as_type(self) -> "TypeInfo":
-        assert self.is_reflected is True, f"{self!r} is not reflected"
+        assert self.is_introspectable, f"{self!r} is not introspectable"
         from bench.language.field import TypeInfo
 
         if self.reference_kind:
@@ -279,6 +277,10 @@ class Property(_TypeExpressionBase):
         assert issubclass(self.component, Node), f"{self!r} is not a node property"
         assert isinstance(self.component.__table__, Table), f"{self.component} has no table"
         return self.component.__table__._columns_by_name[self.name]
+
+    @property
+    def is_introspectable(self) -> bool:
+        return not self.is_runtime_only and self.is_stored
 
     @property
     def is_tree_relation(self) -> bool:
@@ -344,11 +346,6 @@ class Property(_TypeExpressionBase):
             self.is_wired = self.is_stored
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
-        if self.is_reflected is UNSET:
-            if not self.is_struct and not self.is_encrypted:
-                self.is_reflected = self.is_stored
-            else:
-                self.is_reflected = False  # can't deal with that yet
 
         # resolve py type
         if self.is_runtime_only or self.reference_kind == NodeReferenceKind.CHILD:
@@ -538,7 +535,6 @@ def struct_property(
     copy: Callable[[Any], Any] = None,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
     require: bool = UNSET,
-    reflect: bool = UNSET,
     unique: bool = False,
     encrypt: bool = False,
     array: bool = UNSET,
@@ -556,7 +552,6 @@ def struct_property(
         custom_copy=copy,
         custom_validate=validate,
         is_required=require,
-        is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
@@ -576,7 +571,6 @@ def struct_internal(
     default_factory: Callable[[], Any] = None,
     copy: Callable[[Any], Any] = None,
     require: bool = UNSET,
-    reflect: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
@@ -600,7 +594,6 @@ def struct_internal(
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
-        is_reflected=reflect,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
         ignore_conflicts_with=ignore_conflicts_with,
@@ -1622,7 +1615,7 @@ class Node(Struct, _NodeExpressionBase):
         self.id = get_node_id(package_id, self.ck)
 
     @final
-    def __str__(self):  # noqa: we want to override the default __str__ for nodes
+    def __str__(self):  # noqa: override the default __str__ for nodes
         content_str = self.__content_str__()
         ident_str = self.py_ident
         if ident_str is None:
@@ -1635,7 +1628,7 @@ class Node(Struct, _NodeExpressionBase):
             return f"'{self.path}'{content_str}"
 
     @final
-    def __repr__(self):  # noqa: we want to override the default __repr__ for nodes
+    def __repr__(self):  # noqa: override the default __repr__ for nodes
         return f"<{self.__class__.__name__} {str(self)}>"
 
     @property
@@ -2599,8 +2592,8 @@ def _complete_bench_setup():
             if prop.is_runtime and not prop.is_runtime_only and not prop.is_computed:
                 setattr(cls, name, prop)
 
-            # ensure the reflected field works (and cache it)
-            if prop.is_reflected:
+            # ensure the introspected field works (and cache it)
+            if prop.is_introspectable:
                 prop._as_type  # noqa
 
             # check deferred/encrypted properties
