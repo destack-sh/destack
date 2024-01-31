@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.31.1"
+VERSION = "2024.01.31.3"
 
 
 #
@@ -30,8 +30,6 @@ class NodeType(ProtoStrEnum):
     # UNIVERSE = "UNIVERSE", 2
     # PLACE = "PLACE", 3
     # BRANCH = "BRANCH", 4
-    # DEPENDENCY = "DEPENDENCY", 5
-    # UPGRADE = "UPGRADE", 6
 
     # source
     PACKAGE = "PACKAGE", 20
@@ -41,17 +39,20 @@ class NodeType(ProtoStrEnum):
     FIELD = "FIELD", 24
     RECORD = "RECORD", 25  # (local)
     QUERY = "QUERY", 26
-    # VIEW = "VIEW", 27
+    VIEW = "VIEW", 27
     # STEP = "STEP", 28
     ISSUE = "ISSUE", 29
     LINK = "LINK", 30
     # COMMENT = "COMMENT", ...
+    SPACE = "SPACE", 40
+    # DEPENDENCY = "DEPENDENCY", ...
+    # UPGRADE = "UPGRADE", ...
 
-    # session (all local)
-    SESSION = "SESSION", 50
-    RUN = "RUN", 51
-    PAUSE = "PAUSE", 52
-    SIGNAL = "SIGNAL", 53
+    # session
+    SESSION = "SESSION", 50  # (local)
+    RUN = "RUN", 51  # (local)
+    PAUSE = "PAUSE", 52  # (local)
+    SIGNAL = "SIGNAL", 53  # (local)
 
     # auth
     BADGE = "BADGE", 60
@@ -70,7 +71,6 @@ class NodeType(ProtoStrEnum):
     ORGANIZATION = "ORGANIZATION", 122
     CLIENT = "CLIENT", 123
     NOTIFICATION = "NOTIFICATION", 124
-    SPACE = "SPACE", 125
 
     # INVITE = "INVITE", 140
     MEMBERSHIP = "MEMBERSHIP", 141
@@ -83,13 +83,16 @@ class NodeType(ProtoStrEnum):
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 # (we duplicate in-package/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
-IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
+IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80) + (
+    NodeType.SPACE,
+)
 SUB_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt for nt in IN_PACKAGE_NODE_TYPES if nt != NodeType.PACKAGE
 )
 IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100) + (
     NodeType.MEMBERSHIP,
     NodeType.CLIENT,
+    NodeType.SPACE,
 )
 SUB_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH
@@ -489,11 +492,8 @@ class TriggerType(ProtoStrEnum):
 
     INVOKE = "invoke", 1
     TIME = "time", 2
-    RUN = "run", 3
-    EDIT = "edit", 4
-    MESSAGE = "message", 5
-    USER = "user", 6
-    API = "api", 7
+    SIGNAL = "signal", 3
+    API = "api", 4
 
 
 class ScheduleType(ProtoStrEnum):

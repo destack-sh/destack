@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.31.1"
+VERSION = "2024.01.31.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -358,6 +358,61 @@ QUERY_TABLE = Table(
     ),
 )
 
+VIEW_TABLE = Table(
+    "bench_view",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column(
+            "parent_space_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_space",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_view_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_view",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_block_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_block",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+        ),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("type", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING),
+    ),
+    indexes=(
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_space_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
+        ),
+    ),
+)
+
 ISSUE_TABLE = Table(
     "bench_issue",
     (
@@ -445,7 +500,9 @@ LINK_TABLE = Table(
         Column("reference_field_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_record_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_query_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_view_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_issue_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_space_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -456,6 +513,49 @@ LINK_TABLE = Table(
             "bench_check_one_parent",
             ConstraintType.CHECK,
             condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
+        ),
+    ),
+)
+
+SPACE_TABLE = Table(
+    "bench_space",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column(
+            "parent_package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+        ),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING),
+        Column("dock", PrimitiveType.JSON),
+    ),
+    indexes=(
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_package_id IS NOT NULL)",
         ),
     ),
 )
@@ -1051,13 +1151,7 @@ CLIENT_TABLE = Table(
         Column("last_seen_at", PrimitiveType.DATETIME),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column(
-            "main_space_space_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_space",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
+        Column("main_space_space_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),
@@ -1100,51 +1194,6 @@ NOTIFICATION_TABLE = Table(
         Column("status", PrimitiveType.STRING),
         Column("expires_at", PrimitiveType.DATETIME),
         Column("read_at", PrimitiveType.DATETIME),
-    ),
-    indexes=(
-        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
-        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent", ConstraintType.CHECK, condition="(parent_user_id IS NOT NULL)"
-        ),
-    ),
-)
-
-SPACE_TABLE = Table(
-    "bench_space",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_user_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column("revision", PrimitiveType.INT64, default="0"),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("name", PrimitiveType.STRING),
-        Column(
-            "main_bench_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
-            "main_package_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("dock", PrimitiveType.JSON),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),

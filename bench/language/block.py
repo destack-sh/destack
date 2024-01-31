@@ -128,7 +128,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Block(ScopeNode, HasTags):
-    """A Bench building block, the core building block containing logic, schemas, data and AI stuff."""
+    """A core Bench building block containing logic, types, UI, data, AI, and basically anything source."""
 
     parent: Union["Block", "Package"] = node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
     children: NodeList["Block"] = node_children(

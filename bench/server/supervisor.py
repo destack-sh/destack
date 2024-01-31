@@ -203,8 +203,8 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         tree = adapt_access_post_read(self.subject, (base_request,), SYSTEM_POLICIES, tree, options)
 
         return SearchNodesResponse(
-            roots_ids=tuple(r.id for r in roots.nodes),
-            nodes=tuple(wiring.wrap_some_node(n) for n in tree.nodes),
+            roots_ids=[r.id for r in roots.nodes],
+            nodes=[wiring.wrap_some_node(n) for n in tree.nodes],
             cursors=roots.cursors,
             start_cursor=roots.start_cursor,
             total=count,

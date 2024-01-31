@@ -207,11 +207,3 @@ class File(Struct):
         if suffix not in ("txt", "md", "csv", "rst", "log", "json", "yaml", "yml", "toml"):
             name += ".txt"
         return await File.from_content(name, "text/plain", content.encode())
-
-
-@struct(StructType.ICON)
-class Icon(Struct):
-    builtin_name: str = struct_property(30)
-    custom_file: Optional[File] = struct_internal(
-        31, require=False, array=False, struct=StructType.FILE
-    )

@@ -160,7 +160,9 @@ def generate_proto_schema(
     for thing in bench_classes:
         _ = map_bench_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
-    collected_enums: list[type[enum.Enum]] = [t for t in bench_classes if issubclass(t, enum.Enum)]
+    collected_enums: list[type[enum.Enum]] = [
+        t for t in proto_types_cache.keys() if issubclass(t, enum.Enum)
+    ]
     collected_structs: list[type["Struct"]] = [
         t for t in bench_classes if issubclass(t, Struct) and not issubclass(t, Node)
     ]

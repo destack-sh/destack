@@ -686,7 +686,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                     )
                 else:  # create it
                     updates.append(
-                        f"ADD CONSTRAINT {op.new_object.table}_pkey"
+                        f"ADD CONSTRAINT {op.new_object.table.name}_pkey"
                         f" PRIMARY KEY ({op.new_object.name})"
                     )
             if not updates:
