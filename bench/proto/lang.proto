@@ -93,6 +93,7 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 122;
   BENCH_TYPE_CLIENT = 123;
   BENCH_TYPE_NOTIFICATION = 124;
+  BENCH_TYPE_SPACE = 125;
   BENCH_TYPE_MEMBERSHIP = 141;
   BENCH_TYPE_BENCH_PATH = 200;
   BENCH_TYPE_NODE_REFERENCE = 201;
@@ -123,6 +124,8 @@ enum BenchType {
   BENCH_TYPE_DEPENDENCY = 281;
   BENCH_TYPE_RICH_TEXT = 300;
   BENCH_TYPE_RICH_TEXT_SPAN = 301;
+  BENCH_TYPE_SPACE_DOCK = 400;
+  BENCH_TYPE_SPACE_DOCK_ITEM = 401;
 }
 
 enum BlockType {
@@ -154,6 +157,12 @@ enum Casing {
   CASING_SNAKE = 1;
   CASING_CAMEL = 2;
   CASING_ALL_CAPS = 3;
+}
+
+enum ClientKind {
+  CLIENT_KIND_UNSPECIFIED = 0;
+  CLIENT_KIND_USER = 1;
+  CLIENT_KIND_WORKER = 2;
 }
 
 enum ConditionalOp {
@@ -340,6 +349,7 @@ enum NodeType {
   NODE_TYPE_ORGANIZATION = 122;
   NODE_TYPE_CLIENT = 123;
   NODE_TYPE_NOTIFICATION = 124;
+  NODE_TYPE_SPACE = 125;
   NODE_TYPE_MEMBERSHIP = 141;
 }
 
@@ -502,6 +512,8 @@ enum StructType {
   STRUCT_TYPE_DEPENDENCY = 281;
   STRUCT_TYPE_RICH_TEXT = 300;
   STRUCT_TYPE_RICH_TEXT_SPAN = 301;
+  STRUCT_TYPE_SPACE_DOCK = 400;
+  STRUCT_TYPE_SPACE_DOCK_ITEM = 401;
 }
 
 // Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -702,7 +714,6 @@ message PolicyData {
 
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 //     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
-//     If no property is set per category, it's a wildcard (matches any subject/verb/object).
 message PolicyRuleData {
   BenchType metatype = 1;
   optional bool subject_is_authenticated = 30;
@@ -736,8 +747,9 @@ message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
-  bool include_sensitive = 32;
-  optional ExpressionData global_filter = 35;
+  repeated PropertyReferenceData related_properties = 32;
+  bool include_sensitive = 40;
+  optional ExpressionData global_filter = 50;
 }
 
 // The context of a single request.
@@ -756,21 +768,23 @@ message RequestEvaluationData {
   PolicyEffect decision = 32;
 }
 
-// The object of a request.
+// The object of a request. Often refers to a summary of actual objects with identical properties.
+//     As with RequestSubject, unknown attributes are uninitialized.
 message RequestObjectData {
   BenchType metatype = 1;
   BenchType type = 30;
   bool is_sensitive = 31;
   bool is_system = 32;
+  optional NodeReferenceData owner_ptr = 33;
 }
 
-// The subject of a request. Unknown attributes are set to None.
+// The principal issuing a request. Unknown attributes are uninitialized.
 message RequestSubjectData {
   BenchType metatype = 1;
   bool is_authenticated = 30;
-  optional bool is_owner = 31;
-  optional bool is_member = 32;
-  bool is_staff = 33;
+  bool is_staff = 31;
+  repeated NodeReferenceData memberships_ptr = 32;
+  repeated NodeReferenceData ownerships_ptr = 33;
   optional NodeReferenceData client_ptr = 34;
   optional NodeReferenceData user_ptr = 35;
   optional NodeReferenceData worker_ptr = 36;
@@ -813,6 +827,18 @@ message RunErrorData {
   optional string message = 32;
   optional NodeReferenceData node_ptr = 33;
   repeated RunCodeFrameData traceback = 34;
+}
+
+// SpaceDock(items: list[bench.language.view.SpaceDockItem] = <factory>, _status: bench.language.const.NodeStatus = None)
+message SpaceDockData {
+  BenchType metatype = 1;
+  repeated SpaceDockItemData items = 30;
+}
+
+// SpaceDockItem(hidden: bool = False, _status: bench.language.const.NodeStatus = None)
+message SpaceDockItemData {
+  BenchType metatype = 1;
+  bool hidden = 31;
 }
 
 // A type is a kind of value that can go somewhere, typically a field.
@@ -967,7 +993,7 @@ message BucketObjectData {
   FileStatus status = 33;
 }
 
-// A client to this Bench. Can be a user or a worker.
+// A client to this Bench.
 message ClientData {
   BenchType metatype = 1;
   string id = 2;
@@ -978,12 +1004,14 @@ message ClientData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional string name = 31;
-  string device_name = 32;
-  optional string browser_name = 33;
-  google.protobuf.Timestamp last_seen_at = 34;
-  optional google.protobuf.Timestamp logged_in_at = 35;
-  optional string access_token = 36;
+  ClientKind kind = 30;
+  optional string name = 32;
+  string device_name = 33;
+  optional string browser_name = 34;
+  google.protobuf.Timestamp last_seen_at = 35;
+  optional google.protobuf.Timestamp logged_in_at = 36;
+  optional string access_token = 37;
+  optional NodeReferenceData main_space_ptr = 40;
 }
 
 // A used-defined attribute of some value.
@@ -1127,9 +1155,9 @@ message NotificationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   NotificationKind kind = 30;
-  NotificationStatus status = 31;
-  google.protobuf.Timestamp expires_at = 32;
-  google.protobuf.Timestamp read_at = 33;
+  NotificationStatus status = 32;
+  google.protobuf.Timestamp expires_at = 33;
+  google.protobuf.Timestamp read_at = 34;
 }
 
 // A Bench organization.
@@ -1305,6 +1333,23 @@ message SignalData {
   optional google.protobuf.Struct value_packed = 31;
 }
 
+// A space for a user to interact with a Bench.
+message SpaceData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string name = 31;
+  optional NodeReferenceData main_bench_ptr = 32;
+  optional NodeReferenceData main_package_ptr = 33;
+  SpaceDockData dock = 34;
+}
+
 // An association between a tag and a node (with optional value).
 message TagData {
   BenchType metatype = 1;
@@ -1336,6 +1381,7 @@ message TriggerData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   TriggerType type = 30;
+  optional string name = 31;
   bool active = 32;
   optional ScheduleType schedule_type = 33;
   optional string timezone = 34;
@@ -1434,7 +1480,8 @@ message SomeNodeData {
     OrganizationData organization = 23;
     ClientData client = 24;
     NotificationData notification = 25;
-    MembershipData membership = 26;
+    SpaceData space = 26;
+    MembershipData membership = 27;
   };
 }
 

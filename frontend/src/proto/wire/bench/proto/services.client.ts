@@ -102,7 +102,7 @@ export interface IGlobalSupervisorClient {
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     // 
-    // General Bench IO for global nodes  :BenchIO
+    // General Bench IO for > package & global nodes only :BenchIO
     // 
 
     /**
@@ -210,7 +210,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // General Bench IO for global nodes  :BenchIO
+    // General Bench IO for > package & global nodes only :BenchIO
     // 
 
     /**
@@ -288,7 +288,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
  * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
- * General Bench IO for this package and global nodes :BenchIO
+ * General Bench IO for this package only :BenchIO
  *
  *
  * @generated from protobuf service symbolx.bench.PackageHost
@@ -414,7 +414,7 @@ export interface IPackageHostClient {
  * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
- * General Bench IO for this package and global nodes :BenchIO
+ * General Bench IO for this package only :BenchIO
  *
  *
  * @generated from protobuf service symbolx.bench.PackageHost

@@ -244,7 +244,7 @@ class RunError(Struct, BenchError):
         33, require=False, array=False, references=NodeType.BLOCK
     )
     traceback: list[RunCodeFrame] = struct_internal(
-        34, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
+        34, default_factory=list, struct=StructType.RUN_CODE_FRAME
     )
 
     @staticmethod

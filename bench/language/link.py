@@ -820,7 +820,7 @@ class NodeQuery(Generic[NodeT]):
             nodes_data = await pg_select_nodes_data(
                 cur=cur,
                 node_type=self._node_type,
-                where=self._filter,
+                filter=self._filter,
                 sort=self._sort,
                 first=self._first,
                 skip=self._skip,
@@ -880,7 +880,6 @@ class NodeQuery(Generic[NodeT]):
             request = wire.AggregateNodesRequest(
                 node_type=wiring.pack_enum(NodeType, self._node_type),
                 filter=wiring.pack_struct_maybe(filter),
-                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
                 limit=self._first,
                 aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
             )

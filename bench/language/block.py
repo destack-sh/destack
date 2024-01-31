@@ -25,7 +25,7 @@ from bench.language.run import HasRun
 from bench.language.tag import HasTags
 from bench.language.task import HasTask
 from bench.language.trigger import HasTriggers
-from bench.language.validation import validate_is_str, validate_name
+from bench.language.validation import validate_name
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
@@ -137,14 +137,14 @@ class Block(ScopeNode, HasTags):
 
     visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
     policies: list["Policy"] | None = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
     type: BlockType = struct_internal(30, default=BlockType.BLANK)
     bases: list["Block"] | None = struct_internal(
         31, default=None, require=False, array=True, references=NodeType.BLOCK
     )
     builtin_base: Optional["TypeInfo"] = struct_internal(
-        32, default=None, struct_t=StructType.TYPE_INFO
+        32, default=None, struct=StructType.TYPE_INFO
     )
     is_page: bool = struct_internal(33, default=False)
 
@@ -152,7 +152,7 @@ class Block(ScopeNode, HasTags):
     name: str | None = struct_property(40, default=None, validate=validate_name)
     order_key: str | None = struct_internal(41, default=None)
     dynamic_key: str | None = struct_internal(42, default=None)
-    text: str | None = struct_property(43, default=None, validate=validate_is_str)
+    text: str | None = struct_property(43, default=None)
     value_packed: Any | None = struct_property(
         44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
@@ -165,14 +165,14 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    code: str | None = struct_property(50, default=None, validate=validate_is_str)
+    code: str | None = struct_property(50, default=None)
 
     # specific
     reference: Optional["Block"] = struct_internal(
         51, require=False, array=False, references=NodeType.BLOCK
     )
     assumed_policies: list["Policy"] | None = struct_internal(
-        52, default_factory=list, struct_t=StructType.POLICY, sensitive=True
+        52, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
 
     @staticmethod

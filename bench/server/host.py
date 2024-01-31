@@ -11,9 +11,15 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
+from bench.language.access import (
+    ReadOptions,
+    SYSTEM_POLICIES,
+    adapt_access_post_read,
+)
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -160,7 +166,12 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def start_quick(self) -> None:
         async with detached_session() as session:
             self._bench: Bench = await pg_read_node(
-                session=session, root_type=NodeType.BENCH, root_id=self.bench_id
+                session=session,
+                root_type=NodeType.BENCH,
+                root_id=self.bench_id,
+                options=ReadOptions(
+                    related_properties=(Bench.user, Bench.organization, Bench.head)
+                ),
             )
             self._package: Package = await pg_read_node(
                 session=session,
@@ -174,38 +185,42 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     # General Bench IO for this package :BenchIO
     #
 
-    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+    async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
+        options: ReadOptions = wiring.unpack_struct_maybe(request.options) or ReadOptions.default()
 
-    async def search_nodes(
-        self, search_nodes_request: "SearchNodesRequest"
-    ) -> "SearchNodesResponse":
-        if search_nodes_request.node_type == NodeType.RECORD:
+        if request.node_type == NodeType.RECORD:
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif search_nodes_request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
+        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif search_nodes_request.node_type == NodeType.SIGNAL:
+        elif request.node_type in LOADED_SOURCE_TYPES:
+            # read from local source (assumed to be loaded completely)
+            tree: NodeDataTree = ...  # nocheckin ???
+            tree = adapt_access_post_read(self.subject, (), SYSTEM_POLICIES, tree, options)
+            return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
+
+    async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
+        if request.node_type == NodeType.RECORD:
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         else:
             # NOTE: we don't support generic server-side 'node search' yet
-            #  (clients are expected to search loaded nodes in memory for now)
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"cannot search {search_nodes_request.node_type} in package",
-            )
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot search {request.node_type}")
 
-    async def aggregate_nodes(
-        self, aggregate_nodes_request: "AggregateNodesRequest"
-    ) -> "AggregateNodesResponse":
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+    async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
+        if request.node_type == NodeType.RECORD:
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        else:
+            # NOTE: we don't support generic server-side 'node search' yet
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot aggregate {request.node_type}")
 
-    async def commit_edits(
-        self, commit_edits_request: "CommitEditsRequest"
-    ) -> "CommitEditsResponse":
+    async def commit_edits(self, request: "CommitEditsRequest") -> "CommitEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
-        self, watch_edits_request: "WatchEditsRequest"
+        self, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
@@ -213,28 +228,24 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     # Package-specific stuff
     #
 
-    async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
+    async def push_edits(self, request: "PushEditsRequest") -> "PushEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+    async def paste_nodes(self, request: "PasteNodesRequest") -> "PasteNodesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def snapshot(
-        self, snapshot_package_request: "SnapshotPackageRequest"
-    ) -> "SnapshotPackageResponse":
+    async def snapshot(self, request: "SnapshotPackageRequest") -> "SnapshotPackageResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Files
     #
 
-    async def upload_files(
-        self, upload_files_request: "UploadFilesRequest"
-    ) -> "UploadFilesResponse":
-        validate_bench_data_many(*upload_files_request.files)
+    async def upload_files(self, request: "UploadFilesRequest") -> "UploadFilesResponse":
+        validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
-        for file in upload_files_request.files:
+        for file in request.files:
             presigned = get_s3_client().generate_presigned_post(
                 Bucket=GLOBAL_PROJECT_BUCKET_NAME,
                 Key=f"{file.id}/{file.name}",
@@ -250,13 +261,11 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
         return UploadFilesResponse(post_urls=presigned_urls, expires_at=expires_at)
 
-    async def download_files(
-        self, download_files_request: "DownloadFilesRequest"
-    ) -> "DownloadFilesResponse":
-        validate_bench_data_many(*download_files_request.files)
+    async def download_files(self, request: "DownloadFilesRequest") -> "DownloadFilesResponse":
+        validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
-        for file in download_files_request.files:
+        for file in request.files:
             get_url = get_s3_client().generate_presigned_url(
                 ClientMethod="get_object",
                 Params={
@@ -273,30 +282,24 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     # Logs
     #
 
-    async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
+    async def search_logs(self, request: "SearchLogsRequest") -> "SearchLogsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def watch_logs(
-        self, watch_logs_request: "WatchLogsRequest"
-    ) -> AsyncIterator["WatchLogsResponse"]:
+    async def watch_logs(self, request: "WatchLogsRequest") -> AsyncIterator["WatchLogsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def push_worker_logs(
-        self, push_worker_logs_request: "PushWorkerLogsRequest"
-    ) -> "PushWorkerLogsRequest":
+    async def push_worker_logs(self, request: "PushWorkerLogsRequest") -> "PushWorkerLogsRequest":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Runs
     #
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(self, request: "StartRunRequest") -> "StartRunResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
+    async def kill_run(self, request: "KillRunRequest") -> "KillRunResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def run_proxy_block(
-        self, run_proxy_block_request: "RunProxyBlockRequest"
-    ) -> "RunProxyBlockResponse":
+    async def run_proxy_block(self, request: "RunProxyBlockRequest") -> "RunProxyBlockResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

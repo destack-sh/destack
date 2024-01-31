@@ -32,7 +32,7 @@ from bench.language.node import (
     struct_property,
     struct_runtime,
 )
-from bench.language.validation import validate_is_str, validate_name
+from bench.language.validation import validate_name
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
@@ -244,7 +244,7 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     dynamic_key: str | None = struct_internal(32, default=None)
-    text: str | None = struct_property(33, default=None, validate=validate_is_str)
+    text: str | None = struct_property(33, default=None)
     value_packed: Any | None = struct_property(
         34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )

@@ -6,7 +6,8 @@ from grpclib import GRPCError, Status as GRPCStatus
 
 from bench.language import Client, Worker, Badge
 from bench.language.access import RequestSubject
-from bench.proto.wire import RpcMetadata, ClientKind
+from bench.proto import wiring
+from bench.proto.wire import RpcMetadata, ClientKind, NodeType
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -67,23 +68,21 @@ def generate_access_token() -> str:
     return urandom(ACCESS_TOKEN_LENGTH).hex()
 
 
-async def _get_subject_from_metadata(metadata: RpcMetadata) -> Client | Worker | None:
+async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     """Gets the authenticated client (if any)."""
 
     if metadata.client_kind is None:
         return None
-    elif metadata.client_kind == ClientKind.USER:
-        client = await Client.get(id=to_uuid(metadata.client_id))
-        if client.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
-        return client
-    elif metadata.client_kind == ClientKind.WORKER:
-        worker = await Worker.get(id=to_uuid(metadata.client_id))
-        if worker.access_token != metadata.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
-        return worker
-    else:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
+
+    client: Client = await Client.options(
+        include_sensitive=True, ancestor_types=(NodeType.USER, NodeType.WORKER)
+    ).get(
+        kind=wiring.unpack_enum(ClientKind, metadata.client_kind),
+        id=to_uuid(metadata.client_id),
+    )
+    if client.access_token != metadata.client_access_token:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
+    return client
 
 
 async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
@@ -110,6 +109,20 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
 
 
 async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
-    subject = await _get_subject_from_metadata(metadata)
+    client = await _get_client_from_metadata(metadata)
     badge = await _get_badge_from_metadata(metadata)
-    return RequestSubject.from_authentication(subject, badge)
+    if client is None:
+        return RequestSubject(is_authenticated=False, badge=badge)
+    elif client.parent_type == NodeType.USER:
+        return RequestSubject(
+            is_authenticated=True,
+            is_staff=client.user.is_staff,
+            client=client,
+            user=client.user,
+            badge=badge,
+            # TODO @Broken: fetch subject memberships & ownerships
+            memberships=[],
+            ownerships=[client.user],
+        )
+    else:
+        raise ValueError(f"unexpected client: {client!r}")

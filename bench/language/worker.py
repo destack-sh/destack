@@ -46,7 +46,7 @@ class Worker(Node):
     parent: "WorkerSet" = node_parent(4, NodeType.WORKER_SET)
     external_id: str = struct_internal(30, unique=True, system=True)
     profile: WorkerProfile = struct_internal(31)
-    image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
+    image: Optional["WorkerImage"] = struct_internal(32, struct=StructType.WORKER_IMAGE)
     version: Optional[str] = struct_internal(33, index_in_pg=True)
     access_token: Optional[str] = struct_internal(
         34, default=None, system=True, encrypt=True, defer=True, sensitive=True
@@ -58,7 +58,7 @@ class WorkerImage(Struct):
     language: str = struct_internal(30)
     version: str = struct_internal(31)
     platform: str = struct_internal(32)
-    dependencies: list["Dependency"] = struct_internal(33, struct_t=StructType.DEPENDENCY)
+    dependencies: list["Dependency"] = struct_internal(33, struct=StructType.DEPENDENCY)
 
 
 @struct(StructType.DEPENDENCY)
