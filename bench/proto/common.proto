@@ -7,12 +7,6 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
-enum ClientKind {
-  CLIENT_KIND_UNSPECIFIED = 0;
-  CLIENT_KIND_USER = 1;
-  CLIENT_KIND_WORKER = 2;
-}
-
 message ClientOrigin {
   ClientKind kind = 1;
   string id = 2;
@@ -26,7 +20,7 @@ message RpcMetadata {
   optional ClientKind client_kind = 1;
   optional string client_id = 2;
   optional string client_nonce = 3;
-  optional string client_token = 4;
+  optional string client_access_token = 4;
 
   // Scope
   optional string bench_id = 5;

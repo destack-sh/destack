@@ -1104,7 +1104,7 @@ async def pg_select_nodes_data(
     node_type: NodeType,
     *,
     properties: Collection[Property] | None = None,
-    where: Expression | None = None,
+    filter: Expression | None = None,
     sort: Collection[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
@@ -1115,13 +1115,13 @@ async def pg_select_nodes_data(
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
     columns = [prop.column for prop in properties] if properties is not None else None
-    where = compile_pg_conditional(node_cls, where) if where is not None else None
+    filter = compile_pg_conditional(node_cls, filter) if filter is not None else None
     sort = compile_pg_sorts(node_cls, sort) if sort is not None else None
     rows = await pg_select(
         cur=cur,
         table=node_cls.__table__,
         columns=columns,
-        where=where,
+        where=filter,
         order_by=sort,
         first=first,
         skip=skip,
@@ -1152,7 +1152,7 @@ async def pg_read_node_data_tree(
     roots = await pg_select_nodes_data(
         cur=cur,
         node_type=root_type,
-        where=root_filter,
+        filter=root_filter,
         properties=options.select_properties_by_type[root_type],
     )
     if not roots.nodes:
@@ -1180,15 +1180,12 @@ async def pg_read_node_data_tree(
             # select next parents
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
-                node_filter = (
-                    options.global_filter
-                    & options.filter_by_type.get(node_type, CONDITIONAL_TRUE)
-                    & Node.filter(id__in=node_ids)._filter
-                )
                 layer = await pg_select_nodes_data(
                     cur=cur,
                     node_type=node_type,
-                    where=node_filter,
+                    filter=options.combined_filter(
+                        node_type, C(ConditionalOp.IN, property_ptr=Node.id.ptr, value=node_ids)
+                    ),
                     select_properties_by_type=options.select_properties_by_type,
                 )
                 next_parents.extend(layer.nodes)
@@ -1197,6 +1194,8 @@ async def pg_read_node_data_tree(
             current_parents = next_parents
 
     # select descendants (recursively)
+    # nocheckin @Performance!: recurse read nodes up?/down in SQL
+    #  (take advantage of the ancestry graph to optimize this)
     if options.descendant_types:
         current_parents: list[wire.AnyNodeData] = roots.nodes
         while current_parents:
@@ -1224,18 +1223,10 @@ async def pg_read_node_data_tree(
                 parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)
 
                 # collect children
-                # nocheckin @Performance!: recurse read node in SQL if child is parent of itself
-                #  (also: we could likely take advantage of the ancestry graph to optimize this more)
-                #  (maybe also for ancestors (same problem in reverse), but that's used much less)
-                node_filter = (
-                    options.global_filter
-                    & options.filter_by_type.get(child_type, CONDITIONAL_TRUE)
-                    & parent_filter
-                )
                 children = await pg_select_nodes_data(
                     cur=cur,
                     node_type=child_type,
-                    where=node_filter,
+                    filter=options.combined_filter(child_type, parent_filter),
                     properties=options.select_properties_by_type[child_type],
                 )
                 next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
@@ -1251,13 +1242,13 @@ async def pg_search_nodes_data_tree(
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
     *,
-    where: Expression | None = None,
+    options: ReadOptions,
+    filter: Expression | None = None,
     sort: Collection[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-    options: ReadOptions,
-) -> NodeDataTree:
+) -> tuple[PgSelectNodesDataResult, NodeDataTree]:
     """Select root nodes and then read the tree of nodes from the given PG database."""
 
     if options.ancestor_types or options.descendant_types:
@@ -1266,7 +1257,7 @@ async def pg_search_nodes_data_tree(
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=node_type,
-            where=where,
+            filter=options.combined_filter(node_type, filter),
             sort=sort,
             first=first,
             skip=skip,
@@ -1274,26 +1265,28 @@ async def pg_search_nodes_data_tree(
             properties=(node_cls.__properties__["id"],),
         )
         if not roots.nodes:
-            return NodeDataTree()
-        return await pg_read_node_data_tree(
+            return roots, NodeDataTree()
+        tree = await pg_read_node_data_tree(
             cur=cur,
             root_type=node_type,
             root_ids=tuple(to_uuid(node.id) for node in roots.nodes),
             options=options,
         )
+        return roots, tree
     else:
         # otherwise just select in one go
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=node_type,
-            where=where,
+            filter=options.combined_filter(node_type, filter),
             sort=sort,
             first=first,
             skip=skip,
             after=after,
             properties=options.select_properties_by_type[node_type],
         )
-        return NodeDataTree(nodes=roots.nodes)
+        tree = NodeDataTree(nodes=roots.nodes)
+        return roots, tree
 
 
 async def pg_read_nodes(

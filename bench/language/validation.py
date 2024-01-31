@@ -83,7 +83,8 @@ MAX_TEXT_LENGTH = 2048
 MAX_DESCRIPTION_LENGTH = 512
 
 
-# note: we cache these validators not for performance but for reference equality
+# NOTE: we cache these validators not for performance but for reference equality
+# TODO @Cleanup @Robustness: turn validators into Validators and compile constraints into SQL
 
 
 @cachetools.cached({})
@@ -98,6 +99,36 @@ def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
 
 
 @cachetools.cached({})
+def int_range_validator(min: int, max: int):
+    assert min <= max, f"invalid range: {min} > {max}"
+
+    def validate_range(value: int, on_issue: PropertyValidationHandler):
+        if not isinstance(value, int):
+            on_issue(f"not an integer ({type(value)})")
+        if value < min:
+            on_issue(f"too small ({value} < {min})")
+        if value > max:
+            on_issue(f"too large ({value} > {max})")
+
+    return validate_range
+
+
+@cachetools.cached({})
+def float_range_validator(min: float, max: float):
+    assert min <= max, f"invalid range: {min} > {max}"
+
+    def validate_range(value: float, on_issue: PropertyValidationHandler):
+        if not isinstance(value, float):
+            on_issue(f"not a float ({type(value)})")
+        if value < min:
+            on_issue(f"too small ({value} < {min})")
+        if value > max:
+            on_issue(f"too large ({value} > {max})")
+
+    return validate_range
+
+
+@cachetools.cached({})
 def flag_validator(t: type[enum.IntFlag]):
     assert issubclass(t, enum.IntFlag), f"invalid flag type: {t!r}"
     valid_mask = sum(t.__members__.values())
@@ -107,18 +138,3 @@ def flag_validator(t: type[enum.IntFlag]):
             on_issue(f"invalid {t.__name__} ({value} & ~{valid_mask})")
 
     return validate_flag
-
-
-@cachetools.cached({})
-def isinstance_validator(t: type):
-    def validate_isinstance(value: object, on_issue: PropertyValidationHandler):
-        if not isinstance(value, t):
-            on_issue(f"invalid type ({type(value)} != {t})")
-
-    return validate_isinstance
-
-
-validate_is_str = isinstance_validator(str)
-validate_is_int = isinstance_validator(int)
-validate_is_float = isinstance_validator(float)
-validate_is_bool = isinstance_validator(bool)

@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.31.0"
+VERSION = "2024.01.31.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -188,6 +188,7 @@ TRIGGER_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("type", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("active", PrimitiveType.BOOLEAN, default="true"),
         Column("schedule_type", PrimitiveType.STRING, is_nullable=True),
         Column(
@@ -1030,18 +1031,33 @@ CLIENT_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "parent_worker_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_worker",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("kind", PrimitiveType.STRING),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("device_name", PrimitiveType.STRING),
         Column("browser_name", PrimitiveType.STRING, is_nullable=True),
         Column("last_seen_at", PrimitiveType.DATETIME),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column(
+            "main_space_space_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_space",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),
@@ -1056,7 +1072,9 @@ CLIENT_TABLE = Table(
             index="bench_idx_access_token",
         ),
         Constraint(
-            "bench_check_one_parent", ConstraintType.CHECK, condition="(parent_user_id IS NOT NULL)"
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_user_id IS NOT NULL) OR (parent_worker_id IS NOT NULL)",
         ),
     ),
 )
@@ -1082,6 +1100,51 @@ NOTIFICATION_TABLE = Table(
         Column("status", PrimitiveType.STRING),
         Column("expires_at", PrimitiveType.DATETIME),
         Column("read_at", PrimitiveType.DATETIME),
+    ),
+    indexes=(
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent", ConstraintType.CHECK, condition="(parent_user_id IS NOT NULL)"
+        ),
+    ),
+)
+
+SPACE_TABLE = Table(
+    "bench_space",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column(
+            "parent_user_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("name", PrimitiveType.STRING),
+        Column(
+            "main_bench_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column(
+            "main_package_package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("dock", PrimitiveType.JSON),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),

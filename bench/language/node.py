@@ -575,7 +575,7 @@ def struct_internal(
     require: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
-    struct_t: StructType = None,
+    struct: StructType = None,
     store: bool = UNSET,
     primitive_type: PrimitiveType = UNSET,
     index_in_pg: bool = False,
@@ -600,7 +600,7 @@ def struct_internal(
         reference_types=try_tuple(references),
         ignore_conflicts_with=ignore_conflicts_with,
         is_stored=store,
-        struct_type=struct_t,
+        struct_type=struct,
         primitive_type=primitive_type,
         is_array=array,
         is_deferred=defer,
@@ -2331,7 +2331,7 @@ class Bench(ScopeNode):
 
     parent: None = node_parent(4)
     policies: list["Policy"] | None = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
     slug: str = struct_internal(30, system=True, unique=True)
     name: str = struct_property(31)
@@ -2405,7 +2405,7 @@ class Package(ScopeNode):
 
     parent: Bench = node_parent(4, NodeType.BENCH)
     policies: list["Policy"] | None = struct_internal(
-        24, default_factory=list, struct_t=StructType.POLICY, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
     is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
 

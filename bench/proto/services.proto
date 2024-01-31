@@ -81,9 +81,10 @@ message SearchNodesRequest {
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
-  repeated string cursors = 2;
-  string start_cursor = 3;
-  int32 total = 4;
+  repeated string roots_ids = 2;
+  repeated string cursors = 3;
+  string start_cursor = 4;
+  int32 total = 5;
 }
 
 message AggregateNodesRequest {

@@ -1,12 +1,19 @@
 from datetime import datetime
 from typing import Optional, Union, TYPE_CHECKING
 
-from bench.language.const import NodeType, NotificationKind, NotificationStatus
+from bench.language.const import (
+    NodeType,
+    NotificationKind,
+    NotificationStatus,
+    StructType,
+    ClientKind,
+)
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
+from bench.language.view import SpaceDock
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Package
+    from bench.language import Bench, Package, Worker
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -57,22 +64,25 @@ class Membership(Node):
     user: "User" = struct_internal(30, require=True, array=False, references=NodeType.USER)
 
 
-@node(NodeType.CLIENT, roots=(NodeType.USER,), identifier=IdentifierType.VARIABLE)
+@node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
 class Client(Node):
-    """A client to this Bench. Can be a user or a worker."""
+    """A client to this Bench."""
 
-    parent: User = node_parent(4, NodeType.USER)
+    parent: Union[User, "Worker"] = node_parent(4, NodeType.USER, NodeType.WORKER)
+    kind: ClientKind = struct_internal(30, system=True)
     # type: ...
-    name: Optional[str] = struct_internal(31, default=None)
-    device_name: str = struct_internal(32)
-    browser_name: Optional[str] = struct_internal(33, default=None)
-    last_seen_at: datetime = struct_internal(34)
-    logged_in_at: Optional[datetime] = struct_internal(35, default=None, system=True)
+    name: Optional[str] = struct_property(32, default=None)
+    device_name: str = struct_internal(33)
+    browser_name: Optional[str] = struct_internal(34, default=None)
+    last_seen_at: datetime = struct_internal(35)
+    logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
     access_token: Optional[str] = struct_internal(
-        36, default=None, system=True, defer=True, unique=True, sensitive=True
+        37, default=None, system=True, defer=True, unique=True, sensitive=True
     )
+
+    # for user clients
     main_space: Optional["Space"] = struct_internal(
-        37, system=True, array=False, require=False, references=NodeType.SPACE
+        40, system=True, array=False, require=False, references=NodeType.SPACE
     )
 
     def __content_str__(self) -> str:
@@ -86,9 +96,13 @@ class Client(Node):
         return self.parent
 
 
+# nocheckin: move space into (owner's main) package?
+#  (also move notification into bench?)
+
+
 @node(NodeType.SPACE, roots=(NodeType.USER,), identifier=IdentifierType.VARIABLE)
 class Space(Node):
-    """A space to interact with a Bench."""
+    """A space for a user to interact with a Bench."""
 
     parent: User = node_parent(4, NodeType.USER)
     name: str = struct_property(31)
@@ -99,6 +113,8 @@ class Space(Node):
         33, system=True, array=False, require=False, references=NodeType.PACKAGE
     )
     # layout/views/...
+    dock: "SpaceDock" = struct_internal(34, require=True, array=False, struct=StructType.SPACE_DOCK)
+    # views: NodeList["View"] = node_children(NodeType.VIEW)
 
 
 @node(NodeType.NOTIFICATION, roots=(NodeType.USER,))

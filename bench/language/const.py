@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.31.0"
+VERSION = "2024.01.31.1"
 
 
 #
@@ -45,6 +45,7 @@ class NodeType(ProtoStrEnum):
     # STEP = "STEP", 28
     ISSUE = "ISSUE", 29
     LINK = "LINK", 30
+    # COMMENT = "COMMENT", ...
 
     # session (all local)
     SESSION = "SESSION", 50
@@ -74,8 +75,6 @@ class NodeType(ProtoStrEnum):
     # INVITE = "INVITE", 140
     MEMBERSHIP = "MEMBERSHIP", 141
 
-    # COMMENT = "COMMENT", 142
-
     @property
     def bench_name(self):
         return BENCH_TYPE_NAME[self]
@@ -90,6 +89,7 @@ SUB_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(
 )
 IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100) + (
     NodeType.MEMBERSHIP,
+    NodeType.CLIENT,
 )
 SUB_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH
@@ -137,6 +137,9 @@ class StructType(ProtoStrEnum):
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
     # views
+    SPACE_DOCK = "SPACE_DOCK", 400
+    SPACE_DOCK_ITEM = "SPACE_DOCK_ITEM", 401
+
     # ...
 
     # shapes
@@ -384,6 +387,7 @@ class ActionKind(ProtoStrEnum):
         return to_casing(self.name, Casing.CAMEL)
 
 
+ACTION_KINDS = tuple(ActionKind)
 ACTIONS_BY_KIND: dict[ActionKind, set[ActionType]] = {
     ActionKind.READ: set(READ_TYPES),
     ActionKind.EDIT: set(EDIT_TYPES),
@@ -413,6 +417,11 @@ class BadgeType(ProtoStrEnum):
 class PolicyEffect(ProtoStrEnum):
     ALLOW = "ALLOW", 1
     DENY = "DENY", 2
+
+
+class ClientKind(ProtoStrEnum):
+    USER = "USER", 1
+    WORKER = "WORKER", 2
 
 
 class NotificationKind(ProtoStrEnum):

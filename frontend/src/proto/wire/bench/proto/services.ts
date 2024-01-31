@@ -238,15 +238,19 @@ export interface SearchNodesResponse {
      */
     nodes: SomeNodeData[];
     /**
-     * @generated from protobuf field: repeated string cursors = 2;
+     * @generated from protobuf field: repeated string roots_ids = 2;
+     */
+    rootsIds: string[];
+    /**
+     * @generated from protobuf field: repeated string cursors = 3;
      */
     cursors: string[];
     /**
-     * @generated from protobuf field: string start_cursor = 3;
+     * @generated from protobuf field: string start_cursor = 4;
      */
     startCursor: string;
     /**
-     * @generated from protobuf field: int32 total = 4;
+     * @generated from protobuf field: int32 total = 5;
      */
     total: number;
 }
@@ -1440,14 +1444,16 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
     constructor() {
         super("symbolx.bench.SearchNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 2, name: "roots_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
+        message.rootsIds = [];
         message.cursors = [];
         message.startCursor = "";
         message.total = 0;
@@ -1463,13 +1469,16 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                 case /* repeated symbolx.bench.SomeNodeData nodes */ 1:
                     message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated string cursors */ 2:
+                case /* repeated string roots_ids */ 2:
+                    message.rootsIds.push(reader.string());
+                    break;
+                case /* repeated string cursors */ 3:
                     message.cursors.push(reader.string());
                     break;
-                case /* string start_cursor */ 3:
+                case /* string start_cursor */ 4:
                     message.startCursor = reader.string();
                     break;
-                case /* int32 total */ 4:
+                case /* int32 total */ 5:
                     message.total = reader.int32();
                     break;
                 default:
@@ -1487,15 +1496,18 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* repeated symbolx.bench.SomeNodeData nodes = 1; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string cursors = 2; */
+        /* repeated string roots_ids = 2; */
+        for (let i = 0; i < message.rootsIds.length; i++)
+            writer.tag(2, WireType.LengthDelimited).string(message.rootsIds[i]);
+        /* repeated string cursors = 3; */
         for (let i = 0; i < message.cursors.length; i++)
-            writer.tag(2, WireType.LengthDelimited).string(message.cursors[i]);
-        /* string start_cursor = 3; */
+            writer.tag(3, WireType.LengthDelimited).string(message.cursors[i]);
+        /* string start_cursor = 4; */
         if (message.startCursor !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
-        /* int32 total = 4; */
+            writer.tag(4, WireType.LengthDelimited).string(message.startCursor);
+        /* int32 total = 5; */
         if (message.total !== 0)
-            writer.tag(4, WireType.Varint).int32(message.total);
+            writer.tag(5, WireType.Varint).int32(message.total);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -15,7 +15,7 @@ from bench.language.node import (
     node_parent,
     struct_property,
 )
-from bench.language.validation import ValidationHandler, enum_validator
+from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
-TRIGGER_INTERVAL_USR_MIN = 300  # seconds :MinTriggerInterval
+TRIGGER_INTERVAL_USR_MIN = 60  # seconds :MinTriggerInterval
 TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
 TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
@@ -35,13 +35,17 @@ class Trigger(Node):
 
     parent: "Block" = node_parent(4, NodeType.BLOCK)
     type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
-    # name: str | None = struct_property(31, default=None)
+    name: str | None = struct_property(31, default=None)
     active: bool = struct_property(32, default=True)
     schedule_type: Optional[ScheduleType] = struct_property(
         33, default=None, validate=enum_validator(ScheduleType)
     )
     timezone: Optional[str] = struct_property(34, default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(35, default=None)
+    interval: Optional[int] = struct_property(
+        35,
+        default=None,
+        validate=int_range_validator(TRIGGER_INTERVAL_USR_MIN, TRIGGER_INTERVAL_ABS_MAX),
+    )
     cron: Optional[str] = struct_property(36, default=None)
 
     @staticmethod
