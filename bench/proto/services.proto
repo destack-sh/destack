@@ -154,7 +154,7 @@ service GlobalSupervisor {
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 
   //
-  // General Bench IO for global nodes  :BenchIO
+  // General Bench IO for > package & global nodes only :BenchIO
   //
 
   // Get global nodes.
@@ -274,7 +274,7 @@ message RunProxyBlockResponse {
 // Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
 service PackageHost {
   //
-  // General Bench IO for this package and global nodes :BenchIO
+  // General Bench IO for this package only :BenchIO
   //
 
   // Reads local or global nodes.

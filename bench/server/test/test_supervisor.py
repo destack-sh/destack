@@ -6,7 +6,7 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, User
-from bench.proto import wire
+from bench.proto import wire, wiring
 from bench.proto.wire import (
     GlobalSupervisorStub,
     LoginUserRequest,
@@ -15,6 +15,7 @@ from bench.proto.wire import (
     RpcMetadata,
     LogoutUserRequest,
     ReadOptionsData,
+    CommitEditsRequest,
 )
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
@@ -43,7 +44,7 @@ def raises_grpc_error(status: grpclib.const.Status):
 async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     """Tests user account creation, login & logout."""
 
-    user = User(slug="test", email="test@symbolx.com")
+    user = User(slug="test", name="Test", email="test@symbolx.com")
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
 
     # signup -> success
@@ -98,6 +99,17 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     )
     await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
 
+    # update user, valid token -> success
+    user.name = "Testificate"
+    edit = wire.EditData(
+        type=wire.EditType.UPDATE,
+        node_type=wire.NodeType.USER,
+        node=wiring.wrap_some_node(user._to_data()),
+        properties=[User.name.id],
+    )
+    edit_req = CommitEditsRequest(edits=[edit])
+    await supervisor.commit_edits(edit_req, access_metadata.to_headers())
+
     # logout, invalid token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
         bad_access_metadata = replace(access_metadata, client_token="bad")
@@ -106,6 +118,6 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     # logout, valid token -> success
     await supervisor.logout_user(LogoutUserRequest(), access_metadata.to_headers())
 
-    # read user, logged out, "valid" (but expired) token -> fail
+    # read user, logged out, expired token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
         _ = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())

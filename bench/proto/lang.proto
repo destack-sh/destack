@@ -110,7 +110,9 @@ enum BenchType {
   BENCH_TYPE_REQUEST = 233;
   BENCH_TYPE_REQUEST_SUBJECT = 234;
   BENCH_TYPE_REQUEST_OBJECT = 235;
-  BENCH_TYPE_READ_OPTIONS = 236;
+  BENCH_TYPE_REQUEST_EVALUATION = 236;
+  BENCH_TYPE_ACTION_EVALUATION = 237;
+  BENCH_TYPE_READ_OPTIONS = 238;
   BENCH_TYPE_EXPRESSION = 240;
   BENCH_TYPE_AGGREGATION = 241;
   BENCH_TYPE_AGGREGATION_BUCKET = 242;
@@ -487,7 +489,9 @@ enum StructType {
   STRUCT_TYPE_REQUEST = 233;
   STRUCT_TYPE_REQUEST_SUBJECT = 234;
   STRUCT_TYPE_REQUEST_OBJECT = 235;
-  STRUCT_TYPE_READ_OPTIONS = 236;
+  STRUCT_TYPE_REQUEST_EVALUATION = 236;
+  STRUCT_TYPE_ACTION_EVALUATION = 237;
+  STRUCT_TYPE_READ_OPTIONS = 238;
   STRUCT_TYPE_EXPRESSION = 240;
   STRUCT_TYPE_AGGREGATION = 241;
   STRUCT_TYPE_AGGREGATION_BUCKET = 242;
@@ -535,6 +539,15 @@ message ActionData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
   repeated RequestData requests = 31;
+}
+
+// The result of evaluating an action.
+message ActionEvaluationData {
+  BenchType metatype = 1;
+  optional ActionData action = 30;
+  repeated RequestEvaluationData request_evaluations = 31;
+  optional RequestEvaluationData deciding_evaluation = 32;
+  PolicyEffect decision = 33;
 }
 
 // The result of an aggregation expression.
@@ -723,7 +736,7 @@ message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
-  optional bool include_sensitive = 32;
+  bool include_sensitive = 32;
   optional ExpressionData global_filter = 35;
 }
 
@@ -735,6 +748,14 @@ message RequestData {
   RequestObjectData object = 32;
 }
 
+// The result of evaluating a single request.
+message RequestEvaluationData {
+  BenchType metatype = 1;
+  optional RequestData request = 30;
+  optional PolicyRuleData deciding_rule = 31;
+  PolicyEffect decision = 32;
+}
+
 // The object of a request.
 message RequestObjectData {
   BenchType metatype = 1;
@@ -743,15 +764,17 @@ message RequestObjectData {
   bool is_system = 32;
 }
 
-// The subject of a request.
+// The subject of a request. Unknown attributes are set to None.
 message RequestSubjectData {
   BenchType metatype = 1;
   bool is_authenticated = 30;
   optional bool is_owner = 31;
   optional bool is_member = 32;
-  optional bool is_staff = 33;
+  bool is_staff = 33;
   optional NodeReferenceData client_ptr = 34;
   optional NodeReferenceData user_ptr = 35;
+  optional NodeReferenceData worker_ptr = 36;
+  optional NodeReferenceData badge_ptr = 37;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -1124,6 +1147,7 @@ message OrganizationData {
   optional NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
+  optional NodeReferenceData main_bench_ptr = 33;
 }
 
 // A package is a semi-isolated version of a Bench, containing the actual blocks and so on.
@@ -1339,6 +1363,7 @@ message UserData {
   optional bytes password_hash = 35;
   optional google.protobuf.Timestamp last_logged_in_at = 36;
   bool is_staff = 37;
+  optional NodeReferenceData main_bench_ptr = 38;
 }
 
 // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)

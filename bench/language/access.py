@@ -29,7 +29,7 @@ from bench.language.user import Membership
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, User, Client
+    from bench.language import Block, Expression, User, Client, Worker
 
 
 #
@@ -134,7 +134,7 @@ class PolicyRule(Struct):
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # order matters!
     Policy(
-        "NooneCanEditSystem",
+        "DenyEditSystem",
         rules=[
             PolicyRule(
                 effect=PolicyEffect.DENY, verb_kinds=[ActionKind.EDIT], object_is_system=True
@@ -171,41 +171,65 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
 
 @struct(StructType.REQUEST_SUBJECT)
 class RequestSubject(Struct):
-    """The subject of a request."""
+    """The subject of a request. Unknown attributes are set to None."""
 
     is_authenticated: bool = struct_internal(30)
-    is_owner: Optional[bool] = struct_internal(31, default=None)
-    is_member: Optional[bool] = struct_internal(32, default=None)
-    is_staff: Optional[bool] = struct_internal(33, default=None)
+    is_staff: bool = struct_internal(33, default=False)
     client: Optional["Client"] = struct_internal(
         34, default=None, require=False, array=False, references=NodeType.CLIENT
     )
     user: Optional["User"] = struct_internal(
         35, default=None, require=False, array=False, references=NodeType.USER
     )
+    worker: Optional["Worker"] = struct_internal(
+        36, default=None, require=False, array=False, references=NodeType.WORKER
+    )
+    badge: Optional["Badge"] = struct_internal(
+        37, default=None, require=False, array=False, references=NodeType.BADGE
+    )
 
-    # user, groups, identities, roles, ...
+    # groups, identities, roles, ...
 
     def __content_str__(self):
         subject_str_parts = []
         for subject_key in (
+            "client",
+            "user",
+            "badge",
             "is_authenticated",
             "is_owner",
             "is_member",
             "is_staff",
-            "client",
-            "user",
         ):
             value = getattr(self, subject_key)
             if value:
                 if isinstance(value, bool):
                     subject_str_parts.append(subject_key)
                 else:
-                    subject_str_parts.append(f"{subject_key}={value}")
+                    subject_str_parts.append(repr(value))
         if subject_str_parts:
             return f"{', '.join(subject_str_parts)}"
         else:
             return "<anonymous>"
+
+    @staticmethod
+    def from_authentication(
+        subject: Union["Client", "Worker", None], badge: Optional["Badge"]
+    ) -> "RequestSubject":
+        if subject is None:
+            return RequestSubject(is_authenticated=False, badge=badge)
+        elif subject.metatype == NodeType.CLIENT:
+            return RequestSubject(
+                is_authenticated=True,
+                is_staff=subject.user.is_staff,
+                client=subject,
+                user=subject.user,
+                badge=badge,
+            )
+        elif subject.metatype == NodeType.WORKER:
+            return RequestSubject(is_authenticated=True, worker=subject, badge=badge)
+        else:
+            raise ValueError(f"unexpected subject type: {subject}")
 
 
 @struct(StructType.REQUEST_OBJECT)
@@ -215,6 +239,7 @@ class RequestObject(Struct):
     type: BenchType = struct_internal(30)
     is_sensitive: bool = struct_internal(31, default=False)
     is_system: bool = struct_internal(32, default=False)
+    is_owned
 
     # properties, bases, node, fields, ...
 
@@ -328,7 +353,7 @@ class ReadOptions(Struct):
 
     ancestor_types: list[NodeType] | None = struct_internal(30, default=None)
     descendant_types: list[NodeType] | None = struct_internal(31, default=None)
-    include_sensitive: Optional[bool] = struct_internal(32, default=None)
+    include_sensitive: bool = struct_internal(32, default=False)
     global_filter: "Expression" = struct_internal(35, require=False, struct_t=StructType.EXPRESSION)
 
     # runtime only

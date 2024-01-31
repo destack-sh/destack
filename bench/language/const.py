@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.30.1"
+VERSION = "2024.01.31.0"
 
 
 #
@@ -69,8 +69,7 @@ class NodeType(ProtoStrEnum):
     ORGANIZATION = "ORGANIZATION", 122
     CLIENT = "CLIENT", 123
     NOTIFICATION = "NOTIFICATION", 124
-
-    # SPACE = "SPACE", 125
+    SPACE = "SPACE", 125
 
     # INVITE = "INVITE", 140
     MEMBERSHIP = "MEMBERSHIP", 141
@@ -86,8 +85,14 @@ NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 # (we duplicate in-package/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
 IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
+SUB_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt for nt in IN_PACKAGE_NODE_TYPES if nt != NodeType.PACKAGE
+)
 IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100) + (
     NodeType.MEMBERSHIP,
+)
+SUB_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH
 )
 
 

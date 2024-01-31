@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.30.1"
+VERSION = "2024.01.31.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -954,6 +954,14 @@ USER_TABLE = Table(
         Column("password_salt", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("password_hash", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("is_staff", PrimitiveType.BOOLEAN, default="false"),
+        Column(
+            "main_bench_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
@@ -991,6 +999,13 @@ ORGANIZATION_TABLE = Table(
         ),
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
+        Column(
+            "main_bench_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),

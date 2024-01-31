@@ -49,6 +49,8 @@ from bench.language.const import (
     NRel,
     StructType,
     _active_session,
+    SUB_PACKAGE_NODE_TYPES,
+    SUB_BENCH_NODE_TYPES,
 )
 from bench.language.link import (
     _NC,
@@ -1011,7 +1013,9 @@ def node_component(
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
     is_in_package: bool = False,
+    is_sub_package: bool = False,
     is_in_bench: bool = False,
+    is_sub_bench: bool = False,
     is_final: bool = False,
 ):
     """
@@ -1075,7 +1079,7 @@ def node(
     stored_custom: bool = False,
     index_in_os: bool = False,
     local: bool = False,
-    root: NodeType | None = NodeType.BENCH,
+    roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     reserved: set[str | int] = None,
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
@@ -1085,7 +1089,9 @@ def node(
     """Register a class as a concrete node for the given node type."""
 
     in_package = node_type in IN_PACKAGE_NODE_TYPES
+    sub_package = node_type in SUB_PACKAGE_NODE_TYPES
     in_bench = node_type in IN_BENCH_NODE_TYPES
+    sub_bench = node_type in SUB_BENCH_NODE_TYPES
 
     def decorate(cls):
         cls = node_component(
@@ -1095,7 +1101,9 @@ def node(
             dynamic_components=dynamic_components,
             reserved=reserved,
             is_in_package=in_package,
+            is_sub_package=sub_package,
             is_in_bench=in_bench,
+            is_sub_bench=sub_bench,
             is_final=True,
         )
         cls.__is_stored__ = stored
@@ -1125,9 +1133,11 @@ def node(
         if parent_property is None:
             raise ValueError(f"node {cls} has no parent property")
         cls.__parent_property__ = parent_property
-        cls.__root__ = root
+        cls.__roots__ = roots
         cls.__is_in_package__ = in_package
+        cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
+        cls.__is_sub_bench__ = sub_bench
 
         return cls
 
@@ -1494,9 +1504,11 @@ class Node(Struct, _NodeExpressionBase):
     __parent_property__: ClassVar[Property] = None
 
     __has_scope__: ClassVar[bool] = False  # can have node children
-    __root__: ClassVar[NodeType | None] = UNSET
-    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
+    __roots__: ClassVar[tuple[NodeType, ...]] = UNSET
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
+    __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
+    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
+    __is_sub_package__: ClassVar[bool] = UNSET  # part of a Package (excludes Package itself)
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
@@ -1640,6 +1652,10 @@ class Node(Struct, _NodeExpressionBase):
             return self.parent is not None and self.package is not None
         elif self.__is_in_bench__:
             return self.parent is not None and self.bench is not None
+        elif self.__roots__:
+            return self.parent is not None
+        else:
+            return True
 
     @property
     def scope(self) -> Optional["ScopeNode"]:
@@ -2010,7 +2026,7 @@ class ScopeNode(Node):
     def _init_inner(self) -> None:
         if self.parent is None:
             # if we don't have a tree, start a new one
-            if self.__root__ == NodeType.BENCH:
+            if NodeType.BENCH in self.__roots__:
                 self._tree = DetachedNodeTree()
             else:
                 self._tree = NodeTree()
@@ -2307,7 +2323,7 @@ class Link(Node):
     )
 
 
-@node(NodeType.BENCH, root=None, identifier=IdentifierType.VARIABLE)
+@node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """
     A Bench is the AI-native operating system for a new generation of fully integrated apps.
@@ -2688,7 +2704,7 @@ def _complete_bench_setup():
         )
         if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
             raise ValueError(
-                f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_package={in_package}, but got in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
+                f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but got in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
     check_collections_equal(
         IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]

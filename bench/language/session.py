@@ -415,7 +415,29 @@ class Session(ScopeNode):
         raise NotImplementedError  # unclear what this should do
 
     #
-    # Package
+    # Tracking
+    #
+
+    def track(self, node: Node):
+        """Start tracking the node in this session."""
+        node._track_self(self)
+
+    def track_many(self, *nodes: Node):
+        """Start tracking the nodes in this session."""
+        for n in nodes:
+            n._track_self(self)
+
+    def untrack(self, node: Node):
+        """Stop tracking the node in this session."""
+        node._untrack_self(self)
+
+    def untrack_many(self, *nodes: Node):
+        """Stop tracking the nodes in this session."""
+        for n in nodes:
+            n._untrack_self(self)
+
+    #
+    # Edits
     #
 
     def create(self, n: Node):

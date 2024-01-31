@@ -33,6 +33,7 @@ from bench.language.expression import (
     Expression,
     ExpressionOps,
     QueryEngineIncapableError,
+    CONDITIONAL_TRUE,
 )
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -1143,10 +1144,15 @@ async def pg_read_node_data_tree(
     visited_tree = _tree if _tree is not None else NodeDataTree()
 
     # select "roots"
+    root_filter = (
+        options.global_filter
+        & options.filter_by_type.get(root_type, CONDITIONAL_TRUE)
+        & Node.filter(id__in=root_ids)._filter
+    )
     roots = await pg_select_nodes_data(
         cur=cur,
         node_type=root_type,
-        where=options.global_filter & Node.filter(id__in=root_ids)._filter,
+        where=root_filter,
         properties=options.select_properties_by_type[root_type],
     )
     if not roots.nodes:
@@ -1174,10 +1180,15 @@ async def pg_read_node_data_tree(
             # select next parents
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
+                node_filter = (
+                    options.global_filter
+                    & options.filter_by_type.get(node_type, CONDITIONAL_TRUE)
+                    & Node.filter(id__in=node_ids)._filter
+                )
                 layer = await pg_select_nodes_data(
                     cur=cur,
                     node_type=node_type,
-                    where=options.global_filter & Node.filter(id__in=node_ids)._filter,
+                    where=node_filter,
                     select_properties_by_type=options.select_properties_by_type,
                 )
                 next_parents.extend(layer.nodes)
@@ -1216,10 +1227,15 @@ async def pg_read_node_data_tree(
                 # nocheckin @Performance!: recurse read node in SQL if child is parent of itself
                 #  (also: we could likely take advantage of the ancestry graph to optimize this more)
                 #  (maybe also for ancestors (same problem in reverse), but that's used much less)
+                node_filter = (
+                    options.global_filter
+                    & options.filter_by_type.get(child_type, CONDITIONAL_TRUE)
+                    & parent_filter
+                )
                 children = await pg_select_nodes_data(
                     cur=cur,
                     node_type=child_type,
-                    where=options.global_filter & parent_filter,
+                    where=node_filter,
                     properties=options.select_properties_by_type[child_type],
                 )
                 next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
@@ -1231,7 +1247,7 @@ async def pg_read_node_data_tree(
     return visited_tree
 
 
-async def pg_search_nodes_data(
+async def pg_search_nodes_data_tree(
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
     *,
