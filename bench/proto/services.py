@@ -1,5 +1,5 @@
 import asyncio
-import contextvars
+from contextvars import ContextVar
 import functools
 from typing import TYPE_CHECKING, Callable, Collection, Generic, Mapping, TypeVar, final
 
@@ -11,10 +11,11 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 from grpclib.testing import ChannelFor
 
-from bench.language.access import AccessError
+from bench.language.access import AccessError, RequestSubject
 from bench.language.const import BenchError
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
+from bench.server.auth import get_request_subject
 from bench.sql.engine import SqlAlreadyExistsError
 from bench.utils.casing import Casing, to_casing
 from bench.utils.monitoring import Monitored
@@ -30,10 +31,9 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     def __init__(self, loopback_stub_to: type[StubT] | None = None):
-        self._stream: contextvars.ContextVar[grpclib.server.Stream] = contextvars.ContextVar(
-            "stream"
-        )
-        self._metadata: contextvars.ContextVar[RpcMetadata] = contextvars.ContextVar("metadata")
+        self._stream: ContextVar[grpclib.server.Stream] = ContextVar("stream")
+        self._metadata: ContextVar[RpcMetadata] = ContextVar("metadata")
+        self._subject: ContextVar[RequestSubject] = ContextVar("subject")
         self._loopback_stub: type[StubT] | None = None
         self._needs_loopback_stub = loopback_stub_to
 
@@ -46,6 +46,11 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     def metadata(self) -> RpcMetadata:
         """The received metadata in the current gRPC request stream."""
         return self._metadata.get()
+
+    @property
+    def subject(self) -> RequestSubject:
+        """The authenticated subject in the current gRPC request stream."""
+        return self._subject.get()
 
     @property
     def loopback(self) -> StubT:
@@ -104,14 +109,29 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             start = asyncio.get_running_loop().time()
             log = logger.bind(service=self, method=method)
             try:
+                # prepare
                 self._stream.set(stream)
                 metadata = RpcMetadata().from_headers(stream.metadata)
                 self._metadata.set(metadata)
+                subject = await get_request_subject(metadata)
+                self._subject.set(subject)
+                log = log.bind(subject=subject)
+
+                # call
                 log.info(rpc_name, metadata=metadata)
                 await func(stream)
                 duration = asyncio.get_running_loop().time() - start
                 log.info(f"{rpc_name}.done", duration=duration)
-            except BenchError as e:  # wrap error
+
+            except GRPCError as e:
+                # pass through GRPC errors
+                duration = asyncio.get_running_loop().time() - start
+                sentry_capture(e)
+                log.exception(f"{rpc_name}.error", duration=duration, error=e)
+                raise
+
+            except BenchError as e:
+                # wrap error
                 duration = asyncio.get_running_loop().time() - start
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status_map: Mapping[type, GRPCStatus] = {
@@ -121,12 +141,9 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 }
                 status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
                 raise GRPCError(status, str(e)) from e
-            except GRPCError as e:  # pass through GRPC errors
-                duration = asyncio.get_running_loop().time() - start
-                sentry_capture(e)
-                log.exception(f"{rpc_name}.error", duration=duration, error=e)
-                raise
-            except Exception as e:  # internal error
+
+            except Exception as e:
+                # internal error
                 duration = asyncio.get_running_loop().time() - start
                 sentry_capture(e)
                 log.exception(f"{rpc_name}.internal_error", duration=duration, error=e)

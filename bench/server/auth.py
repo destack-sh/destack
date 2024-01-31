@@ -5,6 +5,7 @@ import structlog
 from grpclib import GRPCError, Status as GRPCStatus
 
 from bench.language import Client, Worker, Badge
+from bench.language.access import RequestSubject
 from bench.proto.wire import RpcMetadata, ClientKind
 from bench.utils.func import to_uuid
 
@@ -66,7 +67,7 @@ def generate_access_token() -> str:
     return urandom(ACCESS_TOKEN_LENGTH).hex()
 
 
-async def get_authenticated_client(metadata: RpcMetadata) -> Client | Worker | None:
+async def _get_subject_from_metadata(metadata: RpcMetadata) -> Client | Worker | None:
     """Gets the authenticated client (if any)."""
 
     if metadata.client_kind is None:
@@ -85,16 +86,7 @@ async def get_authenticated_client(metadata: RpcMetadata) -> Client | Worker | N
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
 
 
-async def check_authenticated_client(metadata: RpcMetadata) -> Client | Worker:
-    """Gets an authenticated client (raises if none)."""
-
-    client = await get_authenticated_client(metadata)
-    if client is None:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED)
-    return client
-
-
-async def get_authenticated_badge(metadata: RpcMetadata) -> Badge | None:
+async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
     """Gets the authenticated badge (if any)."""
 
     if metadata.badge_link_token:
@@ -117,9 +109,7 @@ async def get_authenticated_badge(metadata: RpcMetadata) -> Badge | None:
         return None
 
 
-async def get_authentication(metadata: RpcMetadata) -> tuple[Client | Worker | None, Badge | None]:
-    """Gets the authenticated client and badge (if any)."""
-
-    client = await get_authenticated_client(metadata)
-    badge = await get_authenticated_badge(metadata)
-    return client, badge
+async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
+    subject = await _get_subject_from_metadata(metadata)
+    badge = await _get_badge_from_metadata(metadata)
+    return RequestSubject.from_authentication(subject, badge)

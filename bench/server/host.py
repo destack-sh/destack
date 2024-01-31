@@ -171,7 +171,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             )
 
     #
-    # General Bench IO for this package and global nodes :BenchIO
+    # General Bench IO for this package :BenchIO
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
@@ -180,7 +180,19 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        if search_nodes_request.node_type == NodeType.RECORD:
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        elif search_nodes_request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        elif search_nodes_request.node_type == NodeType.SIGNAL:
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        else:
+            # NOTE: we don't support generic server-side 'node search' yet
+            #  (clients are expected to search loaded nodes in memory for now)
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT,
+                f"cannot search {search_nodes_request.node_type} in package",
+            )
 
     async def aggregate_nodes(
         self, aggregate_nodes_request: "AggregateNodesRequest"

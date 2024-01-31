@@ -130,7 +130,9 @@ class BenchType(betterproto.Enum):
     REQUEST = 233
     REQUEST_SUBJECT = 234
     REQUEST_OBJECT = 235
-    READ_OPTIONS = 236
+    REQUEST_EVALUATION = 236
+    ACTION_EVALUATION = 237
+    READ_OPTIONS = 238
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -520,7 +522,9 @@ class StructType(betterproto.Enum):
     REQUEST = 233
     REQUEST_SUBJECT = 234
     REQUEST_OBJECT = 235
-    READ_OPTIONS = 236
+    REQUEST_EVALUATION = 236
+    ACTION_EVALUATION = 237
+    READ_OPTIONS = 238
     EXPRESSION = 240
     AGGREGATION = 241
     AGGREGATION_BUCKET = 242
@@ -587,6 +591,19 @@ class ActionData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
     requests: List["RequestData"] = betterproto.message_field(31)
+
+
+@dataclass(eq=False, repr=False)
+class ActionEvaluationData(betterproto.Message):
+    """The result of evaluating an action."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    action: Optional["ActionData"] = betterproto.message_field(30, optional=True)
+    request_evaluations: List["RequestEvaluationData"] = betterproto.message_field(31)
+    deciding_evaluation: Optional["RequestEvaluationData"] = betterproto.message_field(
+        32, optional=True
+    )
+    decision: "PolicyEffect" = betterproto.enum_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -812,7 +829,7 @@ class ReadOptionsData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     ancestor_types: List["NodeType"] = betterproto.enum_field(30)
     descendant_types: List["NodeType"] = betterproto.enum_field(31)
-    include_sensitive: Optional[bool] = betterproto.bool_field(32, optional=True)
+    include_sensitive: bool = betterproto.bool_field(32)
     global_filter: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
 
 
@@ -827,6 +844,16 @@ class RequestData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RequestEvaluationData(betterproto.Message):
+    """The result of evaluating a single request."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    request: Optional["RequestData"] = betterproto.message_field(30, optional=True)
+    deciding_rule: Optional["PolicyRuleData"] = betterproto.message_field(31, optional=True)
+    decision: "PolicyEffect" = betterproto.enum_field(32)
+
+
+@dataclass(eq=False, repr=False)
 class RequestObjectData(betterproto.Message):
     """The object of a request."""
 
@@ -838,15 +865,17 @@ class RequestObjectData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RequestSubjectData(betterproto.Message):
-    """The subject of a request."""
+    """The subject of a request. Unknown attributes are set to None."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     is_authenticated: bool = betterproto.bool_field(30)
     is_owner: Optional[bool] = betterproto.bool_field(31, optional=True)
     is_member: Optional[bool] = betterproto.bool_field(32, optional=True)
-    is_staff: Optional[bool] = betterproto.bool_field(33, optional=True)
+    is_staff: bool = betterproto.bool_field(33)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1330,6 +1359,7 @@ class OrganizationData(betterproto.Message):
     handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: str = betterproto.string_field(32)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1593,6 +1623,7 @@ class UserData(betterproto.Message):
     password_hash: Optional[bytes] = betterproto.bytes_field(35, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(36, optional=True)
     is_staff: bool = betterproto.bool_field(37)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3199,61 +3230,63 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    TriggerData,
-    SignalData,
-    RunData,
-    WorkerData,
     HandleData,
     FieldData,
-    LinkData,
-    PauseData,
-    UserData,
-    NotificationData,
-    MembershipData,
-    IdentityData,
-    RoleData,
-    PackageData,
-    IssueData,
-    TagData,
     BucketObjectData,
-    BenchData,
-    RecordData,
-    WorkerSetData,
-    QueryData,
-    OrganizationData,
+    MembershipData,
+    TriggerData,
     BadgeData,
-    SessionData,
+    NotificationData,
+    IdentityData,
+    OrganizationData,
+    IssueData,
     BlockData,
+    WorkerData,
+    SignalData,
+    PackageData,
+    WorkerSetData,
+    SessionData,
+    QueryData,
+    UserData,
+    RoleData,
+    PauseData,
+    BenchData,
     ClientData,
+    RunData,
+    RecordData,
+    LinkData,
+    TagData,
 ]
 AnyStructData = Union[
+    ActionData,
+    RequestSubjectData,
     ValueReferenceData,
+    AggregationBucketData,
+    PropertyReferenceData,
+    LogEntryData,
+    TypeInfoData,
+    PropertyPathData,
+    PolicyRuleData,
     IconData,
     WorkerImageData,
-    BenchPathData,
-    PolicyRuleData,
-    AggregationBucketData,
-    TypeInfoData,
-    RunErrorData,
-    ActionData,
-    ReadOptionsData,
-    PropertyReferenceData,
-    RequestSubjectData,
-    DependencyData,
-    PropertyPathData,
-    PolicyData,
-    LogEntryData,
-    FieldPathData,
-    RunCodeFrameData,
-    RichTextData,
     RequestObjectData,
-    NodeReferenceData,
-    ExpressionData,
-    RequestData,
-    AggregationData,
     FileData,
+    RequestEvaluationData,
+    FieldPathData,
+    RunErrorData,
+    RichTextData,
+    BenchPathData,
+    ReadOptionsData,
+    RunCodeFrameData,
+    RequestData,
+    ActionEvaluationData,
     FieldPathSegmentData,
+    ExpressionData,
     RichTextSpanData,
+    AggregationData,
+    NodeReferenceData,
+    DependencyData,
+    PolicyData,
 ]
 
-VERSION = "2024.01.30.1"
+VERSION = "2024.01.31.0"

@@ -459,6 +459,7 @@ C = functools.partial(E, _expect_t=ExpressionKind.CONDITIONAL)
 S = functools.partial(E, _expect_t=ExpressionKind.SORT)
 A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
+CONDITIONAL_TRUE = C(ConditionalOp.TRUE)
 SCORE_KEY = "_score"  # for ranking
 TYPE_DISCRIMINATOR_KEY = "_type"
 

@@ -6,17 +6,17 @@ from bench.language.node import Node, ScopeNode, node, node_parent, struct_inter
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench
+    from bench.language import Bench, Package
 
 
-@node(NodeType.HANDLE, root=None, identifier=IdentifierType.VARIABLE)
+@node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
 class Handle(Node):
     """A Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
-@node(NodeType.USER, root=None, identifier=IdentifierType.VARIABLE)
+@node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
     """A Bench user."""
 
@@ -32,15 +32,21 @@ class User(ScopeNode):
     )
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
     is_staff: bool = struct_internal(37, default=False, system=True)
+    main_bench: Optional["Bench"] = struct_internal(
+        38, system=True, array=False, require=False, references=NodeType.BENCH
+    )
 
 
-@node(NodeType.ORGANIZATION, root=None, identifier=IdentifierType.VARIABLE)
+@node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
 class Organization(ScopeNode):
     """A Bench organization."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: str = struct_property(32)
+    main_bench: Optional["Bench"] = struct_internal(
+        33, system=True, array=False, require=False, references=NodeType.BENCH
+    )
 
 
 @node(NodeType.MEMBERSHIP)
@@ -51,7 +57,7 @@ class Membership(Node):
     user: "User" = struct_internal(30, require=True, array=False, references=NodeType.USER)
 
 
-@node(NodeType.CLIENT, root=NodeType.USER, identifier=IdentifierType.VARIABLE)
+@node(NodeType.CLIENT, roots=(NodeType.USER,), identifier=IdentifierType.VARIABLE)
 class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
@@ -65,6 +71,9 @@ class Client(Node):
     access_token: Optional[str] = struct_internal(
         36, default=None, system=True, defer=True, unique=True, sensitive=True
     )
+    main_space: Optional["Space"] = struct_internal(
+        37, system=True, array=False, require=False, references=NodeType.SPACE
+    )
 
     def __content_str__(self) -> str:
         if self.browser_name:
@@ -77,12 +86,29 @@ class Client(Node):
         return self.parent
 
 
-@node(NodeType.NOTIFICATION, root=NodeType.USER)
+@node(NodeType.SPACE, roots=(NodeType.USER,), identifier=IdentifierType.VARIABLE)
+class Space(Node):
+    """A space to interact with a Bench."""
+
+    parent: User = node_parent(4, NodeType.USER)
+    name: str = struct_property(31)
+    main_bench: Optional["Bench"] = struct_internal(
+        32, system=True, array=False, require=False, references=NodeType.BENCH
+    )
+    main_package: Optional["Package"] = struct_internal(
+        33, system=True, array=False, require=False, references=NodeType.PACKAGE
+    )
+    # layout/views/...
+
+
+@node(NodeType.NOTIFICATION, roots=(NodeType.USER,))
 class Notification(Node):
     """A notification for a user."""
 
     parent: User = node_parent(4, NodeType.USER)
     kind: NotificationKind = struct_internal(30)
-    status: NotificationStatus = struct_internal(31)
-    expires_at: datetime = struct_internal(32)
-    read_at: datetime = struct_internal(33)
+    # type: ...
+    status: NotificationStatus = struct_internal(32)
+    expires_at: datetime = struct_internal(33)
+    read_at: datetime = struct_internal(34)
+    # source: ...
