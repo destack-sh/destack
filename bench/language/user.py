@@ -5,15 +5,13 @@ from bench.language.const import (
     NodeType,
     NotificationKind,
     NotificationStatus,
-    StructType,
     ClientKind,
 )
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
-from bench.language.view import SpaceDock
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Package, Worker
+    from bench.language import Bench, Worker
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -94,27 +92,6 @@ class Client(Node):
     @property
     def user(self) -> User:
         return self.parent
-
-
-# nocheckin: move space into (owner's main) package?
-#  (also move notification into bench?)
-
-
-@node(NodeType.SPACE, roots=(NodeType.USER,), identifier=IdentifierType.VARIABLE)
-class Space(Node):
-    """A space for a user to interact with a Bench."""
-
-    parent: User = node_parent(4, NodeType.USER)
-    name: str = struct_property(31)
-    main_bench: Optional["Bench"] = struct_internal(
-        32, system=True, array=False, require=False, references=NodeType.BENCH
-    )
-    main_package: Optional["Package"] = struct_internal(
-        33, system=True, array=False, require=False, references=NodeType.PACKAGE
-    )
-    # layout/views/...
-    dock: "SpaceDock" = struct_internal(34, require=True, array=False, struct=StructType.SPACE_DOCK)
-    # views: NodeList["View"] = node_children(NodeType.VIEW)
 
 
 @node(NodeType.NOTIFICATION, roots=(NodeType.USER,))

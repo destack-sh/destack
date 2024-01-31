@@ -1,5 +1,20 @@
+from .icon import Icon
+from .task import TaskError
+from .validation import ValidationError
+from .view import ViewType, Space, SpaceDock, View
 from ..sql.core import PrimitiveType
-from .access import Badge, Policy, PolicyRule
+from .access import (
+    Badge,
+    Policy,
+    PolicyRule,
+    RequestObject,
+    Action,
+    Request,
+    RequestSubject,
+    ActionEvaluation,
+    RequestEvaluation,
+    AccessError,
+)
 from .block import Block
 from .const import (
     VERSION,
@@ -14,6 +29,7 @@ from .const import (
     SortMode,
     SortOp,
     TriggerType,
+    BenchError,
 )
 from .database import Record
 from .expression import (
@@ -27,7 +43,7 @@ from .expression import (
 )
 from .field import Field, HasFields, TypeInfo
 from .file import File
-from .issue import Issue
+from .issue import Issue, IssueError
 from .node import (
     Bench,
     Link,
@@ -51,23 +67,28 @@ from .worker import Dependency, Worker, WorkerImage, WorkerSet
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
+    "AccessError",
+    "Action",
+    "ActionEvaluation",
     "ActionType",
     "Badge",
     "Bench",
-    "File",
+    "BenchError",
     "Block",
     "BlockType",
     "C",
     "Client",
-    "PrimitiveType",
     "ConditionalOp",
     "Dependency",
     "Expression",
     "Field",
+    "File",
     "FormatHint",
+    "Icon",
     "Handle",
     "HasFields",
     "Issue",
+    "IssueError",
     "IssueType",
     "Link",
     "LogEntry",
@@ -80,11 +101,17 @@ __all__ = [
     "Policy",
     "PolicyEffect",
     "PolicyRule",
+    "PrimitiveType",
     "Property",
     "PropertyReference",
+    "Query",
     "QueryEngine",
     "Record",
     "render",
+    "Request",
+    "RequestEvaluation",
+    "RequestObject",
+    "RequestSubject",
     "Run",
     "RunError",
     "S",
@@ -94,14 +121,18 @@ __all__ = [
     "Signal",
     "SortMode",
     "SortOp",
+    "Space",
+    "SpaceDock",
     "Struct",
     "Tag",
     "Trigger",
     "TriggerType",
     "TypeInfo",
     "User",
+    "ValidationError",
     "VERSION",
-    "Query",
+    "View",
+    "ViewType",
     "Worker",
     "WorkerImage",
     "WorkerSet",

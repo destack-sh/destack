@@ -76,8 +76,10 @@ enum BenchType {
   BENCH_TYPE_FIELD = 24;
   BENCH_TYPE_RECORD = 25;
   BENCH_TYPE_QUERY = 26;
+  BENCH_TYPE_VIEW = 27;
   BENCH_TYPE_ISSUE = 29;
   BENCH_TYPE_LINK = 30;
+  BENCH_TYPE_SPACE = 40;
   BENCH_TYPE_SESSION = 50;
   BENCH_TYPE_RUN = 51;
   BENCH_TYPE_PAUSE = 52;
@@ -93,7 +95,6 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 122;
   BENCH_TYPE_CLIENT = 123;
   BENCH_TYPE_NOTIFICATION = 124;
-  BENCH_TYPE_SPACE = 125;
   BENCH_TYPE_MEMBERSHIP = 141;
   BENCH_TYPE_BENCH_PATH = 200;
   BENCH_TYPE_NODE_REFERENCE = 201;
@@ -332,8 +333,10 @@ enum NodeType {
   NODE_TYPE_FIELD = 24;
   NODE_TYPE_RECORD = 25;
   NODE_TYPE_QUERY = 26;
+  NODE_TYPE_VIEW = 27;
   NODE_TYPE_ISSUE = 29;
   NODE_TYPE_LINK = 30;
+  NODE_TYPE_SPACE = 40;
   NODE_TYPE_SESSION = 50;
   NODE_TYPE_RUN = 51;
   NODE_TYPE_PAUSE = 52;
@@ -349,7 +352,6 @@ enum NodeType {
   NODE_TYPE_ORGANIZATION = 122;
   NODE_TYPE_CLIENT = 123;
   NODE_TYPE_NOTIFICATION = 124;
-  NODE_TYPE_SPACE = 125;
   NODE_TYPE_MEMBERSHIP = 141;
 }
 
@@ -528,6 +530,25 @@ enum TriggerType {
   TRIGGER_TYPE_API = 7;
 }
 
+enum ViewType {
+  VIEW_TYPE_UNSPECIFIED = 0;
+  VIEW_TYPE_PAGE_EDITOR = 1;
+  VIEW_TYPE_BLOCK = 2;
+  VIEW_TYPE_EXPLORER = 10;
+  VIEW_TYPE_HISTORY = 11;
+  VIEW_TYPE_ISSUES = 12;
+  VIEW_TYPE_TESTS = 13;
+  VIEW_TYPE_GLOBAL = 14;
+  VIEW_TYPE_INSPECTOR = 15;
+  VIEW_TYPE_LIBRARY = 16;
+  VIEW_TYPE_ACCESS = 17;
+  VIEW_TYPE_WINDOW_GROUP = 40;
+  VIEW_TYPE_WINDOW = 41;
+  VIEW_TYPE_PANEL = 42;
+  VIEW_TYPE_SPACER = 60;
+  VIEW_TYPE_DIVIDER = 61;
+}
+
 enum WorkerProfile {
   WORKER_PROFILE_UNSPECIFIED = 0;
   WORKER_PROFILE_TINY = 1;
@@ -673,11 +694,11 @@ message FileData {
   FileStatus status = 35;
 }
 
-// Icon(builtin_name: str = <factory>, custom_file: Optional[bench.language.file.File] = <factory>, _status: bench.language.const.NodeStatus = None)
+// Icon(is_custom: bool = False, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
 message IconData {
   BenchType metatype = 1;
-  string builtin_name = 30;
-  optional FileData custom_file = 31;
+  bool is_custom = 31;
+  optional FileData image = 32;
 }
 
 // An entry. In a log.
@@ -1333,20 +1354,23 @@ message SignalData {
   optional google.protobuf.Struct value_packed = 31;
 }
 
-// A space for a user to interact with a Bench.
+// A space for a user to interact with the Bench.
 message SpaceData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 24;
   string name = 31;
-  optional NodeReferenceData main_bench_ptr = 32;
-  optional NodeReferenceData main_package_ptr = 33;
+  string order_key = 32;
   SpaceDockData dock = 34;
 }
 
@@ -1412,6 +1436,24 @@ message UserData {
   optional NodeReferenceData main_bench_ptr = 38;
 }
 
+// A view of a user interface in a Bench.
+message ViewData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
+  ViewType type = 30;
+  string name = 31;
+}
+
 // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message WorkerData {
   BenchType metatype = 1;
@@ -1463,25 +1505,26 @@ message SomeNodeData {
     FieldData field = 6;
     RecordData record = 7;
     QueryData query = 8;
-    IssueData issue = 9;
-    LinkData link = 10;
-    SessionData session = 11;
-    RunData run = 12;
-    PauseData pause = 13;
-    SignalData signal = 14;
-    BadgeData badge = 15;
-    RoleData role = 16;
-    IdentityData identity = 17;
-    WorkerSetData worker_set = 18;
-    WorkerData worker = 19;
-    BucketObjectData bucket_object = 20;
-    HandleData handle = 21;
-    UserData user = 22;
-    OrganizationData organization = 23;
-    ClientData client = 24;
-    NotificationData notification = 25;
-    SpaceData space = 26;
-    MembershipData membership = 27;
+    ViewData view = 9;
+    IssueData issue = 10;
+    LinkData link = 11;
+    SpaceData space = 12;
+    SessionData session = 13;
+    RunData run = 14;
+    PauseData pause = 15;
+    SignalData signal = 16;
+    BadgeData badge = 17;
+    RoleData role = 18;
+    IdentityData identity = 19;
+    WorkerSetData worker_set = 20;
+    WorkerData worker = 21;
+    BucketObjectData bucket_object = 22;
+    HandleData handle = 23;
+    UserData user = 24;
+    OrganizationData organization = 25;
+    ClientData client = 26;
+    NotificationData notification = 27;
+    MembershipData membership = 28;
   };
 }
 

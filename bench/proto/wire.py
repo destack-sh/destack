@@ -96,8 +96,10 @@ class BenchType(betterproto.Enum):
     FIELD = 24
     RECORD = 25
     QUERY = 26
+    VIEW = 27
     ISSUE = 29
     LINK = 30
+    SPACE = 40
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -113,7 +115,6 @@ class BenchType(betterproto.Enum):
     ORGANIZATION = 122
     CLIENT = 123
     NOTIFICATION = 124
-    SPACE = 125
     MEMBERSHIP = 141
     BENCH_PATH = 200
     NODE_REFERENCE = 201
@@ -355,8 +356,10 @@ class NodeType(betterproto.Enum):
     FIELD = 24
     RECORD = 25
     QUERY = 26
+    VIEW = 27
     ISSUE = 29
     LINK = 30
+    SPACE = 40
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -372,7 +375,6 @@ class NodeType(betterproto.Enum):
     ORGANIZATION = 122
     CLIENT = 123
     NOTIFICATION = 124
-    SPACE = 125
     MEMBERSHIP = 141
 
 
@@ -562,6 +564,25 @@ class TriggerType(betterproto.Enum):
     API = 7
 
 
+class ViewType(betterproto.Enum):
+    UNSPECIFIED = 0
+    PAGE_EDITOR = 1
+    BLOCK = 2
+    EXPLORER = 10
+    HISTORY = 11
+    ISSUES = 12
+    TESTS = 13
+    GLOBAL = 14
+    INSPECTOR = 15
+    LIBRARY = 16
+    ACCESS = 17
+    WINDOW_GROUP = 40
+    WINDOW = 41
+    PANEL = 42
+    SPACER = 60
+    DIVIDER = 61
+
+
 class WorkerProfile(betterproto.Enum):
     UNSPECIFIED = 0
     TINY = 1
@@ -728,14 +749,13 @@ class FileData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(builtin_name: str = <factory>, custom_file:
-    Optional[bench.language.file.File] = <factory>, _status:
-    bench.language.const.NodeStatus = None)
+    Icon(is_custom: bool = False, image: Optional[ForwardRef('File')] =
+    <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    builtin_name: str = betterproto.string_field(30)
-    custom_file: Optional["FileData"] = betterproto.message_field(31, optional=True)
+    is_custom: bool = betterproto.bool_field(31)
+    image: Optional["FileData"] = betterproto.message_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1596,20 +1616,23 @@ class SignalData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SpaceData(betterproto.Message):
-    """A space for a user to interact with a Bench."""
+    """A space for a user to interact with the Bench."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(24)
     name: str = betterproto.string_field(31)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    order_key: str = betterproto.string_field(32)
     dock: "SpaceDockData" = betterproto.message_field(34)
 
 
@@ -1684,6 +1707,26 @@ class UserData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ViewData(betterproto.Message):
+    """A view of a user interface in a Bench."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    type: "ViewType" = betterproto.enum_field(30)
+    name: str = betterproto.string_field(31)
+
+
+@dataclass(eq=False, repr=False)
 class WorkerData(betterproto.Message):
     """
     Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile:
@@ -1753,25 +1796,26 @@ class SomeNodeData(betterproto.Message):
     field: "FieldData" = betterproto.message_field(6, group="node")
     record: "RecordData" = betterproto.message_field(7, group="node")
     query: "QueryData" = betterproto.message_field(8, group="node")
-    issue: "IssueData" = betterproto.message_field(9, group="node")
-    link: "LinkData" = betterproto.message_field(10, group="node")
-    session: "SessionData" = betterproto.message_field(11, group="node")
-    run: "RunData" = betterproto.message_field(12, group="node")
-    pause: "PauseData" = betterproto.message_field(13, group="node")
-    signal: "SignalData" = betterproto.message_field(14, group="node")
-    badge: "BadgeData" = betterproto.message_field(15, group="node")
-    role: "RoleData" = betterproto.message_field(16, group="node")
-    identity: "IdentityData" = betterproto.message_field(17, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(18, group="node")
-    worker: "WorkerData" = betterproto.message_field(19, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(20, group="node")
-    handle: "HandleData" = betterproto.message_field(21, group="node")
-    user: "UserData" = betterproto.message_field(22, group="node")
-    organization: "OrganizationData" = betterproto.message_field(23, group="node")
-    client: "ClientData" = betterproto.message_field(24, group="node")
-    notification: "NotificationData" = betterproto.message_field(25, group="node")
-    space: "SpaceData" = betterproto.message_field(26, group="node")
-    membership: "MembershipData" = betterproto.message_field(27, group="node")
+    view: "ViewData" = betterproto.message_field(9, group="node")
+    issue: "IssueData" = betterproto.message_field(10, group="node")
+    link: "LinkData" = betterproto.message_field(11, group="node")
+    space: "SpaceData" = betterproto.message_field(12, group="node")
+    session: "SessionData" = betterproto.message_field(13, group="node")
+    run: "RunData" = betterproto.message_field(14, group="node")
+    pause: "PauseData" = betterproto.message_field(15, group="node")
+    signal: "SignalData" = betterproto.message_field(16, group="node")
+    badge: "BadgeData" = betterproto.message_field(17, group="node")
+    role: "RoleData" = betterproto.message_field(18, group="node")
+    identity: "IdentityData" = betterproto.message_field(19, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(20, group="node")
+    worker: "WorkerData" = betterproto.message_field(21, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(22, group="node")
+    handle: "HandleData" = betterproto.message_field(23, group="node")
+    user: "UserData" = betterproto.message_field(24, group="node")
+    organization: "OrganizationData" = betterproto.message_field(25, group="node")
+    client: "ClientData" = betterproto.message_field(26, group="node")
+    notification: "NotificationData" = betterproto.message_field(27, group="node")
+    membership: "MembershipData" = betterproto.message_field(28, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3289,66 +3333,67 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    HandleData,
-    FieldData,
-    TagData,
-    SpaceData,
     BenchData,
-    OrganizationData,
-    SignalData,
-    IssueData,
-    LinkData,
-    MembershipData,
-    BadgeData,
+    HandleData,
+    ClientData,
     WorkerSetData,
     WorkerData,
-    TriggerData,
-    RecordData,
-    NotificationData,
-    RunData,
-    RoleData,
-    QueryData,
-    ClientData,
+    FieldData,
+    BlockData,
     BucketObjectData,
+    RunData,
+    PackageData,
+    BadgeData,
+    IssueData,
+    RecordData,
+    QueryData,
+    ViewData,
+    OrganizationData,
+    TagData,
+    TriggerData,
+    PauseData,
+    NotificationData,
+    SessionData,
+    SignalData,
+    MembershipData,
+    LinkData,
+    SpaceData,
+    RoleData,
     IdentityData,
     UserData,
-    PackageData,
-    SessionData,
-    PauseData,
-    BlockData,
 ]
 AnyStructData = Union[
-    PolicyRuleData,
-    BenchPathData,
-    SpaceDockData,
-    PropertyReferenceData,
-    ValueReferenceData,
-    RunErrorData,
-    IconData,
-    RequestData,
-    RichTextData,
-    DependencyData,
+    LogEntryData,
+    FieldPathData,
     RunCodeFrameData,
-    PropertyPathData,
+    IconData,
+    ReadOptionsData,
+    RequestEvaluationData,
+    FieldPathSegmentData,
+    ExpressionData,
+    RichTextData,
+    SpaceDockData,
     NodeReferenceData,
     FileData,
-    ActionData,
-    RichTextSpanData,
-    SpaceDockItemData,
-    RequestSubjectData,
-    FieldPathData,
-    PolicyData,
-    ExpressionData,
-    RequestEvaluationData,
-    ReadOptionsData,
-    LogEntryData,
-    AggregationData,
-    RequestObjectData,
-    FieldPathSegmentData,
-    WorkerImageData,
     ActionEvaluationData,
+    WorkerImageData,
+    ValueReferenceData,
     TypeInfoData,
+    AggregationData,
+    RichTextSpanData,
+    BenchPathData,
+    PropertyReferenceData,
+    PolicyData,
     AggregationBucketData,
+    RequestData,
+    PropertyPathData,
+    RunErrorData,
+    DependencyData,
+    RequestObjectData,
+    PolicyRuleData,
+    RequestSubjectData,
+    ActionData,
+    SpaceDockItemData,
 ]
 
-VERSION = "2024.01.31.1"
+VERSION = "2024.01.31.3"

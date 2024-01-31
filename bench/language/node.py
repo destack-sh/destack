@@ -104,6 +104,7 @@ if TYPE_CHECKING:
         TypeInfo,
         User,
         WorkerSet,
+        Space,
     )
     from bench.language.issue import IssueHandler
 
@@ -2331,7 +2332,7 @@ class Bench(ScopeNode):
 
     parent: None = node_parent(4)
     policies: list["Policy"] | None = struct_internal(
-        24, default_factory=list, struct=StructType.POLICY, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
     )
     slug: str = struct_internal(30, system=True, unique=True)
     name: str = struct_property(31)
@@ -2405,9 +2406,11 @@ class Package(ScopeNode):
 
     parent: Bench = node_parent(4, NodeType.BENCH)
     policies: list["Policy"] | None = struct_internal(
-        24, default_factory=list, struct=StructType.POLICY, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
     )
     is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
+    blocks: NodeList["Block"] = node_children(NodeType.BLOCK)
+    spaces: NodeList["Space"] = node_children(NodeType.SPACE)
 
     dependencies: dict[str, "Package"] = struct_runtime(default_factory=dict)
     builtins: list["Block"] = struct_runtime(default_factory=list)
