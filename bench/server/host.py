@@ -11,13 +11,17 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
+from bench.language import NodeReference, Expression
 from bench.language.access import (
     ReadOptions,
     SYSTEM_POLICIES,
     adapt_access_post_read,
+    Request,
+    RequestObject,
+    adapt_access_pre_read,
 )
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
-from bench.language.node import Bench, Package
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, ReadType
+from bench.language.node import Bench, Package, NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -186,7 +190,17 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     #
 
     async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
-        options: ReadOptions = wiring.unpack_struct_maybe(request.options) or ReadOptions.default()
+        roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
+        options: ReadOptions = (
+            wiring.unpack_struct_interp_maybe(request.options, self._package)
+            or ReadOptions.default()
+        )
+        base_requests = tuple(
+            Request(self.subject, ReadType.GET, RequestObject(type=root.type)) for root in roots
+        )
+        adapted_options = adapt_access_pre_read(
+            self.subject, base_requests, SYSTEM_POLICIES, options
+        )
 
         if request.node_type == NodeType.RECORD:
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
@@ -199,21 +213,39 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
     async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
+        node_type = wiring.unpack_enum(NodeType, request.node_type)
+        base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
+        adapted_options = adapt_access_pre_read(
+            self.subject, (base_request,), SYSTEM_POLICIES, ReadOptions.default()
+        )
+        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
+        sort: list[Expression] = [
+            wiring.unpack_struct_interp(s, self._package) for s in request.sort
+        ] or None
+
         if request.node_type == NodeType.RECORD:
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         else:
-            # NOTE: we don't support generic server-side 'node search' yet
+            # we don't support generic server-side 'node search' yet
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot search {request.node_type}")
 
     async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
+        node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
+        sort: list[Expression] = [
+            wiring.unpack_struct_interp(s, self._package) for s in request.sort
+        ] or None
+        aggregation: Expression = wiring.unpack_struct_interp(request.aggregation, self._package)
+
         if request.node_type == NodeType.RECORD:
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         else:
-            # NOTE: we don't support generic server-side 'node search' yet
+            # we don't support generic server-side 'node search' yet
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot aggregate {request.node_type}")
 
     async def commit_edits(self, request: "CommitEditsRequest") -> "CommitEditsResponse":

@@ -11,7 +11,6 @@ from bench.language.const import (
     PolicyEffect,
     StructType,
     ActionKind,
-    ReadType,
     ACTION_KINDS,
     IN_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
@@ -278,7 +277,9 @@ class ReadOptions(Struct):
     def combined_filter(
         self, node_type: NodeType, filter: Optional["Expression"] = None
     ) -> "Expression":
-        type_filter = self.filter_by_type.get(node_type)
+        type_filter = (
+            self.filter_by_type.get(node_type) if self.filter_by_type is not None else None
+        )
         if filter is None:
             if type_filter is None:
                 return self.global_filter
@@ -361,24 +362,16 @@ class RequestSubject(Struct):
     # groups, identities, roles, ...
 
     def __content_str__(self):
-        subject_str_parts = []
-        for subject_key in (
-            "client",
-            "user",
-            "badge",
-            "is_authenticated",
-            "is_owner",
-            "is_member",
-            "is_staff",
-        ):
-            value = getattr(self, subject_key)
+        str_parts = []
+        for prop in RequestSubject.__declared_properties__.values():
+            value = getattr(self, prop.name)
             if value:
                 if isinstance(value, bool):
-                    subject_str_parts.append(subject_key)
+                    str_parts.append(prop.name)
                 else:
-                    subject_str_parts.append(repr(value))
-        if subject_str_parts:
-            return f"{', '.join(subject_str_parts)}"
+                    str_parts.append(repr(value))
+        if str_parts:
+            return f"{', '.join(str_parts)}"
         else:
             return "<anonymous>"
 
@@ -400,19 +393,18 @@ class RequestObject(Struct):
     # properties, bases, node, fields, ...
 
     def __content_str__(self):
-        object_str_parts = []
+        str_parts = []
         for object_key in ("is_sensitive", "is_system"):
             value = getattr(self, object_key)
             if value:
                 if isinstance(value, bool):
-                    object_str_parts.append(object_key)
+                    str_parts.append(object_key)
                 else:
-                    object_str_parts.append(f"{object_key}={value}")
-        if object_str_parts:
-            object_str = f" [{', '.join(object_str_parts)}]"
+                    str_parts.append(f"{object_key}={value}")
+        if str_parts:
+            return f"{self.type.bench_name} [{', '.join(str_parts)}]"
         else:
-            object_str = ""
-        return f"{self.type.bench_name}{object_str}"
+            return self.type.bench_name
 
 
 @struct(StructType.REQUEST)
@@ -425,23 +417,6 @@ class Request(Struct):
 
     def __content_str__(self) -> str:
         return f"{self.subject} {self.verb.bench_name} {self.object}"
-
-    @staticmethod
-    def from_read_options(
-        options: "ReadOptions", subject: RequestSubject
-    ) -> list["Request"] | tuple["Request", ...]:
-        """Map the read options to a list of requests."""
-        requests: list[Request] = []
-        is_sensitive = options.include_sensitive or False
-        for type in options.ancestor_types or ():
-            object = RequestObject(type=type, is_sensitive=is_sensitive)
-            request = Request(subject=subject, verb=ReadType.LIST, object=object)
-            requests.append(request)
-        for type in options.descendant_types or ():
-            object = RequestObject(type=type, is_sensitive=is_sensitive)
-            request = Request(subject=subject, verb=ReadType.LIST, object=object)
-            requests.append(request)
-        return requests
 
 
 @struct(StructType.ACTION)

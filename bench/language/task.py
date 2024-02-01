@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import structlog
 
-from bench.language.const import IssueType, NodeType, RunErrorKind, RunStatus
+from bench.language.const import NodeType, RunErrorKind, RunStatus
 from bench.language.field import Field, TypedDict
 from bench.language.model import HasModel
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
@@ -21,7 +21,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
     from bench.language.block import Block
 
 logger = structlog.get_logger(__name__)
@@ -40,14 +40,14 @@ class HasTask(Node):
         self._root_models = None
         self._randomize = False
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
         from . import symbolx_lib
 
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")
         self._randomize = randomize_tag in self.tags
 
         if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.fields):
-            on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
+            on_notice(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available blocks
 

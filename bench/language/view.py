@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
 
 from bench.language.const import StructType, NodeType
 from bench.language.node import (
@@ -19,18 +19,18 @@ from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Block, Policy
+    from bench.language import Block, Policy, Icon
 
 
 class ViewType(ProtoStrEnum):
     # editor
-    PAGE_EDITOR = "PAGE_EDITOR", 1
+    PAGE = "PAGE", 1
     BLOCK = "BLOCK", 2
 
     EXPLORER = "EXPLORER", 10
     HISTORY = "HISTORY", 11
-    ISSUES = "ISSUES", 12
-    TESTS = "TESTS", 13
+    WATCH = "WATCH", 12
+    TESTING = "TESTING", 13
     GLOBAL = "GLOBAL", 14
     INSPECTOR = "INSPECTOR", 15
     LIBRARY = "LIBRARY", 16
@@ -63,10 +63,13 @@ class View(ScopeNode, HasViews):
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
     type: ViewType = struct_property(30, require=True, validate=enum_validator(ViewType))
-    name: str = struct_property(31)
+    name: Optional[str] = struct_property(31, default=None)
+    icon: Optional["Icon"] = struct_property(
+        32, default=None, require=False, array=False, struct=StructType.ICON
+    )
 
 
-class BlockPageViewMode(ProtoStrEnum):
+class PageViewMode(ProtoStrEnum):
     NOTEBOOK = "NOTEBOOK", 1
     SCRIPT = "SCRIPT", 2
 

@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.31.3"
+VERSION = "2024.02.01.1"
 
 
 #
@@ -41,7 +41,7 @@ class NodeType(ProtoStrEnum):
     QUERY = "QUERY", 26
     VIEW = "VIEW", 27
     # STEP = "STEP", 28
-    ISSUE = "ISSUE", 29
+    NOTICE = "NOTICE", 29
     LINK = "LINK", 30
     # COMMENT = "COMMENT", ...
     SPACE = "SPACE", 40
@@ -171,7 +171,7 @@ BENCH_TYPES: tuple[BenchType, ...] = tuple(BenchType)
 BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
     _type: to_casing(_type, Casing.CAMEL) for _type in chain(NODE_TYPES, STRUCT_TYPES)
 }
-INTERP_NODE_TYPES = (NodeType.ISSUE,)
+INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
 class BlockType(ProtoStrEnum):
@@ -184,7 +184,9 @@ class BlockType(ProtoStrEnum):
     CHOICE = "choice", 11  # define a choice type with fields
     TAG = "tag", 12  # define a tag type with fields
     SIGNAL = "signal", 13  # define a signal type with fields
-    # BLOCK = "block", 14  # define a new block type? maybe also new issue types?
+    # NOTICE = "notice", ...  # define a new notice type
+    # NOTIFICATION = "notification", ...  # define a new notification type
+    # BLOCK = "block", ...  # define a new block type?
 
     SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
     MULTI_VARIABLE = "multi_variable", 21  # define a variable with (multiple) fields
@@ -301,7 +303,8 @@ UNSET = object()
 
 
 #
-# Edits
+# Actions
+# Action types are loosely ranked by access/destructiveness across and within types.
 #
 
 
@@ -309,9 +312,9 @@ class ReadType(ProtoStrEnum):
     """A type of Read action on nodes."""
 
     GET = "GET", 1  # any direct read action
-    LIST = "LIST", 2  # list, search, filter, etc.
-    AGGREGATE_SCALAR = "AGGREGATE", 3  # count, sum, min, etc.
-    AGGREGATE_BUCKET = "AGGREGATE_BUCKET", 4  # histogram, etc.
+    AGGREGATE_SCALAR = "AGGREGATE", 2  # count, sum, min, etc.
+    AGGREGATE_BUCKET = "AGGREGATE_BUCKET", 3  # histogram, etc.
+    LIST = "LIST", 4  # list, search, filter, etc.
 
     @property
     def bench_name(self):
@@ -325,17 +328,17 @@ class ReadType(ProtoStrEnum):
 class EditType(ProtoStrEnum):
     """A type of Edit action on nodes."""
 
-    CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
-    UPSERT = "UPSERT", 21
-    UPDATE = "UPDATE", 22
-    MOVE = "MOVE", 23
-    SOFT_DELETE = "SOFT_DELETE", 24
-    RESTORE = "RESTORE", 25
+    BUMP_CHANGED = "BUMP_CHANGED", 20
+    BUMP_ACTIVE = "BUMP_ACTIVE", 21
+    CREATE = "CREATE", 22
+    UPSERT = "UPSERT", 23
+    UPDATE = "UPDATE", 24
+    MOVE = "MOVE", 25
     ARCHIVE = "ARCHIVE", 26
     UNARCHIVE = "UNARCHIVE", 27
-    DELETE = "DELETE", 28
-    BUMP_CHANGED = "BUMP_CHANGED", 29
-    BUMP_ACTIVE = "BUMP_ACTIVE", 30
+    SOFT_DELETE = "SOFT_DELETE", 28
+    RESTORE = "RESTORE", 29
+    DELETE = "DELETE", 30
 
     @property
     def bench_name(self):
@@ -431,12 +434,6 @@ class NotificationKind(ProtoStrEnum):
     pass
 
 
-class NotificationStatus(ProtoStrEnum):
-    ACTIVE = "ACTIVE", 1
-    READ = "READ", 2
-    EXPIRED = "EXPIRED", 3
-
-
 class PrimitiveType(ProtoStrEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -503,24 +500,17 @@ class ScheduleType(ProtoStrEnum):
     CRON = "cron", 2
 
 
-class IssueKind(ProtoStrEnum):
-    ERROR = "Error", 1
-    WARNING = "Warning", 2
-    NOTICE = "Notice", 3
+class NoticeKind(ProtoStrEnum):
+    """Type of diagnostic in increasing severity."""
 
+    HINT = "HINT", 1
+    INFORMATION = "NOTICE", 2
+    WARNING = "WARNING", 3
+    ERROR = "ERROR", 4
 
-class IssueType(ProtoStrEnum):
-    # errors
-    INTERNAL = "INTERNAL", 1
-    MISSING_REFERENCE = "MISSING_REFERENCE", 2
-    CIRCULAR_BASE = "CIRCULAR_BASE", 3
-    MISMATCHED_BASE = "MISMATCHED_BASE", 4
-    # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION", 100
-    TASK_MISSING_IO = "TASK_MISSING_IO", 101
-    # notices
-    BAD_NAME = "BAD_NAME", 200
-    TASK_IS_STATIC = "TASK_IS_STATIC", 201
+    @property
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
 
 
 class BenchRegion(ProtoStrEnum):
@@ -536,12 +526,6 @@ class WorkerSetStatus(ProtoStrEnum):
     UNHEALTHY = "UNHEALTHY", 5
     UNAVAILABLE = "UNAVAILABLE", 6
     UNKNOWN = "UNKNOWN", 7
-
-
-class SessionStatus(ProtoStrEnum):
-    ACTIVE = "ACTIVE", 1
-    SUSPENDED = "SUSPENDED", 2
-    TERMINATED = "TERMINATED", 3
 
 
 class RunStatus(ProtoStrEnum):

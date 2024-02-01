@@ -24,7 +24,6 @@ from bench.language.const import (
     BenchError,
     ConditionalOp,
     ExpressionOp,
-    IssueType,
     NodeStatus,
     NodeType,
     NRel,
@@ -38,7 +37,18 @@ from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, genera
 from bench.utils.func import _auto_async_to_sync, nextn
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, Node, Property, ScopeNode, Session, TypeInfo
+    from bench.language import (
+        Expression,
+        Field,
+        Node,
+        Property,
+        ScopeNode,
+        Session,
+        TypeInfo,
+        NoticeType,
+        FieldPath,
+        PropertyReference,
+    )
 
 NodeT = TypeVar("NodeT", bound="Node")
 
@@ -55,17 +65,19 @@ class _NodeChange(enum.IntFlag):
 _NC = _NodeChange
 
 
-def on_issue_raise(
+def on_notice_raise(
     subject: "Node",
-    type: IssueType,
+    type: "NoticeType",
     message: Optional[str] = None,
-    path: Optional[str] = None,
-    **kwargs,
+    path: Optional["FieldPath"] = None,
+    properties: list["PropertyReference"] | None = None,
 ):
-    from bench.language.issue import Issue, IssueError
+    from bench.language.notice import Notice, NoticeError
 
-    issue = Issue.from_subject(subject=subject, type=type, message=message, path=path)
-    raise IssueError(issue)
+    notice = Notice.from_subject(
+        subject=subject, type=type, message=message, path=path, properties=properties
+    )
+    raise NoticeError(notice)
 
 
 @dataclass(slots=True)
@@ -116,7 +128,8 @@ class _InterpChange:
         if level & _NC.Attach:
             for _node in self.affected:
                 _node._interp_self(
-                    _node.scope, on_issue=_node.scope._on_issue if _node.scope else on_issue_raise
+                    _node.scope,
+                    on_notice=_node.scope._on_notice if _node.scope else on_notice_raise,
                 )
                 if self.prev_session is not None and self.prev_status == NS.TRACKED:
                     _node._track_self(self.prev_session)

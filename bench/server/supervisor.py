@@ -154,8 +154,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         base_requests = tuple(
             Request(self.subject, ReadType.GET, RequestObject(type=root.type)) for root in roots
         )
-        options: ReadOptions = wiring.unpack_struct_maybe(request.options) or ReadOptions.default()
-        adapted_options = adapt_access_pre_read(base_requests, SYSTEM_POLICIES, options)
+        options: ReadOptions = (
+            wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
+        )
+        adapted_options = adapt_access_pre_read(
+            self.subject, base_requests, SYSTEM_POLICIES, options
+        )
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         tree = NodeDataTree()
@@ -169,7 +173,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
-        tree = adapt_access_post_read(base_requests, SYSTEM_POLICIES, tree, options)
+        tree = adapt_access_post_read(self.subject, base_requests, SYSTEM_POLICIES, tree, options)
 
         return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
@@ -180,10 +184,14 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
-        filter: Expression | None = wiring.unpack_struct_maybe(request.filter)
-        sort: list[Expression] = [wiring.unpack_struct(s) for s in request.sort] or None
-        options: ReadOptions = wiring.unpack_struct_maybe(request.options) or ReadOptions.default()
-        adapted_options = adapt_access_pre_read((base_request,), SYSTEM_POLICIES, options)
+        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
+        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
+        options: ReadOptions = (
+            wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
+        )
+        adapted_options = adapt_access_pre_read(
+            self.subject, (base_request,), SYSTEM_POLICIES, options
+        )
 
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.combined_filter(node_type, filter)
@@ -216,9 +224,9 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
         node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        filter: Expression | None = wiring.unpack_struct_maybe(request.filter)
-        sort: list[Expression] = [wiring.unpack_struct(s) for s in request.sort] or None
-        aggregation: Expression = wiring.unpack_struct(request.aggregation)
+        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
+        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
+        aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
         if aggregation.op in (AggregationOp.EXISTS, AggregationOp.COUNT):
             base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
         else:

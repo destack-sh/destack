@@ -11,7 +11,7 @@ from psycopg import sql
 
 from bench.language.const import UNSET, ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
-from bench.language.issue import IssueHandler
+from bench.language.notice import NoticeHandler
 from bench.language.node import (
     _NC,
     NS,
@@ -187,17 +187,17 @@ class RecordQuery:
             # cache is not copied on purpose as it shouldn't propagate
         )
 
-    def _interp_self(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
+    def _interp_self(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:
         """
         Interprets the Bench parts of the query.
         Convenient for using RecordQuery with just deserialized parts,
          but of course RecordQuery isn't a node or struct or such.
         """
         if self._filter is not None:
-            self._filter._interp_rec(scope, on_issue)
+            self._filter._interp_rec(scope, on_notice)
         if self._sort is not None:
             for sort in self._sort:
-                sort._interp_rec(scope, on_issue)
+                sort._interp_rec(scope, on_notice)
 
     def _invalidate(self):
         self._cached_records = None
@@ -592,7 +592,7 @@ class HasDatabase(Node):
     def _clear_inner(self, scope: Optional["ScopeNode"] = None) -> None:
         self._table = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:
         from bench.sql.engine import map_database_to_pg_table
 
         if self.ephemeral:

@@ -1144,10 +1144,8 @@ async def pg_read_node_data_tree(
     visited_tree = _tree if _tree is not None else NodeDataTree()
 
     # select "roots"
-    root_filter = (
-        options.global_filter
-        & options.filter_by_type.get(root_type, CONDITIONAL_TRUE)
-        & Node.filter(id__in=root_ids)._filter
+    root_filter = options.combined_filter(
+        root_type, C(ConditionalOp.IN, property_ptr=Node.id.as_reference, value=root_ids)
     )
     roots = await pg_select_nodes_data(
         cur=cur,
@@ -1184,7 +1182,8 @@ async def pg_read_node_data_tree(
                     cur=cur,
                     node_type=node_type,
                     filter=options.combined_filter(
-                        node_type, C(ConditionalOp.IN, property_ptr=Node.id.ptr, value=node_ids)
+                        node_type,
+                        C(ConditionalOp.IN, property_ptr=Node.id.as_reference, value=node_ids),
                     ),
                     select_properties_by_type=options.select_properties_by_type,
                 )

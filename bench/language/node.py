@@ -40,7 +40,6 @@ from bench.language.const import (
     UNSET,
     BenchType,
     BlockType,
-    IssueType,
     NodeRelationType,
     NodeSource,
     NodeStatus,
@@ -59,7 +58,7 @@ from bench.language.link import (
     _InterpChange,
     _NodeExpressionBase,
     _TypeExpressionBase,
-    on_issue_raise,
+    on_notice_raise,
 )
 from bench.language.tree import DetachedNodeTree, NodeDataTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
@@ -94,7 +93,7 @@ from bench.utils.utils import frozendict, required_field
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Issue,
+        Notice,
         NodeReference,
         NodeVisitor,
         Organization,
@@ -106,7 +105,7 @@ if TYPE_CHECKING:
         WorkerSet,
         Space,
     )
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -521,10 +520,10 @@ class Property(_TypeExpressionBase):
         else:
             raise ValueError(f"cannot copy {self!r}")
 
-    def validate(self, value: Any, on_issue: "PropertyValidationHandler") -> bool | None:
+    def validate(self, value: Any, on_notice: "PropertyValidationHandler") -> bool | None:
         """Validates a non-None value of this property"""
         if self.custom_validate is not None:
-            return self.custom_validate(value, on_issue)
+            return self.custom_validate(value, on_notice)
         else:
             return None
 
@@ -821,6 +820,7 @@ def _process_struct_base_cls(
             raise ValueError(f"invalid struct base {cls}")
 
     # collect properties from this
+    declared_properties: dict[str, Property] = {}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -839,6 +839,7 @@ def _process_struct_base_cls(
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
+        declared_properties[name] = prop
         # collect any extra contributed properties
         if prop.reference_kind in (
             NodeReferenceKind.PARENT,
@@ -853,6 +854,7 @@ def _process_struct_base_cls(
                 properties_by_name[p.name] = p
                 if not p.is_computed:
                     setattr(cls, p.name, p)
+    cls.__declared_properties__ = frozendict(declared_properties)
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all components (static and dynamic, least to most specific)
@@ -1246,11 +1248,11 @@ def _make_self_method(
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
             elif isinstance(self, Node):
                 if self._status == NS.SOURCE and to_status > NS.INTERP:
-                    self._interp_self(self, on_issue=self.scope._on_issue)
+                    self._interp_self(self, on_notice=self.scope._on_notice)
             else:  # Struct
                 if self._status == NS.SOURCE and to_status > NS.INTERP:
                     # where to get struct scope? track 'parent node' in struct? :StructScope
-                    self._interp_self(self, on_issue_raise)
+                    self._interp_self(self, on_notice_raise)
             if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
                 return  # nothing to do
             if self._status < from_status:
@@ -1298,6 +1300,7 @@ class Struct(abc.ABC):
     __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
+    __declared_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
@@ -1397,8 +1400,10 @@ class Struct(abc.ABC):
             # TODO @Broken?: reset node references in clear for real (if still needed)
             # setattr(self, prop.name, None)
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         # resolve node references :NodeReferences
+        from bench.language.notice import NoticeType
+
         for prop in self.__reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None) is not None:
                 continue  # already resolved
@@ -1406,7 +1411,7 @@ class Struct(abc.ABC):
             if ptr is not None:
                 resolved = scope.lookup(ptr.id or ptr.ck)
                 if resolved is None:
-                    on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=prop.name)
+                    on_notice(type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name)
                 setattr(self, prop.name, resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor"):
@@ -1489,6 +1494,7 @@ class Node(Struct, _NodeExpressionBase):
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
+    __declared_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
@@ -1589,8 +1595,8 @@ class Node(Struct, _NodeExpressionBase):
             self._status = NS.INTERP if self._session is not None else NS.SOURCE
         self._init_self()
         if self._status == NS.INTERP and self._session is not None:
-            on_issue = on_issue_raise if self.scope is None else self.scope._on_issue
-            self._interp_self(self, on_issue=on_issue)
+            on_notice = on_notice_raise if self.scope is None else self.scope._on_notice
+            self._interp_self(self, on_notice=on_notice)
             self._track_self(self._session)
 
     @property
@@ -1853,11 +1859,11 @@ class Node(Struct, _NodeExpressionBase):
         for s in self._walk_structs():
             s._clear_rec()
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         """Interp this node."""
         # interp all structs recursive
         for s in self._walk_structs():
-            s._interp_rec(scope, on_issue)
+            s._interp_rec(scope, on_notice)
 
     def _track_inner(self, session: "Session") -> None:
         """Track this object in the given session."""
@@ -1974,9 +1980,11 @@ class Node(Struct, _NodeExpressionBase):
         """
         return [self]
 
-    def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs) -> None:
-        # only scope nodes can host issues, forward to parent
-        self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
+    def _on_notice(
+        self, subject: "Node", type: "NoticeType", message: str = None, **kwargs
+    ) -> None:
+        # only scope nodes can host notices, forward to parent
+        self.parent._on_notice(subject=self, type=type, message=message, **kwargs)
 
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""
@@ -2016,8 +2024,8 @@ class ScopeNode(Node):
 
     __has_scope__: ClassVar[bool] = True
     last_changed_at: Optional[datetime] = struct_internal(16, default=None)
-    issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.CUMULATIVE)
-    # the tree is maintained at the highest root node (ideally *the* root node, but may be detached)
+    notices: NodeList["Notice"] = node_children(NodeType.NOTICE, NRel.CUMULATIVE)
+    # the node tree is maintained at the highest root node (usually *the* root node, but may be detached)
     _tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
 
     @property
@@ -2044,7 +2052,7 @@ class ScopeNode(Node):
         _ComponentMethod.interp,
         Node._interp_self,
         custom_kwargs=lambda n: dict(
-            scope=n.scope, on_issue=n.scope._on_issue if n.scope else on_issue_raise
+            scope=n.scope, on_notice=n.scope._on_notice if n.scope else on_notice_raise
         ),
     )
     _visit_rec = _make_rec_method(_ComponentMethod.visit, Node._visit_self)
@@ -2066,8 +2074,10 @@ class ScopeNode(Node):
                 seen_by_ident[ident] = child
         return seen_by_ident
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:
         # check for ambiguous node definitions by name/ident
+        from bench.language.notice import NoticeType
+
         children = scope._root_tree.collect_descendants(self)
         if not children:
             return  # nothing to index
@@ -2076,8 +2086,8 @@ class ScopeNode(Node):
             ident = getattr(child, "ident", None)
             if ident:
                 if ident in seen_by_ident:
-                    on_issue(
-                        type=IssueType.AMBIGUOUS_DEFINITION, subject=child, path=child.node_path
+                    on_notice(
+                        type=NoticeType.AMBIGUOUS_DEFINITION, subject=child, path=child.node_path
                     )
                 seen_by_ident[ident] = child
 
@@ -2124,13 +2134,13 @@ class ScopeNode(Node):
             raise LookupError(f"{path} not found in {self!r}")
         return result
 
-    def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs):
-        from bench.language.issue import Issue
+    def _on_notice(self, subject: "Node", type: "NoticeType", message: str = None, **kwargs):
+        from bench.language.notice import Notice
 
         if not subject.attached:
-            return  # no way to derive issue id, so just ignore?
-        issue = Issue.from_subject(subject, type, message, **kwargs)
-        issue.subject.issues.append(issue, _trigger=_NC.Ignore)
+            return  # no way to derive notice id, so just ignore?
+        notice = Notice.from_subject(subject, type, message, **kwargs)
+        notice.subject.notices.append(notice, _trigger=_NC.Ignore)
 
 
 class InvalidBenchPath(ValueError):

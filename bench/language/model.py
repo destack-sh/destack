@@ -18,7 +18,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env, omit_empty
 
 if TYPE_CHECKING:
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
     from bench.language.block import Block
 
 logger = structlog.get_logger(__name__)
@@ -48,7 +48,7 @@ class HasModel(HasFields, Node):
         self._remote = True
         self._has_vector_io = False
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
         # model is remote if we don't have the key in scope or environment
         self._has_vector_io = False
         for n in self._walk_rec():

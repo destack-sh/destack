@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.31.3"
+VERSION = "2024.02.01.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -398,7 +398,8 @@ VIEW_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type", PrimitiveType.STRING),
-        Column("name", PrimitiveType.STRING),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -413,8 +414,8 @@ VIEW_TABLE = Table(
     ),
 )
 
-ISSUE_TABLE = Table(
-    "bench_issue",
+NOTICE_TABLE = Table(
+    "bench_notice",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -444,11 +445,11 @@ ISSUE_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("type", PrimitiveType.STRING),
         Column("kind", PrimitiveType.STRING),
+        Column("type", PrimitiveType.STRING),
         Column("message", PrimitiveType.STRING),
         Column("path", PrimitiveType.JSON, is_nullable=True),
-        Column("properties", PrimitiveType.INT32, is_array=True, is_nullable=True),
+        Column("properties", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -501,7 +502,7 @@ LINK_TABLE = Table(
         Column("reference_record_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_query_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_view_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_issue_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_notice_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_space_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1144,7 +1145,6 @@ CLIENT_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("kind", PrimitiveType.STRING),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("device_name", PrimitiveType.STRING),
         Column("browser_name", PrimitiveType.STRING, is_nullable=True),
@@ -1191,7 +1191,6 @@ NOTIFICATION_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("kind", PrimitiveType.STRING),
-        Column("status", PrimitiveType.STRING),
         Column("expires_at", PrimitiveType.DATETIME),
         Column("read_at", PrimitiveType.DATETIME),
     ),

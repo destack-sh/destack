@@ -15,20 +15,20 @@ enum ActionKind {
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;
   ACTION_TYPE_GET = 1;
-  ACTION_TYPE_LIST = 2;
-  ACTION_TYPE_AGGREGATE_SCALAR = 3;
-  ACTION_TYPE_AGGREGATE_BUCKET = 4;
-  ACTION_TYPE_CREATE = 20;
-  ACTION_TYPE_UPSERT = 21;
-  ACTION_TYPE_UPDATE = 22;
-  ACTION_TYPE_MOVE = 23;
-  ACTION_TYPE_SOFT_DELETE = 24;
-  ACTION_TYPE_RESTORE = 25;
+  ACTION_TYPE_AGGREGATE_SCALAR = 2;
+  ACTION_TYPE_AGGREGATE_BUCKET = 3;
+  ACTION_TYPE_LIST = 4;
+  ACTION_TYPE_BUMP_CHANGED = 20;
+  ACTION_TYPE_BUMP_ACTIVE = 21;
+  ACTION_TYPE_CREATE = 22;
+  ACTION_TYPE_UPSERT = 23;
+  ACTION_TYPE_UPDATE = 24;
+  ACTION_TYPE_MOVE = 25;
   ACTION_TYPE_ARCHIVE = 26;
   ACTION_TYPE_UNARCHIVE = 27;
-  ACTION_TYPE_DELETE = 28;
-  ACTION_TYPE_BUMP_CHANGED = 29;
-  ACTION_TYPE_BUMP_ACTIVE = 30;
+  ACTION_TYPE_SOFT_DELETE = 28;
+  ACTION_TYPE_RESTORE = 29;
+  ACTION_TYPE_DELETE = 30;
   ACTION_TYPE_START = 40;
   ACTION_TYPE_PAUSE = 41;
   ACTION_TYPE_RESUME = 42;
@@ -77,7 +77,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 25;
   BENCH_TYPE_QUERY = 26;
   BENCH_TYPE_VIEW = 27;
-  BENCH_TYPE_ISSUE = 29;
+  BENCH_TYPE_NOTICE = 29;
   BENCH_TYPE_LINK = 30;
   BENCH_TYPE_SPACE = 40;
   BENCH_TYPE_SESSION = 50;
@@ -194,17 +194,17 @@ enum ConditionalOp {
 // A type of Edit action on nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
-  EDIT_TYPE_CREATE = 20;
-  EDIT_TYPE_UPSERT = 21;
-  EDIT_TYPE_UPDATE = 22;
-  EDIT_TYPE_MOVE = 23;
-  EDIT_TYPE_SOFT_DELETE = 24;
-  EDIT_TYPE_RESTORE = 25;
+  EDIT_TYPE_BUMP_CHANGED = 20;
+  EDIT_TYPE_BUMP_ACTIVE = 21;
+  EDIT_TYPE_CREATE = 22;
+  EDIT_TYPE_UPSERT = 23;
+  EDIT_TYPE_UPDATE = 24;
+  EDIT_TYPE_MOVE = 25;
   EDIT_TYPE_ARCHIVE = 26;
   EDIT_TYPE_UNARCHIVE = 27;
-  EDIT_TYPE_DELETE = 28;
-  EDIT_TYPE_BUMP_CHANGED = 29;
-  EDIT_TYPE_BUMP_ACTIVE = 30;
+  EDIT_TYPE_SOFT_DELETE = 28;
+  EDIT_TYPE_RESTORE = 29;
+  EDIT_TYPE_DELETE = 30;
 }
 
 enum ExpressionKind {
@@ -274,25 +274,6 @@ enum FormatHint {
   FORMAT_HINT_AUDIO = 32;
 }
 
-enum IssueKind {
-  ISSUE_KIND_UNSPECIFIED = 0;
-  ISSUE_KIND_ERROR = 1;
-  ISSUE_KIND_WARNING = 2;
-  ISSUE_KIND_NOTICE = 3;
-}
-
-enum IssueType {
-  ISSUE_TYPE_UNSPECIFIED = 0;
-  ISSUE_TYPE_INTERNAL = 1;
-  ISSUE_TYPE_MISSING_REFERENCE = 2;
-  ISSUE_TYPE_CIRCULAR_BASE = 3;
-  ISSUE_TYPE_MISMATCHED_BASE = 4;
-  ISSUE_TYPE_AMBIGUOUS_DEFINITION = 100;
-  ISSUE_TYPE_TASK_MISSING_IO = 101;
-  ISSUE_TYPE_BAD_NAME = 200;
-  ISSUE_TYPE_TASK_IS_STATIC = 201;
-}
-
 // Parent relation between node and descendants.
 enum NodeRelationType {
   NODE_RELATION_TYPE_DEFAULT = 0;
@@ -334,7 +315,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 25;
   NODE_TYPE_QUERY = 26;
   NODE_TYPE_VIEW = 27;
-  NODE_TYPE_ISSUE = 29;
+  NODE_TYPE_NOTICE = 29;
   NODE_TYPE_LINK = 30;
   NODE_TYPE_SPACE = 40;
   NODE_TYPE_SESSION = 50;
@@ -362,15 +343,27 @@ enum NodeVisibility {
   NODE_VISIBILITY_PUBLIC = 3;
 }
 
-enum NotificationKind {
-  NOTIFICATION_KIND_UNSPECIFIED = 0;
+// Type of diagnostic in increasing severity.
+enum NoticeKind {
+  NOTICE_KIND_UNSPECIFIED = 0;
+  NOTICE_KIND_HINT = 1;
+  NOTICE_KIND_INFORMATION = 2;
+  NOTICE_KIND_WARNING = 3;
+  NOTICE_KIND_ERROR = 4;
 }
 
-enum NotificationStatus {
-  NOTIFICATION_STATUS_UNSPECIFIED = 0;
-  NOTIFICATION_STATUS_ACTIVE = 1;
-  NOTIFICATION_STATUS_READ = 2;
-  NOTIFICATION_STATUS_EXPIRED = 3;
+// Built-in notice types.
+enum NoticeType {
+  NOTICE_TYPE_UNSPECIFIED = 0;
+  NOTICE_TYPE_MISSING_REFERENCE = 1;
+  NOTICE_TYPE_CIRCULAR_BASE = 2;
+  NOTICE_TYPE_MISMATCHED_BASE = 3;
+  NOTICE_TYPE_AMBIGUOUS_DEFINITION = 100;
+  NOTICE_TYPE_BAD_NAME = 300;
+}
+
+enum NotificationKind {
+  NOTIFICATION_KIND_UNSPECIFIED = 0;
 }
 
 enum PolicyEffect {
@@ -418,9 +411,9 @@ enum QueryEngine {
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
   READ_TYPE_GET = 1;
-  READ_TYPE_LIST = 2;
-  READ_TYPE_AGGREGATE_SCALAR = 3;
-  READ_TYPE_AGGREGATE_BUCKET = 4;
+  READ_TYPE_AGGREGATE_SCALAR = 2;
+  READ_TYPE_AGGREGATE_BUCKET = 3;
+  READ_TYPE_LIST = 4;
 }
 
 enum RunErrorKind {
@@ -459,13 +452,6 @@ enum ScheduleType {
   SCHEDULE_TYPE_UNSPECIFIED = 0;
   SCHEDULE_TYPE_INTERVAL = 1;
   SCHEDULE_TYPE_CRON = 2;
-}
-
-enum SessionStatus {
-  SESSION_STATUS_UNSPECIFIED = 0;
-  SESSION_STATUS_ACTIVE = 1;
-  SESSION_STATUS_SUSPENDED = 2;
-  SESSION_STATUS_TERMINATED = 3;
 }
 
 enum SortMode {
@@ -523,21 +509,18 @@ enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
   TRIGGER_TYPE_INVOKE = 1;
   TRIGGER_TYPE_TIME = 2;
-  TRIGGER_TYPE_RUN = 3;
-  TRIGGER_TYPE_EDIT = 4;
-  TRIGGER_TYPE_MESSAGE = 5;
-  TRIGGER_TYPE_USER = 6;
-  TRIGGER_TYPE_API = 7;
+  TRIGGER_TYPE_SIGNAL = 3;
+  TRIGGER_TYPE_API = 4;
 }
 
 enum ViewType {
   VIEW_TYPE_UNSPECIFIED = 0;
-  VIEW_TYPE_PAGE_EDITOR = 1;
+  VIEW_TYPE_PAGE = 1;
   VIEW_TYPE_BLOCK = 2;
   VIEW_TYPE_EXPLORER = 10;
   VIEW_TYPE_HISTORY = 11;
-  VIEW_TYPE_ISSUES = 12;
-  VIEW_TYPE_TESTS = 13;
+  VIEW_TYPE_WATCH = 12;
+  VIEW_TYPE_TESTING = 13;
   VIEW_TYPE_GLOBAL = 14;
   VIEW_TYPE_INSPECTOR = 15;
   VIEW_TYPE_LIBRARY = 16;
@@ -966,7 +949,7 @@ message BenchData {
   optional string os_password = 46;
 }
 
-// A Bench building block, the core building block containing logic, schemas, data and AI stuff.
+// A core Bench building block containing logic, types, UI, data, AI, and basically anything source.
 message BlockData {
   BenchType metatype = 1;
   string id = 2;
@@ -1025,7 +1008,6 @@ message ClientData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  ClientKind kind = 30;
   optional string name = 32;
   string device_name = 33;
   optional string browser_name = 34;
@@ -1099,26 +1081,6 @@ message IdentityData {
   optional NodeReferenceData type_ptr = 30;
 }
 
-// Issue(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
-message IssueData {
-  BenchType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 6;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
-  IssueType type = 30;
-  IssueKind kind = 31;
-  string message = 32;
-  optional FieldPathData path = 34;
-  repeated int32 properties = 35;
-}
-
 // A link node refers to another node in some tree. The referenced subtree is inlined during interp.
 message LinkData {
   BenchType metatype = 1;
@@ -1164,6 +1126,26 @@ message BaseNodeData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.expression.PropertyReference]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+message NoticeData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  NoticeKind kind = 30;
+  NoticeType type = 31;
+  string message = 33;
+  optional FieldPathData path = 34;
+  repeated PropertyReferenceData properties = 35;
+}
+
 // A notification for a user.
 message NotificationData {
   BenchType metatype = 1;
@@ -1176,7 +1158,6 @@ message NotificationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   NotificationKind kind = 30;
-  NotificationStatus status = 32;
   google.protobuf.Timestamp expires_at = 33;
   google.protobuf.Timestamp read_at = 34;
 }
@@ -1451,7 +1432,8 @@ message ViewData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   ViewType type = 30;
-  string name = 31;
+  optional string name = 31;
+  optional IconData icon = 32;
 }
 
 // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
@@ -1506,7 +1488,7 @@ message SomeNodeData {
     RecordData record = 7;
     QueryData query = 8;
     ViewData view = 9;
-    IssueData issue = 10;
+    NoticeData notice = 10;
     LinkData link = 11;
     SpaceData space = 12;
     SessionData session = 13;

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 
 import structlog
 
-from bench.language.issue import IssueHandler
+from bench.language.notice import NoticeHandler
 from bench.language.node import (
     NS,
     UNSET,
@@ -46,8 +46,10 @@ class HasValue(Node):
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type is not None:
             try:
+
                 def get_k(f):
                     return f.py_ident if self._status == NS.TRACKED else f.storage_key  # noqa
+
                 check_type(self.value or {}, self._type, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])
@@ -65,7 +67,7 @@ class HasValue(Node):
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self.value = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         if self.value_packed is None:
             return
         if self.value is None:
@@ -250,7 +252,7 @@ def unpack_value_flat(
     value: Any,
     type: "TypeInfo",
     scope: ScopeNode,
-    on_issue: "IssueHandler",
+    on_notice: "NoticeHandler",
     ignore_array: bool = False,
 ) -> Any:
     """Unpacks into the proper Python representation of the given packed value."""
