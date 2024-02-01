@@ -59,6 +59,10 @@ betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.
     #   -c requirements.txt
     #   -r requirements-dev.in
     #   -r requirements.in
+bitarray==2.9.2
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 black==23.7.0
     # via
     #   -r requirements-dev.in

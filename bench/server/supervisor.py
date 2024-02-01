@@ -10,8 +10,8 @@ from bench.language import Client, Expression, Handle, NodeReference, User
 from bench.language.access import (
     SYSTEM_POLICIES,
     ReadOptions,
-    adapt_access_post_read,
-    adapt_access_pre_read,
+    evaluate_read,
+    adapt_read_options,
 )
 from bench.language.const import NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
@@ -151,7 +151,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_access_pre_read(subject=self.subject, options=options)
+        adapted_options = adapt_read_options(subject=self.subject, options=options)
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         tree = NodeDataTree()
@@ -165,7 +165,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
-        eval, tree = adapt_access_post_read(subject=self.subject, tree=tree, options=options)
+        eval, tree = evaluate_read(subject=self.subject, tree=tree, options=options)
 
         return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
@@ -180,7 +180,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_access_pre_read(self.subject, options)
+        adapted_options = adapt_read_options(self.subject, options)
 
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.combined_filter(node_type, filter)
@@ -197,7 +197,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 count = await pg_count(cur, node_cls.__table__, combined_filter)
             else:
                 count = None
-        eval, tree = adapt_access_post_read(subject=self.subject, tree=tree, options=options)
+        eval, tree = evaluate_read(subject=self.subject, tree=tree, options=options)
 
         return SearchNodesResponse(
             roots_ids=[r.id for r in roots.nodes],

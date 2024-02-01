@@ -49,7 +49,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional or prop.is_deferred,
+            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_array,
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
@@ -58,7 +58,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             id=prop.id,
             name=prop.name,
             type=field_type,
-            optional=prop.is_optional or prop.is_deferred,
+            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_array,
         )
     elif prop.reference_kind is not None:
@@ -66,7 +66,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
-            optional=prop.is_optional or prop.is_deferred,
+            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_array,
         )
     else:
