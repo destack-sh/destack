@@ -1,64 +1,70 @@
+from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, Collection, Self
+from typing import TYPE_CHECKING, Collection, NamedTuple, Optional, Self, Union
 from uuid import UUID
 
 from bench.language.const import (
+    ACTION_KINDS,
+    IN_BENCH_NODE_TYPES,
+    SUB_PACKAGE_NODE_TYPES,
+    ActionKind,
     ActionType,
     BadgeType,
     BenchError,
     BenchType,
     NodeType,
     PolicyEffect,
+    ReadType,
+    RunType,
     StructType,
-    ActionKind,
-    ACTION_KINDS,
-    IN_BENCH_NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
 )
 from bench.language.node import (
+    NODE_CLASS_BY_TYPE,
     Node,
     Package,
+    Property,
     Struct,
     node,
     node_parent,
     struct,
     struct_internal,
     struct_runtime,
-    Property,
 )
-from bench.language.tree import NodeDataTree, NodeTree
+from bench.language.tree import NodeDataTree
 from bench.language.user import Membership
-from bench.proto.wire import EditData
+from bench.proto.wire import AnyNodeData, EditData
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
     from bench.language import (
-        Block,
-        Expression,
-        User,
-        Client,
-        Worker,
-        Organization,
         Bench,
+        Block,
+        Client,
+        Expression,
+        Organization,
         PropertyReference,
+        User,
     )
-
-
-#
-# Basics of access control:
-#  0. Access is always implicitly denied if not otherwise specified.
-#  1. Policies can be attached directly to nodes or via delegates (badges, roles, identities, ...).
-#  2. Policies are scoped to the node their definition or delegate is attached to.
-#  3. Policy rules are evaluated in order up the node tree, first match decides.
-#  4. If multiple subject identities apply, any allow wins (i.e. the most permissive is granted).
-#  5. The 'owner' is a user with owner-level access to the resp. root node (Bench/User/Organization/...).
-#     This is effectively the 'root user' who can do anything.
-#
 
 
 @struct(StructType.POLICY, identifier=IdentifierType.VARIABLE)
 class Policy(Struct):
-    """A policy regulating access to nodes within its scope."""
+    """
+    A policy regulating access to nodes within its scope.
+    The scope is determined by where its attached, but may be further restricted using 'scopes'.
+
+    The basics of access control:
+     1. An action is denied implicitly if it's explicitly and fully allowed.
+     2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
+       a. Policies are scoped to the node their definition or
+       b. delegate is attached to (or less as specified).
+     3. Policies are evaluated in order up the node tree, first match decides.
+        (This means you can read a sub block but not its parent.)
+     4. Every applicable identity/role/... is evaluated separately and *any* allow wins.
+
+     * 'owner' = User with owner-level access to the resp. root node (Bench/User/Organization/...).
+        This is effectively the 'root user' who can do anything. Be careful.
+    """
 
     name: Optional[str] = struct_internal(30, default=None)
     rules: list["PolicyRule"] = struct_internal(
@@ -67,13 +73,16 @@ class Policy(Struct):
     hidden: bool = struct_internal(
         32, default=False, description="Hide this policy and its effects."
     )
+    scopes: list["Block"] | None = struct_internal(
+        33, default=None, require=False, array=True, references=NodeType.BLOCK
+    )
+
+    def __content_str__(self) -> str:
+        return f"{self.name or '<unnamed>'} ({len(self.rules)} rules, {'hidden' if self.hidden else 'visible'})"
 
     def append(self, *rules: "PolicyRule") -> "Self":
         self.rules.extend(rules)
         return self
-
-    def __content_str__(self) -> str:
-        return f"{self.name or '<unnamed>'} ({len(self.rules)} rules, {'hidden' if self.hidden else 'visible'})"
 
 
 @struct(StructType.POLICY_RULE)
@@ -83,11 +92,14 @@ class PolicyRule(Struct):
     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
     """
 
-    # subject (if not set it's a wildcard)
-    subject_is_authenticated: Optional[bool] = struct_internal(30, default=None)
-    subject_is_member: Optional[bool] = struct_internal(31, default=None)
-    subject_is_owner: Optional[bool] = struct_internal(32, default=None)
-    subject_is_staff: Optional[bool] = struct_internal(33, default=None)
+    # subject (if unset it's a wildcard)
+    subject_is_delegated: bool = struct_internal(30, default=False)
+    # if subject is delegated then it always matches if this rule is present
+    #  (and no other subject filters make sense)
+    subject_is_authenticated: bool = struct_internal(31, default=False)
+    subject_is_member: bool = struct_internal(32, default=False)
+    subject_is_owner: bool = struct_internal(33, default=False)
+    subject_is_staff: bool = struct_internal(34, default=False)
     # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
@@ -95,10 +107,10 @@ class PolicyRule(Struct):
     verbs: list[ActionType] | None = struct_internal(51, default=None)
     verb_kinds: list[ActionKind] | None = struct_internal(52, default=None)
 
-    # object (if not set it's a wildcard)
+    # object (if unset it's a wildcard)
     object_types: Optional[list[BenchType]] = struct_internal(70, default=None)
-    object_is_sensitive: Optional[bool] = struct_internal(71, default=None)
-    object_is_system: Optional[bool] = struct_internal(72, default=None)
+    object_is_sensitive: bool = struct_internal(71, default=False)
+    object_is_system: bool = struct_internal(72, default=False)
 
     # object_properties, object_nodes, object_fields, ...
 
@@ -108,6 +120,7 @@ class PolicyRule(Struct):
     def __content_str__(self) -> str:
         subject_str_parts = []
         for subject_key in (
+            "subject_is_delegated",
             "subject_is_authenticated",
             "subject_is_member",
             "subject_is_owner",
@@ -145,35 +158,31 @@ class PolicyRule(Struct):
 
         return f"{self.effect} {subject_str} {verb_str} {object_str}"
 
-    def matches(self, request: "Request") -> bool:
-        """Checks if this rule matches (i.e. applies to) the given request."""
+    def matches_subject(self, subject: "RequestSubject", object: "RequestObject") -> bool:
+        if not self.subject_is_delegated:  # subject always matches if it's delegated
+            if self.subject_is_authenticated and not subject.is_authenticated:
+                return False
+            if self.subject_is_owner and object.owner not in subject.ownerships:
+                return False
+            if self.subject_is_staff and not subject.is_staff:
+                return False
+        return True  # no mismatch -> match
 
-        # subject
-        if self.subject_is_authenticated and not request.subject.is_authenticated:
+    def matches_verb(self, verb: ActionType) -> bool:
+        if self.verbs and verb not in self.verbs:
             return False
-        if self.subject_is_owner and request.object.owner not in request.subject.ownerships:
+        if self.verb_kinds and verb.kind not in self.verb_kinds:
             return False
-        if self.subject_is_member and request.subject.user not in request.subject.memberships:
-            return False
-        if self.subject_is_staff and not request.subject.is_staff:
-            return False
+        return True  # no mismatch -> match
 
-        # verb
-        if self.verbs and request.verb not in self.verbs:
+    def matches_object(self, object: "RequestObject") -> bool:
+        if self.object_types and object.type not in self.object_types:
             return False
-        if self.verb_kinds and request.verb.kind not in self.verb_kinds:
+        if self.object_is_sensitive and not object.is_sensitive:
             return False
-
-        # object
-        if self.object_types and request.object.type not in self.object_types:
+        if self.object_is_system and not object.is_system:
             return False
-        if self.object_is_sensitive and not request.object.is_sensitive:
-            return False
-        if self.object_is_system and not request.object.is_system:
-            return False
-
-        # no mismatch -> match
-        return True
+        return True  # no mismatch -> match
 
     #
     # Builder-style methods
@@ -215,12 +224,16 @@ class PolicyRule(Struct):
 
 @node(NodeType.BADGE)
 class Badge(Node):
-    """Attach a badge to a node with an inline definition. Assumed by the 'holder', applies at the parent."""
+    """
+    Attach a badge to a node with an inline definition.
+    A badge's policies are delegated to the 'holder' (any client presenting its secrets).
+    The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
+    """
 
     parent: Union[Package, "Block"] = node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
-    assumed_policies: list[Policy] = struct_internal(32, array=True, struct=StructType.POLICY)
+    delegated_policies: list[Policy] = struct_internal(32, array=True, struct=StructType.POLICY)
     expires_at: Optional[datetime] = struct_internal(33, default=None)
     # sharing link badge
     link_token: Optional[UUID] = struct_internal(40, unique=True, default=None)
@@ -241,7 +254,11 @@ class Badge(Node):
 
 @node(NodeType.ROLE)
 class Role(Node):
-    """Attach a role to a block or member. Assumed by the parent, applies globally."""
+    """
+    Attach a role to a block or member.
+    Role policies are delegated to the parent and its descendants.
+    The delegated policies apply to all descendant's actions.
+    """
 
     parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
     type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
@@ -249,7 +266,11 @@ class Role(Node):
 
 @node(NodeType.IDENTITY)
 class Identity(Node):
-    """Attach an identity to a block or member. Assumed by the parent, applies globally."""
+    """
+    Attach an identity to a block or member.
+    Identity policies are delegated to the parent and its descendants.
+    The delegated policies apply to all descendant's actions.
+    """
 
     parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
     type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
@@ -257,50 +278,71 @@ class Identity(Node):
 
 @struct(StructType.READ_OPTIONS)
 class ReadOptions(Struct):
-    """Load configuration for a read request."""
+    """
+    Fine-grained options to a read request.
+    This is an addition to primary options (like the filter for a search or aggregation).
+    """
 
+    # relations
     ancestor_types: list[NodeType] | None = struct_internal(30, default=None)
     descendant_types: list[NodeType] | None = struct_internal(31, default=None)
     related_properties: list["PropertyReference"] | None = struct_internal(
         32, default=None, struct=StructType.PROPERTY_REFERENCE
     )
 
+    # selects
     include_sensitive: bool = struct_internal(40, default=False)
+    # (runtime only since we can't / don't need to serialize maps yet)
+    _select_properties_by_type: dict[NodeType, list[Property]] | None = struct_runtime(default=None)
 
-    global_filter: "Expression" = struct_internal(50, require=False, struct=StructType.EXPRESSION)
-
-    # runtime only
-    # (runtime only since we can't (and don't need to) serialize maps yet)
-    filter_by_type: dict[NodeType, "Expression"] | None = struct_runtime(default=None)
-    select_properties_by_type: dict[NodeType, list[Property]] | None = struct_runtime(default=None)
+    # filters
+    global_filter: Optional["Expression"] = struct_internal(
+        50, default=None, require=False, struct=StructType.EXPRESSION
+    )
+    # (see above for why runtime only)
+    _filter_by_type: dict[NodeType, "Expression"] | None = struct_runtime(default=None)
 
     def combined_filter(
         self, node_type: NodeType, filter: Optional["Expression"] = None
     ) -> "Expression":
+        from bench.sql.engine import DEFAULT_GLOBAL_FILTER
+
         type_filter = (
-            self.filter_by_type.get(node_type) if self.filter_by_type is not None else None
+            self._filter_by_type.get(node_type) if self._filter_by_type is not None else None
+        )
+        global_filter = (
+            self.global_filter if self.global_filter is not None else DEFAULT_GLOBAL_FILTER
         )
         if filter is None:
             if type_filter is None:
-                return self.global_filter
+                return global_filter
             else:
-                return self.global_filter & type_filter
+                return global_filter & type_filter
         else:
             if type_filter is None:
-                return self.global_filter & filter
+                return global_filter & filter
             else:
-                return self.global_filter & type_filter & filter
+                return global_filter & type_filter & filter
+
+    def selected_properties(self, node_type: NodeType) -> list[Property]:
+        from bench.sql.engine import SELECT_ALL_PROPERTIES, SELECT_DEFAULT_PROPERTIES
+
+        if self._select_properties_by_type is not None:
+            return self._select_properties_by_type.get(node_type, ())
+        elif self.include_sensitive:
+            return SELECT_ALL_PROPERTIES.get(node_type, ())
+        else:
+            return SELECT_DEFAULT_PROPERTIES.get(node_type, ())
 
     @staticmethod
     def default():
-        from bench.sql.engine import GLOBAL_FILTER_DEFAULT
+        from bench.sql.engine import DEFAULT_GLOBAL_FILTER
 
         return ReadOptions(
             ancestor_types=None,
             descendant_types=None,
             include_sensitive=False,
-            global_filter=GLOBAL_FILTER_DEFAULT,
-            filter_by_type=None,
+            global_filter=DEFAULT_GLOBAL_FILTER,
         )
 
 
@@ -337,29 +379,48 @@ class RequestSubject(Struct):
 
     is_authenticated: bool = struct_internal(30)
     is_staff: bool = struct_internal(31, default=False)
-    memberships: list["Membership"] = struct_internal(
-        32, require=True, array=True, references=NodeType.MEMBERSHIP
-    )
     ownerships: list[Union["User", "Organization", "Bench"]] = struct_internal(
-        33,
+        32,
         require=True,
         array=True,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
+    # memberships/roles/...?
     client: Optional["Client"] = struct_internal(
-        34, default=None, require=False, array=False, references=NodeType.CLIENT
+        35, default=None, require=False, array=False, references=NodeType.CLIENT
     )
     user: Optional["User"] = struct_internal(
-        35, default=None, require=False, array=False, references=NodeType.USER
+        36, default=None, require=False, array=False, references=NodeType.USER
     )
-    worker: Optional["Worker"] = struct_internal(
-        36, default=None, require=False, array=False, references=NodeType.WORKER
+    identity: Optional["Identity"] = struct_internal(
+        37, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
     badge: Optional["Badge"] = struct_internal(
-        37, default=None, require=False, array=False, references=NodeType.BADGE
+        38, default=None, require=False, array=False, references=NodeType.BADGE
     )
 
     # groups, identities, roles, ...
+
+    def split_into_available_subjects(self) -> tuple["RequestSubject", ...]:
+        """
+        Split into different subjects that may have different access.
+        Basically, this is every 'identity' where we could say "acting as X".
+        """
+
+        applicable_principals: list[RequestSubject] = []
+        if self.is_authenticated:
+            applicable_principals.append(RequestSubject(is_authenticated=True))
+        if self.is_staff:
+            applicable_principals.append(RequestSubject(is_staff=True))
+        if self.client:
+            applicable_principals.append(RequestSubject(client=self.client))
+        if self.user:
+            applicable_principals.append(RequestSubject(user=self.user))
+        if self.identity:
+            applicable_principals.append(RequestSubject(identity=self.identity))
+        if self.badge:
+            applicable_principals.append(RequestSubject(badge=self.badge))
+        return tuple(applicable_principals)
 
     def __content_str__(self):
         str_parts = []
@@ -407,54 +468,30 @@ class RequestObject(Struct):
             return self.type.bench_name
 
 
-@struct(StructType.REQUEST)
-class Request(Struct):
-    """The context of a single request."""
-
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    verb: ActionType = struct_internal(31)
-    object: RequestObject = struct_internal(32, require=True, struct=StructType.REQUEST_OBJECT)
-
-    def __content_str__(self) -> str:
-        return f"{self.subject} {self.verb.bench_name} {self.object}"
-
-
-@struct(StructType.ACTION)
-class Action(Struct):
-    """A set of sub-requests by the same subject."""
-
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    requests: list[Request] = struct_internal(
-        31, require=True, array=True, struct=StructType.REQUEST
-    )
-
-    def __content_str__(self) -> str:
-        requests_str_parts = tuple(
-            f"{request.verb.bench_name} {request.object}" for request in self.requests
-        )
-        requests_str = f"{', '.join(requests_str_parts)}"
-        return f"{self.subject} {requests_str}"
-
-
 @struct(StructType.REQUEST_EVALUATION)
 class RequestEvaluation(Struct):
     """The result of evaluating a single request."""
 
-    request: Request | None = struct_internal(30, default=None, struct=StructType.REQUEST)
+    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
+    verb: ActionType = struct_internal(31, require=True)
+    object: RequestObject = struct_internal(32, require=True, struct=StructType.REQUEST_OBJECT)
     deciding_rule: PolicyRule | None = struct_internal(
-        31, default=None, struct=StructType.POLICY_RULE
+        33, default=None, struct=StructType.POLICY_RULE
     )
-    decision: PolicyEffect = struct_internal(32, require=True)
+    decision: PolicyEffect = struct_internal(34, require=True)
 
     def __content_str__(self) -> str:
-        return f"{self.decision} {self.request} @ {self.deciding_rule}"
+        return f"{self.decision} {self.subject} {self.verb.bench_name} {self.object} @ {self.deciding_rule}"
+
+    @property
+    def is_implicit(self) -> bool:
+        return self.deciding_rule is None and self.decision == PolicyEffect.DENY
 
 
 @struct(StructType.ACTION_EVALUATION)
 class ActionEvaluation(Struct):
     """The result of evaluating an action."""
 
-    action: Action | None = struct_internal(30, default=None, struct=StructType.ACTION)
     request_evaluations: list[RequestEvaluation] = struct_internal(
         31, array=True, require=True, struct=StructType.REQUEST_EVALUATION
     )
@@ -465,6 +502,10 @@ class ActionEvaluation(Struct):
 
     def __content_str__(self) -> str:
         return f"{self.action} @ {self.request_evaluations}"
+
+    @property
+    def is_implicit(self) -> bool:
+        return self.deciding_evaluation is None and self.decision == PolicyEffect.DENY
 
 
 class AccessError(BenchError, ValueError):
@@ -478,64 +519,159 @@ class AccessError(BenchError, ValueError):
         self.cause = cause
 
 
-def evaluate_request(request: Request, policies: Collection[Policy]) -> RequestEvaluation:
-    """Evaluate a single request against a list of policies (in order!)."""
-    for policy in policies:
-        for rule in policy.rules:
-            if rule.matches(request):
-                return RequestEvaluation(request=request, deciding_rule=rule, decision=rule.effect)
-
-    # default: implicit deny
-    return RequestEvaluation(request=request, decision=PolicyEffect.DENY)
-
-
-def evaluate_action(action: Action, policies: Collection[Policy]) -> ActionEvaluation:
-    """Evaluate an action against a list of policies (in order!)."""
-    request_evaluations: list[RequestEvaluation] = []
-    for request in action.requests:
-        evaluation = evaluate_request(request, policies)
-        request_evaluations.append(evaluation)
-        if evaluation.decision == PolicyEffect.DENY:
-            return ActionEvaluation(
-                action=action,
-                request_evaluations=request_evaluations,
-                deciding_evaluation=evaluation,
-                decision=PolicyEffect.DENY,
-            )
-
-    # all requests are allowed (no explicit or implicit deny)
-    return ActionEvaluation(
-        action=action,
-        request_evaluations=request_evaluations,
-        deciding_evaluation=None,
-        decision=PolicyEffect.ALLOW,
-    )
-
-
 def adapt_access_pre_read(
     subject: RequestSubject,
-    base_requests: Collection[Request],
-    base_policies: Collection[Policy],
     options: ReadOptions,
+    base_policies: Collection[Policy] = SYSTEM_POLICIES,
 ) -> ReadOptions:
-    """Adapt read options based on the action to pre-filter as feasible and enable the post-read check."""
-    return options  # nocheckin ???
+    """
+    Adapt read options based on the action to pre-filter as feasible while enabling the complete post-read check.
+    Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
+    """
+
+    # query ancestors up to root
+
+    # if root == Bench, also load related actual owner (User/Organization)
+
+    return options  # nocheckin
+
+
+_EvalZoneKey = NamedTuple(
+    "_EvalKey",
+    [
+        ("action", ActionType),
+        ("scope", UUID),
+        ("node_type", int),
+        ("is_sensitive", bool),
+        ("policies", int),
+    ],
+)
+
+
+def evaluate_request(
+    subject: RequestSubject,
+    identities: list[RequestSubject] | tuple[RequestSubject, ...],
+    verb: ActionType,
+    object: RequestObject,
+    policies: Collection[Policy],
+) -> RequestEvaluation:
+    # first pre-filter by verb/object
+    applicable_rules: tuple[PolicyRule, ...] = tuple(
+        rule
+        for policy in policies
+        for rule in policy.rules
+        if rule.matches_verb(verb) and rule.matches_object(object)
+    )
+    # then evaluate by subject
+    first_deny: PolicyRule | None = None
+    for identity in identities:
+        for rule in applicable_rules:
+            if rule.matches_subject(identity, object):
+                if rule.effect == PolicyEffect.ALLOW:
+                    return RequestEvaluation(
+                        subject=subject,
+                        verb=verb,
+                        object=object,
+                        deciding_rule=rule,
+                        decision=rule.effect,
+                    )
+                elif first_deny is None:
+                    first_deny = rule
+                    # continue, any allow wins
+
+    # implicit deny if no applicable rules
+    return RequestEvaluation(
+        subject=subject,
+        verb=verb,
+        object=object,
+        deciding_rule=first_deny,
+        decision=PolicyEffect.DENY,
+    )
 
 
 def adapt_access_post_read(
     subject: RequestSubject,
-    base_requests: Collection[Request],
-    base_policies: Collection[Policy],
-    tree: NodeTree | NodeDataTree,
+    tree: NodeDataTree,
     options: ReadOptions,
-) -> NodeTree | NodeDataTree:
+    base_policies: list[Policy] | tuple[Policy, ...] = SYSTEM_POLICIES,
+    root_owner: Optional[Union["User", "Organization", "Bench"]] = None,
+) -> tuple[ActionEvaluation, Collection[AnyNodeData]]:
+    """
+    Adapt and evaluate access to all nodes in the given according to the given options.
+    If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
+    Assumes that all policies are valid.
+    """
+    from bench.proto import wiring
+
+    # 1. collect all policies into scopes
+    #    (we use the id() of a policy set to cache evaluation result)
+    owner_by_node_id: dict[str, Union["User", "Organization", "Bench"]] = {}
+    region_by_node_id: dict[str, str] = {}
+    policies_by_node_id: dict[str, list[Policy] | tuple[Policy, ...]] = defaultdict(list)
+    roots = tree.find_roots()
+    for root in roots:
+        # figure out owner
+        root_type = wiring.unpack_enum(NodeType, root.metatype)
+        root_cls = NODE_CLASS_BY_TYPE[root_type]
+        if root_cls.__roots__:
+            if root_owner is None:
+                raise ValueError(f"root requires an owner: {root}")
+            owner = root_owner
+        else:
+            owner = root
+        # nocheckin accumulate policies properly
+        policies_by_node_id[root.id] = base_policies
+        owner_by_node_id[root.id] = owner
+        region_by_node_id[root.id] = root.id
+        for descendant in tree.iter_descendants(root, recursive=True):
+            descendant: AnyNodeData
+            owner_by_node_id[descendant.id] = owner
+            policies_by_node_id[descendant.id] = base_policies
+            region_by_node_id[root.id] = root.id
+
+    # 2. evaluate all requests to get at least one allow per principal
+    identities = subject.split_into_available_subjects()
+    eval_cache: dict[_EvalZoneKey, RequestEvaluation] = {}
+    visible_nodes: list[AnyNodeData] = []
+    for node in tree.nodes:
+        node_type = node.metatype
+        owner = owner_by_node_id[node.id]
+        policies = policies_by_node_id[node.id]
+        eval_key = _EvalZoneKey(ReadType.GET, owner.id, node_type, id(policies))
+        if eval_key in eval_cache:
+            evaluation = eval_cache[eval_key]
+        else:
+            object = RequestObject(
+                type=node_type, owner=owner, include_sensitive=options.include_sensitive
+            )
+            evaluation = evaluate_request(subject, identities, eval_key.action, object, policies)
+            eval_cache[eval_key] = evaluation
+        if evaluation.decision == PolicyEffect.ALLOW:
+            visible_nodes.append(node)
+
+    action_evaluation = ActionEvaluation(
+        request_evaluations=list(eval_cache.values()),
+        deciding_evaluation=None,
+        decision=PolicyEffect.ALLOW,  # nocheckin ???
+    )
+    return action_evaluation, visible_nodes
+
+
+def evaluate_edits(
+    base_policies: Collection[Policy], edits: Collection[EditData]
+) -> ActionEvaluation:
+    """
+    Evaluates whether the given policies (base and in tree) allow the given edits.
+    Assumes that all policies are valid.
+    """
     raise NotImplementedError
 
 
-def check_access_edit(
-    subject: RequestSubject,
-    base_policies: Collection[Policy],
-    edits: Collection[EditData],
-    tree: NodeTree | NodeDataTree,
-) -> NodeTree | NodeDataTree:
+def evaluate_run(
+    base_policies: Collection[Policy], run_type: RunType, block: "Block"
+) -> ActionEvaluation:
+    """
+    Evaluates whether the given policies (base and in tree) allow the given run action.
+    Assumes that all policies are valid.
+    """
     raise NotImplementedError

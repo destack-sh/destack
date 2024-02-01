@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, NotificationKind
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Worker, Space
+    from bench.language import Bench, Space, Worker
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)

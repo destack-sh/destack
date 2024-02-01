@@ -21,8 +21,8 @@ from bench.utils.func import describe_type
 from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
-    from bench.language.notice import NoticeHandler
     from bench.language.block import Block
+    from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -382,7 +382,7 @@ def _type_to_json_schema(
 
 
 class BaseTextTaskCompiler(TaskCompiler):
-    SYSTEM_MESSAGE = (
+    _SYSTEM_MESSAGE = (
         "You are a precise and highly capable bot that can do almost anything a user asks."
         " Interpret inputs generously and attentively, be concise, be considerate."
         " You are accessed through an API, so don't respond to the user directly."
@@ -438,7 +438,7 @@ class BaseTextTaskCompiler(TaskCompiler):
 
         # system wrapper
         messages: list[str] = [
-            self.SYSTEM_MESSAGE,
+            self._SYSTEM_MESSAGE,
             f"Your main task is '{task.name}'.",
         ]
 

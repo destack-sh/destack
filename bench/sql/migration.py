@@ -476,7 +476,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     """Renders migration operations into an executable method body."""
 
     if ops is None:
-        return "raise NotImplementedError()"
+        return "raise NotImplementedError"
 
     lines: list[str] = []
     current_table: Optional[Table] = None

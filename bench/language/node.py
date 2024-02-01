@@ -10,6 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
+from sys import intern
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,6 +38,8 @@ from bench.language.const import (
     NODE_TYPES,
     NS,
     STRUCT_TYPES,
+    SUB_BENCH_NODE_TYPES,
+    SUB_PACKAGE_NODE_TYPES,
     UNSET,
     BenchType,
     BlockType,
@@ -48,8 +51,6 @@ from bench.language.const import (
     NRel,
     StructType,
     _active_session,
-    SUB_PACKAGE_NODE_TYPES,
-    SUB_BENCH_NODE_TYPES,
 )
 from bench.language.link import (
     _NC,
@@ -93,17 +94,17 @@ from bench.utils.utils import frozendict, required_field
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Notice,
         NodeReference,
         NodeVisitor,
+        Notice,
         Organization,
         Policy,
         PropertyReference,
         Session,
+        Space,
         TypeInfo,
         User,
         WorkerSet,
-        Space,
     )
     from bench.language.notice import NoticeHandler
 
@@ -835,7 +836,7 @@ def _process_struct_base_cls(
             continue  # ignore reserved names and non-fields
         if not isinstance(prop, Property):
             raise TypeError(f"{cls.__name__}.{name} is not a NodeProperty: {prop} ({type(prop)})")
-        prop.name = name
+        prop.name = intern(name)
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
@@ -1748,8 +1749,8 @@ class Node(Struct, _NodeExpressionBase):
 
         return NodeReference.from_node(self)
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.id == other.id and self.ck == other.ck
+    def __eq__(self, other: "Node"):
+        return self.metatype == other.metatype and self.id == other.id and self.ck == other.ck
 
     def __hash__(self):
         return hash(self.id)

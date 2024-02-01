@@ -34,7 +34,7 @@ class ProtoObject:
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 @dataclass

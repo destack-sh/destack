@@ -1,24 +1,22 @@
-from .icon import Icon
-from .task import TaskError
-from .validation import ValidationError
-from .view import ViewType, Space, SpaceDock, View
 from ..sql.core import PrimitiveType
 from .access import (
+    AccessError,
+    ActionEvaluation,
     Badge,
+    Identity,
     Policy,
     PolicyRule,
-    RequestObject,
-    Action,
-    Request,
-    RequestSubject,
-    ActionEvaluation,
+    ReadOptions,
     RequestEvaluation,
-    AccessError,
+    RequestObject,
+    RequestSubject,
+    Role,
 )
 from .block import Block
 from .const import (
     VERSION,
     ActionType,
+    BenchError,
     BlockType,
     ConditionalOp,
     FormatHint,
@@ -28,23 +26,22 @@ from .const import (
     SortMode,
     SortOp,
     TriggerType,
-    BenchError,
 )
 from .database import Record
 from .expression import (
     A,
     C,
     Expression,
+    FieldPath,
     NodeReference,
+    PropertyPath,
     PropertyReference,
     Query,
     S,
-    PropertyPath,
-    FieldPath,
 )
 from .field import Field, HasFields, TypeInfo
 from .file import File
-from .notice import Notice, NoticeError, NoticeType
+from .icon import Icon
 from .node import (
     Bench,
     Link,
@@ -55,21 +52,24 @@ from .node import (
     Struct,
     _complete_bench_setup,
 )
+from .notice import Notice, NoticeError, NoticeType
 from .projection import NodeVisitor
 from .render import render
 from .run import Pause, Run, RunError
 from .session import LogEntry, Session
 from .signal import Signal
 from .tag import Tag
+from .task import TaskError
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
+from .validation import ValidationError
+from .view import Space, SpaceDock, View, ViewType
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
     "AccessError",
-    "Action",
     "ActionEvaluation",
     "ActionType",
     "Badge",
@@ -89,6 +89,7 @@ __all__ = [
     "Handle",
     "HasFields",
     "Icon",
+    "Identity",
     "Link",
     "LogEntry",
     "Node",
@@ -109,12 +110,13 @@ __all__ = [
     "PropertyReference",
     "Query",
     "QueryEngine",
+    "ReadOptions",
     "Record",
     "render",
-    "Request",
     "RequestEvaluation",
     "RequestObject",
     "RequestSubject",
+    "Role",
     "Run",
     "RunError",
     "S",

@@ -40,14 +40,15 @@ if TYPE_CHECKING:
     from bench.language import (
         Expression,
         Field,
+        FieldPath,
         Node,
+        NoticeType,
         Property,
+        PropertyReference,
+        ReadOptions,
         ScopeNode,
         Session,
         TypeInfo,
-        NoticeType,
-        FieldPath,
-        PropertyReference,
     )
 
 NodeT = TypeVar("NodeT", bound="Node")
@@ -654,6 +655,7 @@ class NodeQuery(Generic[NodeT]):
         first: int | None = None,
         skip: int | None = None,
         engine: Optional[QueryEngine] = None,
+        options: Optional["ReadOptions"] = None,
         cache: bool = True,
     ):
         from bench.language.node import NODE_CLASS_BY_TYPE, Node
@@ -665,6 +667,7 @@ class NodeQuery(Generic[NodeT]):
         self._first = first
         self._skip = skip
         self._engine = engine
+        self._options = options
         self._cache = cache
         self._cached_nodes: list[NodeT] | None = None
         self._cached_cursors: list[str] | None = None

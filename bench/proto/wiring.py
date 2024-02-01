@@ -1,7 +1,7 @@
 import enum
 from collections import OrderedDict
 from copy import copy
-from typing import Any, Union, cast, TypeVar
+from typing import Any, TypeVar, Union, cast
 from uuid import UUID
 
 import betterproto
@@ -9,7 +9,6 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language.const import BenchType, NodeType
-from bench.language.notice import NoticeHandler
 from bench.language.link import on_notice_raise
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
@@ -22,6 +21,7 @@ from bench.language.node import (
     ScopeNode,
     Struct,
 )
+from bench.language.notice import NoticeHandler
 from bench.language.session import Session
 from bench.language.tree import NodeDataTree
 from bench.proto import wire
@@ -299,7 +299,7 @@ def unpack_node_inline(
         unpacked_tree.add(node)
 
     # index & recover node lists
-    real_root = unpacked_tree.root
+    real_root = unpacked_tree.find_root()
     if isinstance(real_root, ScopeNode):
         real_root._root_tree.set(unpacked_tree.nodes)
     for node in unpacked_tree.nodes_by_id.values():

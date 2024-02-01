@@ -35,10 +35,6 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def nodes(self) -> Collection[SomeNodeT]:
         raise NotImplementedError
 
-    @property
-    def roots(self) -> tuple[SomeNodeT, ...]:
-        raise NotImplementedError
-
     def copy(self) -> "NodeTreeBase[SomeNodeT, IdT]":
         raise NotImplementedError
 
@@ -62,6 +58,15 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
         """Remove a node from the tree (incl. all descendants)"""
         raise NotImplementedError
 
+    def find_roots(self) -> tuple[SomeNodeT, ...]:
+        raise NotImplementedError
+
+    def find_root(self) -> Optional[SomeNodeT]:
+        roots = self.find_roots()
+        if len(roots) > 1:
+            raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
+        return roots[0] if roots else None
+
     def collect_descendants(
         self, node: SomeNodeT, node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["NodeT", ...] | list["NodeT"]:
@@ -75,13 +80,6 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
         return iter(self.collect_descendants(node, node_type, recursive))
 
     # utilities
-
-    @property
-    def root(self) -> Optional[SomeNodeT]:
-        roots = self.roots
-        if len(roots) > 1:
-            raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
-        return roots[0] if roots else None
 
     def __getitem__(self, item: IdT):
         return self.get(item)
@@ -123,14 +121,6 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
-
-    @property
-    def roots(self) -> tuple[NodeDataT, ...]:
-        return tuple(
-            node
-            for node in self.nodes_by_id.values()
-            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
-        )
 
     def copy(self):
         return NodeTree(self)
@@ -201,6 +191,13 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
                                 self.nodes_by_id.pop(child.id, None)
                                 self.nodes_by_ck.pop(child.ck, None)
 
+    def find_roots(self) -> tuple[NodeDataT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_id.values()
+            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+        )
+
     def collect_descendants(
         self,
         node: NodeT,
@@ -254,14 +251,6 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
     @property
     def nodes(self) -> Collection[NodeDataT]:
         return self.nodes_by_id.values()
-
-    @property
-    def roots(self) -> tuple[NodeDataT, ...]:
-        return tuple(
-            node
-            for node in self.nodes_by_id.values()
-            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
-        )
 
     def copy(self):
         return NodeDataTree(self)
@@ -325,8 +314,15 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
             if len(child_ids) > 0:
                 queue.extend(self.nodes_by_id[child_id] for child_id in child_ids)
 
+    def find_roots(self) -> tuple[NodeDataT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_id.values()
+            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+        )
+
     def collect_descendants(
-        self, node: NodeT, node_type: NodeType | None = None, recursive: bool = False
+        self, node: NodeDataT, node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
         """Gets all children descendants as filtered in BFS order"""
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
@@ -357,18 +353,14 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
 
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
-        num_traversed = 0
-        queue = deque(roots or self.roots)
+        if roots is not None and len(roots) == 0:
+            return
+        queue = deque(roots or self.find_roots())
         while queue:
             current_node = queue.popleft()
-            num_traversed += 1
             yield current_node
             for child_id in self.node_ids_by_parent_id.get(current_node.id, []):
                 queue.append(self.nodes_by_id[child_id])
-        if roots == self.roots and num_traversed != len(self.nodes_by_id):
-            raise ValueError(
-                f"expected {len(self.nodes_by_id)} nodes, but traversed {num_traversed}"
-            )
 
 
 class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
@@ -385,14 +377,6 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
-
-    @property
-    def roots(self) -> tuple[NodeT, ...]:
-        return tuple(
-            node
-            for node in self.nodes_by_ck.values()
-            if node.parent is None or node.parent.ck not in self.nodes_by_ck
-        )
 
     def get(self, node_ck: UUID) -> Optional[NodeT]:
         """Gets a node by id"""
@@ -438,9 +422,16 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
             if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
 
+    def find_roots(self) -> tuple[NodeT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_ck.values()
+            if node.parent is None or node.parent.ck not in self.nodes_by_ck
+        )
+
     def collect_descendants(
         self,
-        node: NodeDataT,
+        node: NodeT,
         node_type: NodeType | None = None,
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
