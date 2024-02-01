@@ -7,15 +7,15 @@ import cachetools
 from bench.language.const import BenchError
 
 if TYPE_CHECKING:
-    from bench.language.node import Struct, Node, Property
+    from bench.language.node import Struct, Node, Property, PropertyReference
 
 
 class ValidationError(BenchError, ValueError):
     def __init__(
         self,
         subject: "Struct",
-        properties: list[str] | None,
         message: str,
+        properties: list["PropertyReference"] | None,
         cause: Exception | None = None,
     ):
         super().__init__(f"{subject!r}: {message} at {properties}")
@@ -30,7 +30,7 @@ class ValidationHandler:
         self,
         subject: "Struct",
         message: str,
-        properties: list[str] | None,
+        properties: list["PropertyReference"] | None,
         cause: Exception | None = None,
     ):
         pass
@@ -48,16 +48,16 @@ class PropertyValidationHandler:
         cause: Exception | None = None,
     ):
         message = f"{self.prop.name}: {message}"
-        self.handler(self.subject, message, [self.prop.name], cause)
+        self.handler(self.subject, message, [self.prop.as_reference], cause)
 
 
 def on_invalid_raise(
     subject: "Node",
     message: str,
-    properties: list[str] | None,
+    properties: list["PropertyReference"] | None,
     cause: Exception | None = None,
 ):
-    raise ValidationError(subject, properties, message, cause)
+    raise ValidationError(subject, message, properties, cause)
 
 
 # :NameValidation
@@ -68,13 +68,13 @@ MAX_NAME_LENGTH = 256
 NAME_REGEX = re.compile(r"^[a-zA-Z0-9_.\-:/ \xa0]*$")
 
 
-def validate_name(value: str, on_issue: PropertyValidationHandler):
+def validate_name(value: str, on_invalid: PropertyValidationHandler):
     if not isinstance(value, str):
-        on_issue(f"not a string ({type(value)})")
+        on_invalid(f"not a string ({type(value)})")
     if len(value) > MAX_NAME_LENGTH:
-        on_issue(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
+        on_invalid(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
     if not NAME_REGEX.match(value):
-        on_issue(f"invalid characters ('{value}')")
+        on_invalid(f"invalid characters ('{value}')")
 
 
 MAX_TEXT_LENGTH = 2048
@@ -91,9 +91,9 @@ MAX_DESCRIPTION_LENGTH = 512
 def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
     assert issubclass(t, (enum.StrEnum, enum.IntEnum)), f"invalid enum type: {t!r}"
 
-    def validate_enum(value: str, on_issue: PropertyValidationHandler):
+    def validate_enum(value: str, on_invalid: PropertyValidationHandler):
         if not isinstance(value, t) and value not in t.__members__:
-            on_issue(f"invalid {t.__name__} ('{value}')")
+            on_invalid(f"invalid {t.__name__} ('{value}')")
 
     return validate_enum
 
@@ -102,13 +102,13 @@ def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
 def int_range_validator(min: int, max: int):
     assert min <= max, f"invalid range: {min} > {max}"
 
-    def validate_range(value: int, on_issue: PropertyValidationHandler):
+    def validate_range(value: int, on_invalid: PropertyValidationHandler):
         if not isinstance(value, int):
-            on_issue(f"not an integer ({type(value)})")
+            on_invalid(f"not an integer ({type(value)})")
         if value < min:
-            on_issue(f"too small ({value} < {min})")
+            on_invalid(f"too small ({value} < {min})")
         if value > max:
-            on_issue(f"too large ({value} > {max})")
+            on_invalid(f"too large ({value} > {max})")
 
     return validate_range
 
@@ -117,13 +117,13 @@ def int_range_validator(min: int, max: int):
 def float_range_validator(min: float, max: float):
     assert min <= max, f"invalid range: {min} > {max}"
 
-    def validate_range(value: float, on_issue: PropertyValidationHandler):
+    def validate_range(value: float, on_invalid: PropertyValidationHandler):
         if not isinstance(value, float):
-            on_issue(f"not a float ({type(value)})")
+            on_invalid(f"not a float ({type(value)})")
         if value < min:
-            on_issue(f"too small ({value} < {min})")
+            on_invalid(f"too small ({value} < {min})")
         if value > max:
-            on_issue(f"too large ({value} > {max})")
+            on_invalid(f"too large ({value} > {max})")
 
     return validate_range
 
@@ -133,8 +133,8 @@ def flag_validator(t: type[enum.IntFlag]):
     assert issubclass(t, enum.IntFlag), f"invalid flag type: {t!r}"
     valid_mask = sum(t.__members__.values())
 
-    def validate_flag(value: int, on_issue: PropertyValidationHandler):
+    def validate_flag(value: int, on_invalid: PropertyValidationHandler):
         if not isinstance(value, t) and value & ~valid_mask:
-            on_issue(f"invalid {t.__name__} ({value} & ~{valid_mask})")
+            on_invalid(f"invalid {t.__name__} ({value} & ~{valid_mask})")
 
     return validate_flag

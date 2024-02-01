@@ -353,6 +353,15 @@ from bench.proto.wire import RpcMetadata
 
 
 class _PatchedRpcMetadata(RpcMetadata):
+    def __repr__(self):
+        # only print non-default values
+        str_parts = []
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            if value:
+                str_parts.append(f"{field.name}={value!r}")
+        return f"{self.__class__.__name__}({', '.join(str_parts)})"
+
     def to_headers(self) -> dict:
         packed = self.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=False)
         return {k.replace("_", "-"): str(v) for k, v in packed.items()}
@@ -362,5 +371,6 @@ class _PatchedRpcMetadata(RpcMetadata):
         return RpcMetadata.from_dict(packed)
 
 
+RpcMetadata.__repr__ = _PatchedRpcMetadata.__repr__
 RpcMetadata.to_headers = _PatchedRpcMetadata.to_headers
 RpcMetadata.from_headers = _PatchedRpcMetadata.from_headers

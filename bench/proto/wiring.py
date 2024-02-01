@@ -9,6 +9,8 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language.const import BenchType, NodeType
+from bench.language.notice import NoticeHandler
+from bench.language.link import on_notice_raise
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     METATYPE_PROPERTY,
@@ -193,6 +195,26 @@ def unpack_struct_maybe(struct_data: StructDataT | None) -> StructT | None:
     if struct_data is None:
         return None
     return unpack_struct(struct_data)
+
+
+def unpack_struct_interp(
+    struct_data: StructDataT,
+    scope: ScopeNode | None = None,
+    on_notice: NoticeHandler = on_notice_raise,
+) -> StructT:
+    struct = unpack_struct(struct_data)
+    struct._interp_rec(scope=scope, on_notice=on_notice)
+    return struct
+
+
+def unpack_struct_interp_maybe(
+    struct_data: StructDataT | None,
+    scope: ScopeNode | None = None,
+    on_notice: NoticeHandler = on_notice_raise,
+) -> StructT | None:
+    if struct_data is None:
+        return None
+    return unpack_struct_interp(struct_data, scope=scope, on_notice=on_notice)
 
 
 def pack_node(node: NodeT) -> NodeDataT:

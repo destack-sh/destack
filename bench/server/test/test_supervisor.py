@@ -6,6 +6,7 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, User
+from bench.language.const import ClientKind
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     GlobalSupervisorStub,

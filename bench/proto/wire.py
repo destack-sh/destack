@@ -35,20 +35,20 @@ class ActionKind(betterproto.Enum):
 class ActionType(betterproto.Enum):
     UNSPECIFIED = 0
     GET = 1
-    LIST = 2
-    AGGREGATE_SCALAR = 3
-    AGGREGATE_BUCKET = 4
-    CREATE = 20
-    UPSERT = 21
-    UPDATE = 22
-    MOVE = 23
-    SOFT_DELETE = 24
-    RESTORE = 25
+    AGGREGATE_SCALAR = 2
+    AGGREGATE_BUCKET = 3
+    LIST = 4
+    BUMP_CHANGED = 20
+    BUMP_ACTIVE = 21
+    CREATE = 22
+    UPSERT = 23
+    UPDATE = 24
+    MOVE = 25
     ARCHIVE = 26
     UNARCHIVE = 27
-    DELETE = 28
-    BUMP_CHANGED = 29
-    BUMP_ACTIVE = 30
+    SOFT_DELETE = 28
+    RESTORE = 29
+    DELETE = 30
     START = 40
     PAUSE = 41
     RESUME = 42
@@ -97,7 +97,7 @@ class BenchType(betterproto.Enum):
     RECORD = 25
     QUERY = 26
     VIEW = 27
-    ISSUE = 29
+    NOTICE = 29
     LINK = 30
     SPACE = 40
     SESSION = 50
@@ -215,17 +215,17 @@ class EditType(betterproto.Enum):
     """A type of Edit action on nodes."""
 
     UNSPECIFIED = 0
-    CREATE = 20
-    UPSERT = 21
-    UPDATE = 22
-    MOVE = 23
-    SOFT_DELETE = 24
-    RESTORE = 25
+    BUMP_CHANGED = 20
+    BUMP_ACTIVE = 21
+    CREATE = 22
+    UPSERT = 23
+    UPDATE = 24
+    MOVE = 25
     ARCHIVE = 26
     UNARCHIVE = 27
-    DELETE = 28
-    BUMP_CHANGED = 29
-    BUMP_ACTIVE = 30
+    SOFT_DELETE = 28
+    RESTORE = 29
+    DELETE = 30
 
 
 class ExpressionKind(betterproto.Enum):
@@ -296,25 +296,6 @@ class FormatHint(betterproto.Enum):
     AUDIO = 32
 
 
-class IssueKind(betterproto.Enum):
-    UNSPECIFIED = 0
-    ERROR = 1
-    WARNING = 2
-    NOTICE = 3
-
-
-class IssueType(betterproto.Enum):
-    UNSPECIFIED = 0
-    INTERNAL = 1
-    MISSING_REFERENCE = 2
-    CIRCULAR_BASE = 3
-    MISMATCHED_BASE = 4
-    AMBIGUOUS_DEFINITION = 100
-    TASK_MISSING_IO = 101
-    BAD_NAME = 200
-    TASK_IS_STATIC = 201
-
-
 class NodeRelationType(betterproto.Enum):
     """Parent relation between node and descendants."""
 
@@ -357,7 +338,7 @@ class NodeType(betterproto.Enum):
     RECORD = 25
     QUERY = 26
     VIEW = 27
-    ISSUE = 29
+    NOTICE = 29
     LINK = 30
     SPACE = 40
     SESSION = 50
@@ -385,15 +366,29 @@ class NodeVisibility(betterproto.Enum):
     PUBLIC = 3
 
 
+class NoticeKind(betterproto.Enum):
+    """Type of diagnostic in increasing severity."""
+
+    UNSPECIFIED = 0
+    HINT = 1
+    INFORMATION = 2
+    WARNING = 3
+    ERROR = 4
+
+
+class NoticeType(betterproto.Enum):
+    """Built-in notice types."""
+
+    UNSPECIFIED = 0
+    MISSING_REFERENCE = 1
+    CIRCULAR_BASE = 2
+    MISMATCHED_BASE = 3
+    AMBIGUOUS_DEFINITION = 100
+    BAD_NAME = 300
+
+
 class NotificationKind(betterproto.Enum):
     UNSPECIFIED = 0
-
-
-class NotificationStatus(betterproto.Enum):
-    UNSPECIFIED = 0
-    ACTIVE = 1
-    READ = 2
-    EXPIRED = 3
 
 
 class PolicyEffect(betterproto.Enum):
@@ -449,9 +444,9 @@ class ReadType(betterproto.Enum):
 
     UNSPECIFIED = 0
     GET = 1
-    LIST = 2
-    AGGREGATE_SCALAR = 3
-    AGGREGATE_BUCKET = 4
+    AGGREGATE_SCALAR = 2
+    AGGREGATE_BUCKET = 3
+    LIST = 4
 
 
 class RunErrorKind(betterproto.Enum):
@@ -492,13 +487,6 @@ class ScheduleType(betterproto.Enum):
     UNSPECIFIED = 0
     INTERVAL = 1
     CRON = 2
-
-
-class SessionStatus(betterproto.Enum):
-    UNSPECIFIED = 0
-    ACTIVE = 1
-    SUSPENDED = 2
-    TERMINATED = 3
 
 
 class SortMode(betterproto.Enum):
@@ -557,21 +545,18 @@ class TriggerType(betterproto.Enum):
     UNSPECIFIED = 0
     INVOKE = 1
     TIME = 2
-    RUN = 3
-    EDIT = 4
-    MESSAGE = 5
-    USER = 6
-    API = 7
+    SIGNAL = 3
+    API = 4
 
 
 class ViewType(betterproto.Enum):
     UNSPECIFIED = 0
-    PAGE_EDITOR = 1
+    PAGE = 1
     BLOCK = 2
     EXPLORER = 10
     HISTORY = 11
-    ISSUES = 12
-    TESTS = 13
+    WATCH = 12
+    TESTING = 13
     GLOBAL = 14
     INSPECTOR = 15
     LIBRARY = 16
@@ -1128,8 +1113,8 @@ class BenchData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
     """
-    A Bench building block, the core building block containing logic, schemas,
-    data and AI stuff.
+    A core Bench building block containing logic, types, UI, data, AI, and
+    basically anything source.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1200,7 +1185,6 @@ class ClientData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    kind: "ClientKind" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     device_name: str = betterproto.string_field(33)
     browser_name: Optional[str] = betterproto.string_field(34, optional=True)
@@ -1286,44 +1270,6 @@ class IdentityData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class IssueData(betterproto.Message):
-    """
-    Issue(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None,
-    type: bench.language.const.IssueType = <factory>, kind:
-    bench.language.const.IssueKind = None, message: str = None, path:
-    Optional[bench.language.expression.FieldPath] = None, properties:
-    Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
-    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
-    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at:
-    Optional[datetime.datetime] = None, archived_at:
-    Optional[datetime.datetime] = None, last_edited_at:
-    Optional[datetime.datetime] = None, _session:
-    Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    type: "IssueType" = betterproto.enum_field(30)
-    kind: "IssueKind" = betterproto.enum_field(31)
-    message: str = betterproto.string_field(32)
-    path: Optional["FieldPathData"] = betterproto.message_field(34, optional=True)
-    properties: List[int] = betterproto.int32_field(35)
-
-
-@dataclass(eq=False, repr=False)
 class LinkData(betterproto.Message):
     """
     A link node refers to another node in some tree. The referenced subtree is
@@ -1381,6 +1327,45 @@ class BaseNodeData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class NoticeData(betterproto.Message):
+    """
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None,
+    kind: bench.language.const.NoticeKind = None, type:
+    bench.language.notice.NoticeType = <factory>, message: str = <factory>,
+    path: Optional[bench.language.expression.FieldPath] = None, properties:
+    Optional[list[bench.language.expression.PropertyReference]] = None,
+    parent_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
+    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
+    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at:
+    Optional[datetime.datetime] = None, archived_at:
+    Optional[datetime.datetime] = None, last_edited_at:
+    Optional[datetime.datetime] = None, _session:
+    Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
+    _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    kind: "NoticeKind" = betterproto.enum_field(30)
+    type: "NoticeType" = betterproto.enum_field(31)
+    message: str = betterproto.string_field(33)
+    path: Optional["FieldPathData"] = betterproto.message_field(34, optional=True)
+    properties: List["PropertyReferenceData"] = betterproto.message_field(35)
+
+
+@dataclass(eq=False, repr=False)
 class NotificationData(betterproto.Message):
     """A notification for a user."""
 
@@ -1394,7 +1379,6 @@ class NotificationData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     kind: "NotificationKind" = betterproto.enum_field(30)
-    status: "NotificationStatus" = betterproto.enum_field(32)
     expires_at: datetime = betterproto.message_field(33)
     read_at: datetime = betterproto.message_field(34)
 
@@ -1723,7 +1707,8 @@ class ViewData(betterproto.Message):
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     type: "ViewType" = betterproto.enum_field(30)
-    name: str = betterproto.string_field(31)
+    name: Optional[str] = betterproto.string_field(31, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1797,7 +1782,7 @@ class SomeNodeData(betterproto.Message):
     record: "RecordData" = betterproto.message_field(7, group="node")
     query: "QueryData" = betterproto.message_field(8, group="node")
     view: "ViewData" = betterproto.message_field(9, group="node")
-    issue: "IssueData" = betterproto.message_field(10, group="node")
+    notice: "NoticeData" = betterproto.message_field(10, group="node")
     link: "LinkData" = betterproto.message_field(11, group="node")
     space: "SpaceData" = betterproto.message_field(12, group="node")
     session: "SessionData" = betterproto.message_field(13, group="node")
@@ -3333,67 +3318,67 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    BenchData,
-    HandleData,
-    ClientData,
     WorkerSetData,
-    WorkerData,
-    FieldData,
-    BlockData,
-    BucketObjectData,
-    RunData,
-    PackageData,
-    BadgeData,
-    IssueData,
-    RecordData,
     QueryData,
+    NotificationData,
+    RecordData,
+    ClientData,
+    SessionData,
     ViewData,
     OrganizationData,
-    TagData,
-    TriggerData,
-    PauseData,
-    NotificationData,
-    SessionData,
-    SignalData,
-    MembershipData,
-    LinkData,
-    SpaceData,
+    FieldData,
     RoleData,
+    LinkData,
+    TriggerData,
+    BlockData,
+    BenchData,
+    NoticeData,
     IdentityData,
+    BucketObjectData,
+    WorkerData,
+    HandleData,
+    SpaceData,
+    RunData,
+    MembershipData,
+    TagData,
+    PackageData,
+    PauseData,
     UserData,
+    SignalData,
+    BadgeData,
 ]
 AnyStructData = Union[
-    LogEntryData,
-    FieldPathData,
-    RunCodeFrameData,
-    IconData,
+    BenchPathData,
     ReadOptionsData,
-    RequestEvaluationData,
-    FieldPathSegmentData,
-    ExpressionData,
-    RichTextData,
+    ActionEvaluationData,
+    ValueReferenceData,
     SpaceDockData,
+    PropertyPathData,
+    AggregationBucketData,
+    DependencyData,
+    SpaceDockItemData,
     NodeReferenceData,
     FileData,
-    ActionEvaluationData,
-    WorkerImageData,
-    ValueReferenceData,
-    TypeInfoData,
-    AggregationData,
-    RichTextSpanData,
-    BenchPathData,
-    PropertyReferenceData,
     PolicyData,
-    AggregationBucketData,
     RequestData,
-    PropertyPathData,
+    RichTextData,
+    WorkerImageData,
+    IconData,
+    FieldPathData,
+    RunCodeFrameData,
     RunErrorData,
-    DependencyData,
     RequestObjectData,
-    PolicyRuleData,
-    RequestSubjectData,
+    ExpressionData,
     ActionData,
-    SpaceDockItemData,
+    RichTextSpanData,
+    LogEntryData,
+    AggregationData,
+    PropertyReferenceData,
+    FieldPathSegmentData,
+    RequestSubjectData,
+    TypeInfoData,
+    RequestEvaluationData,
+    PolicyRuleData,
 ]
 
-VERSION = "2024.01.31.3"
+VERSION = "2024.02.01.1"

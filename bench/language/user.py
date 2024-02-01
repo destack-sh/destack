@@ -1,17 +1,12 @@
 from datetime import datetime
 from typing import Optional, Union, TYPE_CHECKING
 
-from bench.language.const import (
-    NodeType,
-    NotificationKind,
-    NotificationStatus,
-    ClientKind,
-)
+from bench.language.const import NodeType, NotificationKind
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Worker
+    from bench.language import Bench, Worker, Space
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -67,7 +62,6 @@ class Client(Node):
     """A client to this Bench."""
 
     parent: Union[User, "Worker"] = node_parent(4, NodeType.USER, NodeType.WORKER)
-    kind: ClientKind = struct_internal(30, system=True)
     # type: ...
     name: Optional[str] = struct_property(32, default=None)
     device_name: str = struct_internal(33)
@@ -94,14 +88,14 @@ class Client(Node):
         return self.parent
 
 
+# NOTE: Maybe notification should live in your Bench as well?
 @node(NodeType.NOTIFICATION, roots=(NodeType.USER,))
 class Notification(Node):
     """A notification for a user."""
 
     parent: User = node_parent(4, NodeType.USER)
     kind: NotificationKind = struct_internal(30)
-    # type: ...
-    status: NotificationStatus = struct_internal(32)
+    # -> builtin_type / custom_type / ... 'type' as union
     expires_at: datetime = struct_internal(33)
     read_at: datetime = struct_internal(34)
     # source: ...

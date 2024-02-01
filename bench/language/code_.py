@@ -16,7 +16,6 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.builtin import symbolx_package
-from bench.language.const import IssueType
 from bench.language.field import TypedDict
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
@@ -24,7 +23,7 @@ from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import Block
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -79,7 +78,7 @@ class HasCode(Node):
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
         self._is_async = "await " in self.code
         self._block_references = {}
         self._code_export_references = {}
@@ -87,11 +86,6 @@ class HasCode(Node):
             resolved = scope.lookup(reference)
             if resolved is not None:
                 self._block_references[key] = resolved
-
-        # check if code is exportable if marked as such
-        if self._export:
-            if len(self.fields) > 0:
-                on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
     def _untrack_inner(self) -> None:
         self._callable_wrapped = None  # locals are bound to session

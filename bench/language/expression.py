@@ -32,7 +32,7 @@ from bench.utils.casing import Casing, to_casing
 if TYPE_CHECKING:
     from bench.language import Block, Field, TypeInfo, ScopeNode
     from bench.language.field import HasFields
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
 
 
 #
@@ -80,7 +80,7 @@ class PropertyReference(Struct):
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self._resolved_property = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         bench_cls = BENCH_CLASS_BY_TYPE[self.type]
         self._resolved_property = bench_cls._resolve_property(self)
 

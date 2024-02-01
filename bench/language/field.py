@@ -10,7 +10,6 @@ from bench.language.const import (
     BenchType,
     BlockType,
     FormatHint,
-    IssueType,
     NodeType,
     StructType,
     new_dynamic_node_key,
@@ -40,7 +39,7 @@ from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression
-    from bench.language.issue import IssueHandler
+    from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -156,7 +155,7 @@ class TypeInfo(Struct):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
             raise NotImplementedError(f"aliases not yet supported for {self!r}")
         else:
@@ -306,21 +305,23 @@ class HasFields(Node):
         self._did_resolve_bases = False
         self._as_type = None
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        self._resolve_fields([], on_issue)
+    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
+        self._resolve_fields([], on_notice)
         self._as_type = TypeInfo(base_type=self)
 
-    def _resolve_fields(self: "HasFields", path: list["Node"], on_issue: "IssueHandler") -> None:
+    def _resolve_fields(self: "HasFields", path: list["Node"], on_notice: "NoticeHandler") -> None:
         """
         Resolves (and inlines) field references and unions.
         """
+        from bench.language import NoticeType
+
         if self._did_resolve_bases:
             return  # already resolved
 
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
-            on_issue(type=IssueType.CIRCULAR_BASE, subject=self, path=path)
+            on_notice(type=NoticeType.CIRCULAR_BASE, subject=self, path=path)
             self._did_resolve_bases = True
             return
 
