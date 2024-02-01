@@ -15,8 +15,8 @@ from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import (
     SYSTEM_POLICIES,
     ReadOptions,
-    adapt_access_post_read,
-    adapt_access_pre_read,
+    evaluate_read,
+    adapt_read_options,
 )
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
@@ -191,9 +191,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             wiring.unpack_struct_interp_maybe(request.options, self._package)
             or ReadOptions.default()
         )
-        adapted_options = adapt_access_pre_read(
-            self.subject, self._package._tree, options, owner=self._owner
-        )
+        adapted_options = adapt_read_options(self.subject, self._package._tree, owner=self._owner)
 
         if request.node_type == NodeType.RECORD:
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
@@ -202,12 +200,12 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
         elif request.node_type in LOADED_SOURCE_TYPES:
             # read from local source (assumed to be loaded completely)
             tree: NodeDataTree = ...  # nocheckin ???
-            eval, tree = adapt_access_post_read(subject=self.subject, root_owner=self._owner)
+            eval, tree = evaluate_read(subject=self.subject, root_owner=self._owner)
             return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
     async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
         node_type = wiring.unpack_enum(NodeType, request.node_type)
-        adapted_options = adapt_access_pre_read(self.subject, ReadOptions.default())
+        adapted_options = adapt_read_options(self.subject, ReadOptions.default())
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort

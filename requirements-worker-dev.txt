@@ -59,6 +59,8 @@ biopython==1.81
     # via bio
 biothings-client==0.3.0
     # via mygene
+bitarray==2.9.2
+    # via -r requirements-worker.in
 black==22.10.0
     # via -r requirements-worker.in
 boto3==1.26.125

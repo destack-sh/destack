@@ -40,6 +40,8 @@ backoff==2.2.1
     # via posthog
 betterproto==2.0.0b6
     # via -r requirements.in
+bitarray==2.9.2
+    # via -r requirements.in
 boto3==1.26.125
     # via -r requirements.in
 botocore==1.29.125

@@ -32,7 +32,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Package, Policy, TypeInfo
+    from bench.language import Package, Policy, TypeInfo, Badge
 
 
 @node_component
@@ -134,6 +134,7 @@ class Block(ScopeNode, HasTags):
     children: NodeList["Block"] = node_children(
         NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
     )
+    badges: NodeList["Badge"] = node_children(NodeType.BADGE)
 
     visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
     policies: list["Policy"] | None = struct_internal(

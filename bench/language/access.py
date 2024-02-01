@@ -1,7 +1,8 @@
-from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, NamedTuple, Optional, Self, Union
+from typing import TYPE_CHECKING, Collection, Optional, Self, Union
 from uuid import UUID
+
+from bitarray import bitarray
 
 from bench.language.const import (
     ACTION_KINDS,
@@ -14,12 +15,10 @@ from bench.language.const import (
     BenchType,
     NodeType,
     PolicyEffect,
-    ReadType,
     RunType,
     StructType,
 )
 from bench.language.node import (
-    NODE_CLASS_BY_TYPE,
     Node,
     Package,
     Property,
@@ -44,6 +43,7 @@ if TYPE_CHECKING:
         Organization,
         PropertyReference,
         User,
+        Space,
     )
 
 
@@ -106,9 +106,11 @@ class PolicyRule(Struct):
     effect: PolicyEffect = struct_internal(50, default=PolicyEffect.DENY)
     verbs: list[ActionType] | None = struct_internal(51, default=None)
     verb_kinds: list[ActionKind] | None = struct_internal(52, default=None)
+    _allow_mask: bitarray | None = struct_runtime(default=None)
+    _deny_mask: bitarray | None = struct_runtime(default=None)
 
     # object (if unset it's a wildcard)
-    object_types: Optional[list[BenchType]] = struct_internal(70, default=None)
+    object_node_types: Optional[list[NodeType]] = struct_internal(70, default=None)
     object_is_sensitive: bool = struct_internal(71, default=False)
     object_is_system: bool = struct_internal(72, default=False)
 
@@ -145,8 +147,10 @@ class PolicyRule(Struct):
             verb_str = "*"
 
         object_str_parts = []
-        if self.object_types is not None:
-            object_str_parts.extend(object_type.bench_name for object_type in self.object_types)
+        if self.object_node_types is not None:
+            object_str_parts.extend(
+                object_type.bench_name for object_type in self.object_node_types
+            )
         for object_key in ("object_is_sensitive", "object_is_system"):
             value = getattr(self, object_key)
             if value is not None:
@@ -176,7 +180,7 @@ class PolicyRule(Struct):
         return True  # no mismatch -> match
 
     def matches_object(self, object: "RequestObject") -> bool:
-        if self.object_types and object.type not in self.object_types:
+        if self.object_node_types and object.node_type not in self.object_node_types:
             return False
         if self.object_is_sensitive and not object.is_sensitive:
             return False
@@ -216,7 +220,7 @@ class PolicyRule(Struct):
     def object(
         self, *types: BenchType, is_sensitive: bool = None, is_system: bool = None
     ) -> "Self":
-        self.object_types = list(types)
+        self.object_node_types = list(types)
         self.object_is_sensitive = is_sensitive
         self.object_is_system = is_system
         return self
@@ -444,7 +448,7 @@ class RequestObject(Struct):
     As with RequestSubject, unknown attributes are uninitialized.
     """
 
-    type: BenchType = struct_internal(30)
+    node_type: BenchType = struct_internal(30)
     is_sensitive: bool = struct_internal(31, default=False)
     is_system: bool = struct_internal(32, default=False)
     owner: Union["User", "Organization", "Bench", None] = struct_internal(
@@ -463,9 +467,85 @@ class RequestObject(Struct):
                 else:
                     str_parts.append(f"{object_key}={value}")
         if str_parts:
-            return f"{self.type.bench_name} [{', '.join(str_parts)}]"
+            return f"{self.node_type.bench_name} [{', '.join(str_parts)}]"
         else:
-            return self.type.bench_name
+            return self.node_type.bench_name
+
+
+@struct(StructType.RULE_EVALUATION)
+class RuleEvaluation(Struct):
+    """The result of evaluating access to a tree for a subject."""
+
+    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
+    policy_rule: PolicyRule = struct_internal(31, default=None, struct=StructType.POLICY_RULE)
+    allowed_verbs: list[ActionType] | None = struct_internal(32, default=None)
+    denied_verbs: list[ActionType] | None = struct_internal(33, default=None)
+    _allow_mask: bitarray | None = struct_runtime(default=None)
+    _deny_mask: bitarray | None = struct_runtime(default=None)
+
+
+@struct(StructType.ACCESS_ZONE)
+class AccessZone(Struct):
+    """
+    Materialized access grant to a region of the tree (<=scope) for objects matching the criteria.
+    The closest matching zone 'up' from an object determines access (completely).
+    """
+
+    id: int = struct_internal(2, require=True)
+    scope: Union["Bench", "Package", "Block", "Space"] = struct_internal(30, require=True)
+    _parent: Optional["AccessZone"] = struct_runtime(default=None)
+
+    allowed_verbs: list[ActionType] = struct_internal(40)
+    _allow_mask: bitarray | None = struct_runtime(default=None)
+
+    object_node_types: list[NodeType] | None = struct_internal(50, default=None)
+    object_is_sensitive: bool = struct_internal(51, default=False)
+    object_is_system: bool = struct_internal(52, default=False)
+
+    def __content_str__(self) -> str:
+        if self.scope is None:
+            scope_str = self.scope_ptr
+        else:
+            scope_str = self.scope.path
+
+        object_str_parts = []
+        if self.object_node_types is not None:
+            object_str_parts.extend(
+                object_type.bench_name for object_type in self.object_node_types
+            )
+        for object_key in ("object_is_sensitive", "object_is_system"):
+            value = getattr(self, object_key)
+            if value is not None:
+                object_str_parts.append(f"{object_key[7:]}={value}")
+        if object_str_parts:
+            object_str = f"[{', '.join(object_str_parts)}]"
+        else:
+            object_str = "*"
+
+        return f"{self.id}: {PolicyEffect.ALLOW} {self.allowed_verbs} {object_str} in {scope_str}"
+
+    def matches_verb(self, verb: ActionType) -> bool:
+        if self.allowed_verbs and verb not in self.allowed_verbs:
+            return False
+        return True
+
+    def matches_object(self, object: "RequestObject") -> bool:
+        if self.object_node_types and object.node_type not in self.object_node_types:
+            return False
+        if self.object_is_sensitive and not object.is_sensitive:
+            return False
+        if self.object_is_system and not object.is_system:
+            return False
+        return True
+
+
+@struct(StructType.ACCESS_MATRIX)
+class AccessMatrix(Struct):
+    """The materialized access matrix to quickly and easily evaluate access for a subject."""
+
+    # id should match the index into zones list
+    zones: list[AccessZone] = struct_internal(30, array=True, struct=StructType.ACCESS_ZONE)
+    _zones_by_node_id: dict[UUID, tuple[int, ...]] = struct_runtime(default_factory=dict)
 
 
 @struct(StructType.REQUEST_EVALUATION)
@@ -492,6 +572,7 @@ class RequestEvaluation(Struct):
 class ActionEvaluation(Struct):
     """The result of evaluating an action."""
 
+    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
     request_evaluations: list[RequestEvaluation] = struct_internal(
         31, array=True, require=True, struct=StructType.REQUEST_EVALUATION
     )
@@ -501,7 +582,7 @@ class ActionEvaluation(Struct):
     decision: PolicyEffect = struct_internal(33, require=True)
 
     def __content_str__(self) -> str:
-        return f"{self.action} @ {self.request_evaluations}"
+        return f"{self.decision} {self.subject} @ {self.request_evaluations}"
 
     @property
     def is_implicit(self) -> bool:
@@ -519,10 +600,8 @@ class AccessError(BenchError, ValueError):
         self.cause = cause
 
 
-def adapt_access_pre_read(
-    subject: RequestSubject,
-    options: ReadOptions,
-    base_policies: Collection[Policy] = SYSTEM_POLICIES,
+def adapt_read_options(
+    subject: RequestSubject, root_node_type: NodeType, options: ReadOptions
 ) -> ReadOptions:
     """
     Adapt read options based on the action to pre-filter as feasible while enabling the complete post-read check.
@@ -536,60 +615,7 @@ def adapt_access_pre_read(
     return options  # nocheckin
 
 
-_EvalZoneKey = NamedTuple(
-    "_EvalKey",
-    [
-        ("action", ActionType),
-        ("scope", UUID),
-        ("node_type", int),
-        ("is_sensitive", bool),
-        ("policies", int),
-    ],
-)
-
-
-def evaluate_request(
-    subject: RequestSubject,
-    identities: list[RequestSubject] | tuple[RequestSubject, ...],
-    verb: ActionType,
-    object: RequestObject,
-    policies: Collection[Policy],
-) -> RequestEvaluation:
-    # first pre-filter by verb/object
-    applicable_rules: tuple[PolicyRule, ...] = tuple(
-        rule
-        for policy in policies
-        for rule in policy.rules
-        if rule.matches_verb(verb) and rule.matches_object(object)
-    )
-    # then evaluate by subject
-    first_deny: PolicyRule | None = None
-    for identity in identities:
-        for rule in applicable_rules:
-            if rule.matches_subject(identity, object):
-                if rule.effect == PolicyEffect.ALLOW:
-                    return RequestEvaluation(
-                        subject=subject,
-                        verb=verb,
-                        object=object,
-                        deciding_rule=rule,
-                        decision=rule.effect,
-                    )
-                elif first_deny is None:
-                    first_deny = rule
-                    # continue, any allow wins
-
-    # implicit deny if no applicable rules
-    return RequestEvaluation(
-        subject=subject,
-        verb=verb,
-        object=object,
-        deciding_rule=first_deny,
-        decision=PolicyEffect.DENY,
-    )
-
-
-def adapt_access_post_read(
+def evaluate_read(
     subject: RequestSubject,
     tree: NodeDataTree,
     options: ReadOptions,
@@ -601,63 +627,10 @@ def adapt_access_post_read(
     If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
     Assumes that all policies are valid.
     """
-    from bench.proto import wiring
-
-    # 1. collect all policies into scopes
-    #    (we use the id() of a policy set to cache evaluation result)
-    owner_by_node_id: dict[str, Union["User", "Organization", "Bench"]] = {}
-    region_by_node_id: dict[str, str] = {}
-    policies_by_node_id: dict[str, list[Policy] | tuple[Policy, ...]] = defaultdict(list)
-    roots = tree.find_roots()
-    for root in roots:
-        # figure out owner
-        root_type = wiring.unpack_enum(NodeType, root.metatype)
-        root_cls = NODE_CLASS_BY_TYPE[root_type]
-        if root_cls.__roots__:
-            if root_owner is None:
-                raise ValueError(f"root requires an owner: {root}")
-            owner = root_owner
-        else:
-            owner = root
-        # nocheckin accumulate policies properly
-        policies_by_node_id[root.id] = base_policies
-        owner_by_node_id[root.id] = owner
-        region_by_node_id[root.id] = root.id
-        for descendant in tree.iter_descendants(root, recursive=True):
-            descendant: AnyNodeData
-            owner_by_node_id[descendant.id] = owner
-            policies_by_node_id[descendant.id] = base_policies
-            region_by_node_id[root.id] = root.id
-
-    # 2. evaluate all requests to get at least one allow per principal
-    identities = subject.split_into_available_subjects()
-    eval_cache: dict[_EvalZoneKey, RequestEvaluation] = {}
-    visible_nodes: list[AnyNodeData] = []
-    for node in tree.nodes:
-        node_type = node.metatype
-        owner = owner_by_node_id[node.id]
-        policies = policies_by_node_id[node.id]
-        eval_key = _EvalZoneKey(ReadType.GET, owner.id, node_type, id(policies))
-        if eval_key in eval_cache:
-            evaluation = eval_cache[eval_key]
-        else:
-            object = RequestObject(
-                type=node_type, owner=owner, include_sensitive=options.include_sensitive
-            )
-            evaluation = evaluate_request(subject, identities, eval_key.action, object, policies)
-            eval_cache[eval_key] = evaluation
-        if evaluation.decision == PolicyEffect.ALLOW:
-            visible_nodes.append(node)
-
-    action_evaluation = ActionEvaluation(
-        request_evaluations=list(eval_cache.values()),
-        deciding_evaluation=None,
-        decision=PolicyEffect.ALLOW,  # nocheckin ???
-    )
-    return action_evaluation, visible_nodes
+    ...
 
 
-def evaluate_edits(
+def evaluate_edit(
     base_policies: Collection[Policy], edits: Collection[EditData]
 ) -> ActionEvaluation:
     """
