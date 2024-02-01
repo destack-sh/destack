@@ -171,7 +171,7 @@ class Block(ScopeNode, HasTags):
     reference: Optional["Block"] = struct_internal(
         51, require=False, array=False, references=NodeType.BLOCK
     )
-    assumed_policies: list["Policy"] | None = struct_internal(
+    delegated_policies: list["Policy"] | None = struct_internal(
         52, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
 

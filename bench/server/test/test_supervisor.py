@@ -5,18 +5,17 @@ import grpclib
 import pytest
 from grpclib.testing import ChannelFor
 
-from bench.language import Client, User
-from bench.language.const import ClientKind
+from bench.language import Client, ReadOptions, User
+from bench.language.const import NodeType
 from bench.proto import wire, wiring
 from bench.proto.wire import (
+    CommitEditsRequest,
     GlobalSupervisorStub,
     LoginUserRequest,
-    SignupUserRequest,
+    LogoutUserRequest,
     ReadNodesRequest,
     RpcMetadata,
-    LogoutUserRequest,
-    ReadOptionsData,
-    CommitEditsRequest,
+    SignupUserRequest,
 )
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
@@ -42,8 +41,8 @@ def raises_grpc_error(status: grpclib.const.Status):
     assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
 
 
-async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
-    """Tests user account creation, login & logout."""
+async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
+    """Create a User, login and logout. Read back user data at various points."""
 
     user = User(slug="test", name="Test", email="test@symbolx.com")
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
@@ -72,44 +71,27 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
-    # read user without sensitive data, no token -> success
+    # read user without sensitive data, unauthorized -> success
     read_user_req = ReadNodesRequest(roots=[user.as_reference._to_data()])
     read_user_rep = await supervisor.read_nodes(read_user_req)
     assert read_user_rep.nodes[0].user.slug == user.slug
 
-    # read user with owned data, no token -> fail
+    # read user with sensitive data, unauthorized -> success but empty (except public data)
     read_user_req = ReadNodesRequest(
-        roots=[user.as_reference._to_data()],
-        options=ReadOptionsData(descendant_types=[wire.NodeType.CLIENT]),
+        roots=[user.as_reference._to_data()], options=ReadOptions(include_sensitive=True)._to_data()
     )
-    with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
-        _ = await supervisor.read_nodes(read_user_req)
+    _ = await supervisor.read_nodes(read_user_req)
+    assert len(read_user_rep.nodes) == 1
+    assert not read_user_rep.nodes[0].user.email
 
-    # read user with sensitive data, no token -> fail
-    read_user_req = ReadNodesRequest(
-        roots=[user.as_reference._to_data()], options=ReadOptionsData(include_sensitive=True)
-    )
-    with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
-        _ = await supervisor.read_nodes(read_user_req)
-
-    # read user, valid token -> success
+    # read user with sensitive data, authorized -> success
     access_metadata = RpcMetadata(
         client_id=str(client.id),
         client_kind=wire.ClientKind.USER,
         client_token=login_rep.access_token,
     )
-    await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
-
-    # update user, valid token -> success
-    user.name = "Testificate"
-    edit = wire.EditData(
-        type=wire.EditType.UPDATE,
-        node_type=wire.NodeType.USER,
-        node=wiring.wrap_some_node(user._to_data()),
-        properties=[User.name.id],
-    )
-    edit_req = CommitEditsRequest(edits=[edit])
-    await supervisor.commit_edits(edit_req, access_metadata.to_headers())
+    read_user_rep = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
+    assert len(read_user_rep.nodes) == 2
 
     # logout, invalid token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
@@ -122,3 +104,42 @@ async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
     # read user, logged out, expired token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
         _ = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
+
+
+async def test_user_crud(supervisor: GlobalSupervisorStub):
+    # create User -> fail
+    # upsert User -> fail
+
+    # update User.name, authorized -> success
+    user.name = "Testificate"
+    edit = wire.EditData(
+        type=wire.EditType.UPDATE,
+        node_type=wire.NodeType.USER,
+        node=wiring.wrap_some_node(user._to_data()),
+        properties=[User.name.id],
+    )
+    edit_req = CommitEditsRequest(edits=[edit])
+    await supervisor.commit_edits(edit_req, access_metadata.to_headers())
+
+    # update User.password_hash, authorized -> fail (system property)
+    user.password_hash = b"bad"
+    edit = wire.EditData(
+        type=wire.EditType.UPDATE,
+        node_type=wire.NodeType.USER,
+        node=wiring.wrap_some_node(user._to_data()),
+        properties=[User.password_hash.id],
+    )
+    edit_req = CommitEditsRequest(edits=[edit])
+    with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+        _ = await supervisor.commit_edits(edit_req, access_metadata.to_headers())
+
+
+async def test_global_read(supervisor: GlobalSupervisorStub):
+    # read user with owned data, unauthorized -> success but empty (except public data)
+    read_user_req = ReadNodesRequest(
+        roots=[user.as_reference._to_data()],
+        options=ReadOptions(descendant_types=[NodeType.CLIENT])._to_data(),
+    )
+    read_user_rep = await supervisor.read_nodes(read_user_req)
+    assert not len(read_user_rep.nodes) == 1
+    assert not read_user_rep.nodes[0].email

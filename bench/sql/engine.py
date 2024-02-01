@@ -28,12 +28,12 @@ from bench.language.access import ReadOptions
 from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
+    CONDITIONAL_TRUE,
     TYPE_DISCRIMINATOR_KEY,
     C,
     Expression,
     ExpressionOps,
     QueryEngineIncapableError,
-    CONDITIONAL_TRUE,
 )
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -977,7 +977,7 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 
 NodeT = TypeVar("NodeT", bound=Node)
 
-GLOBAL_FILTER_DEFAULT: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
+DEFAULT_GLOBAL_FILTER: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
 SELECT_DEFAULT_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
     node.metatype: tuple(
         prop for prop in node.__stored_properties__.values() if not prop.is_deferred
@@ -1151,7 +1151,7 @@ async def pg_read_node_data_tree(
         cur=cur,
         node_type=root_type,
         filter=root_filter,
-        properties=options.select_properties_by_type[root_type],
+        properties=options.selected_properties(root_type),
     )
     if not roots.nodes:
         return None
@@ -1185,7 +1185,7 @@ async def pg_read_node_data_tree(
                         node_type,
                         C(ConditionalOp.IN, property_ptr=Node.id.as_reference, value=node_ids),
                     ),
-                    select_properties_by_type=options.select_properties_by_type,
+                    properties=options.selected_properties(node_type),
                 )
                 next_parents.extend(layer.nodes)
                 for node in layer.nodes:
@@ -1226,7 +1226,7 @@ async def pg_read_node_data_tree(
                     cur=cur,
                     node_type=child_type,
                     filter=options.combined_filter(child_type, parent_filter),
-                    properties=options.select_properties_by_type[child_type],
+                    properties=options.selected_properties(child_type),
                 )
                 next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
                 for child in children.nodes:
@@ -1282,7 +1282,7 @@ async def pg_search_nodes_data_tree(
             first=first,
             skip=skip,
             after=after,
-            properties=options.select_properties_by_type[node_type],
+            properties=options.selected_properties(node_type),
         )
         tree = NodeDataTree(nodes=roots.nodes)
         return roots, tree

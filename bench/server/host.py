@@ -11,17 +11,15 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import NodeReference, Expression
+from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import (
-    ReadOptions,
     SYSTEM_POLICIES,
+    ReadOptions,
     adapt_access_post_read,
-    Request,
-    RequestObject,
     adapt_access_pre_read,
 )
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, ReadType
-from bench.language.node import Bench, Package, NODE_CLASS_BY_TYPE
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
+from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -35,6 +33,7 @@ from bench.proto.wire import (
     KillRunRequest,
     KillRunResponse,
     PackageHostBase,
+    PackageHostStub,
     PasteNodesRequest,
     PasteNodesResponse,
     PushEditsRequest,
@@ -58,13 +57,8 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
-    PackageHostStub,
 )
-from bench.server.utils import (
-    detached_session,
-    get_s3_client,
-    validate_bench_data_many,
-)
+from bench.server.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
@@ -144,6 +138,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
         self.bench_id = bench_id
         self.package_id = package_id
         self._bench: Bench | None = None
+        self._owner: User | Organization | None = None
         self._package: Package | None = None
 
     def __str__(self):
@@ -177,6 +172,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
                     related_properties=(Bench.user, Bench.organization, Bench.head)
                 ),
             )
+            self._owner = self._bench.owner
             self._package: Package = await pg_read_node(
                 session=session,
                 root_type=NodeType.PACKAGE,
@@ -195,11 +191,8 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             wiring.unpack_struct_interp_maybe(request.options, self._package)
             or ReadOptions.default()
         )
-        base_requests = tuple(
-            Request(self.subject, ReadType.GET, RequestObject(type=root.type)) for root in roots
-        )
         adapted_options = adapt_access_pre_read(
-            self.subject, base_requests, SYSTEM_POLICIES, options
+            self.subject, self._package._tree, options, owner=self._owner
         )
 
         if request.node_type == NodeType.RECORD:
@@ -209,15 +202,12 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
         elif request.node_type in LOADED_SOURCE_TYPES:
             # read from local source (assumed to be loaded completely)
             tree: NodeDataTree = ...  # nocheckin ???
-            tree = adapt_access_post_read(self.subject, (), SYSTEM_POLICIES, tree, options)
+            eval, tree = adapt_access_post_read(subject=self.subject, root_owner=self._owner)
             return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
     async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
         node_type = wiring.unpack_enum(NodeType, request.node_type)
-        base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
-        adapted_options = adapt_access_pre_read(
-            self.subject, (base_request,), SYSTEM_POLICIES, ReadOptions.default()
-        )
+        adapted_options = adapt_access_pre_read(self.subject, ReadOptions.default())
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort

@@ -6,16 +6,14 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Expression, Handle, User, Client, NodeReference
+from bench.language import Client, Expression, Handle, NodeReference, User
 from bench.language.access import (
-    ReadOptions,
-    Request,
-    adapt_access_pre_read,
     SYSTEM_POLICIES,
-    RequestObject,
+    ReadOptions,
     adapt_access_post_read,
+    adapt_access_pre_read,
 )
-from bench.language.const import NodeType, ReadType
+from bench.language.const import NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
@@ -44,12 +42,11 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    AggregationOp,
 )
 from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.server.utils import detached_session, validate_bench_data_many
 from bench.sql.client import async_pg_cursor
-from bench.sql.engine import pg_read_node_data_tree, pg_search_nodes_data_tree, pg_count
+from bench.sql.engine import pg_count, pg_read_node_data_tree, pg_search_nodes_data_tree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import group_by
 
@@ -151,15 +148,10 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
     async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
-        base_requests = tuple(
-            Request(self.subject, ReadType.GET, RequestObject(type=root.type)) for root in roots
-        )
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_access_pre_read(
-            self.subject, base_requests, SYSTEM_POLICIES, options
-        )
+        adapted_options = adapt_access_pre_read(subject=self.subject, options=options)
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         tree = NodeDataTree()
@@ -173,7 +165,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
-        tree = adapt_access_post_read(self.subject, base_requests, SYSTEM_POLICIES, tree, options)
+        eval, tree = adapt_access_post_read(subject=self.subject, tree=tree, options=options)
 
         return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
@@ -183,15 +175,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
         node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_access_pre_read(
-            self.subject, (base_request,), SYSTEM_POLICIES, options
-        )
+        adapted_options = adapt_access_pre_read(self.subject, options)
 
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.combined_filter(node_type, filter)
@@ -208,7 +197,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 count = await pg_count(cur, node_cls.__table__, combined_filter)
             else:
                 count = None
-        tree = adapt_access_post_read(self.subject, (base_request,), SYSTEM_POLICIES, tree, options)
+        eval, tree = adapt_access_post_read(subject=self.subject, tree=tree, options=options)
 
         return SearchNodesResponse(
             roots_ids=[r.id for r in roots.nodes],
@@ -227,11 +216,6 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
-        if aggregation.op in (AggregationOp.EXISTS, AggregationOp.COUNT):
-            base_request = Request(self.subject, ReadType.LIST, RequestObject(type=node_type))
-        else:
-            raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
-
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(self, request: "CommitEditsRequest") -> "CommitEditsResponse":

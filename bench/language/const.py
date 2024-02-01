@@ -10,6 +10,7 @@ from uuid import UUID
 from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import cyrb53a
+from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Block, Node, Package, Session  # noqa: F401
@@ -17,7 +18,10 @@ if typing.TYPE_CHECKING:
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 VERSION = "2024.02.01.1"
-
+UNSET = object()
+EMPTY_LIST: list = []
+EMPTY_SET: frozenset = frozenset()
+EMPTY_DICT: typing.Mapping = frozendict()
 
 #
 # Metatypes
@@ -116,8 +120,6 @@ class StructType(ProtoStrEnum):
 
     POLICY = "POLICY", 230
     POLICY_RULE = "POLICY_RULE", 231
-    ACTION = "ACTION", 232
-    REQUEST = "REQUEST", 233
     REQUEST_SUBJECT = "REQUEST_SUBJECT", 234
     REQUEST_OBJECT = "REQUEST_OBJECT", 235
     REQUEST_EVALUATION = "REQUEST_EVALUATION", 236
@@ -299,7 +301,6 @@ class NodeStatus(enum.IntEnum):
 
 
 NS = NodeStatus
-UNSET = object()
 
 
 #
