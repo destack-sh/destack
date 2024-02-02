@@ -12,6 +12,7 @@ from bench.language.access import (
     ReadOptions,
     evaluate_read,
     adapt_read_options,
+    materialize_access_matrix,
 )
 from bench.language.const import NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
@@ -165,9 +166,10 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
-        eval, tree = evaluate_read(subject=self.subject, tree=tree, options=options)
+        access = materialize_access_matrix(self.subject, tree)
+        action, adapted_nodes = evaluate_read(access, tree)
 
-        return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
+        return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in adapted_nodes])
 
     async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
         if request.bases:
@@ -197,11 +199,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 count = await pg_count(cur, node_cls.__table__, combined_filter)
             else:
                 count = None
-        eval, tree = evaluate_read(subject=self.subject, tree=tree, options=options)
+        access = materialize_access_matrix(self.subject, tree)
+        eval, adapted_nodes = evaluate_read(subject=self.subject, tree=tree)
 
         return SearchNodesResponse(
             roots_ids=[r.id for r in roots.nodes],
-            nodes=[wiring.wrap_some_node(n) for n in tree.nodes],
+            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             cursors=roots.cursors,
             start_cursor=roots.start_cursor,
             total=count,

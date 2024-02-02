@@ -1,13 +1,13 @@
 from ..sql.core import PrimitiveType
 from .access import (
     AccessError,
-    ActionEvaluation,
+    Action,
     Badge,
     Identity,
     Policy,
     PolicyRule,
     ReadOptions,
-    RequestEvaluation,
+    Request,
     RequestObject,
     RequestSubject,
     Role,
@@ -70,7 +70,7 @@ from .worker import Dependency, Worker, WorkerImage, WorkerSet
 __all__ = [
     "A",
     "AccessError",
-    "ActionEvaluation",
+    "Action",
     "ActionType",
     "Badge",
     "Bench",
@@ -113,7 +113,7 @@ __all__ = [
     "ReadOptions",
     "Record",
     "render",
-    "RequestEvaluation",
+    "Request",
     "RequestObject",
     "RequestSubject",
     "Role",

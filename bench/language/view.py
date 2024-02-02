@@ -31,7 +31,7 @@ class ViewType(ProtoStrEnum):
     HISTORY = "HISTORY", 11
     WATCH = "WATCH", 12
     TESTING = "TESTING", 13
-    GLOBAL = "GLOBAL", 14
+    BENCH = "BENCH", 14
     INSPECTOR = "INSPECTOR", 15
     LIBRARY = "LIBRARY", 16
     ACCESS = "ACCESS", 17

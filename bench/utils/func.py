@@ -5,6 +5,7 @@ import functools
 import random
 import secrets
 import string
+from sys import intern
 import types
 import typing
 from asyncio import CancelledError
@@ -51,13 +52,14 @@ def to_uuid(id: str | UUID | None) -> UUID | None:
         raise TypeError(f"unexpected id type: {id!r}")
 
 
+@cached(cache={})
 def uuid_to_str(id: UUID | str | None) -> str | None:
     if not id:
         return None  # ignore empty strings
     elif isinstance(id, str):
         return id
     elif isinstance(id, UUID):
-        return str(id)
+        return intern(str(id))
     else:
         raise TypeError(f"unexpected id type: {id!r}")
 
