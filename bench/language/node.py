@@ -25,6 +25,7 @@ from typing import (
     cast,
     dataclass_transform,
     final,
+    Iterator,
 )
 from uuid import UUID, uuid4
 
@@ -1017,9 +1018,7 @@ def node_component(
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
     is_in_package: bool = False,
-    is_sub_package: bool = False,
     is_in_bench: bool = False,
-    is_sub_bench: bool = False,
     is_final: bool = False,
 ):
     """
@@ -1105,9 +1104,7 @@ def node(
             dynamic_components=dynamic_components,
             reserved=reserved,
             is_in_package=in_package,
-            is_sub_package=sub_package,
             is_in_bench=in_bench,
-            is_sub_bench=sub_bench,
             is_final=True,
         )
         cls.__is_stored__ = stored
@@ -1146,6 +1143,15 @@ def node(
         return cls
 
     return decorate
+
+
+def iter_properties(*types: NodeType | StructType) -> Iterator[Property]:
+    """Iterate over all properties of the given node/struct types."""
+    for cls in chain(
+        (NODE_CLASS_BY_TYPE.get(t) for t in types), (STRUCT_CLASS_BY_TYPE.get(t) for t in types)
+    ):
+        if cls is not None:
+            yield from cls.__properties__.values()
 
 
 NodeT = TypeVar("NodeT", bound="Node")

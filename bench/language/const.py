@@ -48,6 +48,7 @@ class NodeType(ProtoStrEnum):
     # STEP = "STEP", 28
     NOTICE = "NOTICE", 29
     LINK = "LINK", 30
+    # SKIP = "SKIP", ...
     # COMMENT = "COMMENT", ...
     SPACE = "SPACE", 40
     # DEPENDENCY = "DEPENDENCY", ...
@@ -124,11 +125,12 @@ class StructType(ProtoStrEnum):
     REQUEST_SUBJECT = "REQUEST_SUBJECT", 232
     REQUEST_OBJECT = "REQUEST_OBJECT", 233
     RULE_EVALUATION = "RULE_EVALUATION", 234
-    ACCESS_ZONE = "ACCESS_ZONE", 235
-    ACCESS_MATRIX = "ACCESS_MATRIX", 236
-    REQUEST_EVALUATION = "REQUEST_EVALUATION", 235
-    ACTION_EVALUATION = "ACTION_EVALUATION", 236
-    READ_OPTIONS = "READ_OPTIONS", 237
+    ACCESS_ZONE = "ACCESS_ZONE", 237
+    ACCESS_MATRIX = "ACCESS_MATRIX", 238
+    REQUEST = "REQUEST", 235
+    ACTION = "ACTION", 236
+    ACTION_TRACE = "ACTION_TRACE", 239
+    READ_OPTIONS = "READ_OPTIONS", 240
 
     EXPRESSION = "EXPRESSION", 260
     AGGREGATION = "AGGREGATION", 261
@@ -390,9 +392,18 @@ ACTION_TYPES: tuple[ActionType, ...] = tuple(ActionType)
 
 
 class ActionKind(ProtoStrEnum):
+    # NOTE: ActionType ids and their overlap with ActionKind is important for our masks.
     READ = "READ", 1
-    EDIT = "EDIT", 20
-    RUN = "RUN", 40
+    EDIT = "EDIT", 10
+    RUN = "RUN", 25
+
+    @property
+    def from_id(self):
+        return ACTION_CLASS_BY_KIND[self].__MIN_ID__
+
+    @property
+    def to_id(self):
+        return ACTION_CLASS_BY_KIND[self].__MAX_ID__
 
     @property
     def bench_name(self):
@@ -404,6 +415,11 @@ ACTIONS_BY_KIND: dict[ActionKind, set[ActionType]] = {
     ActionKind.READ: set(READ_TYPES),
     ActionKind.EDIT: set(EDIT_TYPES),
     ActionKind.RUN: set(RUN_TYPES),
+}
+ACTION_CLASS_BY_KIND: dict[ActionKind, type[ActionType]] = {
+    ActionKind.READ: ReadType,
+    ActionKind.EDIT: EditType,
+    ActionKind.RUN: RunType,
 }
 KIND_BY_ACTION: dict[ActionType, ActionKind] = {
     action: kind for kind, actions in ACTIONS_BY_KIND.items() for action in actions

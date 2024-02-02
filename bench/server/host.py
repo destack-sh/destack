@@ -13,10 +13,10 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import (
-    SYSTEM_POLICIES,
     ReadOptions,
     evaluate_read,
     adapt_read_options,
+    materialize_access_matrix,
 )
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
@@ -168,9 +168,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
-                options=ReadOptions(
-                    related_properties=(Bench.user, Bench.organization, Bench.head)
-                ),
+                options=ReadOptions(related_types_via=(Bench.user, Bench.organization, Bench.head)),
             )
             self._owner = self._bench.owner
             self._package: Package = await pg_read_node(
@@ -199,7 +197,8 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         elif request.node_type in LOADED_SOURCE_TYPES:
             # read from local source (assumed to be loaded completely)
-            tree: NodeDataTree = ...  # nocheckin ???
+            tree: NodeDataTree = read_tree(self._package._source, roots, options)
+            access = materialize_access_matrix(self.subject, tree, root_owner=self._owner)
             eval, tree = evaluate_read(subject=self.subject, root_owner=self._owner)
             return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 

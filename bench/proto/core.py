@@ -14,18 +14,31 @@ class ProtoStrEnum(enum.StrEnum):
      (keep this class, but stop specifying name for everything and store all enums as int)
     """
 
-    _ignore_ = ["__RESERVED_NAMES__", "__RESERVED_IDS__"]
+    _ignore_ = ["__RESERVED_NAMES__", "__RESERVED_IDS__", "__MIN_ID__", "__MAX_ID__"]
     __RESERVED_NAMES__: ClassVar[set[str]] = set()
     __RESERVED_IDS__: ClassVar[set[int]] = set()
+    __MIN_ID__: ClassVar[int] = None
+    __MAX_ID__: ClassVar[int] = None
 
     def __new__(cls, value: str, id: int):
         """Create a new instance."""
         obj = str.__new__(cls, value)
         obj._value_ = value
+
+        # check id
         assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
         obj.id = id
+
+        # check duplicates
         existing = first((v for v in cls if v.id == id), None)
         assert existing is None, f"{cls} has duplicate id {id} for {value} and {existing}"
+
+        # min/max
+        if cls.__MIN_ID__ is None or id < cls.__MIN_ID__:
+            cls.__MIN_ID__ = id
+        if cls.__MAX_ID__ is None or id > cls.__MAX_ID__:
+            cls.__MAX_ID__ = id
+
         return obj
 
 

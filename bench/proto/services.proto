@@ -67,6 +67,7 @@ message ReadNodesRequest {
 }
 message ReadNodesResponse {
   repeated SomeNodeData nodes = 1;
+  optional AccessMatrix access = 2;
 }
 
 message SearchNodesRequest {
@@ -85,6 +86,7 @@ message SearchNodesResponse {
   repeated string cursors = 3;
   string start_cursor = 4;
   int32 total = 5;
+  optional AccessMatrix access = 6;
 }
 
 message AggregateNodesRequest {
