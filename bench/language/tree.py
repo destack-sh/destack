@@ -237,14 +237,12 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
                 queue = deque((node,))
             while queue:
                 current_node = queue.popleft()
+                descendants.append(current_node)
                 for child_type in CHILD_NODE_TYPES[current_node.metatype]:
                     children = self.nodes_by_parent_id_and_type.get(
                         (current_node.id, child_type), ()
                     )
-                    if len(children) > 0:
-                        if child_node_type is None or child_type == child_node_type:
-                            descendants.extend(children)
-                        queue.extend(children)
+                    queue.extend(children)
             return descendants
 
 
@@ -254,8 +252,8 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
     def __init__(self, nodes: Collection[NodeDataT] | "NodeDataTree" = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
-        self.node_ids_by_parent_id_and_type: dict[
-            tuple[str, wire.NodeType], list[str]
+        self.nodes_by_parent_id_and_type: dict[
+            tuple[str, wire.NodeType], list[NodeDataT]
         ] = defaultdict(list)
         if isinstance(nodes, list):
             for node in nodes or []:
@@ -282,7 +280,7 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         """Clear the tree"""
         self.nodes_by_id.clear()
         self.nodes_by_ck.clear()
-        self.node_ids_by_parent_id_and_type.clear()
+        self.nodes_by_parent_id_and_type.clear()
 
     def add(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
@@ -295,7 +293,7 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         if hasattr(node, "ck"):
             self.nodes_by_ck[node.ck] = node
         if node.parent_ptr is not None:
-            self.node_ids_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node.id)
+            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
 
     def update(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
@@ -306,22 +304,22 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         if hasattr(node, "ck"):
             self.nodes_by_ck[node.ck] = node
         if old.parent_ptr is not None:
-            self.node_ids_by_parent_id_and_type[(old.parent_ptr.id, old.metatype)].remove(old.id)
+            self.nodes_by_parent_id_and_type[(old.parent_ptr.id, old.metatype)].remove(old)
         if node.parent_ptr is not None:
-            self.node_ids_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node.id)
+            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
 
     def remove(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
         if node.parent_ptr is not None:
-            self.node_ids_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].remove(node.id)
+            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].remove(node)
         queue = deque([node])
         while queue:
             node = queue.popleft()
             self.nodes_by_id.pop(node.id, None)
             if hasattr(node, "ck"):
                 self.nodes_by_ck.pop(node.ck, None)
-            for child_id in self.node_ids_by_parent_id_and_type.get((node.id, node.metatype), ()):
-                child = self.nodes_by_id.pop(child_id, None)
+            for child in self.nodes_by_parent_id_and_type.get((node.id, node.metatype), ()):
+                self.nodes_by_id.pop(child.id, None)
                 if child is not None:
                     queue.append(child)
 
@@ -335,53 +333,48 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
     def collect_descendants(
         self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
+        from bench.language.node import CHILD_NODE_TYPES
+
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
         if not recursive:
             if child_node_type is not None:
-                return tuple(
-                    self.nodes_by_id[child_id]
-                    for child_id in self.node_ids_by_parent_id_and_type.get(
-                        (node.id, child_node_type), ()
-                    )
-                )
+                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
             else:
-                return tuple(
-                    self.nodes_by_id[child_id]
-                    for child_id in self.node_ids_by_parent_id_and_type.get(
-                        (node.id, node.metatype), ()
+                descendants: list[NodeDataT] = []
+                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                    descendants.extend(
+                        self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
                     )
-                )
+                return descendants
         else:
             descendants: list[NodeDataT] = []
             if child_node_type:
-                queue = deque(
-                    self.nodes_by_id[child_id]
-                    for child_id in self.node_ids_by_parent_id_and_type.get(
-                        (node.id, child_node_type), ()
-                    )
-                )
+                queue = deque(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()))
             else:
                 queue = deque((node,))
             while queue:
                 current_node = queue.popleft()
                 descendants.append(current_node)
-                children = self.node_ids_by_parent_id_and_type.get(
-                    (current_node.id, current_node.metatype), ()
-                )
+                for child_type in CHILD_NODE_TYPES[current_node.metatype]:
+                    queue.extend(
+                        self.nodes_by_parent_id_and_type.get((current_node.id, child_type), ())
+                    )
             return descendants
 
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
+        from bench.language.node import CHILD_NODE_TYPES
+
         if roots is not None and len(roots) == 0:
             return
         queue = deque(roots or self.find_roots())
         while queue:
             current_node = queue.popleft()
             yield current_node
-            children = self.node_ids_by_parent_id_and_type.get(
-                (current_node.id, current_node.metatype), ()
-            )
-            queue.extend(self.nodes_by_id[child_id] for child_id in children)
+            for child_type in CHILD_NODE_TYPES[current_node.metatype]:
+                queue.extend(
+                    self.nodes_by_parent_id_and_type.get((current_node.id, child_type), ())
+                )
 
 
 class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):

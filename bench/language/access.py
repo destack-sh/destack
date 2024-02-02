@@ -561,17 +561,17 @@ class RuleEvaluation(Struct):
     _deny_verb_mask: bitarray | None = struct_runtime(default=None)
 
 
-@struct(StructType.ACCESS_ZONE)
-class AccessZone(Struct):
+@struct(StructType.ACCESS_GRANT)
+class AccessGrant(Struct):
     """
     Materialized access grant to a region of the tree (<=scope) for objects matching the criteria.
-    The closest matching zone 'up' for a verb+object determines access.
-    Because zones are specific to object criteria, there may be multiple overlapping zones for a single scope.
+    The closest matching grant 'up' for a verb+object determines access.
+    Because grants are specific to object criteria, there may be multiple overlapping grants for a single scope.
+    Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
     id: int = struct_internal(2, require=True)
     scope: Union["Bench", "Package", "Block", "Space"] = struct_internal(30, require=True)
-    _parent: Optional["AccessZone"] = struct_runtime(default=None)
 
     allowed_verbs: list[ActionType] = struct_internal(40)
     _allow_verb_mask: bitarray | None = struct_runtime(default=None)
@@ -594,14 +594,14 @@ class AccessZone(Struct):
         allowed_verbs_str = ", ".join(v.bench_name for v in self.allowed_verbs)
 
         object_str_parts = []
-        if self.object_node_types is not None:
+        if self.object_node_types:
             object_str_parts.extend(
                 object_type.bench_name for object_type in self.object_node_types
             )
-        for object_key in ("object_is_sensitive", "object_is_system"):
-            value = getattr(self, object_key)
-            if value is not None:
-                object_str_parts.append(f"{object_key[7:]}={value}")
+        if self.object_properties:
+            object_str_parts.extend(
+                "." + ",".join(prop._resolved_property.name for prop in self.object_properties)
+            )
         if object_str_parts:
             object_str = f"[{', '.join(object_str_parts)}]"
         else:
@@ -636,7 +636,7 @@ class AccessZone(Struct):
         return not self.allowed_verbs
 
     def allows_verb(self, verb: ActionType) -> bool:
-        """Whether the zone allows the verb."""
+        """Whether the grant allows the verb."""
         # verb must be in mask
         if self._allow_verb_mask is not None and not self._allow_verb_mask[verb.id]:
             return False
@@ -646,14 +646,17 @@ class AccessZone(Struct):
     def is_object_wildcard(self) -> bool:
         return not self.object_node_types and not self.object_properties
 
-    def includes_object(self, object: "RequestObject") -> bool:
-        """Whether the zone includes the object."""
+    def includes_object_type(self, object: "RequestObject") -> bool:
+        """Whether the grant matches the object's types."""
         # node type must match
         if (
             self._object_node_types_mask is not None
             and not self._object_node_types_mask[object.node_type.id]
         ):
             return False
+
+    def includes_object_properties(self, object: "RequestObject") -> bool:
+        """Whether the grant matches the object's properties."""
         # all object properties must match
         if self._object_properties_mask_by_node_type is not None:
             properties_mask = self._object_properties_mask_by_node_type.get(object.node_type)
@@ -670,10 +673,10 @@ class AccessZone(Struct):
 class AccessMatrix(Struct):
     """The materialized access matrix to quickly and easily evaluate access for a subject."""
 
-    # id should match the index into zones list
+    # id should match the index into grants list
     subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    zones: list[AccessZone] = struct_internal(31, array=True, struct=StructType.ACCESS_ZONE)
-    _zones_by_scope_id: dict[str, tuple[int, ...]] = struct_runtime(default_factory=dict)
+    grants: list[AccessGrant] = struct_internal(31, array=True, struct=StructType.ACCESS_GRANT)
+    _grants_by_scope_id: dict[str, tuple[int, ...]] = struct_runtime(default_factory=dict)
     _applied_policies_by_scope_id: dict[str, list[Policy]] = struct_runtime(default_factory=dict)
 
 
@@ -810,7 +813,7 @@ def adapt_read_options(
     if NodeType.BENCH in root_node_cls.__roots__:
         options.related_types_via.append(Bench.user.to_ref, Bench.organization.to_ref)
 
-    # TODO @Performance @Security: also pre-filter for owner?
+    # TODO @Performance @Security: also pre-filter read options for owner?
 
     return options
 
@@ -820,9 +823,9 @@ LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = tuple(
 )
 
 
-def _build_access_zones(
+def _build_access_grants(
     current_scope: AnyNodeData,
-    parent_zones: tuple[int, ...],
+    parent_grants: tuple[int, ...],
     identities: tuple[RequestSubject, ...],
     tree: NodeDataTree,
     owner: Owner,
@@ -833,7 +836,7 @@ def _build_access_zones(
     if current_scope.policies:
         pass  # nocheckin: add any new policies from current node to applied_policies_by_scope_id
 
-    # adjust & split zones using most permissive identity
+    # adjust & split grants using most permissive identity
     new_policies = matrix._applied_policies_by_scope_id.get(current_scope.id, ())
     if new_policies:
         new_rules = tuple(rule for policy in new_policies for rule in policy.rules)
@@ -841,18 +844,18 @@ def _build_access_zones(
             for rule in new_rules:
                 ...
 
-    current_zones = ...
+    current_grants = ...
 
     # descend tree
     current_node_type = wiring.unpack_enum(NodeType, current_scope.metatype)
     for nt in DESCENDANT_NODE_TYPES.get(current_scope.metatype, ()):
         if nt in LEGISLATIVE_NODE_TYPES:
-            # build more access zones if nodes could have different policies
+            # build more access grants if nodes could have different policies
             for child in tree.iter_descendants(current_scope, nt):
-                matrix._zones_by_scope_id[child.id] = current_zones
+                matrix._grants_by_scope_id[child.id] = current_grants
         else:
             for child in tree.iter_descendants(current_scope, nt, recursive=True):
-                matrix._zones_by_scope_id[child.id] = current_zones
+                matrix._grants_by_scope_id[child.id] = current_grants
 
 
 def materialize_access_matrix(
@@ -869,7 +872,7 @@ def materialize_access_matrix(
     from bench.proto import wiring
 
     identities: tuple[RequestSubject, ...] = subject.split_into_acting_subjects()
-    matrix = AccessMatrix(subject=subject, zones=[])
+    matrix = AccessMatrix(subject=subject, grants=[])
     roots = tree.find_roots()
     for root in roots:
         root_type = wiring.unpack_enum(NodeType, root.metatype)
@@ -881,48 +884,42 @@ def materialize_access_matrix(
         else:
             owner = root_owner
 
-        # root zone starts with no allowed verbs, object is everything (i.e. *=blank)
-        root_zone = AccessZone(id=len(matrix.zones), scope=root)
-        matrix.zones.append(root_zone)
-        start_index = len(matrix.zones) - 1
-        _build_access_zones(
+        # root grant starts with no allowed verbs, object is everything (i.e. *=blank)
+        root_grant = AccessGrant(id=len(matrix.grants), scope=root)
+        matrix.grants.append(root_grant)
+        start_index = len(matrix.grants) - 1
+        _build_access_grants(
             current_scope=root,
-            parent_zones=(root_zone.id,),
+            parent_grants=(root_grant.id,),
             identities=identities,
             tree=tree,
             owner=owner,
             matrix=matrix,
         )
 
-        # apply base policies to all zones
-
-        for new_zone in matrix.zones[start_index:]:
+        # apply base policies to all grants
+        for new_grant in matrix.grants[start_index:]:
             pass
 
     return matrix
 
 
-def _find_matching_zone(
-    matrix: AccessMatrix, verb: ActionType, object: RequestObject, scope_id: str
-) -> Optional[AccessZone]:
-    zone_ids = matrix._zones_by_scope_id.get(scope_id)
-    for zone_id in zone_ids:
-        zone = matrix.zones[zone_id]
-        if zone.allows_verb(verb) and zone.includes_object(object):
-            return zone
-    return None
-
-
 def _evaluate_request_in_matrix(
     matrix: AccessMatrix, verb: ActionType, object: RequestObject, scope_id: str
-) -> Request:
-    zone = _find_matching_zone(matrix, verb, object, scope_id)
-    if zone:
-        return Request(
-            subject=matrix.subject, verb=verb, object=object, decision=PolicyEffect.ALLOW
-        )
+) -> bool:
+    grant_ids = matrix._grants_by_scope_id.get(scope_id)
+    remaining_properties = object._properties_mask
+    for grant_id in grant_ids:
+        grant = matrix.grants[grant_id]
+        if grant.allows_verb(verb) and grant.includes_object_type(object):
+            property_allow_mask = grant._object_properties_mask_by_node_type.get(object.node_type)
+            if property_allow_mask is None:
+                return True
+            remaining_properties &= ~property_allow_mask
+        if not remaining_properties:
+            return True
     # implicit deny
-    return Request(subject=matrix.subject, verb=verb, object=object, decision=PolicyEffect.DENY)
+    return remaining_properties
 
 
 def evaluate_read(
@@ -934,7 +931,13 @@ def evaluate_read(
     If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
     Assumes that all policies are valid.
     """
+    from bench.proto import wiring
+
     visible_nodes: list[AnyNodeData] = []
+
+    for node in tree.nodes:
+        node_type = wiring.unpack_enum(NodeType, node.metatype)
+        object = RequestObject(node_type=node_type)
 
 
 def evaluate_edit(
@@ -961,7 +964,7 @@ def evaluate_edit(
         )
 
         # When creating multiple nodes in one transaction the tree only knows about the 'root',
-        #  so we remember the actual scopes for the new nodes to know which zone to use.
+        #  so we remember the actual scopes for the new nodes to know which grant to use.
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             if new_node_scopes_by_child_id is None:
                 new_node_scopes_by_child_id = {}
