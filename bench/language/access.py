@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Optional, Self, Union
 from uuid import UUID
@@ -41,6 +42,7 @@ from bench.language.user import Membership
 from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import AnyNodeData, EditData
 from bench.utils.casing import IdentifierType
+from bench.utils.func import to_uuid
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -50,7 +52,6 @@ if TYPE_CHECKING:
         Expression,
         PropertyReference,
         User,
-        Space,
         ScopeNode,
     )
 
@@ -549,156 +550,46 @@ class RequestObject(Struct):
             self._properties_mask = _enums_to_mask(self.properties)
 
 
-@struct(StructType.RULE_EVALUATION)
-class RuleEvaluation(Struct):
-    """The result of evaluating access to a tree for a subject."""
-
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    matched_rule: PolicyRule = struct_internal(31, default=None, struct=StructType.POLICY_RULE)
-    allowed_verbs: list[ActionType] | None = struct_internal(32, default=None)
-    denied_verbs: list[ActionType] | None = struct_internal(33, default=None)
-    _allow_verb_mask: bitarray | None = struct_runtime(default=None)
-    _deny_verb_mask: bitarray | None = struct_runtime(default=None)
-
-
-@struct(StructType.ACCESS_GRANT)
-class AccessGrant(Struct):
+@struct(StructType.ACCESS_ZONE)
+class AccessZone(Struct):
     """
-    Materialized access grant to a region of the tree (<=scope) for objects matching the criteria.
-    The closest matching grant 'up' for a verb+object determines access.
-    Because grants are specific to object criteria, there may be multiple overlapping grants for a single scope.
+    The pre-filtered access rules for a given identity.
     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
     id: int = struct_internal(2, require=True)
-    scope: Union["Bench", "Package", "Block", "Space"] = struct_internal(30, require=True)
-
-    allowed_verbs: list[ActionType] = struct_internal(40)
-    _allow_verb_mask: bitarray | None = struct_runtime(default=None)
-
-    object_node_types: list[NodeType] | None = struct_internal(50, default=None)
-    _object_node_types_mask: bitarray | None = struct_runtime(default=None)
-    object_properties: list[PropertyReference] | None = struct_internal(
-        53, default=None, struct=StructType.PROPERTY_REFERENCE
-    )
-    _object_properties_mask_by_node_type: dict[NodeType, bitarray] | None = struct_runtime(
-        default=None
-    )
-
-    def __content_str__(self) -> str:
-        if self.scope is None:
-            scope_str = self.scope_ptr
-        else:
-            scope_str = self.scope.path
-
-        allowed_verbs_str = ", ".join(v.bench_name for v in self.allowed_verbs)
-
-        object_str_parts = []
-        if self.object_node_types:
-            object_str_parts.extend(
-                object_type.bench_name for object_type in self.object_node_types
-            )
-        if self.object_properties:
-            object_str_parts.extend(
-                "." + ",".join(prop._resolved_property.name for prop in self.object_properties)
-            )
-        if object_str_parts:
-            object_str = f"[{', '.join(object_str_parts)}]"
-        else:
-            object_str = "*"
-
-        return f"{self.id}: {PolicyEffect.ALLOW} {allowed_verbs_str} {object_str} in {scope_str}"
-
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        self._allow_verb_mask = None
-        self._object_node_types_mask = None
-        if self._object_properties_mask_by_node_type is not None:
-            self._object_properties_mask_by_node_type.clear()
-
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
-        self._update_verb_mask()
-        self._update_object_mask()
-
-    def _update_verb_mask(self):
-        self._allow_verb_mask = _enums_to_mask(self.allowed_verbs)
-
-    def _update_object_mask(self):
-        self._object_node_types_mask = _enums_to_mask(self.object_node_types)
-        if self.object_properties:
-            self._object_properties_mask_by_node_type = {}
-            for prop in self.object_properties:
-                if prop.type not in self._object_properties_mask_by_node_type:
-                    self._object_properties_mask_by_node_type[prop.type] = bitarray()
-                self._object_properties_mask_by_node_type[prop.type][prop.id] = True
-
-    @property
-    def is_verb_wildcard(self) -> bool:
-        return not self.allowed_verbs
-
-    def allows_verb(self, verb: ActionType) -> bool:
-        """Whether the grant allows the verb."""
-        # verb must be in mask
-        if self._allow_verb_mask is not None and not self._allow_verb_mask[verb.id]:
-            return False
-        return True
-
-    @property
-    def is_object_wildcard(self) -> bool:
-        return not self.object_node_types and not self.object_properties
-
-    def includes_object_type(self, object: "RequestObject") -> bool:
-        """Whether the grant matches the object's types."""
-        # node type must match
-        if (
-            self._object_node_types_mask is not None
-            and not self._object_node_types_mask[object.node_type.id]
-        ):
-            return False
-
-    def includes_object_properties(self, object: "RequestObject") -> bool:
-        """Whether the grant matches the object's properties."""
-        # all object properties must match
-        if self._object_properties_mask_by_node_type is not None:
-            properties_mask = self._object_properties_mask_by_node_type.get(object.node_type)
-            if properties_mask is not None:
-                if object._properties_mask is None:
-                    return False
-                # all bits of object's properties_mask must be set in our properties_mask
-                if (properties_mask & object._properties_mask) != object._properties_mask:
-                    return False
-        return True  # no mismatch -> match
+    parent_id: int | None = struct_internal(4)
+    scope_id: str = struct_internal(30)
+    identity_id: int = struct_internal(31)
+    rules: list[PolicyRule] = struct_internal(32, array=True, struct=StructType.POLICY_RULE)
 
 
 @struct(StructType.ACCESS_MATRIX)
 class AccessMatrix(Struct):
-    """The materialized access matrix to quickly and easily evaluate access for a subject."""
+    """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    # id should match the index into grants list
     subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    grants: list[AccessGrant] = struct_internal(31, array=True, struct=StructType.ACCESS_GRANT)
-    _grants_by_scope_id: dict[str, tuple[int, ...]] = struct_runtime(default_factory=dict)
-    _applied_policies_by_scope_id: dict[str, list[Policy]] = struct_runtime(default_factory=dict)
+    zones: list[AccessZone] = struct_internal(31, array=True, struct=StructType.ACCESS_ZONE)
+    base_zones: list[PolicyRule] = struct_internal(32, array=True, struct=StructType.POLICY_RULE)
+    identities: list[RequestSubject] = struct_internal(
+        33, array=True, struct=StructType.REQUEST_SUBJECT
+    )
+
+    # quick access to the zone (id = index)
+    _zone_by_scope_and_identity: dict[str, int] = struct_runtime(default_factory=dict)
+    _base_zone_by_root: dict[str, int] = struct_runtime(default_factory=dict)
 
 
 @struct(StructType.REQUEST)
 class Request(Struct):
     """The result of evaluating a single request."""
 
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
     verb: ActionType = struct_internal(31, require=True)
     object: RequestObject = struct_internal(32, require=True, struct=StructType.REQUEST_OBJECT)
-    decision: PolicyEffect = struct_internal(34, require=True)
+    decision: PolicyEffect = struct_internal(33, require=True)
 
     def __content_str__(self) -> str:
-        return f"{self.decision} {self.subject} {self.verb.bench_name} {self.object}"
-
-    def to_action(self) -> "Action":
-        return Action(
-            subject=self.subject,
-            request_evaluations=[self],
-            deciding_evaluation=self,
-            decision=self.decision,
-        )
+        return f"{self.decision} {self.verb.bench_name} {self.object}"
 
 
 @struct(StructType.ACTION)
@@ -719,13 +610,6 @@ class Action(Struct):
 
     def __content_str__(self) -> str:
         return f"{self.decision} {self.subject} ({', '.join(str(r) for r in self.request_evaluations)})"
-
-
-@struct(StructType.ACTION_TRACE)
-class ActionTrace(Struct):
-    """A detailed on-demand trace of the access evaluation for an action."""
-
-    pass
 
 
 def _enums_to_mask(values: list[ProtoStrEnum | PropertyReference | Property]) -> bitarray:
@@ -818,131 +702,139 @@ def adapt_read_options(
     return options
 
 
+# the node types that can have 'policies' applied to them
+#  (not delegated node types, which delegate via subject)
 LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = tuple(
     NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
 )
 
 
-def _build_access_grants(
-    current_scope: AnyNodeData,
-    parent_grants: tuple[int, ...],
-    identities: tuple[RequestSubject, ...],
-    tree: NodeDataTree,
-    owner: Owner,
-    matrix: AccessMatrix,
-) -> None:
-    from bench.proto import wiring
-
-    if current_scope.policies:
-        pass  # nocheckin: add any new policies from current node to applied_policies_by_scope_id
-
-    # adjust & split grants using most permissive identity
-    new_policies = matrix._applied_policies_by_scope_id.get(current_scope.id, ())
-    if new_policies:
-        new_rules = tuple(rule for policy in new_policies for rule in policy.rules)
-        for identity in identities:
-            for rule in new_rules:
-                ...
-
-    current_grants = ...
-
-    # descend tree
-    current_node_type = wiring.unpack_enum(NodeType, current_scope.metatype)
-    for nt in DESCENDANT_NODE_TYPES.get(current_scope.metatype, ()):
-        if nt in LEGISLATIVE_NODE_TYPES:
-            # build more access grants if nodes could have different policies
-            for child in tree.iter_descendants(current_scope, nt):
-                matrix._grants_by_scope_id[child.id] = current_grants
-        else:
-            for child in tree.iter_descendants(current_scope, nt, recursive=True):
-                matrix._grants_by_scope_id[child.id] = current_grants
-
-
-def materialize_access_matrix(
+def generate_access_matrix(
     subject: RequestSubject,
     tree: NodeDataTree,
-    base_policies: list[Policy] | tuple[Policy, ...] = SYSTEM_POLICIES,
-    root_owner: Optional[Owner] = None,
+    base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
+    root_owner: Owner | None = None,
+    unpacked_tree: NodeTree | None = None,
 ) -> AccessMatrix:
-    """
-    Builds the access matrix for the given subject from scratch.
-    The (block) definition for the subject's roles and identities must be in the tree.
-    To evaluate ownership and membership, the tree must include the top-level root or specify an owner.
-    """
+    """Generates an access matrix for the given subject."""
+
     from bench.proto import wiring
 
-    identities: tuple[RequestSubject, ...] = subject.split_into_acting_subjects()
-    matrix = AccessMatrix(subject=subject, grants=[])
+    identities = subject.split_into_acting_subjects()
+    zones: list[AccessZone] = []
+    base_zones: list[PolicyRule] = []
+    matrix = AccessMatrix(
+        subject=subject, zones=zones, base_rules=base_policies, identities=identities
+    )
     roots = tree.find_roots()
+    applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
+
+    def _generate_access_zones(current_node: AnyNodeData, owner: Owner):
+        """Generates any access zones downstream from the node."""
+
+        # if this node defines new policies, apply them to their scope
+        if getattr(current_node, "policies", None):
+            if unpacked_tree:
+                new_policies: list[Policy] = unpacked_tree.get(to_uuid(current_node.id)).policies
+            else:
+                new_policies: list[Policy] = [
+                    wiring.unpack_struct_interp(p) for p in current_node.policies
+                ]
+            for policy in new_policies:
+                if policy.scopes:
+                    for scope in policy.scopes:
+                        # we don't check if scope <= current here, but we don't need to
+                        #  (it's validated in Policy and ancestor policies are already evaluated)
+                        applied_policies_by_node_id[str(scope.id)].append(policy)
+                else:
+                    applied_policies_by_node_id[current_node.id].append(policy)
+
+        # gather all the policy rules that apply in this context (per identity)
+        applied_policies = applied_policies_by_node_id.get(current_node.id, ())
+        if applied_policies:
+            for identity_id, identity in enumerate(identities):
+                applicable_rules = tuple(
+                    rule
+                    for policy in applied_policies
+                    for rule in policy.rules
+                    if rule.matches_subject(identity, owner)
+                )
+                if applicable_rules:
+                    zone = AccessZone(
+                        id=len(zones),
+                        scope_id=current_node.id,
+                        identity_id=identity_id,
+                        rules=applicable_rules,
+                    )
+                    zones.append(zone)
+
     for root in roots:
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
-        if not root_cls.__roots__:
-            owner = root
-        elif root_owner is None:
-            raise ValueError(f"root {root} has no owner")
-        else:
+        if root_cls.__roots__:  # not an actual root
+            if root_owner is None:
+                raise ValueError(f"no owner for root {root!r}")
             owner = root_owner
+        else:
+            owner = root
 
-        # root grant starts with no allowed verbs, object is everything (i.e. *=blank)
-        root_grant = AccessGrant(id=len(matrix.grants), scope=root)
-        matrix.grants.append(root_grant)
-        start_index = len(matrix.grants) - 1
-        _build_access_grants(
-            current_scope=root,
-            parent_grants=(root_grant.id,),
-            identities=identities,
-            tree=tree,
-            owner=owner,
-            matrix=matrix,
+        applicable_rules = tuple(
+            rule
+            for policy in base_policies
+            for rule in policy.rules
+            if rule.matches_subject(subject, owner)
         )
+        base_zone = AccessZone(
+            scope_id=root.id,
+            identity_id=0,
+            rules=applicable_rules,
+        )
+        base_zones.append(base_zone)
 
-        # apply base policies to all grants
-        for new_grant in matrix.grants[start_index:]:
-            pass
+        # add nested zones if there are any legislative nodes down here
+        if root_type in LEGISLATIVE_NODE_TYPES or any(
+            nt in LEGISLATIVE_NODE_TYPES for nt in DESCENDANT_NODE_TYPES[root_type]
+        ):
+            _generate_access_zones(root, owner)
 
     return matrix
 
 
-def _evaluate_request_in_matrix(
-    matrix: AccessMatrix, verb: ActionType, object: RequestObject, scope_id: str
-) -> bool:
-    grant_ids = matrix._grants_by_scope_id.get(scope_id)
-    remaining_properties = object._properties_mask
-    for grant_id in grant_ids:
-        grant = matrix.grants[grant_id]
-        if grant.allows_verb(verb) and grant.includes_object_type(object):
-            property_allow_mask = grant._object_properties_mask_by_node_type.get(object.node_type)
-            if property_allow_mask is None:
-                return True
-            remaining_properties &= ~property_allow_mask
-        if not remaining_properties:
-            return True
-    # implicit deny
-    return remaining_properties
-
-
 def evaluate_read(
-    access: AccessMatrix, tree: NodeTree | NodeDataTree
+    access: AccessMatrix, tree: NodeDataTree
 ) -> tuple[Action, Collection[AnyNodeData]]:
     """
     Evaluate and *adapt* access to all nodes in the given tree, pruning nodes & properties as needed.
      -> unlike for other actions, we don't outright reject GET reads, you just get less (or zero) data.
+    In case a node was completely denied but its children weren't, we include a Skip node in the result.
     If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
     Assumes that all policies are valid.
     """
-    from bench.proto import wiring
+    from bench.proto import wiring, wire
 
     visible_nodes: list[AnyNodeData] = []
+    skipped_nodes_ids: set[str] = set()
 
+    # adapt & filter nodes
     for node in tree.nodes:
         node_type = wiring.unpack_enum(NodeType, node.metatype)
-        object = RequestObject(node_type=node_type)
+
+    # add any skip nodes
+    for node in tree.nodes:
+        if node.parent_ptr is not None and node.parent_ptr.id in skipped_nodes_ids:
+            skip = wire.SkipNodeData(
+                metatype=wire.NodeType.SKIP,
+                id=node.id,
+                ck=getattr(node, "ck", None),
+                parent_ptr=node.parent_ptr,
+                revision=node.revision,
+                order_key=getattr(node, "order_key", None),
+                type=node.metatype,
+            )
+            skipped_nodes_ids.remove(node.parent_ptr.id)  # add only once
 
 
-def evaluate_edit(
-    matrix: AccessMatrix, tree: NodeTree | NodeDataTree, edits: Collection[EditData]
-) -> Action:
+def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData]) -> Action:
     """
     Evaluates whether the given policies (base and in tree) allow the given edits.
     Assumes that all policies are valid.
@@ -963,8 +855,8 @@ def evaluate_edit(
             _properties_mask=_ints_to_mask(edit.properties),
         )
 
-        # When creating multiple nodes in one transaction the tree only knows about the 'root',
-        #  so we remember the actual scopes for the new nodes to know which grant to use.
+        # When creating nested nodes in one transaction, the tree only knows about the 'root',
+        #  so we remember the actual scopes for the new nodes to know which zone to use.
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             if new_node_scopes_by_child_id is None:
                 new_node_scopes_by_child_id = {}
@@ -975,7 +867,7 @@ def evaluate_edit(
         else:
             scope_id = node.id
 
-        evaluation = _evaluate_request_in_matrix(matrix, action_type, object, scope_id)
+        evaluation = matrix.evaluate_request(tree, action_type, object, scope_id)
         if evaluation.decision == PolicyEffect.DENY:
             return Action(
                 subject=matrix.subject,
@@ -992,9 +884,7 @@ def evaluate_edit(
     )
 
 
-def check_edit(
-    matrix: AccessMatrix, tree: NodeTree | NodeDataTree, edits: Collection[EditData]
-) -> Action:
+def check_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData]) -> Action:
     evaluation = evaluate_edit(matrix, tree, edits)
     if evaluation.decision == PolicyEffect.DENY:
         raise AccessError(evaluation)
@@ -1002,19 +892,26 @@ def check_edit(
 
 
 def evaluate_run(
-    matrix: AccessMatrix, tree: NodeTree, run_type: RunType, block: "Block"
-) -> Request:
+    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, block: "Block"
+) -> Action:
     """
     Evaluates whether the given policies (base and in tree) allow the given run action.
     Assumes that all policies are valid.
     """
     object = RequestObject(node_type=block.type)
-    evaluation = _evaluate_request_in_matrix(matrix, run_type, object, str(block.id))
-    return evaluation
+    evaluation = matrix.evaluate_request(tree, run_type, object, block.id)
+    return Action(
+        subject=matrix.subject,
+        request_evaluations=(evaluation,),
+        deciding_evaluation=evaluation,
+        decision=evaluation.decision,
+    )
 
 
-def check_run(matrix: AccessMatrix, tree: NodeTree, run_type: RunType, block: "Block") -> Request:
-    evaluation = evaluate_run(matrix, tree, run_type, block)
-    if evaluation.decision == PolicyEffect.DENY:
-        raise AccessError(evaluation)
-    return evaluation
+def check_run(
+    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, block: "Block"
+) -> Action:
+    action = evaluate_run(matrix, tree, run_type, block)
+    if action.decision == PolicyEffect.DENY:
+        raise AccessError(action)
+    return action

@@ -2342,6 +2342,17 @@ class Link(Node):
     order_key: Optional[str] = struct_internal(31, default=None)
 
 
+@node(NodeType.SKIP)
+class Skip(Node):
+    """A reference to another node in some tree that wasn't available for some reason (usually permissions)."""
+
+    parent: ScopeNode = node_parent(4, *LINK_PARENT_NODE_TYPES)
+    reference: Optional[Node] = struct_property(
+        30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
+    )
+    order_key: Optional[str] = struct_internal(31, default=None)
+
+
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """

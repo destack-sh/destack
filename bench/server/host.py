@@ -16,7 +16,7 @@ from bench.language.access import (
     ReadOptions,
     evaluate_read,
     adapt_read_options,
-    materialize_access_matrix,
+    generate_access_matrix,
 )
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
@@ -198,7 +198,9 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
         elif request.node_type in LOADED_SOURCE_TYPES:
             # read from local source (assumed to be loaded completely)
             tree: NodeDataTree = read_tree(self._package._source, roots, options)
-            access = materialize_access_matrix(self.subject, tree, root_owner=self._owner)
+            access = generate_access_matrix(
+                self.subject, tree, root_owner=self._owner, unpacked_tree=self._package._tree
+            )
             eval, tree = evaluate_read(subject=self.subject, root_owner=self._owner)
             return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
 
