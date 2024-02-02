@@ -259,7 +259,7 @@ class Property(_TypeExpressionBase):
             raise ValueError(f"cannot determine type info for {self!r}")
 
     @functools.cached_property
-    def as_reference(self) -> "PropertyReference":
+    def to_ref(self) -> "PropertyReference":
         """A pointer to this property."""
         assert self.component is not None, f"{self!r} is not finalized"
         from bench.language.expression import PropertyReference
@@ -1750,7 +1750,7 @@ class Node(Struct, _NodeExpressionBase):
         self._session = session
 
     @property
-    def as_reference(self) -> "NodeReference":
+    def to_ref(self) -> "NodeReference":
         from bench.language.expression import NodeReference
 
         return NodeReference.from_node(self)
@@ -2333,12 +2333,13 @@ LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK
 
 @node(NodeType.LINK)
 class Link(Node):
-    """A link node refers to another node in some tree. The referenced subtree is inlined during interp."""
+    """A reference to another node in some tree. The referenced subtree is inlined on access."""
 
     parent: ScopeNode = node_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = struct_property(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
+    order_key: Optional[str] = struct_internal(31, default=None)
 
 
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)

@@ -84,6 +84,16 @@ class PropertyReference(Struct):
         bench_cls = BENCH_CLASS_BY_TYPE[self.type]
         self._resolved_property = bench_cls._resolve_property(self)
 
+    @property
+    def resolved_name(self) -> str:
+        assert self._resolved_property is not None, f"{self!r} is not resolved"
+        return self._resolved_property.name
+
+    @property
+    def resolved_property(self) -> Property:
+        assert self._resolved_property is not None, f"{self!r} is not resolved"
+        return self._resolved_property
+
 
 @struct(StructType.PROPERTY_PATH)
 class PropertyPath(Struct):
@@ -234,15 +244,9 @@ class Expression(Struct):
         if self.field is not None:
             return self.field
         elif self.property_ptr is not None:
-            return self._stored_property_resolved
+            return self.property_ptr.resolved_property
         else:
             return None
-
-    @functools.cached_property
-    def _stored_property_resolved(self) -> Property:
-        assert self.property_ptr is not None, f"cannot resolve property for {self!r}"
-        bench_cls = BENCH_CLASS_BY_TYPE[self.property_ptr.type] if self.property_ptr.type else Node
-        return bench_cls._resolve_property(self.property_ptr)
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""
@@ -378,7 +382,7 @@ def coerce_conditional(
             raise TypeError(f"{node!r} has no field {field_key}")
         _check_field_supports(target._as_type, op)
         if isinstance(target, Property):
-            field, property = None, target.as_reference
+            field, property = None, target.to_ref
         else:
             field, property = target, None
         if value is None:
@@ -434,7 +438,7 @@ def coerce_sort(
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
             if isinstance(target, Property):
-                field, property = None, target.as_reference
+                field, property = None, target.to_ref
             else:
                 field, property = target, None
             item = S(op, field=field, property_ptr=property)

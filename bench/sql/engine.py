@@ -28,7 +28,6 @@ from bench.language.access import ReadOptions
 from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
-    CONDITIONAL_TRUE,
     TYPE_DISCRIMINATOR_KEY,
     C,
     Expression,
@@ -396,7 +395,7 @@ def _compile_expression_ref(
     expr: Expression,
 ) -> SqlNode:
     if expr.property_ptr is not None:
-        return sql.Identifier(expr._stored_property_resolved.name)
+        return sql.Identifier(expr.property_ptr.resolved_name)
     elif expr.field is not None:
         assert (
             expr.field._introspected_from is None
@@ -978,14 +977,10 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 NodeT = TypeVar("NodeT", bound=Node)
 
 DEFAULT_GLOBAL_FILTER: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
-SELECT_DEFAULT_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
+DEFAULT_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
     node.metatype: tuple(
         prop for prop in node.__stored_properties__.values() if not prop.is_deferred
     )
-    for node in NODE_CLASSES
-}
-SELECT_ALL_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
-    node.metatype: tuple(prop for prop in node.__stored_properties__.values())
     for node in NODE_CLASSES
 }
 
@@ -1145,7 +1140,7 @@ async def pg_read_node_data_tree(
 
     # select "roots"
     root_filter = options.combined_filter(
-        root_type, C(ConditionalOp.IN, property_ptr=Node.id.as_reference, value=root_ids)
+        root_type, C(ConditionalOp.IN, property_ptr=Node.id.to_ref, value=root_ids)
     )
     roots = await pg_select_nodes_data(
         cur=cur,
@@ -1183,7 +1178,7 @@ async def pg_read_node_data_tree(
                     node_type=node_type,
                     filter=options.combined_filter(
                         node_type,
-                        C(ConditionalOp.IN, property_ptr=Node.id.as_reference, value=node_ids),
+                        C(ConditionalOp.IN, property_ptr=Node.id.to_ref, value=node_ids),
                     ),
                     properties=options.selected_properties(node_type),
                 )
@@ -1215,7 +1210,7 @@ async def pg_read_node_data_tree(
                 for parent_property in parent_property.reference_stored_ptrs:
                     filter = C(
                         op=ConditionalOp.IN,
-                        property_ptr=parent_property.as_reference,
+                        property_ptr=parent_property.to_ref,
                         value=parents_by_type[parent_property.reference_types[0]],
                     )
                     parents_filters.append(filter)
@@ -1328,7 +1323,7 @@ async def pg_write_regular_edits(
     *,
     return_nodes: bool = False,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]]
-    | None = SELECT_DEFAULT_PROPERTIES,
+    | None = DEFAULT_SELECTED_PROPERTIES,
 ) -> list["AnyNodeData"] | None:
     """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
     if not edits:

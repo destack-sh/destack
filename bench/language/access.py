@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Optional, Self, Union
 from uuid import UUID
@@ -34,6 +33,7 @@ from bench.language.node import (
     iter_properties,
     ANCESTOR_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
+    DESCENDANT_NODE_TYPES,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.tree import NodeDataTree, NodeTree
@@ -55,6 +55,11 @@ if TYPE_CHECKING:
     )
 
 Owner = Union["User", "Organization", "Bench"]
+
+
+# 'owner' refers to both the root node and any user with root-level access to that root node.
+# This is effectively the 'root user' who can do anything with descendants of the root node*.
+#  (unless a system policy says otherwise)
 
 
 @node(NodeType.BADGE)
@@ -124,40 +129,54 @@ class ReadOptions(Struct):
     related_types_via: list["PropertyReference"] | None = struct_internal(
         32, default=None, struct=StructType.PROPERTY_REFERENCE
     )
-    _related_properties_by_type: dict[NodeType, list[Property]] | None = struct_runtime(
-        default=None
+
+    # properties (include/exclude relative to default)
+    include_properties: list[PropertyReference] | None = struct_internal(
+        40, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+    exclude_properties: list[PropertyReference] | None = struct_internal(
+        41, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
-    # selects
-    select_properties: list[PropertyReference] = struct_internal(40, default=False)
-    # (runtime only since we can't / don't need to serialize maps yet)
-    _select_properties_by_type: dict[NodeType, list[Property]] | None = struct_runtime(default=None)
-
-    # filters
+    # filters (global + per type)
     global_filter: Optional["Expression"] = struct_internal(
         50, default=None, require=False, struct=StructType.EXPRESSION
     )
-    # (see above for why runtime only)
+    # (by type is runtime only since we can't / don't need to serialize maps yet)
     _filter_by_type: dict[NodeType, "Expression"] | None = struct_runtime(default=None)
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        self._related_properties_by_type = None
-        self._select_properties_by_type = None
+    def copy(self) -> "ReadOptions":
+        return ReadOptions(
+            ancestor_types=self.ancestor_types,
+            descendant_types=self.descendant_types,
+            related_types_via=self.related_types_via,
+            include_properties=self.include_properties,
+            exclude_properties=self.exclude_properties,
+            global_filter=self.global_filter,
+            _filter_by_type=self._filter_by_type,
+        )
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
-        from bench.sql.engine import SELECT_ALL_PROPERTIES
+    def related_properties(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+        return tuple(p.resolved_property for p in self.related_types_via if p.type == node_type)
 
-        if self.related_types_via:
-            self._related_properties_by_type = defaultdict(list)
-            for prop in self.related_types_via:
-                self._related_properties_by_type[prop.type].append(prop._resolved_property)
+    def selected_properties(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+        from bench.sql.engine import DEFAULT_SELECTED_PROPERTIES
 
-        if self.select_properties:
-            self._select_properties_by_type = defaultdict(list)
-            for prop in self.select_properties:
-                self._select_properties_by_type[prop.type].append(prop._resolved_property)
-        else:
-            self._select_properties_by_type = SELECT_ALL_PROPERTIES  # type: ignore
+        # a bit ugly but the tuples are very small
+        properties = DEFAULT_SELECTED_PROPERTIES.get(node_type, ())
+        if self.include_properties is not None and any(
+            p.type == node_type for p in self.include_properties
+        ):
+            properties = properties + tuple(
+                p.resolved_property for p in self.include_properties if p.type == node_type
+            )
+        if self.exclude_properties is not None and any(
+            p.type == node_type for p in self.exclude_properties
+        ):
+            properties = tuple(
+                p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+            )
+        return properties
 
     def combined_filter(
         self, node_type: NodeType, filter: Optional["Expression"] = None
@@ -181,9 +200,6 @@ class ReadOptions(Struct):
             else:
                 return global_filter & type_filter & filter
 
-    def selected_properties(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        return self._select_properties_by_type.get(node_type, ())
-
     @staticmethod
     def default():
         from bench.sql.engine import DEFAULT_GLOBAL_FILTER
@@ -203,16 +219,17 @@ class Policy(Struct):
     The scope is determined by where its attached, but may be further restricted using 'scopes'.
 
     The basics of access control:
-     1. An action is denied implicitly if it's explicitly and fully allowed.
+     1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
        a. Policies are scoped to the node their definition or
-       b. delegate is attached to (or less as specified).
-     3. Policies are evaluated in order up the node tree, first match decides.
+       b. Delegate is attached to (or less as specified).
+     3. Policies are evaluated in order up the node tree, first match decides*.
         (This means you can read a sub block but not its parent.)
-     4. Every applicable identity/role/... is evaluated separately and *any* allow wins.
+     4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 
-     * 'owner' = User with owner-level access to the resp. root node (Bench/User/Organization/...).
-        This is effectively the 'root user' who can do anything. Be careful.
+     * Conceptually, we do 'ray trace' up the tree for every node, but actually doing it for every request
+        is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use that as a shortcut.
+
     """
 
     name: Optional[str] = struct_internal(30, default=None)
@@ -357,10 +374,18 @@ class PolicyRule(Struct):
                 return False
         return True  # no mismatch -> match
 
+    @property
+    def is_verb_wildcard(self) -> bool:
+        return not self.verbs and not self.verb_kinds
+
     def matches_verb(self, verb: ActionType) -> bool:
         if self._verb_mask:
             return self._verb_mask[verb.id]
         return True
+
+    @property
+    def is_object_wildcard(self) -> bool:
+        return not self.object_node_types and not self.object_properties
 
     def matches_object(self, object: "RequestObject") -> bool:
         if (
@@ -540,7 +565,7 @@ class RuleEvaluation(Struct):
 class AccessZone(Struct):
     """
     Materialized access grant to a region of the tree (<=scope) for objects matching the criteria.
-    The closest matching zone 'up' from an object/node determines access (completely, no other zone is consulted).
+    The closest matching zone 'up' for a verb+object determines access.
     Because zones are specific to object criteria, there may be multiple overlapping zones for a single scope.
     """
 
@@ -566,6 +591,8 @@ class AccessZone(Struct):
         else:
             scope_str = self.scope.path
 
+        allowed_verbs_str = ", ".join(v.bench_name for v in self.allowed_verbs)
+
         object_str_parts = []
         if self.object_node_types is not None:
             object_str_parts.extend(
@@ -580,7 +607,7 @@ class AccessZone(Struct):
         else:
             object_str = "*"
 
-        return f"{self.id}: {PolicyEffect.ALLOW} {self.allowed_verbs} {object_str} in {scope_str}"
+        return f"{self.id}: {PolicyEffect.ALLOW} {allowed_verbs_str} {object_str} in {scope_str}"
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self._allow_verb_mask = None
@@ -604,13 +631,20 @@ class AccessZone(Struct):
                     self._object_properties_mask_by_node_type[prop.type] = bitarray()
                 self._object_properties_mask_by_node_type[prop.type][prop.id] = True
 
+    @property
+    def is_verb_wildcard(self) -> bool:
+        return not self.allowed_verbs
+
     def allows_verb(self, verb: ActionType) -> bool:
         """Whether the zone allows the verb."""
-
         # verb must be in mask
         if self._allow_verb_mask is not None and not self._allow_verb_mask[verb.id]:
             return False
         return True
+
+    @property
+    def is_object_wildcard(self) -> bool:
+        return not self.object_node_types and not self.object_properties
 
     def includes_object(self, object: "RequestObject") -> bool:
         """Whether the zone includes the object."""
@@ -640,6 +674,7 @@ class AccessMatrix(Struct):
     subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
     zones: list[AccessZone] = struct_internal(31, array=True, struct=StructType.ACCESS_ZONE)
     _zones_by_scope_id: dict[str, tuple[int, ...]] = struct_runtime(default_factory=dict)
+    _applied_policies_by_scope_id: dict[str, list[Policy]] = struct_runtime(default_factory=dict)
 
 
 @struct(StructType.REQUEST)
@@ -736,10 +771,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             node_types=tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in SUB_PACKAGE_NODE_TYPES)
         )
     ),
-    Policy("AnyoneCanReadHandle").append(
-        PolicyRule().subject().allow(ActionKind.READ).object((NodeType.HANDLE,))
-    ),
-    Policy("AuthenticatedCanReadPublic").append(
+    Policy("AuthenticatedCanReadUsersAndOrgs").append(
         PolicyRule()
         .subject(is_authenticated=True)
         .allow(ActionKind.READ)
@@ -751,6 +783,9 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
                 if not p.is_sensitive
             ),
         )
+    ),
+    Policy("AnyoneCanReadHandle").append(
+        PolicyRule().subject().allow(ActionKind.READ).object((NodeType.HANDLE,))
     ),
 )
 
@@ -773,41 +808,51 @@ def adapt_read_options(
     # if root >: Bench, also load related actual owner (User/Organization)
     root_node_cls = NODE_CLASS_BY_TYPE[root_node_type]
     if NodeType.BENCH in root_node_cls.__roots__:
-        options.related_types_via.append(Bench.user.as_reference, Bench.organization.as_reference)
+        options.related_types_via.append(Bench.user.to_ref, Bench.organization.to_ref)
 
     # TODO @Performance @Security: also pre-filter for owner?
 
     return options
 
 
-NODE_TYPES_WITH_POLICIES: tuple[NodeType, ...] = (
-    NodeType.BENCH,
-    NodeType.PACKAGE,
-    NodeType.SPACE,
-    NodeType.BLOCK,
+LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
 )
 
 
 def _build_access_zones(
     current_scope: AnyNodeData,
-    parent_zones: tuple[AccessZone, ...] | None,
-    parent_rules: tuple[PolicyRule, ...],
+    parent_zones: tuple[int, ...],
     identities: tuple[RequestSubject, ...],
     tree: NodeDataTree,
     owner: Owner,
-    applied_policies_by_scope_id: dict[str, list[Policy]],
+    matrix: AccessMatrix,
 ) -> None:
-    new_policies = applied_policies_by_scope_id.get(current_scope.id)
-    if new_policies is not None:
-        new_rules = tuple(
-            rule
-            for policy in new_policies
-            for rule in policy.rules
-            if rule.matches_subject(identities, owner)
-        )
-        current_rules = parent_rules + new_policies
-    else:
-        current_rules = parent_rules
+    from bench.proto import wiring
+
+    if current_scope.policies:
+        pass  # nocheckin: add any new policies from current node to applied_policies_by_scope_id
+
+    # adjust & split zones using most permissive identity
+    new_policies = matrix._applied_policies_by_scope_id.get(current_scope.id, ())
+    if new_policies:
+        new_rules = tuple(rule for policy in new_policies for rule in policy.rules)
+        for identity in identities:
+            for rule in new_rules:
+                ...
+
+    current_zones = ...
+
+    # descend tree
+    current_node_type = wiring.unpack_enum(NodeType, current_scope.metatype)
+    for nt in DESCENDANT_NODE_TYPES.get(current_scope.metatype, ()):
+        if nt in LEGISLATIVE_NODE_TYPES:
+            # build more access zones if nodes could have different policies
+            for child in tree.iter_descendants(current_scope, nt):
+                matrix._zones_by_scope_id[child.id] = current_zones
+        else:
+            for child in tree.iter_descendants(current_scope, nt, recursive=True):
+                matrix._zones_by_scope_id[child.id] = current_zones
 
 
 def materialize_access_matrix(
@@ -823,9 +868,8 @@ def materialize_access_matrix(
     """
     from bench.proto import wiring
 
-    matrix = AccessMatrix(subject=subject, zones=[])
     identities: tuple[RequestSubject, ...] = subject.split_into_acting_subjects()
-    applied_policies_by_scope_id: dict[str, list[Policy]] = {}
+    matrix = AccessMatrix(subject=subject, zones=[])
     roots = tree.find_roots()
     for root in roots:
         root_type = wiring.unpack_enum(NodeType, root.metatype)
@@ -837,32 +881,34 @@ def materialize_access_matrix(
         else:
             owner = root_owner
 
-        root_rules = tuple(
-            rule
-            for policy in base_policies
-            for rule in policy.rules
-            if rule.matches_subject(subject, owner)
-        )
+        # root zone starts with no allowed verbs, object is everything (i.e. *=blank)
+        root_zone = AccessZone(id=len(matrix.zones), scope=root)
+        matrix.zones.append(root_zone)
+        start_index = len(matrix.zones) - 1
         _build_access_zones(
             current_scope=root,
-            parent_zones=None,
-            parent_rules=root_rules,
+            parent_zones=(root_zone.id,),
             identities=identities,
             tree=tree,
             owner=owner,
-            applied_policies_by_scope_id=applied_policies_by_scope_id,
+            matrix=matrix,
         )
+
+        # apply base policies to all zones
+
+        for new_zone in matrix.zones[start_index:]:
+            pass
 
     return matrix
 
 
 def _find_matching_zone(
-    matrix: AccessMatrix, object: RequestObject, scope_id: str
+    matrix: AccessMatrix, verb: ActionType, object: RequestObject, scope_id: str
 ) -> Optional[AccessZone]:
     zone_ids = matrix._zones_by_scope_id.get(scope_id)
     for zone_id in zone_ids:
         zone = matrix.zones[zone_id]
-        if zone.includes_object(object):
+        if zone.allows_verb(verb) and zone.includes_object(object):
             return zone
     return None
 
@@ -870,11 +916,12 @@ def _find_matching_zone(
 def _evaluate_request_in_matrix(
     matrix: AccessMatrix, verb: ActionType, object: RequestObject, scope_id: str
 ) -> Request:
-    zone = _find_matching_zone(matrix, object, scope_id)
-    if zone is not None and zone.allows_verb(verb):
+    zone = _find_matching_zone(matrix, verb, object, scope_id)
+    if zone:
         return Request(
             subject=matrix.subject, verb=verb, object=object, decision=PolicyEffect.ALLOW
         )
+    # implicit deny
     return Request(subject=matrix.subject, verb=verb, object=object, decision=PolicyEffect.DENY)
 
 

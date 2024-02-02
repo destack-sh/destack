@@ -48,7 +48,7 @@ class PropertyValidationHandler:
         cause: Exception | None = None,
     ):
         message = f"{self.prop.name}: {message}"
-        self.handler(self.subject, message, [self.prop.as_reference], cause)
+        self.handler(self.subject, message, [self.prop.to_ref], cause)
 
 
 def on_invalid_raise(
