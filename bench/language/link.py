@@ -465,7 +465,7 @@ def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value
     from bench.language.expression import C, Property
 
     if isinstance(target, Property):
-        field, property = None, target.as_reference
+        field, property = None, target.to_ref
     else:
         field, property = target, None
     return C(op, field=field, property_ptr=property, value=value)
@@ -475,7 +475,7 @@ def _to_sort(op: SortOp, target: Union["Field", "Property"]):
     from bench.language.expression import Property, S
 
     if isinstance(target, Property):
-        field, property = None, target.as_reference
+        field, property = None, target.to_ref
     else:
         field, property = target, None
     return S(op, field=field, property_ptr=property)

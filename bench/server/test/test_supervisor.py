@@ -72,13 +72,13 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
     assert login_rep.access_token
 
     # read user without sensitive data, unauthorized -> success
-    read_user_req = ReadNodesRequest(roots=[user.as_reference._to_data()])
+    read_user_req = ReadNodesRequest(roots=[user.to_ref._to_data()])
     read_user_rep = await supervisor.read_nodes(read_user_req)
     assert read_user_rep.nodes[0].user.slug == user.slug
 
     # read user with sensitive data, unauthorized -> success but empty (except public data)
     read_user_req = ReadNodesRequest(
-        roots=[user.as_reference._to_data()], options=ReadOptions(include_sensitive=True)._to_data()
+        roots=[user.to_ref._to_data()], options=ReadOptions(include_sensitive=True)._to_data()
     )
     _ = await supervisor.read_nodes(read_user_req)
     assert len(read_user_rep.nodes) == 1
@@ -137,7 +137,7 @@ async def test_user_crud(supervisor: GlobalSupervisorStub):
 async def test_global_read(supervisor: GlobalSupervisorStub):
     # read user with owned data, unauthorized -> success but empty (except public data)
     read_user_req = ReadNodesRequest(
-        roots=[user.as_reference._to_data()],
+        roots=[user.to_ref._to_data()],
         options=ReadOptions(descendant_types=[NodeType.CLIENT])._to_data(),
     )
     read_user_rep = await supervisor.read_nodes(read_user_req)

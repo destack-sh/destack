@@ -4,7 +4,7 @@ from os import urandom
 import structlog
 from grpclib import GRPCError, Status as GRPCStatus
 
-from bench.language import Client, Worker, Badge
+from bench.language import Client, Worker, Badge, User
 from bench.language.access import RequestSubject
 from bench.proto import wiring
 from bench.proto.wire import RpcMetadata, ClientKind, NodeType
@@ -75,7 +75,8 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
         return None
 
     client: Client = await Client.options(
-        include_sensitive=True, ancestor_types=(NodeType.USER, NodeType.WORKER)
+        include_properties=(User.email.to_ref,),
+        ancestor_types=(NodeType.USER, NodeType.WORKER),
     ).get(
         kind=wiring.unpack_enum(ClientKind, metadata.client_kind),
         id=to_uuid(metadata.client_id),
