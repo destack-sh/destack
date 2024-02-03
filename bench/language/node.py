@@ -18,6 +18,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
+    Iterator,
     Mapping,
     Optional,
     TypeVar,
@@ -25,7 +26,6 @@ from typing import (
     cast,
     dataclass_transform,
     final,
-    Iterator,
 )
 from uuid import UUID, uuid4
 
@@ -978,6 +978,7 @@ def _process_struct_base_cls(
     cls.__reference_properties__ = frozendict(
         {p.name: p for p in props if p.reference_types or p.is_property_reference}
     )
+    cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__max_property_id__ = max(p.id for p in props if p.id is not None and p.id is not UNSET)
 
@@ -1344,6 +1345,7 @@ class Struct(abc.ABC):
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
+    __sensitive_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
@@ -1566,6 +1568,7 @@ class Node(Struct, _NodeExpressionBase):
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
+    __sensitive_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
@@ -2411,7 +2414,7 @@ class Bench(ScopeNode):
 
     parent: None = p_parent(4)
     policies: list["Policy"] | None = p_tracked(
-        24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, array=True
     )
     slug: str = p_system(30, unique=True)
     name: str = p_tracked(31)
@@ -2479,7 +2482,7 @@ class Package(ScopeNode):
 
     parent: Bench = p_parent(4, NodeType.BENCH)
     policies: list["Policy"] | None = p_tracked(
-        24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, array=True
     )
     is_snapshot: bool = p_system(32, default=False)  # snapshot or head?
     blocks: NodeList["Block"] = p_child(NodeType.BLOCK)

@@ -1139,14 +1139,12 @@ async def pg_read_node_data_tree(
     visited_tree = _tree if _tree is not None else NodeDataTree()
 
     # select "roots"
-    root_filter = options.combined_filter(
-        root_type, C(ConditionalOp.IN, property=Node.id, value=root_ids)
-    )
+    root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=root_ids))
     roots = await pg_select_nodes_data(
         cur=cur,
         node_type=root_type,
         filter=root_filter,
-        properties=options.selected_properties(root_type),
+        properties=options.select(root_type),
     )
     if not roots.nodes:
         return None
@@ -1176,11 +1174,11 @@ async def pg_read_node_data_tree(
                 layer = await pg_select_nodes_data(
                     cur=cur,
                     node_type=node_type,
-                    filter=options.combined_filter(
+                    filter=options.filter(
                         node_type,
                         C(ConditionalOp.IN, property=Node.id, value=node_ids),
                     ),
-                    properties=options.selected_properties(node_type),
+                    properties=options.select(node_type),
                 )
                 next_parents.extend(layer.nodes)
                 for node in layer.nodes:
@@ -1220,8 +1218,8 @@ async def pg_read_node_data_tree(
                 children = await pg_select_nodes_data(
                     cur=cur,
                     node_type=child_type,
-                    filter=options.combined_filter(child_type, parent_filter),
-                    properties=options.selected_properties(child_type),
+                    filter=options.filter(child_type, parent_filter),
+                    properties=options.select(child_type),
                 )
                 next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
                 for child in children.nodes:
@@ -1251,7 +1249,7 @@ async def pg_search_nodes_data_tree(
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=node_type,
-            filter=options.combined_filter(node_type, filter),
+            filter=options.filter(node_type, filter),
             sort=sort,
             first=first,
             skip=skip,
@@ -1272,12 +1270,12 @@ async def pg_search_nodes_data_tree(
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=node_type,
-            filter=options.combined_filter(node_type, filter),
+            filter=options.filter(node_type, filter),
             sort=sort,
             first=first,
             skip=skip,
             after=after,
-            properties=options.selected_properties(node_type),
+            properties=options.select(node_type),
         )
         tree = NodeDataTree(nodes=roots.nodes)
         return roots, tree

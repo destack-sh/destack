@@ -4,17 +4,10 @@ from typing import TYPE_CHECKING, NamedTuple, Optional, Union
 from uuid import UUID
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import (
-    LINK_TARGET_NODE_TYPES,
-    Node,
-    Struct,
-    struct,
-    p_internal,
-    p_tracked,
-)
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, p_internal, p_tracked, struct
 
 if TYPE_CHECKING:
-    pass
+    from bench.language import FieldPath
 
 
 @dataclass
@@ -117,44 +110,6 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
     return spans
 
 
-def render_text_html(text_spans: list[TextSpan]) -> str:
-    """
-    Render text spans back into HTML-style raw text with references.
-    See above for details.
-    :TextFormat
-    """
-    spans_str = []
-    for span in text_spans:
-        if isinstance(span, TextMention):
-            if isinstance(span.reference, Node):
-                ref = TEXT_MENTION_TEMPLATE.format(
-                    type=span.reference._type, ck=span.reference.ck, path=""
-                )
-            else:
-                ref = TEXT_MENTION_TEMPLATE.format(
-                    type=span.reference.type, ck=span.reference.ref, path=span.reference_path or ""
-                )
-            spans_str.append(ref)
-        else:
-            spans_str.append(span.text)
-    return "".join(spans_str)
-
-
-def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str | None:
-    """
-    Replaces references in text with new references.
-    """
-    if text_raw is None:
-        return None
-    spans = parse_text_html(text_raw)
-    for span in spans:
-        if isinstance(span, TextMention) and span.reference_ck in target_cks:
-            span.reference = _TypedNodeReference(
-                type=span.reference.type, ref=target_cks[span.reference_ck]
-            )
-    return render_text_html(spans)
-
-
 SIMPLE_MENTION_REGEX = re.compile(r"@(?P<ident>[a-zA-Z0-9_.]+)")
 
 
@@ -187,21 +142,6 @@ def parse_text_multi(text_raw: str) -> list[TextSpan]:
     return spans
 
 
-def render_text_simple(text_spans: list[TextSpan]) -> str:
-    """
-    Renders text spans back into @<path> format.
-    """
-    spans_str = []
-    for span in text_spans:
-        if isinstance(span, TextMention):
-            # should be smarter about qualifying/scoping paths here
-            path = span.reference.py_ident if isinstance(span.reference, Node) else None
-            spans_str.append("@" + (path or "???"))
-        else:
-            spans_str.append(span.text)
-    return "".join(spans_str)
-
-
 @struct(StructType.RICH_TEXT)
 class RichText(Struct):
     spans: list["RichTextSpan"] = p_tracked(30, default_factory=list, struct=StructType.RICH_TEXT)
@@ -213,14 +153,22 @@ class RichText(Struct):
 
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
-    text: str = p_tracked(30, default="")
+    # plain text
+    text: str | None = p_tracked(30, default="")
+    # mentions
     reference: Node | None = p_tracked(
-        32, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
+        31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
-    is_bold: bool = p_tracked(33, default=False)
-    is_italic: bool = p_tracked(34, default=False)
-    is_underline: bool = p_tracked(35, default=False)
-    is_strikethrough: bool = p_tracked(36, default=False)
+    path: Optional["FieldPath"] = p_tracked(
+        32, array=False, default=None, require=False, struct=StructType.FIELD_PATH
+    )
+
+    # flags
+    is_bold: bool = p_tracked(40, default=False)
+    is_italic: bool = p_tracked(41, default=False)
+    is_strikethrough: bool = p_tracked(42, default=False)
+    is_underline: bool = p_tracked(43, default=False)
+    is_code: bool = p_tracked(44, default=False)
 
     def __content_str__(self):
         return self.text

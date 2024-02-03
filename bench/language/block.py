@@ -15,10 +15,10 @@ from bench.language.node import (
     ScopeNode,
     _Passthrough,
     node,
-    p_child,
     node_component,
-    p_parent,
+    p_child,
     p_internal,
+    p_parent,
     p_tracked,
 )
 from bench.language.run import HasRun
@@ -32,7 +32,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Package, Policy, TypeInfo, Badge
+    from bench.language import Badge, Package, Policy, TypeInfo
 
 
 @node_component
@@ -135,9 +135,7 @@ class Block(ScopeNode, HasTags):
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
     visibility: NodeVisibility = p_tracked(20, default=NodeVisibility.PUBLIC)
-    policies: list["Policy"] | None = p_tracked(
-        24, default_factory=list, struct=StructType.POLICY, sensitive=True
-    )
+    policies: list["Policy"] | None = p_tracked(24, default_factory=list, struct=StructType.POLICY)
     type: BlockType = p_internal(30, default=BlockType.BLANK)
     bases: list["Block"] | None = p_tracked(
         31, default=None, require=False, array=True, references=NodeType.BLOCK
@@ -169,7 +167,7 @@ class Block(ScopeNode, HasTags):
         51, require=False, array=False, references=NodeType.BLOCK
     )
     delegated_policies: list["Policy"] | None = p_tracked(
-        52, default_factory=list, struct=StructType.POLICY, sensitive=True
+        52, default_factory=list, struct=StructType.POLICY
     )
 
     @staticmethod

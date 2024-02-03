@@ -1,6 +1,6 @@
 import asyncio
-from contextvars import ContextVar
 import functools
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Callable, Collection, Generic, Mapping, TypeVar, final
 
 import grpclib.server
@@ -11,8 +11,8 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 from grpclib.testing import ChannelFor
 
-from bench.language.access import AccessError, RequestSubject
-from bench.language.const import BenchError
+from bench.language.access import AccessError, Action, RequestSubject
+from bench.language.const import BenchError, PolicyEffect
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
 from bench.server.auth import get_request_subject
@@ -60,6 +60,13 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             raise RuntimeError(f"loopback stub not configured for {self!r}")
         else:
             raise RuntimeError(f"loopback stub not ready for {self!r}")
+
+    async def log_action(self, action: Action):
+        """Logs an action for the audit log (soon)."""
+        if action.decision == PolicyEffect.ALLOW:
+            logger.debug("action.allow", action=action)
+        else:
+            logger.warning("action.deny", action=action)
 
     async def start_quick(self) -> None:
         """Start the service. Should be ready for service when returning."""

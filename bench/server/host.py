@@ -14,8 +14,8 @@ from grpclib import Status as GRPCStatus
 from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import (
     ReadOptions,
-    evaluate_read,
     adapt_read_options,
+    evaluate_read,
     generate_access_matrix,
 )
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
@@ -168,7 +168,9 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
-                options=ReadOptions(related_types_via=(Bench.user, Bench.organization, Bench.head)),
+                options=ReadOptions(
+                    related_properties=(Bench.user, Bench.organization, Bench.head)
+                ),
             )
             self._owner = self._bench.owner
             self._package: Package = await pg_read_node(
@@ -189,20 +191,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
             wiring.unpack_struct_interp_maybe(request.options, self._package)
             or ReadOptions.default()
         )
-        adapted_options = adapt_read_options(self.subject, self._package._tree, owner=self._owner)
-
-        if request.node_type == NodeType.RECORD:
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif request.node_type in LOADED_SOURCE_TYPES:
-            # read from local source (assumed to be loaded completely)
-            tree: NodeDataTree = read_tree(self._package._source, roots, options)
-            access = generate_access_matrix(
-                self.subject, tree, root_owner=self._owner, unpacked_tree=self._package._tree
-            )
-            eval, tree = evaluate_read(subject=self.subject, root_owner=self._owner)
-            return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in tree.nodes])
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
         node_type = wiring.unpack_enum(NodeType, request.node_type)

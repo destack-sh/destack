@@ -116,7 +116,9 @@ enum BenchType {
   BENCH_TYPE_ACCESS_MATRIX = 235;
   BENCH_TYPE_REQUEST = 236;
   BENCH_TYPE_ACTION = 237;
-  BENCH_TYPE_READ_OPTIONS = 239;
+  BENCH_TYPE_REQUEST_TRACE = 238;
+  BENCH_TYPE_ACTION_TRACE = 239;
+  BENCH_TYPE_READ_OPTIONS = 250;
   BENCH_TYPE_EXPRESSION = 260;
   BENCH_TYPE_AGGREGATION = 261;
   BENCH_TYPE_AGGREGATION_BUCKET = 262;
@@ -493,7 +495,9 @@ enum StructType {
   STRUCT_TYPE_ACCESS_MATRIX = 235;
   STRUCT_TYPE_REQUEST = 236;
   STRUCT_TYPE_ACTION = 237;
-  STRUCT_TYPE_READ_OPTIONS = 239;
+  STRUCT_TYPE_REQUEST_TRACE = 238;
+  STRUCT_TYPE_ACTION_TRACE = 239;
+  STRUCT_TYPE_READ_OPTIONS = 250;
   STRUCT_TYPE_EXPRESSION = 260;
   STRUCT_TYPE_AGGREGATION = 261;
   STRUCT_TYPE_AGGREGATION_BUCKET = 262;
@@ -579,9 +583,15 @@ message AccessZoneData {
 message ActionData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
-  repeated RequestData request_evaluations = 31;
-  optional RequestData deciding_evaluation = 32;
+  repeated RequestData requests = 31;
+  optional RequestData deciding_request = 32;
   PolicyEffect decision = 33;
+  optional NodeReferenceData user_ptr = 42;
+}
+
+// ActionTrace(_status: bench.language.const.NodeStatus = None)
+message ActionTraceData {
+  BenchType metatype = 1;
 }
 
 // The result of an aggregation expression.
@@ -743,9 +753,10 @@ message NodeReferenceData {
 message PolicyData {
   BenchType metatype = 1;
   optional string name = 30;
-  repeated PolicyRuleData rules = 31;
-  bool hidden = 32;
-  repeated NodeReferenceData scopes_ptr = 33;
+  optional RichTextData text = 31;
+  repeated PolicyRuleData rules = 32;
+  bool hidden = 33;
+  repeated NodeReferenceData scopes_ptr = 34;
 }
 
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
@@ -753,6 +764,7 @@ message PolicyData {
 message PolicyRuleData {
   BenchType metatype = 1;
   optional string name = 30;
+  optional RichTextData text = 31;
   bool subject_is_delegated = 40;
   bool subject_is_authenticated = 41;
   bool subject_is_staff = 42;
@@ -771,7 +783,7 @@ message PropertyPathData {
   repeated PropertyReferenceData properties_ptr = 30;
 }
 
-// PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _resolved_property: Optional[bench.language.node.Property] = None, _status: bench.language.const.NodeStatus = None)
+// PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
 message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
@@ -785,7 +797,7 @@ message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
-  repeated PropertyReferenceData related_types_via_ptr = 32;
+  repeated PropertyReferenceData related_properties_ptr = 32;
   repeated PropertyReferenceData include_properties_ptr = 40;
   repeated PropertyReferenceData exclude_properties_ptr = 41;
   optional ExpressionData global_filter = 50;
@@ -819,6 +831,11 @@ message RequestSubjectData {
   optional NodeReferenceData badge_ptr = 38;
 }
 
+// RequestTrace(_status: bench.language.const.NodeStatus = None)
+message RequestTraceData {
+  BenchType metatype = 1;
+}
+
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
 message RichTextData {
   BenchType metatype = 1;
@@ -826,21 +843,23 @@ message RichTextData {
   optional string plain_text = 31;
 }
 
-// RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, is_bold: bool = False, is_italic: bool = False, is_underline: bool = False, is_strikethrough: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+// RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
 message RichTextSpanData {
   BenchType metatype = 1;
-  string text = 30;
-  optional NodeReferenceData reference_ptr = 32;
-  bool is_bold = 33;
-  bool is_italic = 34;
-  bool is_underline = 35;
-  bool is_strikethrough = 36;
+  optional string text = 30;
+  optional NodeReferenceData reference_ptr = 31;
+  optional FieldPathData path = 32;
+  bool is_bold = 40;
+  bool is_italic = 41;
+  bool is_strikethrough = 42;
+  bool is_underline = 43;
+  bool is_code = 44;
 }
 
 // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, node_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
-  optional NodeReferenceData node_ptr = 30;
+  NodeReferenceData node_ptr = 30;
   int32 lineno = 31;
   string name = 32;
   optional google.protobuf.Struct locals = 33;
@@ -909,7 +928,7 @@ message TypeInfoData {
 // Reference a value at a path of a Node.
 message ValueReferenceData {
   BenchType metatype = 1;
-  optional NodeReferenceData node_ptr = 30;
+  NodeReferenceData node_ptr = 30;
   FieldPathData path = 31;
 }
 
@@ -1111,7 +1130,7 @@ message IdentityData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodeReferenceData type_ptr = 30;
+  NodeReferenceData type_ptr = 30;
 }
 
 // A reference to another node in some tree. The referenced subtree is inlined on access.
@@ -1127,7 +1146,7 @@ message LinkData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodeReferenceData reference_ptr = 30;
+  NodeReferenceData reference_ptr = 30;
   optional string order_key = 31;
 }
 
@@ -1142,7 +1161,7 @@ message MembershipData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodeReferenceData user_ptr = 30;
+  NodeReferenceData user_ptr = 30;
 }
 
 // A node in a Bench package tree - basically struct + identity, so it can relate nodes.
@@ -1208,7 +1227,7 @@ message OrganizationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData handle_ptr = 30;
+  NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
   optional NodeReferenceData main_bench_ptr = 33;
@@ -1297,7 +1316,7 @@ message RoleData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodeReferenceData type_ptr = 30;
+  NodeReferenceData type_ptr = 30;
 }
 
 // A 'run' of a block (in a session).
@@ -1384,7 +1403,7 @@ message SkipData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodeReferenceData reference_ptr = 30;
+  NodeReferenceData reference_ptr = 30;
   optional string order_key = 31;
 }
 
@@ -1459,7 +1478,7 @@ message UserData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData handle_ptr = 30;
+  NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   optional string name = 32;
   optional string email = 33;
