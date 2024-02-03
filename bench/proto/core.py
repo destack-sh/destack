@@ -2,50 +2,7 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import ClassVar, Union
-
-from more_itertools import first
-
-
-_MIN_ID_BY_ENUM: dict[type, int] = {}
-_MAX_ID_BY_ENUM: dict[type, int] = {}
-
-
-class ProtoStrEnum(enum.StrEnum):
-    """
-    enum.StrEnum with an additional id per value.
-    TODO @Cleanup: convert ProtoStrEnum to 'regular' int enum
-     (keep this class, but stop specifying name for everything and store all enums as int)
-    """
-
-    def __new__(cls, value: str, id: int):
-        """Create a new instance."""
-        obj = str.__new__(cls, value)
-        obj._value_ = value
-
-        # check id
-        assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
-        obj.id = id
-
-        # check duplicates
-        existing = first((v for v in cls if v.id == id), None)
-        assert existing is None, f"{cls} has duplicate id {id} for {value} and {existing}"
-
-        return obj
-
-    @classmethod
-    def get_min_id(cls) -> int:
-        """Get the minimum id."""
-        if cls not in _MIN_ID_BY_ENUM:
-            _MIN_ID_BY_ENUM[cls] = min(v.id for v in cls)
-        return _MIN_ID_BY_ENUM[cls]
-
-    @classmethod
-    def get_max_id(cls) -> int:
-        """Get the maximum id."""
-        if cls not in _MAX_ID_BY_ENUM:
-            _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
-        return _MAX_ID_BY_ENUM[cls]
+from typing import Union
 
 
 class ProtoObject:

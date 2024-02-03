@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import enum
 import functools
 import random
 import secrets
@@ -15,6 +16,8 @@ from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
 from uuid import UUID
 
 from asgiref.sync import async_to_sync
+from bitarray import bitarray
+from more_itertools import first
 import structlog
 from cachetools import cached
 
@@ -371,3 +374,87 @@ def get_leaf_classes(cls, seen=None):
     return [
         subclass for subclass in subclasses if not any(subclass in s.__bases__ for s in subclasses)
     ]
+
+
+_MIN_ID_BY_ENUM: dict[type, int] = {}
+_MAX_ID_BY_ENUM: dict[type, int] = {}
+
+
+class IdStrEnum(enum.StrEnum):
+    """
+    enum.StrEnum with an additional id per value.
+    TODO @Cleanup: convert IdStrEnum to 'regular' int enum
+     (keep this class, but stop specifying name for everything and store all enums as int)
+    """
+
+    def __new__(cls, value: str, id: int):
+        """Create a new instance."""
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+
+        # check id
+        assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
+        obj.id = id
+
+        # check duplicates
+        existing = first((v for v in cls if v.id == id), None)
+        assert existing is None, f"{cls} has duplicate id {id} for {value} and {existing}"
+
+        return obj
+
+    @classmethod
+    def get_min_id(cls) -> int:
+        """Get the minimum id."""
+        if cls not in _MIN_ID_BY_ENUM:
+            _MIN_ID_BY_ENUM[cls] = min(v.id for v in cls)
+        return _MIN_ID_BY_ENUM[cls]
+
+    @classmethod
+    def get_max_id(cls) -> int:
+        """Get the maximum id."""
+        if cls not in _MAX_ID_BY_ENUM:
+            _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
+        return _MAX_ID_BY_ENUM[cls]
+
+
+EnumT = TypeVar("EnumT", bound=IdStrEnum)
+
+
+# noinspection PyPep8Naming
+class bytetuple(typing.Generic[EnumT]):
+    """
+    Tuple with a bitarray for fast membership check.
+    """
+
+    def __init__(self, *items, enum_cls: type[EnumT] = None):
+        if len(items) == 1 and isinstance(items[0], Collection):
+            items = tuple(items[0])
+        self.tuple = items
+        if enum_cls is None:
+            assert len(items) > 0, "enum_cls or args is required"
+            enum_cls = items[0].__class__
+        assert issubclass(enum_cls, IdStrEnum), f"invalid enum_cls: {enum_cls} ({items})"
+        self.enum_cls = enum_cls
+        self.bits = bitarray(enum_cls.get_max_id() + 1)
+        self.bits.setall(False)
+        for arg in items:
+            self.bits[arg.id] = True
+
+    def __contains__(self, item: EnumT | int):
+        id = item if isinstance(item, int) else item.id
+        return self.bits[id]
+
+    def __iter__(self):
+        return iter(self.tuple)
+
+    def __len__(self):
+        return len(self.tuple)
+
+    def __getitem__(self, index):
+        return self.tuple[index]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.tuple})"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.tuple})"

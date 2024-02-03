@@ -69,7 +69,6 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData
 from bench.sql.core import (
     CascadeAction,
@@ -89,6 +88,8 @@ from bench.utils.func import (
     get_subclasses,
     parse_py_type,
     try_tuple,
+    IdStrEnum,
+    bytetuple,
 )
 from bench.utils.utils import frozendict
 
@@ -1454,15 +1455,15 @@ class Struct(abc.ABC):
             # reference to built in property
             if prop.is_property_reference:
                 if prop.is_array:
-                    ptr = cast(list[PropertyReference], ptr)
+                    ptr = cast(list["PropertyReference"], ptr)
                     setattr(self, prop.name, [p.resolve() for p in ptr])
                 else:
-                    ptr = cast(PropertyReference, ptr)
+                    ptr = cast("PropertyReference", ptr)
                     setattr(self, prop.name, ptr.resolve())
             else:
                 # regular node reference
                 if prop.is_array:
-                    ptr = cast(list[NodeReference], ptr)
+                    ptr = cast(list["NodeReference"], ptr)
                     resolved = []
                     for p in ptr:
                         resolved = scope.lookup(p.id or p.ck)
@@ -1473,7 +1474,7 @@ class Struct(abc.ABC):
                         resolved.append(resolved)
                     setattr(self, prop.name, resolved)
                 else:
-                    ptr = cast(NodeReference, ptr)
+                    ptr = cast("NodeReference", ptr)
                     resolved = scope.lookup(ptr.id or ptr.ck)
                     if resolved is None:
                         on_notice(type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name)
@@ -2647,12 +2648,12 @@ NODE_CLASSES: frozenset[type[Node]] = frozenset()
 STRUCT_CLASSES: frozenset[type[Struct]] = frozenset()
 
 # direct parent/child
-PARENT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
-CHILD_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
-FERTILE_CHILD_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+PARENT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 # transient parent/child
-ANCESTOR_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
-DESCENDANT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 
 
 def _complete_bench_setup():
@@ -2764,11 +2765,13 @@ def _complete_bench_setup():
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
     global FERTILE_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
-        ANCESTOR_NODE_TYPES[node_type] = tuple(ancestor_types[node_type])
-        DESCENDANT_NODE_TYPES[node_type] = tuple(descendant_types[node_type])
-        PARENT_NODE_TYPES[node_type] = tuple(parent_types[node_type])
-        CHILD_NODE_TYPES[node_type] = tuple(child_types[node_type])
-        FERTILE_CHILD_NODE_TYPES[node_type] = tuple(fertile_child_types[node_type])
+        ANCESTOR_NODE_TYPES[node_type] = bytetuple(ancestor_types[node_type], enum_cls=NodeType)
+        DESCENDANT_NODE_TYPES[node_type] = bytetuple(descendant_types[node_type], enum_cls=NodeType)
+        PARENT_NODE_TYPES[node_type] = bytetuple(parent_types[node_type], enum_cls=NodeType)
+        CHILD_NODE_TYPES[node_type] = bytetuple(child_types[node_type], enum_cls=NodeType)
+        FERTILE_CHILD_NODE_TYPES[node_type] = bytetuple(
+            fertile_child_types[node_type], enum_cls=NodeType
+        )
 
     # check that is_in_package/is_in_bench was declared correctly
     #  (need to set that in @node upfront because traversing parents can only happen in finalization)
@@ -2797,6 +2800,6 @@ def _complete_bench_setup():
     for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
         for prop in struct_t.__properties__.values():
             if prop.is_enum and not issubclass(
-                prop.py_type_stripped, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
+                prop.py_type_stripped, (IdStrEnum, enum.IntEnum, enum.IntFlag)
             ):
                 raise ValueError(f"{prop!r} is not a valid proto enum")

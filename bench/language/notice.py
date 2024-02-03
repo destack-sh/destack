@@ -6,14 +6,14 @@ from bench.language.const import NoticeKind, NodeType, StructType, BenchError
 from bench.language.expression import FieldPath, Property
 from bench.language.node import Node, node, p_parent, p_tracked
 from bench.language.validation import enum_validator
-from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import Casing, to_casing
+from bench.utils.func import IdStrEnum
 
 if TYPE_CHECKING:
     from bench.language.block import Block
 
 
-class NoticeType(ProtoStrEnum):
+class NoticeType(IdStrEnum):
     """Built-in notice types."""
 
     # errors

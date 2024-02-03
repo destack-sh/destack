@@ -87,6 +87,8 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         validate_bench_data_many(request.user, request.client)
         async with detached_session() as session:
             user: User = wiring.unpack_node(request.user, parent=None, session=session)
+            user.is_staff = False
+            user.is_activated = True
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             user.handle = Handle(slug=user.slug)

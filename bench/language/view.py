@@ -15,14 +15,14 @@ from bench.language.node import (
     struct,
 )
 from bench.language.validation import enum_validator
-from bench.proto.core import ProtoStrEnum
+from bench.utils.func import IdStrEnum
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
     from bench.language import Block, Icon, Policy
 
 
-class ViewType(ProtoStrEnum):
+class ViewType(IdStrEnum):
     # editor
     PAGE = "PAGE", 1
     BLOCK = "BLOCK", 2
@@ -69,7 +69,7 @@ class View(ScopeNode, HasViews):
     )
 
 
-class PageViewMode(ProtoStrEnum):
+class PageViewMode(IdStrEnum):
     NOTEBOOK = "NOTEBOOK", 1
     SCRIPT = "SCRIPT", 2
 
@@ -89,7 +89,7 @@ class Space(ScopeNode, HasViews):
     dock: "SpaceDock" = p_tracked(34, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
-class SpaceDockItemType(ProtoStrEnum):
+class SpaceDockItemType(IdStrEnum):
     # builtins
     SEARCH = "SEARCH", 1
     CHAT = "CHAT", 2

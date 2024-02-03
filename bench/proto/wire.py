@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -293,6 +300,16 @@ class FormatHint(betterproto.Enum):
     AUDIO = 32
 
 
+class IdStrEnum(betterproto.Enum):
+    """
+    enum.StrEnum with an additional id per value.     TODO @Cleanup: convert
+    IdStrEnum to 'regular' int enum      (keep this class, but stop specifying
+    name for everything and store all enums as int)
+    """
+
+    UNSPECIFIED = 0
+
+
 class NodeRelationType(betterproto.Enum):
     """Parent relation between node and descendants."""
 
@@ -416,16 +433,6 @@ class PrimitiveType(betterproto.Enum):
     BYTES = 11
     VECTOR = 12
     UUID = 13
-
-
-class ProtoStrEnum(betterproto.Enum):
-    """
-    enum.StrEnum with an additional id per value.     TODO @Cleanup: convert
-    ProtoStrEnum to 'regular' int enum      (keep this class, but stop
-    specifying name for everything and store all enums as int)
-    """
-
-    UNSPECIFIED = 0
 
 
 class QueryEngine(betterproto.Enum):
@@ -606,9 +613,9 @@ class AccessMatrixData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
-    zones: List["AccessZoneData"] = betterproto.message_field(31)
-    base_zones: List["PolicyRuleData"] = betterproto.message_field(32)
-    identities: List["RequestSubjectData"] = betterproto.message_field(33)
+    identities: List["RequestSubjectData"] = betterproto.message_field(32)
+    zones: List["AccessZoneData"] = betterproto.message_field(33)
+    base_zones: List["PolicyRuleData"] = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -1457,10 +1464,11 @@ class OrganizationData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: "NodeReferenceData" = betterproto.message_field(30)
+    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: str = betterproto.string_field(32)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1762,15 +1770,17 @@ class UserData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: "NodeReferenceData" = betterproto.message_field(30)
+    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
-    email: Optional[str] = betterproto.string_field(33, optional=True)
-    password_salt: Optional[bytes] = betterproto.bytes_field(34, optional=True)
-    password_hash: Optional[bytes] = betterproto.bytes_field(35, optional=True)
-    last_logged_in_at: Optional[datetime] = betterproto.message_field(36, optional=True)
-    is_staff: bool = betterproto.bool_field(37)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
+    email: Optional[str] = betterproto.string_field(34, optional=True)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    password_salt: Optional[bytes] = betterproto.bytes_field(40, optional=True)
+    password_hash: Optional[bytes] = betterproto.bytes_field(42, optional=True)
+    last_logged_in_at: Optional[datetime] = betterproto.message_field(43, optional=True)
+    is_staff: bool = betterproto.bool_field(60)
+    is_activated: bool = betterproto.bool_field(61)
 
 
 @dataclass(eq=False, repr=False)
@@ -3399,76 +3409,76 @@ class WorkerProcessBase(ServiceBase):
         }
 
 
-from typing import Union  # noqa
-
 import bench.proto.monkey  # noqa
 
+from typing import Union  # noqa
+
 AnyNodeData = Union[
-    TagData,
-    SkipData,
-    IdentityData,
-    SessionData,
-    BenchData,
-    OrganizationData,
-    RecordData,
-    RunData,
-    NoticeData,
-    ClientData,
-    PauseData,
-    BadgeData,
-    FieldData,
-    NotificationData,
-    MembershipData,
-    TriggerData,
-    UserData,
-    BucketObjectData,
-    WorkerData,
-    ViewData,
-    BlockData,
     QueryData,
+    BlockData,
+    SessionData,
+    RunData,
+    UserData,
+    TriggerData,
     SpaceData,
-    WorkerSetData,
     PackageData,
-    SignalData,
     HandleData,
+    NotificationData,
     LinkData,
+    TagData,
+    NoticeData,
+    OrganizationData,
+    SignalData,
+    WorkerData,
+    IdentityData,
+    FieldData,
+    ClientData,
+    RecordData,
+    WorkerSetData,
+    BadgeData,
+    SkipData,
+    BenchData,
+    MembershipData,
+    PauseData,
+    ViewData,
     RoleData,
+    BucketObjectData,
 ]
 AnyStructData = Union[
-    PolicyRuleData,
-    RichTextData,
-    RequestTraceData,
-    AggregationBucketData,
-    WorkerImageData,
-    PropertyPathData,
-    RunCodeFrameData,
-    ValueReferenceData,
-    RunErrorData,
-    SpaceDockData,
-    RichTextSpanData,
     NodeReferenceData,
-    AccessMatrixData,
-    FieldPathData,
-    PolicyData,
-    ExpressionData,
+    SpaceDockItemData,
+    TypeInfoData,
     RequestObjectData,
-    ActionData,
+    ValueReferenceData,
+    PropertyReferenceData,
+    BenchPathData,
+    ActionTraceData,
+    SpaceDockData,
     FileData,
     AggregationData,
-    IconData,
-    LogEntryData,
-    PropertyReferenceData,
-    ReadOptionsData,
-    FieldPathSegmentData,
-    SpaceDockItemData,
-    BenchPathData,
-    ValueSelectionData,
+    RunCodeFrameData,
+    FieldPathData,
     AccessZoneData,
-    TypeInfoData,
+    RequestTraceData,
+    DependencyData,
+    IconData,
+    WorkerImageData,
     RequestSubjectData,
     RequestData,
-    ActionTraceData,
-    DependencyData,
+    RunErrorData,
+    FieldPathSegmentData,
+    AccessMatrixData,
+    PolicyRuleData,
+    RichTextSpanData,
+    PropertyPathData,
+    ValueSelectionData,
+    ActionData,
+    PolicyData,
+    LogEntryData,
+    AggregationBucketData,
+    ExpressionData,
+    RichTextData,
+    ReadOptionsData,
 ]
 
-VERSION = "2024.02.03.4"
+VERSION = "2024.02.03.9"

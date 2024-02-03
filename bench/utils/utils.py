@@ -73,21 +73,6 @@ def sentry_capture(e: Exception) -> bool:
     return sentry_enabled
 
 
-class DotList(list):
-    """
-    Access a list of dictionaries as a list of DotDicts.
-    Attribute and item access (with string) are column slices.
-    """
-
-    def __getitem__(self, item):
-        if isinstance(item, str):
-            return [row[item] for row in self]
-        return super().__getitem__(item)
-
-    def __getattr__(self, name):
-        return [row[name] for row in self]
-
-
 def omit_empty(obj):
     if isinstance(obj, dict):
         # avoid calling items because we need to override items in DotDict for values with items
