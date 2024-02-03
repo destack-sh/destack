@@ -52,18 +52,6 @@ def get_list(text: str) -> list[str]:
     return [item.strip() for item in text.split(",")]
 
 
-def required_field(**kwargs):
-    """Hacky way to make a field required when subclassing a dataclass with defaults."""
-
-    _field = None
-
-    def _raise_must_set():
-        raise ValueError(f"field '{_field.name}' must be set")
-
-    _field = field(default_factory=_raise_must_set, **kwargs, metadata={"required": True})
-    return _field
-
-
 def get_method_source(method) -> str:
     cleaned_lines = []
     found_def = False

@@ -23,13 +23,13 @@ from bench.language.node import (
     Struct,
     _TypeExpressionBase,
     node,
-    node_children,
+    p_child,
     node_component,
-    node_parent,
+    p_parent,
     struct,
-    struct_internal,
-    struct_property,
-    struct_runtime,
+    p_internal,
+    p_tracked,
+    p_runtime,
 )
 from bench.language.validation import validate_name
 from bench.language.value import HasValue
@@ -104,33 +104,33 @@ class TypeInfo(Struct):
     """
 
     # type identity (must set at least one of these)
-    primitive_type: Optional[PrimitiveType] = struct_property(40, default=None)
-    bench_type: Optional[BenchType] = struct_property(41, default=None)
-    base_type: Optional["Block"] = struct_property(
+    primitive_type: Optional[PrimitiveType] = p_tracked(40, default=None)
+    bench_type: Optional[BenchType] = p_tracked(41, default=None)
+    base_type: Optional["Block"] = p_tracked(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     # + bonus info/constraints
     # visibility: NodeVisibility = struct_property(43, default=NodeVisibility.PUBLIC)
-    format_hint: Optional[FormatHint] = struct_property(44, default=None)
-    condition: Optional["Expression"] = struct_property(
+    format_hint: Optional[FormatHint] = p_tracked(44, default=None)
+    condition: Optional["Expression"] = p_tracked(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = struct_property(46, require=False, default=None)
-    precision: Optional[int] = struct_property(47, require=False, default=None)
-    scale: Optional[int] = struct_property(48, require=False, default=None)
+    length: Optional[int] = p_tracked(46, require=False, default=None)
+    precision: Optional[int] = p_tracked(47, require=False, default=None)
+    scale: Optional[int] = p_tracked(48, require=False, default=None)
     # default for this type :GeneralizeHasValue
     # default: Optional[Any] = struct_property(
     #     49, require=False, default=None, primitive_type=PrimitiveType.JSON
     # )
 
     # flags
-    is_array: bool = struct_internal(50, default=False)
-    is_required: bool = struct_internal(51, default=False)
-    is_secret: bool = struct_internal(52, default=False)
+    is_array: bool = p_tracked(50, default=False)
+    is_required: bool = p_tracked(51, default=False)
+    is_secret: bool = p_tracked(52, default=False)
 
     # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
-    _fields: tuple["Field", ...] | None = struct_runtime(default=None)
-    _resolved_type: Optional["TypeInfo"] = struct_runtime(default=None)
+    _fields: tuple["Field", ...] | None = p_runtime(default=None)
+    _resolved_type: Optional["TypeInfo"] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
@@ -239,12 +239,12 @@ class TypeInfo(Struct):
 class Field(HasValue, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
-    parent: Union["Block", None] = node_parent(4, NodeType.BLOCK)
-    name: str | None = struct_property(30, default=None, validate=validate_name)
-    order_key: str | None = struct_internal(31, default=None)
-    dynamic_key: str | None = struct_internal(32, default=None)
-    text: str | None = struct_property(33, default=None)
-    value_packed: Any | None = struct_property(
+    parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
+    name: str | None = p_tracked(30, default=None, validate=validate_name)
+    order_key: str | None = p_internal(31, default=None)
+    dynamic_key: str | None = p_internal(32, default=None)
+    text: str | None = p_tracked(33, default=None)
+    value_packed: Any | None = p_internal(
         34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
 
@@ -252,13 +252,13 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     # ...TypeInfo
 
     # field-only flags
-    is_input: bool = struct_internal(60, default=False)
-    is_output: bool = struct_internal(61, default=False)
-    is_option: bool = struct_internal(62, default=False)  # a 'literal' option (for Choice types)
+    is_input: bool = p_internal(60, default=False)
+    is_output: bool = p_internal(61, default=False)
+    is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
     # is_indexed: bool = struct_internal(63, default=False)
     # is_unique: bool = struct_internal(64, default=False)
 
-    _introspected_from: Optional[Property] = struct_runtime(default=None)
+    _introspected_from: Optional[Property] = p_runtime(default=None)
 
     def _as_type(self) -> "TypeInfo":
         return self._resolved_type
@@ -286,12 +286,10 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
 class HasFields(Node):
     """A node with fields"""
 
-    fields: NodeList["Field"] = node_children(
-        NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
-    )
+    fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
 
-    _did_resolve_bases: bool = struct_runtime(default=False)
-    _as_type: TypeInfo | None = struct_runtime(default=None)
+    _did_resolve_bases: bool = p_runtime(default=False)
+    _as_type: TypeInfo | None = p_runtime(default=None)
 
     @property
     def _type(self):

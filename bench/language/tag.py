@@ -8,11 +8,11 @@ from bench.language.node import (
     NodeList,
     NRel,
     node,
-    node_children,
+    p_child,
     node_component,
-    node_parent,
-    struct_internal,
-    struct_property,
+    p_parent,
+    p_internal,
+    p_tracked,
 )
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
@@ -26,11 +26,11 @@ if typing.TYPE_CHECKING:
 class Tag(HasValue, Node):
     """An association between a tag and a node (with optional value)."""
 
-    parent: Union["Block", "Field"] | None = node_parent(4, NodeType.BLOCK, NodeType.FIELD)
-    value_packed: typing.Any | None = struct_property(
+    parent: Union["Block", "Field"] | None = p_parent(4, NodeType.BLOCK, NodeType.FIELD)
+    value_packed: typing.Any | None = p_internal(
         31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
-    reference: Optional["Block"] = struct_internal(
+    reference: Optional["Block"] = p_internal(
         32, require=False, array=False, references=NodeType.BLOCK
     )
 
@@ -81,4 +81,4 @@ class Tag(HasValue, Node):
 
 @node_component
 class HasTags(Node):
-    tags: NodeList["Tag"] = node_children(NodeType.TAG, NRel.KEYED)
+    tags: NodeList["Tag"] = p_child(NodeType.TAG, NRel.KEYED)

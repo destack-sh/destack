@@ -11,8 +11,8 @@ from bench.language.node import (
     Node,
     ScopeNode,
     node_component,
-    struct_property,
-    struct_runtime,
+    p_runtime,
+    p_internal,
 )
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
@@ -32,11 +32,11 @@ logger = structlog.get_logger(__name__)
 
 @node_component
 class HasValue(Node):
-    value_packed: Any | None = struct_property(
+    value_packed: Any | None = p_internal(
         UNSET, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     # optional secret_value_packed (soon)
-    value: Any | None = struct_runtime(default=None)
+    value: Any | None = p_runtime(default=None)
 
     @property
     def _type(self) -> Optional["TypeInfo"]:

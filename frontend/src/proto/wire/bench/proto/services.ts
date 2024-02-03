@@ -29,6 +29,7 @@ import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
 import { NodeType } from "./lang";
+import { AccessMatrixData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
 import { NodeReferenceData } from "./lang";
@@ -191,6 +192,10 @@ export interface ReadNodesResponse {
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
     nodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.AccessMatrixData access = 2;
+     */
+    access?: AccessMatrixData;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesRequest
@@ -253,6 +258,10 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: int32 total = 5;
      */
     total: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.AccessMatrixData access = 6;
+     */
+    access?: AccessMatrixData;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesRequest
@@ -1298,7 +1307,8 @@ export const ReadNodesRequest = new ReadNodesRequest$Type();
 class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
     constructor() {
         super("symbolx.bench.ReadNodesResponse", [
-            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 2, name: "access", kind: "message", T: () => AccessMatrixData }
         ]);
     }
     create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
@@ -1316,6 +1326,9 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
                 case /* repeated symbolx.bench.SomeNodeData nodes */ 1:
                     message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.AccessMatrixData access */ 2:
+                    message.access = AccessMatrixData.internalBinaryRead(reader, reader.uint32(), options, message.access);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1331,6 +1344,9 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
         /* repeated symbolx.bench.SomeNodeData nodes = 1; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.AccessMatrixData access = 2; */
+        if (message.access)
+            AccessMatrixData.internalBinaryWrite(message.access, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1447,7 +1463,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
             { no: 2, name: "roots_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 6, name: "access", kind: "message", T: () => AccessMatrixData }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
@@ -1481,6 +1498,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                 case /* int32 total */ 5:
                     message.total = reader.int32();
                     break;
+                case /* optional symbolx.bench.AccessMatrixData access */ 6:
+                    message.access = AccessMatrixData.internalBinaryRead(reader, reader.uint32(), options, message.access);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1508,6 +1528,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* int32 total = 5; */
         if (message.total !== 0)
             writer.tag(5, WireType.Varint).int32(message.total);
+        /* optional symbolx.bench.AccessMatrixData access = 6; */
+        if (message.access)
+            AccessMatrixData.internalBinaryWrite(message.access, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -12,7 +12,7 @@ import structlog
 
 from bench.language.cache import Cache
 from bench.language.field import Field, HasFields, TypedDict
-from bench.language.node import Node, ScopeNode, node_component, struct_runtime
+from bench.language.node import Node, ScopeNode, node_component, p_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env, omit_empty
@@ -37,9 +37,9 @@ class ModelErrorType(enum.StrEnum):
 
 @node_component
 class HasModel(HasFields, Node):
-    _remote: bool = struct_runtime(default=False)
-    _api_key: Optional[str] = struct_runtime(default=None)
-    _has_vector_io: bool = struct_runtime(default=None)
+    _remote: bool = p_runtime(default=False)
+    _api_key: Optional[str] = p_runtime(default=None)
+    _has_vector_io: bool = p_runtime(default=None)
 
     # we only cache models without vector inputs/outputs
 

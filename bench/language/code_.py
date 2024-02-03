@@ -17,7 +17,7 @@ from more_itertools import first, last
 
 from bench.language.builtin import symbolx_package
 from bench.language.field import TypedDict
-from bench.language.node import Node, ScopeNode, node_component, struct_runtime
+from bench.language.node import Node, ScopeNode, node_component, p_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -66,11 +66,11 @@ def _install_package(name: str, timeout: int = 300, try_import: str = None) -> N
 
 @node_component
 class HasCode(Node):
-    _is_async: Optional[bool] = struct_runtime(default=None)
-    _transform: Optional[CodeTransformation] = struct_runtime(default=None)
-    _block_references: dict[str, "Block"] | None = struct_runtime(default=None)
-    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = struct_runtime(default=None)
-    _cached_exports: dict[str, Any] | None = struct_runtime(default=None)
+    _is_async: Optional[bool] = p_runtime(default=None)
+    _transform: Optional[CodeTransformation] = p_runtime(default=None)
+    _block_references: dict[str, "Block"] | None = p_runtime(default=None)
+    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = p_runtime(default=None)
+    _cached_exports: dict[str, Any] | None = p_runtime(default=None)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._transform = None

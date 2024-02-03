@@ -90,7 +90,7 @@ from bench.utils.func import (
     parse_py_type,
     try_tuple,
 )
-from bench.utils.utils import frozendict, required_field
+from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -139,6 +139,7 @@ class NodeReferenceKind(enum.StrEnum):
 class Property(_TypeExpressionBase):
     """A system-defined attribute of a node or struct."""
 
+    # basics
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
@@ -146,7 +147,10 @@ class Property(_TypeExpressionBase):
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     alias: str | None = None  # for node list relations
+    struct_type: StructType | None = None  # for struct properties
+    primitive_type: PrimitiveType | None = UNSET
 
+    # flags
     is_array: bool = UNSET
     is_required: bool = False  # = must be non-null
     is_internal: bool = False  # = should be edited via accessors, but not enforced
@@ -161,6 +165,7 @@ class Property(_TypeExpressionBase):
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
 
+    # node references
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
     reference_kind: NodeReferenceKind | None = None  # for reference relations
@@ -170,15 +175,14 @@ class Property(_TypeExpressionBase):
     reference_source: Optional["Property"] = None  # for reference relations (reverse)
     reference_on_delete: CascadeAction | None = UNSET
     children_flags: NodeRelationType = NodeRelationType.DEFAULT
+    list_type: type["NodeListBase"] | None = None
 
-    struct_type: StructType | None = None  # for struct properties
-    primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
-    list_type: type["NodeListBase"] | None = None
     custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
     custom_copy: Callable[[Any], Any] | None = None
     ignore_conflicts_with: tuple[type["Node"], ...] | None = None
+    _as_ref: Optional["PropertyReference"] = None
 
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
@@ -258,9 +262,10 @@ class Property(_TypeExpressionBase):
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
 
-    @functools.cached_property
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property."""
+        if self._as_ref is not None:
+            return self._as_ref
         assert self.component is not None, f"{self!r} is not finalized"
         from bench.language.expression import PropertyReference
 
@@ -268,9 +273,11 @@ class Property(_TypeExpressionBase):
             references_type = self.reference_types[0]
         else:
             references_type = None
-        return PropertyReference(
+        ref = PropertyReference(
             type=self.component.metatype, id=self.id, references_type=references_type
         )
+        self._as_ref = ref
+        return ref
 
     @property
     def py_ident(self) -> str:
@@ -281,6 +288,10 @@ class Property(_TypeExpressionBase):
         assert issubclass(self.component, Node), f"{self!r} is not a node property"
         assert isinstance(self.component.__table__, Table), f"{self.component} has no table"
         return self.component.__table__._columns_by_name[self.name]
+
+    @property
+    def type(self) -> BenchType:
+        return self.component.metatype
 
     @property
     def is_introspectable(self) -> bool:
@@ -305,6 +316,10 @@ class Property(_TypeExpressionBase):
     @property
     def is_struct(self) -> bool:
         return self.struct_type is not None
+
+    @property
+    def is_property_reference(self) -> bool:
+        return self.struct_type == StructType.PROPERTY_REFERENCE
 
     @property
     def is_runtime_only(self):
@@ -371,6 +386,8 @@ class Property(_TypeExpressionBase):
 
         # determine storage type
         if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
+            if annotation.type == Property:
+                raise ValueError(f"must set struct={StructType.PROPERTY_REFERENCE} for {self!r}")
             if annotation.is_union:
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
@@ -400,13 +417,38 @@ class Property(_TypeExpressionBase):
 
     def _contribute_ptrs(self) -> tuple["Property", ...]:
         """
-        Contribute the wired and stored pointer properties required by this property..
+        Contribute the wired and stored pointer properties required by this property.
         NOTE: contribute mutates this property, so can only be called once.
         """
 
         assert self.reference_stored_ptrs is None, f"already contributed {self!r}"
 
-        # wired/stored pointer settings for each reference kind
+        # property references aren't 'real' references, but they use a pointer
+        if self.struct_type == StructType.PROPERTY_REFERENCE:
+            assert self.is_array is not UNSET, f"must set is_array on {self!r}"
+            assert self.is_required is not UNSET, f"must set is_required on {self!r}"
+            property_ptr = Property(
+                id=self.id,
+                name=self.name + "_ptr",
+                component=self.component,
+                py_type_raw="PropertyReference",
+                struct_type=StructType.PROPERTY_REFERENCE,
+                is_runtime=True,
+                is_internal=self.is_internal,
+                is_wired=True,
+                is_stored=True,
+                is_required=self.is_required,
+                is_array=self.is_array,
+                default=None,
+            )
+            self.reference_ptr = property_ptr
+            self.reference_stored_ptrs = (property_ptr,)
+            self.is_wired = False
+            self.is_stored = False
+            self.is_runtime = True
+            return (property_ptr,)
+
+        # wired/stored pointer settings for each node reference kind
         if self.reference_kind == NodeReferenceKind.PARENT:
             is_wired = True
             is_stored = True
@@ -430,7 +472,7 @@ class Property(_TypeExpressionBase):
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             is_wired = True
             is_stored = True
-            is_required = False
+            is_required = self.is_required
             is_array = self.is_array
             is_computed = False
             is_internal = False
@@ -530,52 +572,15 @@ class Property(_TypeExpressionBase):
             return None
 
 
-def struct_property(
+def p_property(
     id: int,
     *,
+    internal: bool = False,
+    system: bool = False,
     description: str = None,
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
-    copy: Callable[[Any], Any] = None,
-    validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
     require: bool = UNSET,
-    unique: bool = False,
-    encrypt: bool = False,
-    array: bool = UNSET,
-    ignore_conflicts_with: tuple[type["Node"], ...] = None,
-    references: tuple[NodeType, ...] | NodeType = None,
-    struct: StructType = None,
-    primitive_type: PrimitiveType = UNSET,
-):
-    """Standard user facing struct/node property."""
-    return Property(
-        id=id,
-        description=description,
-        default=default,
-        default_factory=default_factory,
-        custom_copy=copy,
-        custom_validate=validate,
-        is_required=require,
-        ignore_conflicts_with=ignore_conflicts_with,
-        reference_kind=NodeReferenceKind.REGULAR if references else None,
-        reference_types=try_tuple(references),
-        struct_type=struct,
-        primitive_type=primitive_type,
-        is_unique=unique,
-        is_array=array,
-        is_encrypted=encrypt,
-    )
-
-
-def struct_internal(
-    id: int,
-    *,
-    description: str = None,
-    default: Any = UNSET,
-    default_factory: Callable[[], Any] = None,
-    copy: Callable[[Any], Any] = None,
-    require: bool = UNSET,
-    ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct: StructType = None,
     store: bool = UNSET,
@@ -585,19 +590,21 @@ def struct_internal(
     defer: bool = False,
     encrypt: bool = False,
     unique: bool = False,
-    system: bool = False,
     sensitive: bool = False,
+    ignore_conflicts_with: tuple[type["Node"], ...] = None,
+    copy: Callable[[Any], Any] = None,
+    validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
 ):
-    """Internal only struct/node property."""
     return Property(
         id=id,
         description=description,
-        is_internal=True,
+        is_internal=internal,
         is_system=system,
         is_required=require,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
+        custom_validate=validate,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
         ignore_conflicts_with=ignore_conflicts_with,
@@ -613,7 +620,15 @@ def struct_internal(
     )
 
 
-def struct_runtime(
+if TYPE_CHECKING:
+    p_tracked = p_internal = p_system = p_property
+else:
+    p_tracked = functools.partial(p_property, internal=False, system=False)
+    p_internal = functools.partial(p_property, internal=True, system=False)
+    p_system = functools.partial(p_property, internal=True, system=True)
+
+
+def p_runtime(
     *,
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
@@ -633,7 +648,7 @@ def struct_runtime(
     )
 
 
-def node_parent(id: int, *node_type: NodeType):
+def p_parent(id: int, *node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -645,7 +660,7 @@ def node_parent(id: int, *node_type: NodeType):
     )
 
 
-def node_ancestor(
+def p_ancestor(
     id: int,
     node_type: NodeType,
     nearest: bool = True,
@@ -672,7 +687,7 @@ def node_ancestor(
     )
 
 
-def node_children(
+def p_child(
     node_type: NodeType,
     flags: NRel = NRel.DEFAULT,
     custom_list: type["NodeListBase"] = None,
@@ -843,7 +858,7 @@ def _process_struct_base_cls(
         properties_by_name[name] = prop
         declared_properties[name] = prop
         # collect any extra contributed properties
-        if prop.reference_kind in (
+        if prop.struct_type == StructType.PROPERTY_REFERENCE or prop.reference_kind in (
             NodeReferenceKind.PARENT,
             NodeReferenceKind.ANCESTOR,
             NodeReferenceKind.REGULAR,
@@ -917,7 +932,7 @@ def _process_struct_base_cls(
         elif prop.default_factory is not None:
             attr = dataclasses.field(default_factory=prop.default_factory)
         else:
-            attr = required_field()
+            attr = _required_prop(prop)
         # set attribute and annotation accordingly
         if attr is not UNSET:
             setattr(cls, name, attr)
@@ -960,8 +975,11 @@ def _process_struct_base_cls(
     )
     cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-    cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+    cls.__reference_properties__ = frozendict(
+        {p.name: p for p in props if p.reference_types or p.is_property_reference}
+    )
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
+    cls.__max_property_id__ = max(p.id for p in props if p.id is not None and p.id is not UNSET)
 
     return cls, properties_by_name
 
@@ -1202,6 +1220,18 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
     return property(get, set)
 
 
+def _required_prop(prop: Property):
+    """Hacky way to make a field required when subclassing a dataclass with defaults."""
+
+    _field = None
+
+    def _raise_must_set():
+        raise ValueError(f"{prop!r} must be set")
+
+    _field = dataclasses.field(default_factory=_raise_must_set, metadata={"required": True})
+    return _field
+
+
 def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
     def get_ancestor_ptr(self: NodeT) -> Optional["NodeReference"]:
         from bench.language.expression import NodeReference
@@ -1305,6 +1335,7 @@ class Struct(abc.ABC):
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
+
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __declared_properties__: ClassVar[dict[str, Property]] = {}
@@ -1318,9 +1349,11 @@ class Struct(abc.ABC):
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
+    __max_property_id__: ClassVar[int] = None
+
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
-    _status: NodeStatus = struct_runtime(default=None)
+    _status: NodeStatus = p_runtime(default=None)
 
     def __post_init__(self):
         if self._status is None:
@@ -1353,7 +1386,7 @@ class Struct(abc.ABC):
     def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
         prop = cls._get_property(ptr)
         if prop is None:
-            raise ValueError(f"unknown property pointer: {ptr!r} in {cls!r}")
+            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
         return prop
 
     @property
@@ -1391,10 +1424,8 @@ class Struct(abc.ABC):
         # init reference pointers if references are set :NodeReferences
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
-            if prop.reference_wired_ptr is not None and isinstance(ref, Node):
-                from bench.language.expression import NodeReference
-
-                self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(ref)
+            if prop.reference_wired_ptr is not None and ref is not None:
+                self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
@@ -1408,18 +1439,43 @@ class Struct(abc.ABC):
             # setattr(self, prop.name, None)
 
     def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
-        # resolve node references :NodeReferences
         from bench.language.notice import NoticeType
 
+        # resolve node references :NodeReferences
         for prop in self.__reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None) is not None:
                 continue  # already resolved
             ptr = getattr(self, prop.reference_wired_ptr.name)
-            if ptr is not None:
-                resolved = scope.lookup(ptr.id or ptr.ck)
-                if resolved is None:
-                    on_notice(type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name)
-                setattr(self, prop.name, resolved)
+            if ptr is None:
+                continue
+
+            # reference to built in property
+            if prop.is_property_reference:
+                if prop.is_array:
+                    ptr = cast(list[PropertyReference], ptr)
+                    setattr(self, prop.name, [p.resolve() for p in ptr])
+                else:
+                    ptr = cast(PropertyReference, ptr)
+                    setattr(self, prop.name, ptr.resolve())
+            else:
+                # regular node reference
+                if prop.is_array:
+                    ptr = cast(list[NodeReference], ptr)
+                    resolved = []
+                    for p in ptr:
+                        resolved = scope.lookup(p.id or p.ck)
+                        if resolved is None:
+                            on_notice(
+                                type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name
+                            )
+                        resolved.append(resolved)
+                    setattr(self, prop.name, resolved)
+                else:
+                    ptr = cast(NodeReference, ptr)
+                    resolved = scope.lookup(ptr.id or ptr.ck)
+                    if resolved is None:
+                        on_notice(type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name)
+                    setattr(self, prop.name, resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor"):
         # visit node references :NodeReferences
@@ -1516,6 +1572,7 @@ class Node(Struct, _NodeExpressionBase):
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
     __parent_property__: ClassVar[Property] = None
+    __max_property_id__: ClassVar[int] = None
 
     __has_scope__: ClassVar[bool] = False  # can have node children
     __roots__: ClassVar[tuple[NodeType, ...]] = UNSET
@@ -1532,29 +1589,23 @@ class Node(Struct, _NodeExpressionBase):
     __table__: ClassVar[Table] = UNSET  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
-    id: UUID = struct_internal(2, default=None, require=True, system=True)
     # NOTE: ck/package/branch/bench only exist if __is_in_package__/__is_in_bench__ :MagicNodeProps
-    ck: UUID = struct_internal(3, default=None, require=True, system=True)
-    parent: Optional["Node"] = node_parent(4)
+    id: UUID = p_system(2, default=None, require=True)
+    ck: UUID = p_system(3, default=None, require=True)
+    parent: Optional["Node"] = p_parent(4)
     # template: Optional["Node"] = node_template(5)
-    package: "Package" = node_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
+    package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
-    bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
-    source: NodeSource = struct_internal(
-        9, default=NodeSource.PERSISTED, store=False, require=True, system=True
-    )
+    bench: "Bench" = p_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
+    source: NodeSource = p_system(9, default=NodeSource.PERSISTED, store=False, require=True)
 
     # 10-29: reserved for node tracking
-    revision: int = struct_internal(
-        10, default=0, require=True, system=True, primitive_type=PrimitiveType.INT64
-    )
-    created_at: datetime = struct_internal(11, default=None, require=True, system=True)
-    updated_at: datetime = struct_internal(12, default=None, require=True, system=True)
-    deleted_at: Optional[datetime] = struct_internal(13, default=None, system=True)
-    archived_at: Optional[datetime] = struct_internal(14, default=None, system=True)
-    last_edited_at: Optional[datetime] = struct_internal(
-        15, default=None, require=True, system=True
-    )
+    revision: int = p_system(10, default=0, require=True, primitive_type=PrimitiveType.INT64)
+    created_at: datetime = p_system(11, default=None, require=True)
+    updated_at: datetime = p_system(12, default=None, require=True)
+    deleted_at: Optional[datetime] = p_system(13, default=None)
+    archived_at: Optional[datetime] = p_system(14, default=None)
+    last_edited_at: Optional[datetime] = p_system(15, default=None, require=True)
     # only some nodes have some of these properties:
     # last_changed_at: datetime = struct_internal(16, default=None)
     # created_by: ... = struct_internal(17, default=None)
@@ -1567,11 +1618,11 @@ class Node(Struct, _NodeExpressionBase):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
-    _session: Optional["Session"] = struct_runtime(default=None)
-    _status: NodeStatus = struct_runtime(default=None)
-    _track: NodeTrackingLevel = struct_runtime(default=NodeTrackingLevel.FULL)
-    _is_new: bool = struct_runtime(default=False)
-    _deferred_properties: tuple[str, ...] | None = struct_runtime(default=None)
+    _session: Optional["Session"] = p_runtime(default=None)
+    _status: NodeStatus = p_runtime(default=None)
+    _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
+    _is_new: bool = p_runtime(default=False)
+    _deferred_properties: tuple[str, ...] | None = p_runtime(default=None)
 
     def __post_init__(self):
         # init ck/id
@@ -1749,7 +1800,6 @@ class Node(Struct, _NodeExpressionBase):
     def session(self, session: Optional["Session"]):
         self._session = session
 
-    @property
     def to_ref(self) -> "NodeReference":
         from bench.language.expression import NodeReference
 
@@ -2030,10 +2080,10 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    last_changed_at: Optional[datetime] = struct_internal(16, default=None)
-    notices: NodeList["Notice"] = node_children(NodeType.NOTICE, NRel.CUMULATIVE)
+    last_changed_at: Optional[datetime] = p_internal(16, default=None)
+    notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
     # the node tree is maintained at the highest root node (usually *the* root node, but may be detached)
-    _tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
+    _tree: Union["NodeTreeBase", None] = p_runtime(default=None)
 
     @property
     def scope(self) -> "ScopeNode":
@@ -2207,13 +2257,13 @@ class BenchPath(Struct):
     For absolute paths, the bench name is required.
     """
 
-    bench_slug: Optional[str] = struct_property(30, default=None)
-    block_path: tuple[str, ...] | None = struct_property(31, default=None)
-    sub_node_path: tuple[str, ...] | None = struct_property(32, default=None)
-    field_path: tuple[str, ...] | None = struct_property(33, default=None)
+    bench_slug: Optional[str] = p_tracked(30, default=None)
+    block_path: tuple[str, ...] | None = p_tracked(31, default=None)
+    sub_node_path: tuple[str, ...] | None = p_tracked(32, default=None)
+    field_path: tuple[str, ...] | None = p_tracked(33, default=None)
 
-    branch_slug: Optional[str] = struct_property(34, default=None)  # (not yet supported)
-    package_slug: Optional[str] = struct_property(35, default=None)  # (not yet supported)
+    branch_slug: Optional[str] = p_tracked(34, default=None)  # (not yet supported)
+    package_slug: Optional[str] = p_tracked(35, default=None)  # (not yet supported)
 
     def __content_str__(self) -> str:
         path_str = self.bench_slug or ""
@@ -2335,22 +2385,22 @@ LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK
 class Link(Node):
     """A reference to another node in some tree. The referenced subtree is inlined on access."""
 
-    parent: ScopeNode = node_parent(4, *LINK_PARENT_NODE_TYPES)
-    reference: Optional[Node] = struct_property(
+    parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    reference: Optional[Node] = p_tracked(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
-    order_key: Optional[str] = struct_internal(31, default=None)
+    order_key: Optional[str] = p_internal(31, default=None)
 
 
 @node(NodeType.SKIP)
 class Skip(Node):
     """A reference to another node in some tree that wasn't available for some reason (usually permissions)."""
 
-    parent: ScopeNode = node_parent(4, *LINK_PARENT_NODE_TYPES)
-    reference: Optional[Node] = struct_property(
+    parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    reference: Optional[Node] = p_tracked(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
-    order_key: Optional[str] = struct_internal(31, default=None)
+    order_key: Optional[str] = p_internal(31, default=None)
 
 
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
@@ -2359,40 +2409,34 @@ class Bench(ScopeNode):
     A Bench is the AI-native operating system for a new generation of fully integrated apps.
     """
 
-    parent: None = node_parent(4)
-    policies: list["Policy"] | None = struct_internal(
+    parent: None = p_parent(4)
+    policies: list["Policy"] | None = p_tracked(
         24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
     )
-    slug: str = struct_internal(30, system=True, unique=True)
-    name: str = struct_property(31)
-    description: Optional[str] = struct_property(32, default=None)
-    organization: Optional["Organization"] = struct_internal(
-        33, system=True, require=False, array=False, references=NodeType.ORGANIZATION
+    slug: str = p_system(30, unique=True)
+    name: str = p_tracked(31)
+    description: Optional[str] = p_tracked(32, default=None)
+    organization: Optional["Organization"] = p_system(
+        33, require=False, array=False, references=NodeType.ORGANIZATION
     )
-    user: Optional["User"] = struct_internal(
-        34, system=True, require=False, array=False, references=NodeType.USER
-    )
-    # status: BenchStatus = struct_internal(35, system=True)
+    user: Optional["User"] = p_system(34, require=False, array=False, references=NodeType.USER)
+    # status: BenchStatus = struct_internal(35)
 
     # *per* universe/environment/??? stuff (will be moved there later)
-    head = struct_internal(40, system=True, require=False, array=False, references=NodeType.PACKAGE)
+    head = p_system(40, require=False, array=False, references=NodeType.PACKAGE)
 
     # resources (should probably be managed separately)
-    pg_name: Optional[str] = struct_internal(41, system=True, sensitive=True, default=None)
-    pg_username: Optional[str] = struct_internal(
-        42, system=True, sensitive=True, default=None, defer=True
+    pg_name: Optional[str] = p_system(41, sensitive=True, default=None)
+    pg_username: Optional[str] = p_system(42, sensitive=True, default=None, defer=True)
+    pg_password: Optional[str] = p_system(
+        43, default=None, defer=True, encrypt=True, sensitive=True
     )
-    pg_password: Optional[str] = struct_internal(
-        43, system=True, default=None, defer=True, encrypt=True, sensitive=True
+    os_name: Optional[str] = p_system(44, sensitive=True, default=None)
+    os_username: Optional[str] = p_system(45, sensitive=True, default=None, defer=True)
+    os_password: Optional[str] = p_system(
+        46, default=None, defer=True, encrypt=True, sensitive=True
     )
-    os_name: Optional[str] = struct_internal(44, system=True, sensitive=True, default=None)
-    os_username: Optional[str] = struct_internal(
-        45, system=True, sensitive=True, default=None, defer=True
-    )
-    os_password: Optional[str] = struct_internal(
-        46, system=True, default=None, defer=True, encrypt=True, sensitive=True
-    )
-    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)
+    worker_sets: NodeList["WorkerSet"] = p_child(NodeType.WORKER_SET)
 
     # versions: NodeList["Package"] = node_children(NodeType.PACKAGE, NRel.Remote)
 
@@ -2433,18 +2477,18 @@ class NodeChange:
 class Package(ScopeNode):
     """A package is a semi-isolated version of a Bench, containing the actual blocks and so on."""
 
-    parent: Bench = node_parent(4, NodeType.BENCH)
-    policies: list["Policy"] | None = struct_internal(
+    parent: Bench = p_parent(4, NodeType.BENCH)
+    policies: list["Policy"] | None = p_tracked(
         24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
     )
-    is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
-    blocks: NodeList["Block"] = node_children(NodeType.BLOCK)
-    spaces: NodeList["Space"] = node_children(NodeType.SPACE)
+    is_snapshot: bool = p_system(32, default=False)  # snapshot or head?
+    blocks: NodeList["Block"] = p_child(NodeType.BLOCK)
+    spaces: NodeList["Space"] = p_child(NodeType.SPACE)
 
-    dependencies: dict[str, "Package"] = struct_runtime(default_factory=dict)
-    builtins: list["Block"] = struct_runtime(default_factory=list)
+    dependencies: dict[str, "Package"] = p_runtime(default_factory=dict)
+    builtins: list["Block"] = p_runtime(default_factory=list)
 
-    _source: Optional[NodeDataTree] = struct_runtime(default=None)
+    _source: Optional[NodeDataTree] = p_runtime(default=None)
 
     @property
     def name(self):

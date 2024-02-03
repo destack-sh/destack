@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, NotificationKind
-from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
+from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_tracked, p_system
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -13,27 +13,27 @@ if TYPE_CHECKING:
 class Handle(Node):
     """A Bench handle."""
 
-    slug: str = struct_internal(30, unique=True)
+    slug: str = p_internal(30, unique=True)
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
     """A Bench user."""
 
-    handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    slug: Optional[str] = struct_internal(31, system=True, unique=True)
-    name: Optional[str] = struct_property(32, default=None)
-    email: str = struct_internal(33, defer=True, unique=True, system=True, sensitive=True)
-    password_salt: Optional[bytes] = struct_internal(
-        34, default=None, defer=True, encrypt=True, system=True, sensitive=True
+    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
+    slug: Optional[str] = p_system(31, unique=True)
+    name: Optional[str] = p_tracked(32, default=None)
+    email: str = p_system(33, defer=True, unique=True, sensitive=True)
+    password_salt: Optional[bytes] = p_system(
+        34, default=None, defer=True, encrypt=True, sensitive=True
     )
-    password_hash: Optional[bytes] = struct_internal(
-        35, default=None, defer=True, encrypt=True, system=True, sensitive=True
+    password_hash: Optional[bytes] = p_system(
+        35, default=None, defer=True, encrypt=True, sensitive=True
     )
-    last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
-    is_staff: bool = struct_internal(37, default=False, system=True)
-    main_bench: Optional["Bench"] = struct_internal(
-        38, system=True, array=False, require=False, references=NodeType.BENCH
+    last_logged_in_at: Optional[datetime] = p_system(36, default=None)
+    is_staff: bool = p_system(37, default=False)
+    main_bench: Optional["Bench"] = p_system(
+        38, array=False, require=False, references=NodeType.BENCH
     )
 
 
@@ -41,11 +41,11 @@ class User(ScopeNode):
 class Organization(ScopeNode):
     """A Bench organization."""
 
-    handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    slug: Optional[str] = struct_internal(31, system=True, unique=True)
-    name: str = struct_property(32)
-    main_bench: Optional["Bench"] = struct_internal(
-        33, system=True, array=False, require=False, references=NodeType.BENCH
+    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
+    slug: Optional[str] = p_system(31, unique=True)
+    name: str = p_tracked(32)
+    main_bench: Optional["Bench"] = p_system(
+        33, array=False, require=False, references=NodeType.BENCH
     )
 
 
@@ -53,28 +53,28 @@ class Organization(ScopeNode):
 class Membership(Node):
     """A membership to a Bench or Organization."""
 
-    parent: Union["Bench", "Organization"] = node_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
-    user: "User" = struct_internal(30, require=True, array=False, references=NodeType.USER)
+    parent: Union["Bench", "Organization"] = p_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
+    user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
 
 
 @node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
 class Client(Node):
     """A client to this Bench."""
 
-    parent: Union[User, "Worker"] = node_parent(4, NodeType.USER, NodeType.WORKER)
+    parent: Union[User, "Worker"] = p_parent(4, NodeType.USER, NodeType.WORKER)
     # type: ...
-    name: Optional[str] = struct_property(32, default=None)
-    device_name: str = struct_internal(33)
-    browser_name: Optional[str] = struct_internal(34, default=None)
-    last_seen_at: datetime = struct_internal(35)
-    logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
-    access_token: Optional[str] = struct_internal(
-        37, default=None, system=True, defer=True, unique=True, sensitive=True
+    name: Optional[str] = p_tracked(32, default=None)
+    device_name: str = p_tracked(33)
+    browser_name: Optional[str] = p_tracked(34, default=None)
+    last_seen_at: datetime = p_system(35)
+    logged_in_at: Optional[datetime] = p_system(36, default=None)
+    access_token: Optional[str] = p_system(
+        37, default=None, defer=True, unique=True, sensitive=True
     )
 
     # for user clients
-    main_space: Optional["Space"] = struct_internal(
-        40, system=True, array=False, require=False, references=NodeType.SPACE
+    main_space: Optional["Space"] = p_system(
+        40, array=False, require=False, references=NodeType.SPACE
     )
 
     def __content_str__(self) -> str:
@@ -93,9 +93,9 @@ class Client(Node):
 class Notification(Node):
     """A notification for a user."""
 
-    parent: User = node_parent(4, NodeType.USER)
-    kind: NotificationKind = struct_internal(30)
+    parent: User = p_parent(4, NodeType.USER)
+    kind: NotificationKind = p_internal(30)
     # -> builtin_type / custom_type / ... 'type' as union
-    expires_at: datetime = struct_internal(33)
-    read_at: datetime = struct_internal(34)
+    expires_at: datetime = p_internal(33)
+    read_at: datetime = p_internal(34)
     # source: ...

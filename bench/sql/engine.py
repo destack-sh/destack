@@ -394,8 +394,8 @@ def _compile_expression_ref(
     node: Union[type[Node], Block],
     expr: Expression,
 ) -> SqlNode:
-    if expr.property_ptr is not None:
-        return sql.Identifier(expr.property_ptr.resolved_name)
+    if expr.property is not None:
+        return sql.Identifier(expr.property.name)
     elif expr.field is not None:
         assert (
             expr.field._introspected_from is None
@@ -1140,7 +1140,7 @@ async def pg_read_node_data_tree(
 
     # select "roots"
     root_filter = options.combined_filter(
-        root_type, C(ConditionalOp.IN, property_ptr=Node.id.to_ref, value=root_ids)
+        root_type, C(ConditionalOp.IN, property=Node.id, value=root_ids)
     )
     roots = await pg_select_nodes_data(
         cur=cur,
@@ -1178,7 +1178,7 @@ async def pg_read_node_data_tree(
                     node_type=node_type,
                     filter=options.combined_filter(
                         node_type,
-                        C(ConditionalOp.IN, property_ptr=Node.id.to_ref, value=node_ids),
+                        C(ConditionalOp.IN, property=Node.id, value=node_ids),
                     ),
                     properties=options.selected_properties(node_type),
                 )
@@ -1210,7 +1210,7 @@ async def pg_read_node_data_tree(
                 for parent_property in parent_property.reference_stored_ptrs:
                     filter = C(
                         op=ConditionalOp.IN,
-                        property_ptr=parent_property.to_ref,
+                        property=parent_property,
                         value=parents_by_type[parent_property.reference_types[0]],
                     )
                     parents_filters.append(filter)

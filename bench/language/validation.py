@@ -7,7 +7,7 @@ import cachetools
 from bench.language.const import BenchError
 
 if TYPE_CHECKING:
-    from bench.language.node import Struct, Node, Property, PropertyReference
+    from bench.language.node import Struct, Node, Property, Property
 
 
 class ValidationError(BenchError, ValueError):
@@ -15,7 +15,7 @@ class ValidationError(BenchError, ValueError):
         self,
         subject: "Struct",
         message: str,
-        properties: list["PropertyReference"] | None,
+        properties: list["Property"] | None,
         cause: Exception | None = None,
     ):
         super().__init__(f"{subject!r}: {message} at {properties}")
@@ -30,7 +30,7 @@ class ValidationHandler:
         self,
         subject: "Struct",
         message: str,
-        properties: list["PropertyReference"] | None,
+        properties: list["Property"] | None,
         cause: Exception | None = None,
     ):
         pass
@@ -48,13 +48,13 @@ class PropertyValidationHandler:
         cause: Exception | None = None,
     ):
         message = f"{self.prop.name}: {message}"
-        self.handler(self.subject, message, [self.prop.to_ref], cause)
+        self.handler(self.subject, message, [self.prop], cause)
 
 
 def on_invalid_raise(
     subject: "Node",
     message: str,
-    properties: list["PropertyReference"] | None,
+    properties: list["Property"] | None,
     cause: Exception | None = None,
 ):
     raise ValidationError(subject, message, properties, cause)

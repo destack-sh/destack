@@ -15,11 +15,11 @@ from bench.language.node import (
     ScopeNode,
     _Passthrough,
     node,
-    node_children,
+    p_child,
     node_component,
-    node_parent,
-    struct_internal,
-    struct_property,
+    p_parent,
+    p_internal,
+    p_tracked,
 )
 from bench.language.run import HasRun
 from bench.language.tag import HasTags
@@ -130,34 +130,30 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
 class Block(ScopeNode, HasTags):
     """A core Bench building block containing logic, types, UI, data, AI, and basically anything source."""
 
-    parent: Union["Block", "Package"] = node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    children: NodeList["Block"] = node_children(
-        NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
-    )
-    badges: NodeList["Badge"] = node_children(NodeType.BADGE)
+    parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED)
+    badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
-    visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
-    policies: list["Policy"] | None = struct_internal(
+    visibility: NodeVisibility = p_tracked(20, default=NodeVisibility.PUBLIC)
+    policies: list["Policy"] | None = p_tracked(
         24, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
-    type: BlockType = struct_internal(30, default=BlockType.BLANK)
-    bases: list["Block"] | None = struct_internal(
+    type: BlockType = p_internal(30, default=BlockType.BLANK)
+    bases: list["Block"] | None = p_tracked(
         31, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = struct_internal(
-        32, default=None, struct=StructType.TYPE_INFO
-    )
-    is_page: bool = struct_internal(33, default=False)
+    builtin_base: Optional["TypeInfo"] = p_tracked(32, default=None, struct=StructType.TYPE_INFO)
+    is_page: bool = p_tracked(33, default=False)
 
     # shared
-    name: str | None = struct_property(40, default=None, validate=validate_name)
-    order_key: str | None = struct_internal(41, default=None)
-    dynamic_key: str | None = struct_internal(42, default=None)
-    text: str | None = struct_property(43, default=None)
-    value_packed: Any | None = struct_property(
+    name: str | None = p_tracked(40, default=None, validate=validate_name)
+    order_key: str | None = p_internal(41, default=None)
+    dynamic_key: str | None = p_internal(42, default=None)
+    text: str | None = p_tracked(43, default=None)
+    value_packed: Any | None = p_internal(
         44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
-    secret_value_packed: Any | None = struct_internal(
+    secret_value_packed: Any | None = p_internal(
         45,
         default=None,
         encrypt=True,
@@ -166,13 +162,13 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    code: str | None = struct_property(50, default=None)
+    code: str | None = p_tracked(50, default=None)
 
     # specific
-    reference: Optional["Block"] = struct_internal(
+    reference: Optional["Block"] = p_tracked(
         51, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] | None = struct_internal(
+    delegated_policies: list["Policy"] | None = p_tracked(
         52, default_factory=list, struct=StructType.POLICY, sensitive=True
     )
 

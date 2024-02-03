@@ -16,23 +16,21 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.node import (
-    BENCH_CLASS_BY_TYPE,
     Node,
     Property,
     Struct,
     node,
-    node_parent,
+    p_parent,
     struct,
-    struct_property,
-    struct_runtime,
+    p_tracked,
+    BENCH_CLASS_BY_TYPE,
 )
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, TypeInfo, ScopeNode
+    from bench.language import Block, Field, TypeInfo
     from bench.language.field import HasFields
-    from bench.language.notice import NoticeHandler
 
 
 #
@@ -42,10 +40,10 @@ if TYPE_CHECKING:
 
 @struct(StructType.NODE_REFERENCE)
 class NodeReference(Struct):
-    type: NodeType = struct_property(30, require=True)
-    id: Optional[UUID] = struct_property(31, default=None)
-    ck: Optional[UUID] = struct_property(32, default=None)
-    base_ck: Optional[UUID] = struct_property(33, default=None)
+    type: NodeType = p_tracked(30, require=True)
+    id: Optional[UUID] = p_tracked(31, default=None)
+    ck: Optional[UUID] = p_tracked(32, default=None)
+    base_ck: Optional[UUID] = p_tracked(33, default=None)
 
     def __content_str__(self):
         return f"{self.type.bench_name}:[id={self.id}, ck={self.ck}]"
@@ -68,50 +66,36 @@ class NodeReference(Struct):
 
 @struct(StructType.PROPERTY_REFERENCE)
 class PropertyReference(Struct):
-    type: BenchType = struct_property(30, require=True)
-    id: int = struct_property(31)
+    type: BenchType = p_tracked(30, require=True)
+    id: int = p_tracked(31)
     # to disambiguate contributed properties
-    references_type: Optional[NodeType] = struct_property(32)
-    _resolved_property: Optional[Property] = struct_runtime(default=None)
+    references_type: Optional[NodeType] = p_tracked(32)
 
     def __content_str__(self):
         return f"{self.type.bench_name}.[id={self.id}]"
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        self._resolved_property = None
-
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def resolve(self) -> Property:
         bench_cls = BENCH_CLASS_BY_TYPE[self.type]
-        self._resolved_property = bench_cls._resolve_property(self)
-
-    @property
-    def resolved_name(self) -> str:
-        assert self._resolved_property is not None, f"{self!r} is not resolved"
-        return self._resolved_property.name
-
-    @property
-    def resolved_property(self) -> Property:
-        assert self._resolved_property is not None, f"{self!r} is not resolved"
-        return self._resolved_property
+        return bench_cls._resolve_property(self)
 
 
 @struct(StructType.PROPERTY_PATH)
 class PropertyPath(Struct):
     """A path of Node/Struct properties."""
 
-    properties: list[PropertyReference] = struct_property(
-        30, require=True, array=True, struct=StructType.PROPERTY_REFERENCE
+    properties: list[Property] = p_tracked(
+        30, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     def __content_str__(self):
-        return f"{'.'.join(str(property) for property in self.properties)}"
+        return f"{'.'.join(property.name for property in self.properties)}"
 
 
 @struct(StructType.FIELD_PATH)
 class FieldPath(Struct):
     """A path of built-in Node/Struct properties and user-defined Fields."""
 
-    segments: list["FieldPathSegment"] = struct_property(
+    segments: list["FieldPathSegment"] = p_tracked(
         30, require=True, array=True, struct=StructType.FIELD_PATH_SEGMENT
     )
 
@@ -123,29 +107,34 @@ class FieldPath(Struct):
 class FieldPathSegment(Struct):
     """A single segment of a FieldPath."""
 
-    property: PropertyReference = struct_property(
-        30, require=True, struct=StructType.PROPERTY_REFERENCE
+    property: Optional[Property] = p_tracked(
+        30, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    field: Optional["Field"] = struct_property(
-        31, require=False, array=False, references=NodeType.FIELD
-    )
+    field: Optional["Field"] = p_tracked(31, require=False, array=False, references=NodeType.FIELD)
 
     def __content_str__(self):
-        return f"{self.property}{f'.{self.field}' if self.field else ''}"
+        return f"{self.property.name}{f'.{self.field}' if self.field else ''}"
 
 
 @struct(StructType.VALUE_REFERENCE)
 class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
-    node: Node = struct_property(30, require=True, array=False, references=(NodeType.BLOCK,))
-    path: FieldPath = struct_property(31, require=True, struct=StructType.FIELD_PATH)
+    node: Node = p_tracked(30, require=True, array=False, references=(NodeType.BLOCK,))
+    path: FieldPath = p_tracked(31, require=True, struct=StructType.FIELD_PATH)
 
     def __content_str__(self):
         if self.node is not None:
             return f"{self.node.path}.{self.path.__content_str__()}"
         else:
             return f"<detached>:{self.path.__content_str__()}"
+
+
+@struct(StructType.VALUE_SELECTION)
+class ValueSelection(Struct):
+    """Select a range of values (or a single value) from a Node."""
+
+    pass
 
 
 class QueryEngineError(Exception):
@@ -159,24 +148,23 @@ class QueryEngineIncapableError(QueryEngineError):
     pass
 
 
+__property__ = property
+
+
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
     """An expression (conditional, aggregation, sort, etc)."""
 
-    op: ExpressionOp = struct_property(30, require=True)
-    field: Optional["Field"] = struct_property(
-        31, require=False, array=False, references=NodeType.FIELD
+    op: ExpressionOp = p_tracked(30, require=True)
+    field: Optional["Field"] = p_tracked(31, require=False, array=False, references=NodeType.FIELD)
+    property: Optional[Property] = p_tracked(
+        32, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    property_ptr: Optional[PropertyReference] = struct_property(
-        32, default=None, struct=StructType.PROPERTY_REFERENCE
-    )
-    clauses: list["Expression"] | None = struct_property(
-        35, default=None, struct=StructType.EXPRESSION
-    )
-    value: Any = struct_property(36, default=None, primitive_type=PrimitiveType.JSON)
-    mode: Optional[SortMode] = struct_property(37, default=None)
+    clauses: list["Expression"] | None = p_tracked(35, default=None, struct=StructType.EXPRESSION)
+    value: Any = p_tracked(36, default=None, primitive_type=PrimitiveType.JSON)
+    mode: Optional[SortMode] = p_tracked(37, default=None)
 
-    @property
+    @__property__
     def kind(self) -> ExpressionKind:
         return EXPRESSION_KIND_BY_OP[self.op]
 
@@ -211,9 +199,9 @@ class Expression(Struct):
         elif self.op == ConditionalOp.NOT:
             return self.clauses[0]
         elif self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field, property_ptr=self.property_ptr)
+            return C(ConditionalOp.NOT_EXISTS, field=self.field, property=self.property)
         elif self.op == ConditionalOp.NOT_EXISTS:
-            return C(ConditionalOp.EXISTS, field=self.field, property_ptr=self.property_ptr)
+            return C(ConditionalOp.EXISTS, field=self.field, property=self.property)
         else:
             return C(ConditionalOp.NOT, clauses=[self])
 
@@ -239,12 +227,12 @@ class Expression(Struct):
         else:
             return C(ConditionalOp.OR, clauses=[self, other])
 
-    @property
+    @__property__
     def target(self) -> Union["Field", Property, None]:
         if self.field is not None:
             return self.field
-        elif self.property_ptr is not None:
-            return self.property_ptr.resolved_property
+        elif self.property is not None:
+            return self.property
         else:
             return None
 
@@ -333,10 +321,10 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 class Aggregation(Struct):
     """The result of an aggregation expression."""
 
-    op: AggregationOp = struct_property(30, require=True)
-    exists: Optional[bool] = struct_property(31, default=False)
-    scalar: Optional[float] = struct_property(32, default=None)
-    buckets: list["AggregationBucket"] | None = struct_property(
+    op: AggregationOp = p_tracked(30, require=True)
+    exists: Optional[bool] = p_tracked(31, default=False)
+    scalar: Optional[float] = p_tracked(32, default=None)
+    buckets: list["AggregationBucket"] | None = p_tracked(
         33, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
     )
 
@@ -345,8 +333,8 @@ class Aggregation(Struct):
 class AggregationBucket(Struct):
     """One bucket of an aggregation histogram."""
 
-    key: Any = struct_property(30, require=True, primitive_type=PrimitiveType.JSON)
-    count: int = struct_property(31, require=True)
+    key: Any = p_tracked(30, require=True, primitive_type=PrimitiveType.JSON)
+    count: int = p_tracked(31, require=True)
 
 
 def coerce_conditional(
@@ -382,7 +370,7 @@ def coerce_conditional(
             raise TypeError(f"{node!r} has no field {field_key}")
         _check_field_supports(target._as_type, op)
         if isinstance(target, Property):
-            field, property = None, target.to_ref
+            field, property = None, target
         else:
             field, property = target, None
         if value is None:
@@ -390,7 +378,7 @@ def coerce_conditional(
                 op = ConditionalOp.NOT_EXISTS
             elif op == ConditionalOp.NOT_EQUALS:
                 op = ConditionalOp.EXISTS
-        clauses.append(Expression(op=op, field=field, property_ptr=property, value=value))
+        clauses.append(Expression(op=op, field=field, property=property, value=value))
     if not clauses:
         if return_none_if_empty:
             return None
@@ -438,10 +426,9 @@ def coerce_sort(
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
             if isinstance(target, Property):
-                field, property = None, target.to_ref
+                item = S(op, field=None, property=target)
             else:
-                field, property = target, None
-            item = S(op, field=field, property_ptr=property)
+                item = S(op, field=target, property=None)
             _check_field_supports(target._as_type, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
@@ -523,17 +510,15 @@ _EMPTY_SET = set()
 class Query(Node):
     """A persistent query."""
 
-    parent: Union["Block"] = node_parent(4, NodeType.BLOCK)
-    name: str | None = struct_property(30, default=None)
-    order_key: str | None = struct_property(31, default=None)
-    node_type: NodeType = struct_property(32)
-    bases: list["Block"] | None = struct_property(
+    parent: Union["Block"] = p_parent(4, NodeType.BLOCK)
+    name: str | None = p_tracked(30, default=None)
+    order_key: str | None = p_tracked(31, default=None)
+    node_type: NodeType = p_tracked(32)
+    bases: list["Block"] | None = p_tracked(
         33, array=True, require=False, default=None, references=NodeType.BLOCK
     )
-    filter: Optional[Expression] = struct_property(34, default=None, struct=StructType.EXPRESSION)
-    sort: Optional[list[Expression]] = struct_property(
-        35, default=None, struct=StructType.EXPRESSION
-    )
+    filter: Optional[Expression] = p_tracked(34, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list[Expression]] = p_tracked(35, default=None, struct=StructType.EXPRESSION)
 
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"

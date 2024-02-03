@@ -14,11 +14,11 @@ from bench.language.node import (
     Node,
     Struct,
     node,
-    node_parent,
+    p_parent,
     struct,
-    struct_internal,
-    struct_property,
-    struct_runtime,
+    p_internal,
+    p_tracked,
+    p_runtime,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import _auto_async_to_sync
@@ -37,27 +37,27 @@ FILE_MAX_NAME_LENGTH = 256
 class BucketObject(Node):
     """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
 
-    parent: Bench = node_parent(4, NodeType.BENCH)
-    sha512: str = struct_internal(30)
-    content_length: int = struct_internal(31, primitive_type=PrimitiveType.INT64)
-    content_type: str = struct_internal(32)
-    status: FileStatus = struct_internal(33)
+    parent: Bench = p_parent(4, NodeType.BENCH)
+    sha512: str = p_internal(30)
+    content_length: int = p_internal(31, primitive_type=PrimitiveType.INT64)
+    content_type: str = p_internal(32)
+    status: FileStatus = p_internal(33)
 
 
 @struct(StructType.FILE)
 class File(Struct):
     """A reference to a file stored somewhere."""
 
-    sha512: Optional[str] = struct_internal(30)
-    content_length: Optional[int] = struct_internal(31)
-    content_type: Optional[str] = struct_internal(32)
-    name: str = struct_property(33)
-    object: Optional[BucketObject] = struct_internal(
+    sha512: Optional[str] = p_internal(30)
+    content_length: Optional[int] = p_internal(31)
+    content_type: Optional[str] = p_internal(32)
+    name: str = p_tracked(33)
+    object: Optional[BucketObject] = p_internal(
         34, require=False, array=False, references=NodeType.BUCKET_OBJECT
     )
-    status: FileStatus = struct_internal(35, default=FileStatus.PENDING)
+    status: FileStatus = p_internal(35, default=FileStatus.PENDING)
 
-    _cached_bytes: Optional[bytes] = struct_runtime(default=None)
+    _cached_bytes: Optional[bytes] = p_runtime(default=None)
 
     def __content_str__(self):
         return f"{self.name} {self.status}, {self.content_type}, {self.content_length} bytes"

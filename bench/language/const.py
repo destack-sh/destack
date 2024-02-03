@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.01.1"
+VERSION = "2024.02.03.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -50,6 +50,7 @@ class NodeType(ProtoStrEnum):
     LINK = "LINK", 30
     SKIP = "SKIP", 31
     # COMMENT = "COMMENT", ...
+    # REACTION = "REACTION", ...
     SPACE = "SPACE", 40
     # DEPENDENCY = "DEPENDENCY", ...
     # UPGRADE = "UPGRADE", ...
@@ -114,6 +115,7 @@ class StructType(ProtoStrEnum):
     FIELD_PATH = "FIELD_PATH", 204
     FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
     VALUE_REFERENCE = "VALUE_REFERENCE", 206
+    VALUE_SELECTION = "VALUE_SELECTION", 207
 
     TYPE_INFO = "TYPE_INFO", 210
 
@@ -128,7 +130,6 @@ class StructType(ProtoStrEnum):
     ACCESS_MATRIX = "ACCESS_MATRIX", 235
     REQUEST = "REQUEST", 236
     ACTION = "ACTION", 237
-    ACTION_TRACE = "ACTION_TRACE", 238
     READ_OPTIONS = "READ_OPTIONS", 239
 
     EXPRESSION = "EXPRESSION", 260
@@ -398,11 +399,11 @@ class ActionKind(ProtoStrEnum):
 
     @property
     def from_id(self):
-        return ACTION_CLASS_BY_KIND[self].__MIN_ID__
+        return ACTION_CLASS_BY_KIND[self].get_min_id()
 
     @property
     def to_id(self):
-        return ACTION_CLASS_BY_KIND[self].__MAX_ID__
+        return ACTION_CLASS_BY_KIND[self].get_max_id()
 
     @property
     def bench_name(self):
