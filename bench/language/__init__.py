@@ -1,3 +1,4 @@
+from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
 from .access import (
     AccessError,
@@ -67,6 +68,7 @@ from .view import Space, SpaceDock, View, ViewType
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
+
 __all__ = [
     "A",
     "AccessError",
@@ -116,6 +118,8 @@ __all__ = [
     "Request",
     "RequestObject",
     "RequestSubject",
+    "RichText",
+    "RichTextSpan",
     "Role",
     "Run",
     "RunError",
@@ -142,6 +146,5 @@ __all__ = [
     "WorkerImage",
     "WorkerSet",
 ]
-
 # after all the imports, we can finalize
 _complete_bench_setup()

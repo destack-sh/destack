@@ -10,10 +10,10 @@ from bench.proto.core import (
     Message,
     ProtoObject,
     ProtoSchema,
-    ProtoStrEnum,
 )
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
+from bench.utils.func import IdStrEnum
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, Struct
@@ -97,16 +97,16 @@ def map_bench_struct_to_proto(
 
 
 def map_bench_enum_to_proto(
-    bench_t: type[ProtoStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
+    bench_t: type[IdStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
     cache: dict[_BenchType, ProtoObject],
     alias: str = None,
 ) -> Enum:
     assert issubclass(
-        bench_t, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
+        bench_t, (IdStrEnum, enum.IntEnum, enum.IntFlag)
     ), f"invalid enum: {bench_t!r}"
     # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
-    if issubclass(bench_t, ProtoStrEnum):
+    if issubclass(bench_t, IdStrEnum):
         enum_values = [
             EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
         ]

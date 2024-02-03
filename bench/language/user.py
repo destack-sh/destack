@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import NodeType, NotificationKind
+from bench.language.const import NodeType, NotificationKind, StructType
 from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_tracked, p_system
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Space, Worker
+    from bench.language import Bench, Space, Worker, RichText
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -20,33 +20,41 @@ class Handle(Node):
 class User(ScopeNode):
     """A Bench user."""
 
-    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
+    handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: Optional[str] = p_tracked(32, default=None)
-    email: str = p_system(33, defer=True, unique=True, sensitive=True)
+    text: Optional["RichText"] = p_tracked(33, default=None, struct=StructType.RICH_TEXT)
+    email: str = p_system(34, defer=True, unique=True, sensitive=True)
+    main_bench: Optional["Bench"] = p_system(
+        35, array=False, require=False, references=NodeType.BENCH
+    )
+
     password_salt: Optional[bytes] = p_system(
-        34, default=None, defer=True, encrypt=True, sensitive=True
+        40, default=None, defer=True, encrypt=True, sensitive=True
     )
     password_hash: Optional[bytes] = p_system(
-        35, default=None, defer=True, encrypt=True, sensitive=True
+        42, default=None, defer=True, encrypt=True, sensitive=True
     )
-    last_logged_in_at: Optional[datetime] = p_system(36, default=None)
-    is_staff: bool = p_system(37, default=False)
-    main_bench: Optional["Bench"] = p_system(
-        38, array=False, require=False, references=NodeType.BENCH
-    )
+    last_logged_in_at: Optional[datetime] = p_system(43, default=None)
+
+    # flags
+    is_staff: bool = p_system(60, default=False)
+    is_activated: bool = p_system(61, default=False)
 
 
 @node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
 class Organization(ScopeNode):
     """A Bench organization."""
 
-    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
+    handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: str = p_tracked(32)
+    text: Optional["RichText"] = p_tracked(33, default=None, struct=StructType.RICH_TEXT)
     main_bench: Optional["Bench"] = p_system(
-        33, array=False, require=False, references=NodeType.BENCH
+        35, array=False, require=False, references=NodeType.BENCH
     )
+
+    # flags
 
 
 @node(NodeType.MEMBERSHIP)

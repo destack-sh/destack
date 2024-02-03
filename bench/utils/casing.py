@@ -2,10 +2,10 @@ import re
 
 import cachetools
 
-from bench.proto.core import ProtoStrEnum
+from bench.utils.func import IdStrEnum
 
 
-class IdentifierType(ProtoStrEnum):
+class IdentifierType(IdStrEnum):
     FILE = "file", 1
     TYPE = "type", 2
     CONSTANT = "constant", 3
@@ -14,7 +14,7 @@ class IdentifierType(ProtoStrEnum):
     PROPERTY = "field", 6
 
 
-class Casing(ProtoStrEnum):
+class Casing(IdStrEnum):
     SNAKE = "snake", 1
     CAMEL = "camel", 2
     ALL_CAPS = "all_caps", 3

@@ -7,9 +7,8 @@ from itertools import chain
 from typing import Optional
 from uuid import UUID
 
-from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import cyrb53a
+from bench.utils.func import cyrb53a, IdStrEnum
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
@@ -17,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.03.4"
+VERSION = "2024.02.03.9"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -29,7 +28,7 @@ EMPTY_DICT: typing.Mapping = frozendict()
 #
 
 
-class NodeType(ProtoStrEnum):
+class NodeType(IdStrEnum):
     # root
     BENCH = "BENCH", 1
     # UNIVERSE = "UNIVERSE", 2
@@ -106,7 +105,7 @@ SUB_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
 )
 
 
-class StructType(ProtoStrEnum):
+class StructType(IdStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
     BENCH_PATH = "BENCH_PATH", 200
     NODE_REFERENCE = "NODE_REFERENCE", 201
@@ -172,7 +171,7 @@ STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
-    BenchType = ProtoStrEnum(
+    BenchType = IdStrEnum(
         "BenchType",
         {bt.name: (bt.name, bt.id) for bt in chain(NODE_TYPES, STRUCT_TYPES)},
     )
@@ -185,7 +184,7 @@ BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
-class BlockType(ProtoStrEnum):
+class BlockType(IdStrEnum):
     PAGE = "page", 1  # group of blocks
     BLANK = "blank", 2  # placeholder/spacer
     TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
@@ -247,13 +246,13 @@ class BlockTypes:
     NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 
-class NodeSource(ProtoStrEnum):
+class NodeSource(IdStrEnum):
     PERSISTED = "PERSISTED", 1
     INTERP = "INTERP", 2
     LOCAL = "LOCAL", 3
 
 
-class NodeVisibility(ProtoStrEnum):
+class NodeVisibility(IdStrEnum):
     PRIVATE = "PRIVATE", 1
     INTERNAL = "INTERNAL", 2
     PUBLIC = "PUBLIC", 3
@@ -318,7 +317,7 @@ NS = NodeStatus
 #
 
 
-class ReadType(ProtoStrEnum):
+class ReadType(IdStrEnum):
     """A type of Read action on nodes."""
 
     GET = "GET", 1  # any direct read action
@@ -335,7 +334,7 @@ class ReadType(ProtoStrEnum):
         return ActionKind.READ
 
 
-class EditType(ProtoStrEnum):
+class EditType(IdStrEnum):
     """A type of Edit action on nodes."""
 
     BUMP_CHANGED = "BUMP_CHANGED", 10
@@ -359,7 +358,7 @@ class EditType(ProtoStrEnum):
         return ActionKind.EDIT
 
 
-class RunType(ProtoStrEnum):
+class RunType(IdStrEnum):
     """A type of Run action on nodes."""
 
     START = "START", 25
@@ -384,7 +383,7 @@ RUN_TYPES: tuple[RunType, ...] = tuple(RunType)
 if typing.TYPE_CHECKING:
     ActionType = ReadType | EditType | RunType
 else:
-    ActionType = ProtoStrEnum(
+    ActionType = IdStrEnum(
         "ActionType",
         {ak.name: (ak.name, ak.id) for ak in chain(READ_TYPES, EDIT_TYPES, RUN_TYPES)},
     )
@@ -394,7 +393,7 @@ else:
 ACTION_TYPES: tuple[ActionType, ...] = tuple(ActionType)
 
 
-class ActionKind(ProtoStrEnum):
+class ActionKind(IdStrEnum):
     # NOTE: ActionType ids and their overlap with ActionKind is important for our masks.
     READ = "READ", 1
     EDIT = "EDIT", 10
@@ -434,32 +433,32 @@ KIND_BY_ACTION: dict[ActionType, ActionKind] = {
 #
 
 
-class BenchStatus(ProtoStrEnum):
+class BenchStatus(IdStrEnum):
     PREPARING = "PREPARING", 1
     MIGRATING = "MIGRATING", 2
     AVAILABLE = "AVAILABLE", 3
 
 
-class BadgeType(ProtoStrEnum):
+class BadgeType(IdStrEnum):
     SHARING_LINK = "SHARING_LINK", 1
     ACCESS_KEY = "ACCESS_KEY", 2
 
 
-class PolicyEffect(ProtoStrEnum):
+class PolicyEffect(IdStrEnum):
     ALLOW = "ALLOW", 1
     DENY = "DENY", 2
 
 
-class ClientKind(ProtoStrEnum):
+class ClientKind(IdStrEnum):
     USER = "USER", 1
     WORKER = "WORKER", 2
 
 
-class NotificationKind(ProtoStrEnum):
+class NotificationKind(IdStrEnum):
     pass
 
 
-class PrimitiveType(ProtoStrEnum):
+class PrimitiveType(IdStrEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
     NOTE: the ids here are used in encode/decode pipelines, take extra care.
@@ -480,7 +479,7 @@ class PrimitiveType(ProtoStrEnum):
     UUID = "UUID", 13
 
 
-class FormatHint(ProtoStrEnum):
+class FormatHint(IdStrEnum):
     """Extra semantic hint for types."""
 
     # string
@@ -503,13 +502,13 @@ class FormatHint(ProtoStrEnum):
     AUDIO = "audio", 32
 
 
-class FileStatus(ProtoStrEnum):
+class FileStatus(IdStrEnum):
     PENDING = "PENDING", 1
     UPLOADING = "UPLOADING", 2
     AVAILABLE = "AVAILABLE", 3
 
 
-class TriggerType(ProtoStrEnum):
+class TriggerType(IdStrEnum):
     """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
     INVOKE = "invoke", 1
@@ -518,14 +517,14 @@ class TriggerType(ProtoStrEnum):
     API = "api", 4
 
 
-class ScheduleType(ProtoStrEnum):
+class ScheduleType(IdStrEnum):
     """Schedules for blocks."""
 
     INTERVAL = "interval", 1
     CRON = "cron", 2
 
 
-class NoticeKind(ProtoStrEnum):
+class NoticeKind(IdStrEnum):
     """Type of diagnostic in increasing severity."""
 
     HINT = "HINT", 1
@@ -538,12 +537,12 @@ class NoticeKind(ProtoStrEnum):
         return to_casing(self.name, Casing.CAMEL)
 
 
-class BenchRegion(ProtoStrEnum):
+class BenchRegion(IdStrEnum):
     EU_CENTRAL = "EU_CENTRAL", 1
     US_WEST = "US_WEST", 10
 
 
-class WorkerSetStatus(ProtoStrEnum):
+class WorkerSetStatus(IdStrEnum):
     SLEEPING = "SLEEPING", 1
     PENDING = "PENDING", 2
     UPDATING = "UPDATING", 3
@@ -553,7 +552,7 @@ class WorkerSetStatus(ProtoStrEnum):
     UNKNOWN = "UNKNOWN", 7
 
 
-class RunStatus(ProtoStrEnum):
+class RunStatus(IdStrEnum):
     SCHEDULED = "Scheduled", 1
     QUEUED = "Queued", 2
     RUNNING = "Running", 3
@@ -582,7 +581,7 @@ PENDING_RUN_STATUSES = {
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.HALTED, RunStatus.ABORTING}
 
 
-class RunErrorKind(ProtoStrEnum):
+class RunErrorKind(IdStrEnum):
     Internal = "Internal", 1
     Parse = "Parse", 2
     Validation = "Validation", 3
@@ -590,19 +589,19 @@ class RunErrorKind(ProtoStrEnum):
     Untrusted = "Untrusted", 5
 
 
-class WorkerProfile(ProtoStrEnum):
+class WorkerProfile(IdStrEnum):
     TINY = "TINY", 1
     SMALL = "SMALL", 2
     MEDIUM = "MEDIUM", 3
 
 
-class ExpressionKind(ProtoStrEnum):
+class ExpressionKind(IdStrEnum):
     CONDITIONAL = "CONDITIONAL", 1
     SORT = "SORT", 2
     AGGREGATION = "AGGREGATION", 3
 
 
-class ConditionalOp(ProtoStrEnum):
+class ConditionalOp(IdStrEnum):
     # logical
     TRUE = "TRUE", 1
     FALSE = "FALSE", 2
@@ -661,7 +660,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 }
 
 
-class AggregationOp(ProtoStrEnum):
+class AggregationOp(IdStrEnum):
     EXISTS = "EXISTS", 101
     COUNT = "COUNT", 102
     SUM = "SUM", 103
@@ -672,12 +671,12 @@ class AggregationOp(ProtoStrEnum):
     HISTOGRAM = "HISTOGRAM", 108
 
 
-class SortOp(ProtoStrEnum):
+class SortOp(IdStrEnum):
     ASCENDING = "ASCENDING", 201
     DESCENDING = "DESCENDING", 202
 
 
-class QueryEngine(ProtoStrEnum):
+class QueryEngine(IdStrEnum):
     IN_MEMORY = "IN_MEMORY", 1
     GLOBAL_POSTGRES = "GLOBAL_PG", 2
     GLOBAL_OPENSEARCH = "GLOBAL_OS", 3
@@ -685,7 +684,7 @@ class QueryEngine(ProtoStrEnum):
     LOCAL_OPENSEARCH = "LOCAL_OS", 5
 
 
-class SortMode(ProtoStrEnum):
+class SortMode(IdStrEnum):
     MAX = "MAX", 1
     MIN = "MIN", 2
     AVERAGE = "AVERAGE", 3
@@ -696,7 +695,7 @@ class SortMode(ProtoStrEnum):
 if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
-    ExpressionOp = ProtoStrEnum(
+    ExpressionOp = IdStrEnum(
         "ExpressionOp",
         {op.name: (op.name, op.id) for op in chain(ConditionalOp, AggregationOp, SortOp)},
     )

@@ -36,15 +36,15 @@ from bench.language.node import (
     p_runtime,
     p_tracked,
     struct,
+    CHILD_NODE_TYPES,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
 from bench.language.tree import NodeDataTree, NodeTree
 from bench.language.user import Membership, Organization, User
-from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import AnyNodeData, EditData
 from bench.utils.casing import IdentifierType
-from bench.utils.func import to_uuid
+from bench.utils.func import to_uuid, IdStrEnum, bytetuple
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Expression, Property, ScopeNode
@@ -602,7 +602,7 @@ class ActionTrace(Struct):
     pass
 
 
-def _enums_to_mask(values: list[ProtoStrEnum], cls: type[ProtoStrEnum]) -> bitarray:
+def _enums_to_mask(values: list[IdStrEnum], cls: type[IdStrEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
     mask = bitarray(cls.get_max_id() + 1)
     if not values:
@@ -721,11 +721,8 @@ def adapt_read_options(
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
-LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = (
-    NodeType.BENCH,
-    NodeType.PACKAGE,
-    NodeType.SPACE,
-    NodeType.BLOCK,
+LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
 )
 
 
@@ -744,7 +741,7 @@ def generate_access_matrix(
     zones: list[AccessZone] = []
     base_zones: list[AccessZone] = []
     matrix = AccessMatrix(
-        subject=subject, zones=zones, base_rules=base_policies, identities=identities
+        subject=subject, zones=zones, base_zones=base_zones, identities=identities
     )
     roots = tree.find_roots()
     applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
@@ -796,8 +793,16 @@ def generate_access_matrix(
                     parent_zones_by_identity[identity_id] = zone.id
 
         # descend into children
-        ...
+        current_type: NodeType = wiring.unpack_enum(NodeType, current_node.metatype)
+        if (
+            current_type in LEGISLATIVE_NODE_TYPES
+            or LEGISLATIVE_NODE_TYPES.bits & DESCENDANT_NODE_TYPES[current_type].bits
+        ):
+            for child_type in CHILD_NODE_TYPES[current_type]:
+                for child_node in tree.iter_descendants(current_node, child_type):
+                    _generate_access_zones(child_node, owner, parent_zones_by_identity)
 
+    # start at root
     root_zones_by_identity = tuple(None for _ in identities)
     for root in roots:
         # figure out owner
@@ -828,8 +833,9 @@ def generate_access_matrix(
             base_zones.append(base_zone)
 
         # add nested zones if there are any legislative nodes down here
-        if root_type in LEGISLATIVE_NODE_TYPES or any(
-            nt in LEGISLATIVE_NODE_TYPES for nt in DESCENDANT_NODE_TYPES[root_type]
+        if (
+            root_type in LEGISLATIVE_NODE_TYPES
+            or LEGISLATIVE_NODE_TYPES.bits & DESCENDANT_NODE_TYPES[root_type].bits
         ):
             _generate_access_zones(root, owner, root_zones_by_identity)
 

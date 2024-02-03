@@ -12,7 +12,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import PrimitiveType
-from bench.proto.core import ProtoStrEnum
+from bench.utils.func import IdStrEnum
 
 
 def stable_hash(*args) -> int:
@@ -166,7 +166,7 @@ SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(No
 SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
 
 
-class CascadeAction(ProtoStrEnum):
+class CascadeAction(IdStrEnum):
     """
     A SQL cascade action.
     """

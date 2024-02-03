@@ -278,6 +278,13 @@ enum FormatHint {
   FORMAT_HINT_AUDIO = 32;
 }
 
+// enum.StrEnum with an additional id per value.
+//     TODO @Cleanup: convert IdStrEnum to 'regular' int enum
+//      (keep this class, but stop specifying name for everything and store all enums as int)
+enum IdStrEnum {
+  ID_STR_ENUM_UNSPECIFIED = 0;
+}
+
 // Parent relation between node and descendants.
 enum NodeRelationType {
   NODE_RELATION_TYPE_DEFAULT = 0;
@@ -394,13 +401,6 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_BYTES = 11;
   PRIMITIVE_TYPE_VECTOR = 12;
   PRIMITIVE_TYPE_UUID = 13;
-}
-
-// enum.StrEnum with an additional id per value.
-//     TODO @Cleanup: convert ProtoStrEnum to 'regular' int enum
-//      (keep this class, but stop specifying name for everything and store all enums as int)
-enum ProtoStrEnum {
-  PROTO_STR_ENUM_UNSPECIFIED = 0;
 }
 
 enum QueryEngine {
@@ -562,9 +562,9 @@ enum WorkerSetStatus {
 message AccessMatrixData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
-  repeated AccessZoneData zones = 31;
-  repeated PolicyRuleData base_zones = 32;
-  repeated RequestSubjectData identities = 33;
+  repeated RequestSubjectData identities = 32;
+  repeated AccessZoneData zones = 33;
+  repeated PolicyRuleData base_zones = 34;
 }
 
 // The pre-filtered access rules for a given identity.
@@ -1227,10 +1227,11 @@ message OrganizationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  NodeReferenceData handle_ptr = 30;
+  optional NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
-  optional NodeReferenceData main_bench_ptr = 33;
+  optional RichTextData text = 33;
+  optional NodeReferenceData main_bench_ptr = 35;
 }
 
 // A package is a semi-isolated version of a Bench, containing the actual blocks and so on.
@@ -1478,15 +1479,17 @@ message UserData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  NodeReferenceData handle_ptr = 30;
+  optional NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   optional string name = 32;
-  optional string email = 33;
-  optional bytes password_salt = 34;
-  optional bytes password_hash = 35;
-  optional google.protobuf.Timestamp last_logged_in_at = 36;
-  bool is_staff = 37;
-  optional NodeReferenceData main_bench_ptr = 38;
+  optional RichTextData text = 33;
+  optional string email = 34;
+  optional NodeReferenceData main_bench_ptr = 35;
+  optional bytes password_salt = 40;
+  optional bytes password_hash = 42;
+  optional google.protobuf.Timestamp last_logged_in_at = 43;
+  bool is_staff = 60;
+  bool is_activated = 61;
 }
 
 // A view of a user interface in a Bench.

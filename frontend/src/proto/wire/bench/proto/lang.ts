@@ -28,17 +28,17 @@ export interface AccessMatrixData {
      */
     subject?: RequestSubjectData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.AccessZoneData zones = 31;
+     * @generated from protobuf field: repeated symbolx.bench.RequestSubjectData identities = 32;
+     */
+    identities: RequestSubjectData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.AccessZoneData zones = 33;
      */
     zones: AccessZoneData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData base_zones = 32;
+     * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData base_zones = 34;
      */
     baseZones: PolicyRuleData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.RequestSubjectData identities = 33;
-     */
-    identities: RequestSubjectData[];
 }
 /**
  * The pre-filtered access rules for a given identity.
@@ -2007,7 +2007,7 @@ export interface OrganizationData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
      */
     handlePtr?: NodeReferenceData;
     /**
@@ -2019,7 +2019,11 @@ export interface OrganizationData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
+     */
+    text?: RichTextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 35;
      */
     mainBenchPtr?: NodeReferenceData;
 }
@@ -2888,7 +2892,7 @@ export interface UserData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
      */
     handlePtr?: NodeReferenceData;
     /**
@@ -2900,29 +2904,37 @@ export interface UserData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string email = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
+     */
+    text?: RichTextData;
+    /**
+     * @generated from protobuf field: optional string email = 34;
      */
     email?: string;
     /**
-     * @generated from protobuf field: optional bytes password_salt = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 35;
+     */
+    mainBenchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional bytes password_salt = 40;
      */
     passwordSalt?: Uint8Array;
     /**
-     * @generated from protobuf field: optional bytes password_hash = 35;
+     * @generated from protobuf field: optional bytes password_hash = 42;
      */
     passwordHash?: Uint8Array;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp last_logged_in_at = 36;
+     * @generated from protobuf field: optional google.protobuf.Timestamp last_logged_in_at = 43;
      */
     lastLoggedInAt?: Timestamp;
     /**
-     * @generated from protobuf field: bool is_staff = 37;
+     * @generated from protobuf field: bool is_staff = 60;
      */
     isStaff: boolean;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 38;
+     * @generated from protobuf field: bool is_activated = 61;
      */
-    mainBenchPtr?: NodeReferenceData;
+    isActivated: boolean;
 }
 /**
  * A view of a user interface in a Bench.
@@ -4312,6 +4324,19 @@ export enum FormatHint {
     AUDIO = 32
 }
 /**
+ * enum.StrEnum with an additional id per value.
+ *     TODO @Cleanup: convert IdStrEnum to 'regular' int enum
+ *      (keep this class, but stop specifying name for everything and store all enums as int)
+ *
+ * @generated from protobuf enum symbolx.bench.IdStrEnum
+ */
+export enum IdStrEnum {
+    /**
+     * @generated from protobuf enum value: ID_STR_ENUM_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0
+}
+/**
  * Parent relation between node and descendants.
  *
  * @generated from protobuf enum symbolx.bench.NodeRelationType
@@ -4694,19 +4719,6 @@ export enum PrimitiveType {
      * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 13;
      */
     UUID = 13
-}
-/**
- * enum.StrEnum with an additional id per value.
- *     TODO @Cleanup: convert ProtoStrEnum to 'regular' int enum
- *      (keep this class, but stop specifying name for everything and store all enums as int)
- *
- * @generated from protobuf enum symbolx.bench.ProtoStrEnum
- */
-export enum ProtoStrEnum {
-    /**
-     * @generated from protobuf enum value: PROTO_STR_ENUM_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0
 }
 /**
  * @generated from protobuf enum symbolx.bench.QueryEngine
@@ -5235,17 +5247,17 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         super("symbolx.bench.AccessMatrixData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
-            { no: 31, name: "zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
-            { no: 32, name: "base_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData },
-            { no: 33, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestSubjectData }
+            { no: 32, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestSubjectData },
+            { no: 33, name: "zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
+            { no: 34, name: "base_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData }
         ]);
     }
     create(value?: PartialMessage<AccessMatrixData>): AccessMatrixData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.identities = [];
         message.zones = [];
         message.baseZones = [];
-        message.identities = [];
         if (value !== undefined)
             reflectionMergePartial<AccessMatrixData>(this, message, value);
         return message;
@@ -5261,14 +5273,14 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                 case /* symbolx.bench.RequestSubjectData subject */ 30:
                     message.subject = RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
                     break;
-                case /* repeated symbolx.bench.AccessZoneData zones */ 31:
+                case /* repeated symbolx.bench.RequestSubjectData identities */ 32:
+                    message.identities.push(RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.AccessZoneData zones */ 33:
                     message.zones.push(AccessZoneData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.PolicyRuleData base_zones */ 32:
+                case /* repeated symbolx.bench.PolicyRuleData base_zones */ 34:
                     message.baseZones.push(PolicyRuleData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.RequestSubjectData identities */ 33:
-                    message.identities.push(RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5288,15 +5300,15 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* symbolx.bench.RequestSubjectData subject = 30; */
         if (message.subject)
             RequestSubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.AccessZoneData zones = 31; */
-        for (let i = 0; i < message.zones.length; i++)
-            AccessZoneData.internalBinaryWrite(message.zones[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyRuleData base_zones = 32; */
-        for (let i = 0; i < message.baseZones.length; i++)
-            PolicyRuleData.internalBinaryWrite(message.baseZones[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.RequestSubjectData identities = 33; */
+        /* repeated symbolx.bench.RequestSubjectData identities = 32; */
         for (let i = 0; i < message.identities.length; i++)
-            RequestSubjectData.internalBinaryWrite(message.identities[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+            RequestSubjectData.internalBinaryWrite(message.identities[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.AccessZoneData zones = 33; */
+        for (let i = 0; i < message.zones.length; i++)
+            AccessZoneData.internalBinaryWrite(message.zones[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PolicyRuleData base_zones = 34; */
+        for (let i = 0; i < message.baseZones.length; i++)
+            PolicyRuleData.internalBinaryWrite(message.baseZones[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -9983,7 +9995,8 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
             { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 33, name: "text", kind: "message", T: () => RichTextData },
+            { no: 35, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<OrganizationData>): OrganizationData {
@@ -10031,7 +10044,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* symbolx.bench.NodeReferenceData handle_ptr */ 30:
+                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
                     message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
                     break;
                 case /* optional string slug */ 31:
@@ -10040,7 +10053,10 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 33:
+                case /* optional symbolx.bench.RichTextData text */ 33:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 35:
                     message.mainBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBenchPtr);
                     break;
                 default:
@@ -10085,7 +10101,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData handle_ptr = 30; */
+        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
         if (message.handlePtr)
             NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional string slug = 31; */
@@ -10094,9 +10110,12 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 33; */
+        /* optional symbolx.bench.RichTextData text = 33; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 35; */
         if (message.mainBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -11931,12 +11950,14 @@ class UserData$Type extends MessageType<UserData> {
             { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 35, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 36, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
-            { no: 37, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 38, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 33, name: "text", kind: "message", T: () => RichTextData },
+            { no: 34, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 42, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 43, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
+            { no: 60, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_activated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<UserData>): UserData {
@@ -11945,6 +11966,7 @@ class UserData$Type extends MessageType<UserData> {
         message.id = "";
         message.revision = "0";
         message.isStaff = false;
+        message.isActivated = false;
         if (value !== undefined)
             reflectionMergePartial<UserData>(this, message, value);
         return message;
@@ -11984,7 +12006,7 @@ class UserData$Type extends MessageType<UserData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* symbolx.bench.NodeReferenceData handle_ptr */ 30:
+                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
                     message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
                     break;
                 case /* optional string slug */ 31:
@@ -11993,23 +12015,29 @@ class UserData$Type extends MessageType<UserData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string email */ 33:
+                case /* optional symbolx.bench.RichTextData text */ 33:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional string email */ 34:
                     message.email = reader.string();
                     break;
-                case /* optional bytes password_salt */ 34:
+                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 35:
+                    message.mainBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBenchPtr);
+                    break;
+                case /* optional bytes password_salt */ 40:
                     message.passwordSalt = reader.bytes();
                     break;
-                case /* optional bytes password_hash */ 35:
+                case /* optional bytes password_hash */ 42:
                     message.passwordHash = reader.bytes();
                     break;
-                case /* optional google.protobuf.Timestamp last_logged_in_at */ 36:
+                case /* optional google.protobuf.Timestamp last_logged_in_at */ 43:
                     message.lastLoggedInAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastLoggedInAt);
                     break;
-                case /* bool is_staff */ 37:
+                case /* bool is_staff */ 60:
                     message.isStaff = reader.bool();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 38:
-                    message.mainBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBenchPtr);
+                case /* bool is_activated */ 61:
+                    message.isActivated = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12053,7 +12081,7 @@ class UserData$Type extends MessageType<UserData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData handle_ptr = 30; */
+        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
         if (message.handlePtr)
             NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional string slug = 31; */
@@ -12062,24 +12090,30 @@ class UserData$Type extends MessageType<UserData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional string email = 33; */
+        /* optional symbolx.bench.RichTextData text = 33; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional string email = 34; */
         if (message.email !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.email);
-        /* optional bytes password_salt = 34; */
-        if (message.passwordSalt !== undefined)
-            writer.tag(34, WireType.LengthDelimited).bytes(message.passwordSalt);
-        /* optional bytes password_hash = 35; */
-        if (message.passwordHash !== undefined)
-            writer.tag(35, WireType.LengthDelimited).bytes(message.passwordHash);
-        /* optional google.protobuf.Timestamp last_logged_in_at = 36; */
-        if (message.lastLoggedInAt)
-            Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_staff = 37; */
-        if (message.isStaff !== false)
-            writer.tag(37, WireType.Varint).bool(message.isStaff);
-        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 38; */
+            writer.tag(34, WireType.LengthDelimited).string(message.email);
+        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 35; */
         if (message.mainBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional bytes password_salt = 40; */
+        if (message.passwordSalt !== undefined)
+            writer.tag(40, WireType.LengthDelimited).bytes(message.passwordSalt);
+        /* optional bytes password_hash = 42; */
+        if (message.passwordHash !== undefined)
+            writer.tag(42, WireType.LengthDelimited).bytes(message.passwordHash);
+        /* optional google.protobuf.Timestamp last_logged_in_at = 43; */
+        if (message.lastLoggedInAt)
+            Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_staff = 60; */
+        if (message.isStaff !== false)
+            writer.tag(60, WireType.Varint).bool(message.isStaff);
+        /* bool is_activated = 61; */
+        if (message.isActivated !== false)
+            writer.tag(61, WireType.Varint).bool(message.isActivated);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
