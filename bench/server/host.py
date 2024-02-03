@@ -15,7 +15,7 @@ from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import (
     ReadOptions,
     adapt_read_options,
-    evaluate_read,
+    evaluate_and_adapt_read,
     generate_access_matrix,
 )
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType

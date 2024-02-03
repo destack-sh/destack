@@ -361,6 +361,13 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
                     )
             return descendants
 
+    def get_root(self, node: NodeDataT) -> NodeDataT:
+        """Gets the root node for a given node"""
+        root = node
+        while root.parent_ptr is not None:
+            root = self.nodes_by_id[root.parent_ptr.id]
+        return root
+
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
         from bench.language.node import CHILD_NODE_TYPES
