@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.node import Package
+from bench.language.node import Package, Property
 from bench.language.const import NoticeKind, NodeType, StructType, BenchError
-from bench.language.expression import FieldPath, PropertyReference
-from bench.language.node import Node, node, node_parent, struct_property
+from bench.language.expression import FieldPath, Property
+from bench.language.node import Node, node, p_parent, p_tracked
 from bench.language.validation import enum_validator
 from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import Casing, to_casing
@@ -57,15 +57,15 @@ class NoticeError(BenchError, ValueError):
 
 @node(NodeType.NOTICE)
 class Notice(Node):
-    parent: Union["Block", "Package"] = node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    kind: NoticeKind = struct_property(30, default=None, validate=enum_validator(NoticeKind))
-    type: NoticeType = struct_property(31, validate=enum_validator(NoticeType))
+    parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    kind: NoticeKind = p_tracked(30, default=None, validate=enum_validator(NoticeKind))
+    type: NoticeType = p_tracked(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
-    message: str = struct_property(33)
-    path: Optional[FieldPath] = struct_property(
+    message: str = p_tracked(33)
+    path: Optional[FieldPath] = p_tracked(
         34, default=None, require=False, array=False, struct=StructType.FIELD_PATH
     )
-    properties: Optional[list[PropertyReference]] = struct_property(
+    properties: Optional[list[Property]] = p_tracked(
         35, default=None, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
@@ -87,6 +87,6 @@ class NoticeHandler:
         type: NoticeType,
         message: Optional[str] = None,
         path: Optional[FieldPath] = None,
-        properties: Optional[list[PropertyReference]] = None,
+        properties: Optional[list[Property]] = None,
     ):
         pass

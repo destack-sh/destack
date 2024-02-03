@@ -9,8 +9,8 @@ from bench.language.node import (
     Node,
     Struct,
     struct,
-    struct_internal,
-    struct_property,
+    p_internal,
+    p_tracked,
 )
 
 if TYPE_CHECKING:
@@ -204,10 +204,8 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
 
 @struct(StructType.RICH_TEXT)
 class RichText(Struct):
-    spans: list["RichTextSpan"] = struct_property(
-        30, default_factory=list, struct=StructType.RICH_TEXT
-    )
-    plain_text: str | None = struct_internal(31, default=None)
+    spans: list["RichTextSpan"] = p_tracked(30, default_factory=list, struct=StructType.RICH_TEXT)
+    plain_text: str | None = p_internal(31, default=None)
 
     def __content_str__(self):
         return self.plain_text
@@ -215,14 +213,14 @@ class RichText(Struct):
 
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
-    text: str = struct_property(30, default="")
-    reference: Node | None = struct_property(
+    text: str = p_tracked(30, default="")
+    reference: Node | None = p_tracked(
         32, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
-    is_bold: bool = struct_property(33, default=False)
-    is_italic: bool = struct_property(34, default=False)
-    is_underline: bool = struct_property(35, default=False)
-    is_strikethrough: bool = struct_property(36, default=False)
+    is_bold: bool = p_tracked(33, default=False)
+    is_italic: bool = p_tracked(34, default=False)
+    is_underline: bool = p_tracked(35, default=False)
+    is_strikethrough: bool = p_tracked(36, default=False)
 
     def __content_str__(self):
         return self.text

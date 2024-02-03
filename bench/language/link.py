@@ -44,7 +44,6 @@ if TYPE_CHECKING:
         Node,
         NoticeType,
         Property,
-        PropertyReference,
         ReadOptions,
         ScopeNode,
         Session,
@@ -71,7 +70,7 @@ def on_notice_raise(
     type: "NoticeType",
     message: Optional[str] = None,
     path: Optional["FieldPath"] = None,
-    properties: list["PropertyReference"] | None = None,
+    properties: list["Property"] | None = None,
 ):
     from bench.language.notice import Notice, NoticeError
 
@@ -465,20 +464,18 @@ def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value
     from bench.language.expression import C, Property
 
     if isinstance(target, Property):
-        field, property = None, target.to_ref
+        return C(op, field=None, property=target, value=value)
     else:
-        field, property = target, None
-    return C(op, field=field, property_ptr=property, value=value)
+        return C(op, field=target, property=None, value=value)
 
 
 def _to_sort(op: SortOp, target: Union["Field", "Property"]):
     from bench.language.expression import Property, S
 
     if isinstance(target, Property):
-        field, property = None, target.to_ref
+        return S(op, field=None, property=target)
     else:
-        field, property = target, None
-    return S(op, field=field, property_ptr=property)
+        return S(op, field=target, property=None)
 
 
 class _TypeExpressionBase:

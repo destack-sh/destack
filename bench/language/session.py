@@ -41,10 +41,10 @@ from bench.language.node import (
     Struct,
     get_node_id,
     node,
-    node_parent,
+    p_parent,
     struct,
-    struct_internal,
-    struct_runtime,
+    p_internal,
+    p_runtime,
 )
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
@@ -68,20 +68,18 @@ logger = structlog.get_logger(__name__)
 class LogEntry(Struct):
     """An entry. In a log."""
 
-    id: UUID = struct_internal(2, default_factory=uuid4)
-    package: Package = struct_internal(5, require=True, array=False, references=NodeType.PACKAGE)
-    bench: Package = struct_internal(6, require=True, array=False, references=NodeType.BENCH)
-    created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
-    stream: str = struct_internal(33)
-    session: "Session" = struct_internal(34, require=False, array=True, references=NodeType.SESSION)
-    level: Optional[str] = struct_internal(35, default=None)
-    logger: Optional[str] = struct_internal(36, default=None)
-    block: Optional["Block"] = struct_internal(
-        37, require=False, array=False, references=NodeType.BLOCK
-    )
-    run: Optional["Run"] = struct_internal(38, require=False, array=False, references=NodeType.RUN)
-    message: Optional[str] = struct_internal(39, default=None)
-    value: dict[str, Any] | None = struct_internal(
+    id: UUID = p_internal(2, default_factory=uuid4)
+    package: Package = p_internal(5, require=True, array=False, references=NodeType.PACKAGE)
+    bench: Package = p_internal(6, require=True, array=False, references=NodeType.BENCH)
+    created_at: datetime = p_internal(32, default_factory=utcnow_with_tz)
+    stream: str = p_internal(33)
+    session: "Session" = p_internal(34, require=False, array=True, references=NodeType.SESSION)
+    level: Optional[str] = p_internal(35, default=None)
+    logger: Optional[str] = p_internal(36, default=None)
+    block: Optional["Block"] = p_internal(37, require=False, array=False, references=NodeType.BLOCK)
+    run: Optional["Run"] = p_internal(38, require=False, array=False, references=NodeType.RUN)
+    message: Optional[str] = p_internal(39, default=None)
+    value: dict[str, Any] | None = p_internal(
         40,
         require=False,
         default=None,
@@ -119,49 +117,49 @@ class Session(ScopeNode):
     A managed context for running a Bench package (in a worker).
     """
 
-    parent: Package = node_parent(4, NodeType.PACKAGE)
-    worker: Optional["Worker"] = struct_internal(
+    parent: Package = p_parent(4, NodeType.PACKAGE)
+    worker: Optional["Worker"] = p_internal(
         31, require=False, array=False, references=NodeType.WORKER
     )
-    worker_process_id: Optional[str] = struct_internal(32, default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(33, default=None)
-    trigger_id: Optional[UUID] = struct_internal(34, default=None)
-    opened_at: Optional[datetime] = struct_internal(35, default=None)
-    closed_at: Optional[datetime] = struct_internal(36, default=None)
+    worker_process_id: Optional[str] = p_internal(32, default=None)
+    trigger_type: Optional[TriggerType] = p_internal(33, default=None)
+    trigger_id: Optional[UUID] = p_internal(34, default=None)
+    opened_at: Optional[datetime] = p_internal(35, default=None)
+    closed_at: Optional[datetime] = p_internal(36, default=None)
 
-    _host: Optional["PackageHostStub"] = struct_runtime(default=None)
-    _root_run_ck: UUID | None = struct_runtime(default=None)
-    _root_run_value: dict | None = struct_runtime(default=None)
-    _init_run_value: dict | None = struct_runtime(default=None)
-    _cache: Union["Cache", None] = struct_runtime(default=None)
-    _log: structlog.BoundLogger = struct_runtime(default=None)
+    _host: Optional["PackageHostStub"] = p_runtime(default=None)
+    _root_run_ck: UUID | None = p_runtime(default=None)
+    _root_run_value: dict | None = p_runtime(default=None)
+    _init_run_value: dict | None = p_runtime(default=None)
+    _cache: Union["Cache", None] = p_runtime(default=None)
+    _log: structlog.BoundLogger = p_runtime(default=None)
 
-    _failed_commit: bool = struct_runtime(default=False)
-    _dangling_nodes_by_ck: dict[UUID, Node] = struct_runtime(default_factory=dict)
-    _global_pg_cursor: psycopg.AsyncCursor | None = struct_runtime(default=None)
-    _local_pg_cursor: psycopg.AsyncCursor | None = struct_runtime(default=None)
-    _other_local_pg_cursors: dict[str, psycopg.AsyncCursor] = struct_runtime(default_factory=dict)
-    _tracing_lock: threading.Lock = struct_runtime(default_factory=threading.Lock)
+    _failed_commit: bool = p_runtime(default=False)
+    _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
+    _global_pg_cursor: psycopg.AsyncCursor | None = p_runtime(default=None)
+    _local_pg_cursor: psycopg.AsyncCursor | None = p_runtime(default=None)
+    _other_local_pg_cursors: dict[str, psycopg.AsyncCursor] = p_runtime(default_factory=dict)
+    _tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
 
-    _created_nodes_ck: set[UUID] = struct_runtime(default_factory=set)
-    _updated_nodes_event_by_ck: dict[UUID, int] = struct_runtime(default_factory=dict)
-    _local_edits: list[_Edit] = struct_runtime(default_factory=list)
-    _global_edits: list[_Edit] = struct_runtime(default_factory=list)
-    _changed_record_ids_by_db_id: dict[UUID, set[UUID]] = struct_runtime(
+    _created_nodes_ck: set[UUID] = p_runtime(default_factory=set)
+    _updated_nodes_event_by_ck: dict[UUID, int] = p_runtime(default_factory=dict)
+    _local_edits: list[_Edit] = p_runtime(default_factory=list)
+    _global_edits: list[_Edit] = p_runtime(default_factory=list)
+    _changed_record_ids_by_db_id: dict[UUID, set[UUID]] = p_runtime(
         default_factory=lambda: defaultdict(set)
     )
-    _touched_databases_by_id: dict[UUID, "Block"] = struct_runtime(default_factory=dict)
-    _schema_changed: bool = struct_runtime(default=False)
+    _touched_databases_by_id: dict[UUID, "Block"] = p_runtime(default_factory=dict)
+    _schema_changed: bool = p_runtime(default=False)
 
-    _cached_logs: deque[LogEntry] | None = struct_runtime(default=None)
-    _pending_logs: list[LogEntry] | None = struct_runtime(default=None)
-    _runs_by_id: dict[UUID, Run] | None = struct_runtime(default=None)
-    _pending_runs_by_id: dict[UUID, Run] | None = struct_runtime(default=None)
-    _flush_session_loop: asyncio.Task | None = struct_runtime(default=None)
-    _stdout_collector: Optional["LogCollector"] = struct_runtime(default=None)
-    _stderr_collector: Optional["LogCollector"] = struct_runtime(default=None)
-    _stacktrace: list[Run] | None = struct_runtime(default_factory=list)
-    _active_nodes_by_ck: dict[UUID, Node] | None = struct_runtime(default=None)
+    _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
+    _pending_logs: list[LogEntry] | None = p_runtime(default=None)
+    _runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
+    _pending_runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
+    _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
+    _stdout_collector: Optional["LogCollector"] = p_runtime(default=None)
+    _stderr_collector: Optional["LogCollector"] = p_runtime(default=None)
+    _stacktrace: list[Run] | None = p_runtime(default_factory=list)
+    _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
 
     def __content_str__(self):
         if self.closed_at:

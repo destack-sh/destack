@@ -4,13 +4,13 @@ from bench.language.const import StructType, NodeType
 from bench.language.node import (
     struct,
     Struct,
-    struct_property,
-    node_parent,
-    struct_internal,
+    p_tracked,
+    p_parent,
+    p_internal,
     node,
     Node,
     Package,
-    node_children,
+    p_child,
     node_component,
     ScopeNode,
 )
@@ -52,19 +52,19 @@ class ViewType(ProtoStrEnum):
 
 @node_component
 class HasViews(Node):
-    views: list["View"] = node_children(NodeType.VIEW)
+    views: list["View"] = p_child(NodeType.VIEW)
 
 
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
 class View(ScopeNode, HasViews):
     """A view of a user interface in a Bench."""
 
-    parent: Union["Space", "View", "Block"] = node_parent(
+    parent: Union["Space", "View", "Block"] = p_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
-    type: ViewType = struct_property(30, require=True, validate=enum_validator(ViewType))
-    name: Optional[str] = struct_property(31, default=None)
-    icon: Optional["Icon"] = struct_property(
+    type: ViewType = p_tracked(30, require=True, validate=enum_validator(ViewType))
+    name: Optional[str] = p_tracked(31, default=None)
+    icon: Optional["Icon"] = p_tracked(
         32, default=None, require=False, array=False, struct=StructType.ICON
     )
 
@@ -78,15 +78,15 @@ class PageViewMode(ProtoStrEnum):
 class Space(ScopeNode, HasViews):
     """A space for a user to interact with the Bench."""
 
-    parent: Package = node_parent(4, NodeType.PACKAGE)
-    policies: list["Policy"] | None = struct_internal(
+    parent: Package = p_parent(4, NodeType.PACKAGE)
+    policies: list["Policy"] | None = p_tracked(
         24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
     )
 
-    name: str = struct_property(31)
-    order_key: str = struct_internal(32)
+    name: str = p_tracked(31)
+    order_key: str = p_internal(32)
     # layout/views/...
-    dock: "SpaceDock" = struct_internal(34, require=True, array=False, struct=StructType.SPACE_DOCK)
+    dock: "SpaceDock" = p_tracked(34, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
 class SpaceDockItemType(ProtoStrEnum):
@@ -100,14 +100,14 @@ class SpaceDockItemType(ProtoStrEnum):
 
 @struct(StructType.SPACE_DOCK_ITEM)
 class SpaceDockItem(Struct):
-    # type: SpaceDockItemType = struct_property(
+    # type: SpaceDockItemType = p_tracked(
     #     30, require=True, validate=enum_validator(SpaceDockItemType)
     # )
-    hidden: bool = struct_property(31, default=False)
+    hidden: bool = p_tracked(31, default=False)
 
 
 @struct(StructType.SPACE_DOCK)
 class SpaceDock(Struct):
-    items: list[SpaceDockItem] = struct_property(
+    items: list[SpaceDockItem] = p_tracked(
         30, require=True, array=True, default_factory=list, struct=StructType.SPACE_DOCK_ITEM
     )

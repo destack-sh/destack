@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 class ActionKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
-    EDIT = 20
-    RUN = 40
+    EDIT = 10
+    RUN = 25
 
 
 class ActionType(betterproto.Enum):
@@ -38,21 +38,21 @@ class ActionType(betterproto.Enum):
     AGGREGATE_SCALAR = 2
     AGGREGATE_BUCKET = 3
     LIST = 4
-    BUMP_CHANGED = 20
-    BUMP_ACTIVE = 21
-    CREATE = 22
-    UPSERT = 23
-    UPDATE = 24
-    MOVE = 25
-    ARCHIVE = 26
-    UNARCHIVE = 27
-    SOFT_DELETE = 28
-    RESTORE = 29
-    DELETE = 30
-    START = 40
-    PAUSE = 41
-    RESUME = 42
-    KILL = 43
+    BUMP_CHANGED = 10
+    BUMP_ACTIVE = 11
+    CREATE = 12
+    UPSERT = 13
+    UPDATE = 14
+    MOVE = 15
+    ARCHIVE = 16
+    UNARCHIVE = 17
+    SOFT_DELETE = 18
+    RESTORE = 19
+    DELETE = 20
+    START = 25
+    PAUSE = 26
+    RESUME = 37
+    KILL = 28
 
 
 class AggregationOp(betterproto.Enum):
@@ -99,6 +99,7 @@ class BenchType(betterproto.Enum):
     VIEW = 27
     NOTICE = 29
     LINK = 30
+    SKIP = 31
     SPACE = 40
     SESSION = 50
     RUN = 51
@@ -123,30 +124,31 @@ class BenchType(betterproto.Enum):
     FIELD_PATH = 204
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
+    VALUE_SELECTION = 207
     TYPE_INFO = 210
     FILE = 220
     ICON = 221
     POLICY = 230
     POLICY_RULE = 231
-    ACTION = 232
-    REQUEST = 233
-    REQUEST_SUBJECT = 234
-    REQUEST_OBJECT = 235
-    REQUEST_EVALUATION = 236
-    ACTION_EVALUATION = 237
-    READ_OPTIONS = 238
-    EXPRESSION = 240
-    AGGREGATION = 241
-    AGGREGATION_BUCKET = 242
-    LOG_ENTRY = 260
-    RUN_CODE_FRAME = 261
-    RUN_ERROR = 262
-    WORKER_IMAGE = 280
-    DEPENDENCY = 281
-    RICH_TEXT = 300
-    RICH_TEXT_SPAN = 301
-    SPACE_DOCK = 400
-    SPACE_DOCK_ITEM = 401
+    REQUEST_SUBJECT = 232
+    REQUEST_OBJECT = 233
+    ACCESS_ZONE = 234
+    ACCESS_MATRIX = 235
+    REQUEST = 236
+    ACTION = 237
+    READ_OPTIONS = 239
+    EXPRESSION = 260
+    AGGREGATION = 261
+    AGGREGATION_BUCKET = 262
+    LOG_ENTRY = 290
+    RUN_CODE_FRAME = 291
+    RUN_ERROR = 292
+    WORKER_IMAGE = 320
+    DEPENDENCY = 321
+    RICH_TEXT = 350
+    RICH_TEXT_SPAN = 351
+    SPACE_DOCK = 500
+    SPACE_DOCK_ITEM = 501
 
 
 class BlockType(betterproto.Enum):
@@ -215,17 +217,17 @@ class EditType(betterproto.Enum):
     """A type of Edit action on nodes."""
 
     UNSPECIFIED = 0
-    BUMP_CHANGED = 20
-    BUMP_ACTIVE = 21
-    CREATE = 22
-    UPSERT = 23
-    UPDATE = 24
-    MOVE = 25
-    ARCHIVE = 26
-    UNARCHIVE = 27
-    SOFT_DELETE = 28
-    RESTORE = 29
-    DELETE = 30
+    BUMP_CHANGED = 10
+    BUMP_ACTIVE = 11
+    CREATE = 12
+    UPSERT = 13
+    UPDATE = 14
+    MOVE = 15
+    ARCHIVE = 16
+    UNARCHIVE = 17
+    SOFT_DELETE = 18
+    RESTORE = 19
+    DELETE = 20
 
 
 class ExpressionKind(betterproto.Enum):
@@ -340,6 +342,7 @@ class NodeType(betterproto.Enum):
     VIEW = 27
     NOTICE = 29
     LINK = 30
+    SKIP = 31
     SPACE = 40
     SESSION = 50
     RUN = 51
@@ -475,10 +478,10 @@ class RunType(betterproto.Enum):
     """A type of Run action on nodes."""
 
     UNSPECIFIED = 0
-    START = 40
-    PAUSE = 41
-    RESUME = 42
-    KILL = 43
+    START = 25
+    PAUSE = 26
+    RESUME = 37
+    KILL = 28
 
 
 class ScheduleType(betterproto.Enum):
@@ -513,30 +516,31 @@ class StructType(betterproto.Enum):
     FIELD_PATH = 204
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
+    VALUE_SELECTION = 207
     TYPE_INFO = 210
     FILE = 220
     ICON = 221
     POLICY = 230
     POLICY_RULE = 231
-    ACTION = 232
-    REQUEST = 233
-    REQUEST_SUBJECT = 234
-    REQUEST_OBJECT = 235
-    REQUEST_EVALUATION = 236
-    ACTION_EVALUATION = 237
-    READ_OPTIONS = 238
-    EXPRESSION = 240
-    AGGREGATION = 241
-    AGGREGATION_BUCKET = 242
-    LOG_ENTRY = 260
-    RUN_CODE_FRAME = 261
-    RUN_ERROR = 262
-    WORKER_IMAGE = 280
-    DEPENDENCY = 281
-    RICH_TEXT = 300
-    RICH_TEXT_SPAN = 301
-    SPACE_DOCK = 400
-    SPACE_DOCK_ITEM = 401
+    REQUEST_SUBJECT = 232
+    REQUEST_OBJECT = 233
+    ACCESS_ZONE = 234
+    ACCESS_MATRIX = 235
+    REQUEST = 236
+    ACTION = 237
+    READ_OPTIONS = 239
+    EXPRESSION = 260
+    AGGREGATION = 261
+    AGGREGATION_BUCKET = 262
+    LOG_ENTRY = 290
+    RUN_CODE_FRAME = 291
+    RUN_ERROR = 292
+    WORKER_IMAGE = 320
+    DEPENDENCY = 321
+    RICH_TEXT = 350
+    RICH_TEXT_SPAN = 351
+    SPACE_DOCK = 500
+    SPACE_DOCK_ITEM = 501
 
 
 class TriggerType(betterproto.Enum):
@@ -557,7 +561,7 @@ class ViewType(betterproto.Enum):
     HISTORY = 11
     WATCH = 12
     TESTING = 13
-    GLOBAL = 14
+    BENCH = 14
     INSPECTOR = 15
     LIBRARY = 16
     ACCESS = 17
@@ -597,24 +601,45 @@ class StartRunResponseErrorType(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
-class ActionData(betterproto.Message):
-    """A set of sub-requests by the same subject."""
+class AccessMatrixData(betterproto.Message):
+    """
+    The materialized access matrix generated for a specific subject to quickly
+    evaluate access for objects.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
-    requests: List["RequestData"] = betterproto.message_field(31)
+    zones: List["AccessZoneData"] = betterproto.message_field(31)
+    base_zones: List["PolicyRuleData"] = betterproto.message_field(32)
+    identities: List["RequestSubjectData"] = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
-class ActionEvaluationData(betterproto.Message):
-    """The result of evaluating an action."""
+class AccessZoneData(betterproto.Message):
+    """
+    The pre-filtered access rules for a given identity.     Clients use this to
+    indicate access rights, but - obviously - only our copy is binding.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    action: Optional["ActionData"] = betterproto.message_field(30, optional=True)
-    request_evaluations: List["RequestEvaluationData"] = betterproto.message_field(31)
-    deciding_evaluation: Optional["RequestEvaluationData"] = betterproto.message_field(
-        32, optional=True
-    )
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(4, optional=True)
+    scope_id: str = betterproto.string_field(30)
+    identity_id: int = betterproto.int32_field(31)
+    rules: List["PolicyRuleData"] = betterproto.message_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class ActionData(betterproto.Message):
+    """
+    The result of evaluating an action (multiple requests).     TODO @Feature
+    @Security: store, query and watch action log
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    subject: "RequestSubjectData" = betterproto.message_field(30)
+    request_evaluations: List["RequestData"] = betterproto.message_field(31)
+    deciding_evaluation: Optional["RequestData"] = betterproto.message_field(32, optional=True)
     decision: "PolicyEffect" = betterproto.enum_field(33)
 
 
@@ -714,7 +739,7 @@ class FieldPathSegmentData(betterproto.Message):
     """A single segment of a FieldPath."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    property: "PropertyReferenceData" = betterproto.message_field(30)
+    property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(30, optional=True)
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
 
 
@@ -780,12 +805,28 @@ class NodeReferenceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
-    """A policy regulating access to nodes within its scope."""
+    """
+    A policy regulating access to nodes within its scope.     The scope is
+    determined by where its attached, but may be further restricted using
+    'scopes'.      The basics of access control:      1. An action is DENYed
+    implicitly unless explicitly and completely ALLOWed.      2. Policies are
+    attached directly to nodes or via delegates (badges, roles, identities,
+    ...).        a. Policies are scoped to the node their definition or
+    b. Delegate is attached to (or less as specified).      3. Policies are
+    evaluated in order up the node tree, first match decides*.         (This
+    means you can read a sub block but not its parent.)      4. Every
+    identity/role/... applicable to a subject is evaluated separately and *any*
+    allow wins.       * Conceptually, we do 'ray trace' up the tree for every
+    node, but actually doing it for every request         is prohibitively
+    expensive. Instead, we 'rasterize' an 'access matrix' and use that as a
+    shortcut.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     rules: List["PolicyRuleData"] = betterproto.message_field(31)
     hidden: bool = betterproto.bool_field(32)
+    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -797,16 +838,17 @@ class PolicyRuleData(betterproto.Message):
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    subject_is_authenticated: Optional[bool] = betterproto.bool_field(30, optional=True)
-    subject_is_member: Optional[bool] = betterproto.bool_field(31, optional=True)
-    subject_is_owner: Optional[bool] = betterproto.bool_field(32, optional=True)
-    subject_is_staff: Optional[bool] = betterproto.bool_field(33, optional=True)
-    effect: "PolicyEffect" = betterproto.enum_field(50)
-    verbs: List["ActionType"] = betterproto.enum_field(51)
-    verb_kinds: List["ActionKind"] = betterproto.enum_field(52)
-    object_types: List["BenchType"] = betterproto.enum_field(70)
-    object_is_sensitive: Optional[bool] = betterproto.bool_field(71, optional=True)
-    object_is_system: Optional[bool] = betterproto.bool_field(72, optional=True)
+    name: Optional[str] = betterproto.string_field(30, optional=True)
+    subject_is_delegated: bool = betterproto.bool_field(40)
+    subject_is_authenticated: bool = betterproto.bool_field(41)
+    subject_is_staff: bool = betterproto.bool_field(42)
+    subject_is_member: bool = betterproto.bool_field(43)
+    subject_is_owner: bool = betterproto.bool_field(44)
+    effect: "PolicyEffect" = betterproto.enum_field(60)
+    verbs: List["ActionType"] = betterproto.enum_field(61)
+    verb_kinds: List["ActionKind"] = betterproto.enum_field(62)
+    object_node_types: List["NodeType"] = betterproto.enum_field(80)
+    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(81)
 
 
 @dataclass(eq=False, repr=False)
@@ -814,7 +856,7 @@ class PropertyPathData(betterproto.Message):
     """A path of Node/Struct properties."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    properties: List["PropertyReferenceData"] = betterproto.message_field(30)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -834,49 +876,41 @@ class PropertyReferenceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ReadOptionsData(betterproto.Message):
-    """Load configuration for a read request."""
+    """
+    Fine-grained options to a read request.     This is an addition to primary
+    options (like the filter for a search or aggregation).
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     ancestor_types: List["NodeType"] = betterproto.enum_field(30)
     descendant_types: List["NodeType"] = betterproto.enum_field(31)
-    related_properties: List["PropertyReferenceData"] = betterproto.message_field(32)
-    include_sensitive: bool = betterproto.bool_field(40)
+    related_types_via_ptr: List["PropertyReferenceData"] = betterproto.message_field(32)
+    include_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(40)
+    exclude_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(41)
     global_filter: Optional["ExpressionData"] = betterproto.message_field(50, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class RequestData(betterproto.Message):
-    """The context of a single request."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    subject: "RequestSubjectData" = betterproto.message_field(30)
-    verb: "ActionType" = betterproto.enum_field(31)
-    object: "RequestObjectData" = betterproto.message_field(32)
-
-
-@dataclass(eq=False, repr=False)
-class RequestEvaluationData(betterproto.Message):
     """The result of evaluating a single request."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    request: Optional["RequestData"] = betterproto.message_field(30, optional=True)
-    deciding_rule: Optional["PolicyRuleData"] = betterproto.message_field(31, optional=True)
-    decision: "PolicyEffect" = betterproto.enum_field(32)
+    verb: "ActionType" = betterproto.enum_field(31)
+    object: "RequestObjectData" = betterproto.message_field(32)
+    decision: "PolicyEffect" = betterproto.enum_field(33)
 
 
 @dataclass(eq=False, repr=False)
 class RequestObjectData(betterproto.Message):
     """
-    The object of a request. Often refers to a summary of actual objects with
-    identical properties.     As with RequestSubject, unknown attributes are
-    uninitialized.
+    The object of a request. Often refers to multiple actual objects with
+    shared attributes.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    type: "BenchType" = betterproto.enum_field(30)
-    is_sensitive: bool = betterproto.bool_field(31)
-    is_system: bool = betterproto.bool_field(32)
-    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    node_type: "BenchType" = betterproto.enum_field(30)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(31)
+    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -888,12 +922,11 @@ class RequestSubjectData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     is_authenticated: bool = betterproto.bool_field(30)
     is_staff: bool = betterproto.bool_field(31)
-    memberships_ptr: List["NodeReferenceData"] = betterproto.message_field(32)
-    ownerships_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
-    worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
+    ownerships_ptr: List["NodeReferenceData"] = betterproto.message_field(32)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
+    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1035,6 +1068,13 @@ class ValueReferenceData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ValueSelectionData(betterproto.Message):
+    """Select a range of values (or a single value) from a Node."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class WorkerImageData(betterproto.Message):
     """
     WorkerImage(language: str = <factory>, version: str = <factory>, platform:
@@ -1052,8 +1092,10 @@ class WorkerImageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
     """
-    Attach a badge to a node with an inline definition. Assumed by the
-    'holder', applies at the parent.
+    Attach a badge to a node with an inline definition.     A badge's policies
+    are delegated to the 'holder' (any client presenting its secrets).     The
+    delegated policies apply at the parent scope OR given scopes (which must be
+    below parent's).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1069,7 +1111,7 @@ class BadgeData(betterproto.Message):
     last_edited_at: datetime = betterproto.message_field(15)
     type: "BadgeType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
-    assumed_policies: List["PolicyData"] = betterproto.message_field(32)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(32)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     link_token: Optional[str] = betterproto.string_field(40, optional=True)
     link_password: Optional[str] = betterproto.string_field(41, optional=True)
@@ -1147,7 +1189,7 @@ class BlockData(betterproto.Message):
     ] = betterproto.message_field(45, optional=True)
     code: Optional[str] = betterproto.string_field(50, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    assumed_policies: List["PolicyData"] = betterproto.message_field(52)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(52)
 
 
 @dataclass(eq=False, repr=False)
@@ -1251,8 +1293,9 @@ class HandleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IdentityData(betterproto.Message):
     """
-    Attach an identity to a block or member. Assumed by the parent, applies
-    globally.
+    Attach an identity to a block or member.     Identity policies are
+    delegated to the parent and its descendants.     The delegated policies
+    apply to all descendant's actions.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1272,8 +1315,8 @@ class IdentityData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LinkData(betterproto.Message):
     """
-    A link node refers to another node in some tree. The referenced subtree is
-    inlined during interp.
+    A reference to another node in some tree. The referenced subtree is inlined
+    on access.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1288,6 +1331,7 @@ class LinkData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    order_key: Optional[str] = betterproto.string_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1333,12 +1377,12 @@ class NoticeData(betterproto.Message):
     kind: bench.language.const.NoticeKind = None, type:
     bench.language.notice.NoticeType = <factory>, message: str = <factory>,
     path: Optional[bench.language.expression.FieldPath] = None, properties:
-    Optional[list[bench.language.expression.PropertyReference]] = None,
-    parent_ptr: 'NodeReference' = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
-    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
-    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at:
+    Optional[list[bench.language.node.Property]] = None, parent_ptr:
+    'NodeReference' = None, properties_ptr: 'PropertyReference' = None,
+    _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, source: bench.language.const.NodeSource =
+    <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at:
+    datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at:
     Optional[datetime.datetime] = None, archived_at:
     Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
@@ -1362,7 +1406,7 @@ class NoticeData(betterproto.Message):
     type: "NoticeType" = betterproto.enum_field(31)
     message: str = betterproto.string_field(33)
     path: Optional["FieldPathData"] = betterproto.message_field(34, optional=True)
-    properties: List["PropertyReferenceData"] = betterproto.message_field(35)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -1490,8 +1534,9 @@ class RecordData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RoleData(betterproto.Message):
     """
-    Attach a role to a block or member. Assumed by the parent, applies
-    globally.
+    Attach a role to a block or member.     Role policies are delegated to the
+    parent and its descendants.     The delegated policies apply to all
+    descendant's actions.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1596,6 +1641,28 @@ class SignalData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         31, optional=True
     )
+
+
+@dataclass(eq=False, repr=False)
+class SkipData(betterproto.Message):
+    """
+    A reference to another node in some tree that wasn't available for some
+    reason (usually permissions).
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    order_key: Optional[str] = betterproto.string_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1784,23 +1851,24 @@ class SomeNodeData(betterproto.Message):
     view: "ViewData" = betterproto.message_field(9, group="node")
     notice: "NoticeData" = betterproto.message_field(10, group="node")
     link: "LinkData" = betterproto.message_field(11, group="node")
-    space: "SpaceData" = betterproto.message_field(12, group="node")
-    session: "SessionData" = betterproto.message_field(13, group="node")
-    run: "RunData" = betterproto.message_field(14, group="node")
-    pause: "PauseData" = betterproto.message_field(15, group="node")
-    signal: "SignalData" = betterproto.message_field(16, group="node")
-    badge: "BadgeData" = betterproto.message_field(17, group="node")
-    role: "RoleData" = betterproto.message_field(18, group="node")
-    identity: "IdentityData" = betterproto.message_field(19, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(20, group="node")
-    worker: "WorkerData" = betterproto.message_field(21, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(22, group="node")
-    handle: "HandleData" = betterproto.message_field(23, group="node")
-    user: "UserData" = betterproto.message_field(24, group="node")
-    organization: "OrganizationData" = betterproto.message_field(25, group="node")
-    client: "ClientData" = betterproto.message_field(26, group="node")
-    notification: "NotificationData" = betterproto.message_field(27, group="node")
-    membership: "MembershipData" = betterproto.message_field(28, group="node")
+    skip: "SkipData" = betterproto.message_field(12, group="node")
+    space: "SpaceData" = betterproto.message_field(13, group="node")
+    session: "SessionData" = betterproto.message_field(14, group="node")
+    run: "RunData" = betterproto.message_field(15, group="node")
+    pause: "PauseData" = betterproto.message_field(16, group="node")
+    signal: "SignalData" = betterproto.message_field(17, group="node")
+    badge: "BadgeData" = betterproto.message_field(18, group="node")
+    role: "RoleData" = betterproto.message_field(19, group="node")
+    identity: "IdentityData" = betterproto.message_field(20, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(21, group="node")
+    worker: "WorkerData" = betterproto.message_field(22, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(23, group="node")
+    handle: "HandleData" = betterproto.message_field(24, group="node")
+    user: "UserData" = betterproto.message_field(25, group="node")
+    organization: "OrganizationData" = betterproto.message_field(26, group="node")
+    client: "ClientData" = betterproto.message_field(27, group="node")
+    notification: "NotificationData" = betterproto.message_field(28, group="node")
+    membership: "MembershipData" = betterproto.message_field(29, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -1923,6 +1991,7 @@ class ReadNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReadNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
+    access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1944,6 +2013,7 @@ class SearchNodesResponse(betterproto.Message):
     cursors: List[str] = betterproto.string_field(3)
     start_cursor: str = betterproto.string_field(4)
     total: int = betterproto.int32_field(5)
+    access: Optional["AccessMatrixData"] = betterproto.message_field(6, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3318,67 +3388,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    WorkerSetData,
-    QueryData,
-    NotificationData,
-    RecordData,
-    ClientData,
-    SessionData,
-    ViewData,
-    OrganizationData,
-    FieldData,
-    RoleData,
-    LinkData,
-    TriggerData,
-    BlockData,
-    BenchData,
-    NoticeData,
-    IdentityData,
-    BucketObjectData,
     WorkerData,
-    HandleData,
+    BucketObjectData,
     SpaceData,
-    RunData,
-    MembershipData,
+    RoleData,
     TagData,
-    PackageData,
+    NoticeData,
+    RunData,
+    ClientData,
+    IdentityData,
+    WorkerSetData,
+    RecordData,
+    BlockData,
+    NotificationData,
     PauseData,
-    UserData,
     SignalData,
+    MembershipData,
+    PackageData,
+    LinkData,
+    UserData,
     BadgeData,
+    ViewData,
+    SkipData,
+    HandleData,
+    BenchData,
+    SessionData,
+    QueryData,
+    TriggerData,
+    FieldData,
+    OrganizationData,
 ]
 AnyStructData = Union[
-    BenchPathData,
+    RunCodeFrameData,
+    AggregationBucketData,
+    WorkerImageData,
+    RunErrorData,
+    ValueSelectionData,
+    PolicyRuleData,
     ReadOptionsData,
-    ActionEvaluationData,
-    ValueReferenceData,
+    SpaceDockItemData,
+    FieldPathData,
+    FileData,
+    RichTextSpanData,
+    BenchPathData,
+    ExpressionData,
+    RequestSubjectData,
+    PropertyReferenceData,
+    AccessMatrixData,
+    FieldPathSegmentData,
+    AggregationData,
+    LogEntryData,
+    DependencyData,
+    RequestObjectData,
+    ActionData,
+    PolicyData,
+    AccessZoneData,
+    TypeInfoData,
+    NodeReferenceData,
+    IconData,
     SpaceDockData,
     PropertyPathData,
-    AggregationBucketData,
-    DependencyData,
-    SpaceDockItemData,
-    NodeReferenceData,
-    FileData,
-    PolicyData,
     RequestData,
+    ValueReferenceData,
     RichTextData,
-    WorkerImageData,
-    IconData,
-    FieldPathData,
-    RunCodeFrameData,
-    RunErrorData,
-    RequestObjectData,
-    ExpressionData,
-    ActionData,
-    RichTextSpanData,
-    LogEntryData,
-    AggregationData,
-    PropertyReferenceData,
-    FieldPathSegmentData,
-    RequestSubjectData,
-    TypeInfoData,
-    RequestEvaluationData,
-    PolicyRuleData,
 ]
 
-VERSION = "2024.02.01.1"
+VERSION = "2024.02.03.2"

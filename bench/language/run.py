@@ -25,12 +25,12 @@ from bench.language.node import (
     ScopeNode,
     Struct,
     node,
-    node_ancestor,
-    node_children,
+    p_ancestor,
+    p_child,
     node_component,
-    node_parent,
+    p_parent,
     struct,
-    struct_internal,
+    p_internal,
 )
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
@@ -103,11 +103,11 @@ class Run(ScopeNode, HasValue):
     #  (because we don't edit them outside of the source session,
     #   and because it's unclear how run/session edits should interact with 'regular' package edits)
 
-    parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(
+    parent: Union["Session", "Run"] = p_parent(4, NodeType.SESSION, NodeType.RUN)
+    session: "Session" = p_ancestor(
         30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
-    root: Optional["Run"] = node_ancestor(
+    root: Optional["Run"] = p_ancestor(
         31,
         NodeType.RUN,
         require=False,
@@ -117,38 +117,36 @@ class Run(ScopeNode, HasValue):
         wire=True,
         index_in_pg=True,
     )
-    worker: Optional["Worker"] = struct_internal(
+    worker: Optional["Worker"] = p_internal(
         32, index_in_pg=True, require=False, array=False, references=NodeType.WORKER
     )
-    worker_process_id: Optional[UUID] = struct_internal(33)
-    node: Optional["Block"] = struct_internal(
+    worker_process_id: Optional[UUID] = p_internal(33)
+    node: Optional["Block"] = p_internal(
         34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
-    node_path: Optional[str] = struct_internal(35, default=None)
-    scheduled_at: Optional[datetime] = struct_internal(36, default=None)
-    started_at: Optional[datetime] = struct_internal(37, default=None)
-    terminated_at: Optional[datetime] = struct_internal(38, default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
-    trigger_id: Optional[UUID] = struct_internal(40, default=None)
-    status: RunStatus = struct_internal(42, index_in_pg=True)
+    node_path: Optional[str] = p_internal(35, default=None)
+    scheduled_at: Optional[datetime] = p_internal(36, default=None)
+    started_at: Optional[datetime] = p_internal(37, default=None)
+    terminated_at: Optional[datetime] = p_internal(38, default=None)
+    trigger_type: Optional[TriggerType] = p_internal(39, default=None)
+    trigger_id: Optional[UUID] = p_internal(40, default=None)
+    status: RunStatus = p_internal(42, index_in_pg=True)
     # NOTE ideally we should :GeneralizeHasValue for inputs/outputs as well (not needed yet, see note above)
-    inputs_packed: Optional[dict[str, Any]] = struct_internal(
+    inputs_packed: Optional[dict[str, Any]] = p_internal(
         43, default=None, primitive_type=PrimitiveType.JSON
     )
-    outputs_packed: Optional[dict[str, Any]] = struct_internal(
+    outputs_packed: Optional[dict[str, Any]] = p_internal(
         44, default=None, primitive_type=PrimitiveType.JSON
     )
-    value_packed: Any | None = struct_internal(
+    value_packed: Any | None = p_internal(
         45,
         default=None,
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
-    error: Optional["RunError"] = struct_internal(
-        46, default=None, primitive_type=PrimitiveType.JSON
-    )
-    runs: list["Run"] = node_children(NodeType.RUN)
+    error: Optional["RunError"] = p_internal(46, default=None, primitive_type=PrimitiveType.JSON)
+    runs: list["Run"] = p_child(NodeType.RUN)
 
     def __content_str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
@@ -181,13 +179,13 @@ _IGNORED_PACKAGE_PATHS = tuple(package.replace(".", "/") for package in _IGNORED
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
-    node: Node = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
-    lineno: int = struct_internal(31)
-    name: str = struct_internal(32)
-    locals: Optional[dict[str, Any]] = struct_internal(
+    node: Node = p_internal(30, array=False, require=True, references=NodeType.BLOCK)
+    lineno: int = p_internal(31)
+    name: str = p_internal(32)
+    locals: Optional[dict[str, Any]] = p_internal(
         33, default=None, primitive_type=PrimitiveType.JSON
     )
-    line: str = struct_internal(34)
+    line: str = p_internal(34)
 
     @staticmethod
     def clean(
@@ -237,13 +235,11 @@ class RunCodeFrame(Struct):
 
 @struct(StructType.RUN_ERROR)
 class RunError(Struct, BenchError):
-    kind: RunErrorKind = struct_internal(30)
-    type: str = struct_internal(31)
-    message: Optional[str] = struct_internal(32, default=None)
-    node: Optional["Node"] = struct_internal(
-        33, require=False, array=False, references=NodeType.BLOCK
-    )
-    traceback: list[RunCodeFrame] = struct_internal(
+    kind: RunErrorKind = p_internal(30)
+    type: str = p_internal(31)
+    message: Optional[str] = p_internal(32, default=None)
+    node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
+    traceback: list[RunCodeFrame] = p_internal(
         34, default_factory=list, struct=StructType.RUN_CODE_FRAME
     )
 
@@ -270,6 +266,6 @@ class RunError(Struct, BenchError):
 class Pause(Node):
     """A resumable interruption in the execution (Run) of a block."""
 
-    parent: "Run" = node_parent(4, NodeType.RUN)
-    session: "Session" = node_ancestor(30, NodeType.SESSION, require=True, store=True)
+    parent: "Run" = p_parent(4, NodeType.RUN)
+    session: "Session" = p_ancestor(30, NodeType.SESSION, require=True, store=True)
     # (placeholder)

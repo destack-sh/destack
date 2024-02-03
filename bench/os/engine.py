@@ -135,8 +135,8 @@ OS_CONDITIONAL_OP_BY_BENCH = {
 
 
 def _compile_expression_ref(expr: Expression) -> str:
-    if expr.property_ptr is not None:
-        return expr.property_ptr.resolved_name
+    if expr.property is not None:
+        return expr.property.name
     if expr.field is not None:
         assert (
             expr.field._introspected_from is None
@@ -200,8 +200,8 @@ def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]
     props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
     if sort.mode:
         props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
-    if sort.property_ptr is not None:
-        return {sort.property_ptr.resolved_name: props}
+    if sort.property is not None:
+        return {sort.property.resolved_name: props}
     else:
         return {sort.field._source_key: props}
 

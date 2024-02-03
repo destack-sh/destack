@@ -23,12 +23,12 @@ from bench.language.node import (
     ScopeNode,
     _Passthrough,
     node,
-    node_children,
+    p_child,
     node_component,
-    node_parent,
-    struct_internal,
-    struct_property,
-    struct_runtime,
+    p_parent,
+    p_internal,
+    p_tracked,
+    p_runtime,
 )
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
@@ -56,8 +56,8 @@ class Record(HasValue, Node):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
-    parent: "Block" = node_parent(4, NodeType.BLOCK)
-    value_packed: typing.Any | None = struct_property(
+    parent: "Block" = p_parent(4, NodeType.BLOCK)
+    value_packed: typing.Any | None = p_internal(
         30,
         default_factory=dict,
         copy=deepcopy,
@@ -574,14 +574,12 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
 @node_component
 class HasDatabase(Node):
-    dynamic_key: str | None = struct_internal(UNSET, default=None)
-    queries: NodeList["Query"] = node_children(
-        NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
-    )
-    records: RecordList[Record] = node_children(
+    dynamic_key: str | None = p_internal(UNSET, default=None)
+    queries: NodeList["Query"] = p_child(NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
+    records: RecordList[Record] = p_child(
         NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
     )
-    _table: Optional[Table] = struct_runtime(default=None)
+    _table: Optional[Table] = p_runtime(default=None)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in

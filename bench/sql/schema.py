@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.01.1"
+VERSION = "2024.02.03.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -148,7 +148,7 @@ BLOCK_TABLE = Table(
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.STRING, is_nullable=True),
         Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("assumed_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -449,7 +449,7 @@ NOTICE_TABLE = Table(
         Column("type", PrimitiveType.STRING),
         Column("message", PrimitiveType.STRING),
         Column("path", PrimitiveType.JSON, is_nullable=True),
-        Column("properties", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -503,7 +503,65 @@ LINK_TABLE = Table(
         Column("reference_query_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_view_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_notice_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_skip_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_space_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, is_nullable=True),
+    ),
+    indexes=(
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
+        ),
+    ),
+)
+
+SKIP_TABLE = Table(
+    "bench_skip",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column(
+            "parent_package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_block_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_block",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+        ),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_trigger_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_tag_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_field_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_record_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_query_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_view_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_notice_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_skip_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reference_space_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -768,7 +826,7 @@ BADGE_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("type", PrimitiveType.STRING),
         Column("name", PrimitiveType.STRING, is_nullable=True),
-        Column("assumed_policies", PrimitiveType.JSON, is_array=True),
+        Column("delegated_policies", PrimitiveType.JSON, is_array=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("link_token", PrimitiveType.UUID, is_unique=True, is_nullable=True),
         Column("link_password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),

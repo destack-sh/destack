@@ -8,8 +8,8 @@ import "google/protobuf/struct.proto";
 enum ActionKind {
   ACTION_KIND_UNSPECIFIED = 0;
   ACTION_KIND_READ = 1;
-  ACTION_KIND_EDIT = 20;
-  ACTION_KIND_RUN = 40;
+  ACTION_KIND_EDIT = 10;
+  ACTION_KIND_RUN = 25;
 }
 
 enum ActionType {
@@ -18,21 +18,21 @@ enum ActionType {
   ACTION_TYPE_AGGREGATE_SCALAR = 2;
   ACTION_TYPE_AGGREGATE_BUCKET = 3;
   ACTION_TYPE_LIST = 4;
-  ACTION_TYPE_BUMP_CHANGED = 20;
-  ACTION_TYPE_BUMP_ACTIVE = 21;
-  ACTION_TYPE_CREATE = 22;
-  ACTION_TYPE_UPSERT = 23;
-  ACTION_TYPE_UPDATE = 24;
-  ACTION_TYPE_MOVE = 25;
-  ACTION_TYPE_ARCHIVE = 26;
-  ACTION_TYPE_UNARCHIVE = 27;
-  ACTION_TYPE_SOFT_DELETE = 28;
-  ACTION_TYPE_RESTORE = 29;
-  ACTION_TYPE_DELETE = 30;
-  ACTION_TYPE_START = 40;
-  ACTION_TYPE_PAUSE = 41;
-  ACTION_TYPE_RESUME = 42;
-  ACTION_TYPE_KILL = 43;
+  ACTION_TYPE_BUMP_CHANGED = 10;
+  ACTION_TYPE_BUMP_ACTIVE = 11;
+  ACTION_TYPE_CREATE = 12;
+  ACTION_TYPE_UPSERT = 13;
+  ACTION_TYPE_UPDATE = 14;
+  ACTION_TYPE_MOVE = 15;
+  ACTION_TYPE_ARCHIVE = 16;
+  ACTION_TYPE_UNARCHIVE = 17;
+  ACTION_TYPE_SOFT_DELETE = 18;
+  ACTION_TYPE_RESTORE = 19;
+  ACTION_TYPE_DELETE = 20;
+  ACTION_TYPE_START = 25;
+  ACTION_TYPE_PAUSE = 26;
+  ACTION_TYPE_RESUME = 37;
+  ACTION_TYPE_KILL = 28;
 }
 
 enum AggregationOp {
@@ -79,6 +79,7 @@ enum BenchType {
   BENCH_TYPE_VIEW = 27;
   BENCH_TYPE_NOTICE = 29;
   BENCH_TYPE_LINK = 30;
+  BENCH_TYPE_SKIP = 31;
   BENCH_TYPE_SPACE = 40;
   BENCH_TYPE_SESSION = 50;
   BENCH_TYPE_RUN = 51;
@@ -103,30 +104,31 @@ enum BenchType {
   BENCH_TYPE_FIELD_PATH = 204;
   BENCH_TYPE_FIELD_PATH_SEGMENT = 205;
   BENCH_TYPE_VALUE_REFERENCE = 206;
+  BENCH_TYPE_VALUE_SELECTION = 207;
   BENCH_TYPE_TYPE_INFO = 210;
   BENCH_TYPE_FILE = 220;
   BENCH_TYPE_ICON = 221;
   BENCH_TYPE_POLICY = 230;
   BENCH_TYPE_POLICY_RULE = 231;
-  BENCH_TYPE_ACTION = 232;
-  BENCH_TYPE_REQUEST = 233;
-  BENCH_TYPE_REQUEST_SUBJECT = 234;
-  BENCH_TYPE_REQUEST_OBJECT = 235;
-  BENCH_TYPE_REQUEST_EVALUATION = 236;
-  BENCH_TYPE_ACTION_EVALUATION = 237;
-  BENCH_TYPE_READ_OPTIONS = 238;
-  BENCH_TYPE_EXPRESSION = 240;
-  BENCH_TYPE_AGGREGATION = 241;
-  BENCH_TYPE_AGGREGATION_BUCKET = 242;
-  BENCH_TYPE_LOG_ENTRY = 260;
-  BENCH_TYPE_RUN_CODE_FRAME = 261;
-  BENCH_TYPE_RUN_ERROR = 262;
-  BENCH_TYPE_WORKER_IMAGE = 280;
-  BENCH_TYPE_DEPENDENCY = 281;
-  BENCH_TYPE_RICH_TEXT = 300;
-  BENCH_TYPE_RICH_TEXT_SPAN = 301;
-  BENCH_TYPE_SPACE_DOCK = 400;
-  BENCH_TYPE_SPACE_DOCK_ITEM = 401;
+  BENCH_TYPE_REQUEST_SUBJECT = 232;
+  BENCH_TYPE_REQUEST_OBJECT = 233;
+  BENCH_TYPE_ACCESS_ZONE = 234;
+  BENCH_TYPE_ACCESS_MATRIX = 235;
+  BENCH_TYPE_REQUEST = 236;
+  BENCH_TYPE_ACTION = 237;
+  BENCH_TYPE_READ_OPTIONS = 239;
+  BENCH_TYPE_EXPRESSION = 260;
+  BENCH_TYPE_AGGREGATION = 261;
+  BENCH_TYPE_AGGREGATION_BUCKET = 262;
+  BENCH_TYPE_LOG_ENTRY = 290;
+  BENCH_TYPE_RUN_CODE_FRAME = 291;
+  BENCH_TYPE_RUN_ERROR = 292;
+  BENCH_TYPE_WORKER_IMAGE = 320;
+  BENCH_TYPE_DEPENDENCY = 321;
+  BENCH_TYPE_RICH_TEXT = 350;
+  BENCH_TYPE_RICH_TEXT_SPAN = 351;
+  BENCH_TYPE_SPACE_DOCK = 500;
+  BENCH_TYPE_SPACE_DOCK_ITEM = 501;
 }
 
 enum BlockType {
@@ -194,17 +196,17 @@ enum ConditionalOp {
 // A type of Edit action on nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
-  EDIT_TYPE_BUMP_CHANGED = 20;
-  EDIT_TYPE_BUMP_ACTIVE = 21;
-  EDIT_TYPE_CREATE = 22;
-  EDIT_TYPE_UPSERT = 23;
-  EDIT_TYPE_UPDATE = 24;
-  EDIT_TYPE_MOVE = 25;
-  EDIT_TYPE_ARCHIVE = 26;
-  EDIT_TYPE_UNARCHIVE = 27;
-  EDIT_TYPE_SOFT_DELETE = 28;
-  EDIT_TYPE_RESTORE = 29;
-  EDIT_TYPE_DELETE = 30;
+  EDIT_TYPE_BUMP_CHANGED = 10;
+  EDIT_TYPE_BUMP_ACTIVE = 11;
+  EDIT_TYPE_CREATE = 12;
+  EDIT_TYPE_UPSERT = 13;
+  EDIT_TYPE_UPDATE = 14;
+  EDIT_TYPE_MOVE = 15;
+  EDIT_TYPE_ARCHIVE = 16;
+  EDIT_TYPE_UNARCHIVE = 17;
+  EDIT_TYPE_SOFT_DELETE = 18;
+  EDIT_TYPE_RESTORE = 19;
+  EDIT_TYPE_DELETE = 20;
 }
 
 enum ExpressionKind {
@@ -317,6 +319,7 @@ enum NodeType {
   NODE_TYPE_VIEW = 27;
   NODE_TYPE_NOTICE = 29;
   NODE_TYPE_LINK = 30;
+  NODE_TYPE_SKIP = 31;
   NODE_TYPE_SPACE = 40;
   NODE_TYPE_SESSION = 50;
   NODE_TYPE_RUN = 51;
@@ -441,10 +444,10 @@ enum RunStatus {
 // A type of Run action on nodes.
 enum RunType {
   RUN_TYPE_UNSPECIFIED = 0;
-  RUN_TYPE_START = 40;
-  RUN_TYPE_PAUSE = 41;
-  RUN_TYPE_RESUME = 42;
-  RUN_TYPE_KILL = 43;
+  RUN_TYPE_START = 25;
+  RUN_TYPE_PAUSE = 26;
+  RUN_TYPE_RESUME = 37;
+  RUN_TYPE_KILL = 28;
 }
 
 // Schedules for blocks.
@@ -478,30 +481,31 @@ enum StructType {
   STRUCT_TYPE_FIELD_PATH = 204;
   STRUCT_TYPE_FIELD_PATH_SEGMENT = 205;
   STRUCT_TYPE_VALUE_REFERENCE = 206;
+  STRUCT_TYPE_VALUE_SELECTION = 207;
   STRUCT_TYPE_TYPE_INFO = 210;
   STRUCT_TYPE_FILE = 220;
   STRUCT_TYPE_ICON = 221;
   STRUCT_TYPE_POLICY = 230;
   STRUCT_TYPE_POLICY_RULE = 231;
-  STRUCT_TYPE_ACTION = 232;
-  STRUCT_TYPE_REQUEST = 233;
-  STRUCT_TYPE_REQUEST_SUBJECT = 234;
-  STRUCT_TYPE_REQUEST_OBJECT = 235;
-  STRUCT_TYPE_REQUEST_EVALUATION = 236;
-  STRUCT_TYPE_ACTION_EVALUATION = 237;
-  STRUCT_TYPE_READ_OPTIONS = 238;
-  STRUCT_TYPE_EXPRESSION = 240;
-  STRUCT_TYPE_AGGREGATION = 241;
-  STRUCT_TYPE_AGGREGATION_BUCKET = 242;
-  STRUCT_TYPE_LOG_ENTRY = 260;
-  STRUCT_TYPE_RUN_CODE_FRAME = 261;
-  STRUCT_TYPE_RUN_ERROR = 262;
-  STRUCT_TYPE_WORKER_IMAGE = 280;
-  STRUCT_TYPE_DEPENDENCY = 281;
-  STRUCT_TYPE_RICH_TEXT = 300;
-  STRUCT_TYPE_RICH_TEXT_SPAN = 301;
-  STRUCT_TYPE_SPACE_DOCK = 400;
-  STRUCT_TYPE_SPACE_DOCK_ITEM = 401;
+  STRUCT_TYPE_REQUEST_SUBJECT = 232;
+  STRUCT_TYPE_REQUEST_OBJECT = 233;
+  STRUCT_TYPE_ACCESS_ZONE = 234;
+  STRUCT_TYPE_ACCESS_MATRIX = 235;
+  STRUCT_TYPE_REQUEST = 236;
+  STRUCT_TYPE_ACTION = 237;
+  STRUCT_TYPE_READ_OPTIONS = 239;
+  STRUCT_TYPE_EXPRESSION = 260;
+  STRUCT_TYPE_AGGREGATION = 261;
+  STRUCT_TYPE_AGGREGATION_BUCKET = 262;
+  STRUCT_TYPE_LOG_ENTRY = 290;
+  STRUCT_TYPE_RUN_CODE_FRAME = 291;
+  STRUCT_TYPE_RUN_ERROR = 292;
+  STRUCT_TYPE_WORKER_IMAGE = 320;
+  STRUCT_TYPE_DEPENDENCY = 321;
+  STRUCT_TYPE_RICH_TEXT = 350;
+  STRUCT_TYPE_RICH_TEXT_SPAN = 351;
+  STRUCT_TYPE_SPACE_DOCK = 500;
+  STRUCT_TYPE_SPACE_DOCK_ITEM = 501;
 }
 
 // Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -521,7 +525,7 @@ enum ViewType {
   VIEW_TYPE_HISTORY = 11;
   VIEW_TYPE_WATCH = 12;
   VIEW_TYPE_TESTING = 13;
-  VIEW_TYPE_GLOBAL = 14;
+  VIEW_TYPE_BENCH = 14;
   VIEW_TYPE_INSPECTOR = 15;
   VIEW_TYPE_LIBRARY = 16;
   VIEW_TYPE_ACCESS = 17;
@@ -550,19 +554,33 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNKNOWN = 7;
 }
 
-// A set of sub-requests by the same subject.
+// The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
+message AccessMatrixData {
+  BenchType metatype = 1;
+  RequestSubjectData subject = 30;
+  repeated AccessZoneData zones = 31;
+  repeated PolicyRuleData base_zones = 32;
+  repeated RequestSubjectData identities = 33;
+}
+
+// The pre-filtered access rules for a given identity.
+//     Clients use this to indicate access rights, but - obviously - only our copy is binding.
+message AccessZoneData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 4;
+  string scope_id = 30;
+  int32 identity_id = 31;
+  repeated PolicyRuleData rules = 32;
+}
+
+// The result of evaluating an action (multiple requests).
+//     TODO @Feature @Security: store, query and watch action log
 message ActionData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
-  repeated RequestData requests = 31;
-}
-
-// The result of evaluating an action.
-message ActionEvaluationData {
-  BenchType metatype = 1;
-  optional ActionData action = 30;
-  repeated RequestEvaluationData request_evaluations = 31;
-  optional RequestEvaluationData deciding_evaluation = 32;
+  repeated RequestData request_evaluations = 31;
+  optional RequestData deciding_evaluation = 32;
   PolicyEffect decision = 33;
 }
 
@@ -662,7 +680,7 @@ message FieldPathData {
 // A single segment of a FieldPath.
 message FieldPathSegmentData {
   BenchType metatype = 1;
-  PropertyReferenceData property = 30;
+  optional PropertyReferenceData property_ptr = 30;
   optional NodeReferenceData field_ptr = 31;
 }
 
@@ -709,33 +727,48 @@ message NodeReferenceData {
 }
 
 // A policy regulating access to nodes within its scope.
+//     The scope is determined by where its attached, but may be further restricted using 'scopes'.
+// 
+//     The basics of access control:
+//      1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+//      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
+//        a. Policies are scoped to the node their definition or
+//        b. Delegate is attached to (or less as specified).
+//      3. Policies are evaluated in order up the node tree, first match decides*.
+//         (This means you can read a sub block but not its parent.)
+//      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
+// 
+//      * Conceptually, we do 'ray trace' up the tree for every node, but actually doing it for every request
+//         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use that as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
   optional string name = 30;
   repeated PolicyRuleData rules = 31;
   bool hidden = 32;
+  repeated NodeReferenceData scopes_ptr = 33;
 }
 
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 //     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
 message PolicyRuleData {
   BenchType metatype = 1;
-  optional bool subject_is_authenticated = 30;
-  optional bool subject_is_member = 31;
-  optional bool subject_is_owner = 32;
-  optional bool subject_is_staff = 33;
-  PolicyEffect effect = 50;
-  repeated ActionType verbs = 51;
-  repeated ActionKind verb_kinds = 52;
-  repeated BenchType object_types = 70;
-  optional bool object_is_sensitive = 71;
-  optional bool object_is_system = 72;
+  optional string name = 30;
+  bool subject_is_delegated = 40;
+  bool subject_is_authenticated = 41;
+  bool subject_is_staff = 42;
+  bool subject_is_member = 43;
+  bool subject_is_owner = 44;
+  PolicyEffect effect = 60;
+  repeated ActionType verbs = 61;
+  repeated ActionKind verb_kinds = 62;
+  repeated NodeType object_node_types = 80;
+  repeated PropertyReferenceData object_properties_ptr = 81;
 }
 
 // A path of Node/Struct properties.
 message PropertyPathData {
   BenchType metatype = 1;
-  repeated PropertyReferenceData properties = 30;
+  repeated PropertyReferenceData properties_ptr = 30;
 }
 
 // PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _resolved_property: Optional[bench.language.node.Property] = None, _status: bench.language.const.NodeStatus = None)
@@ -746,40 +779,32 @@ message PropertyReferenceData {
   optional NodeType references_type = 32;
 }
 
-// Load configuration for a read request.
+// Fine-grained options to a read request.
+//     This is an addition to primary options (like the filter for a search or aggregation).
 message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
-  repeated PropertyReferenceData related_properties = 32;
-  bool include_sensitive = 40;
+  repeated PropertyReferenceData related_types_via_ptr = 32;
+  repeated PropertyReferenceData include_properties_ptr = 40;
+  repeated PropertyReferenceData exclude_properties_ptr = 41;
   optional ExpressionData global_filter = 50;
 }
 
-// The context of a single request.
+// The result of evaluating a single request.
 message RequestData {
   BenchType metatype = 1;
-  RequestSubjectData subject = 30;
   ActionType verb = 31;
   RequestObjectData object = 32;
+  PolicyEffect decision = 33;
 }
 
-// The result of evaluating a single request.
-message RequestEvaluationData {
-  BenchType metatype = 1;
-  optional RequestData request = 30;
-  optional PolicyRuleData deciding_rule = 31;
-  PolicyEffect decision = 32;
-}
-
-// The object of a request. Often refers to a summary of actual objects with identical properties.
-//     As with RequestSubject, unknown attributes are uninitialized.
+// The object of a request. Often refers to multiple actual objects with shared attributes.
 message RequestObjectData {
   BenchType metatype = 1;
-  BenchType type = 30;
-  bool is_sensitive = 31;
-  bool is_system = 32;
-  optional NodeReferenceData owner_ptr = 33;
+  BenchType node_type = 30;
+  repeated PropertyReferenceData properties_ptr = 31;
+  optional NodeReferenceData owner_ptr = 32;
 }
 
 // The principal issuing a request. Unknown attributes are uninitialized.
@@ -787,12 +812,11 @@ message RequestSubjectData {
   BenchType metatype = 1;
   bool is_authenticated = 30;
   bool is_staff = 31;
-  repeated NodeReferenceData memberships_ptr = 32;
-  repeated NodeReferenceData ownerships_ptr = 33;
-  optional NodeReferenceData client_ptr = 34;
-  optional NodeReferenceData user_ptr = 35;
-  optional NodeReferenceData worker_ptr = 36;
-  optional NodeReferenceData badge_ptr = 37;
+  repeated NodeReferenceData ownerships_ptr = 32;
+  optional NodeReferenceData client_ptr = 35;
+  optional NodeReferenceData user_ptr = 36;
+  optional NodeReferenceData identity_ptr = 37;
+  optional NodeReferenceData badge_ptr = 38;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -889,6 +913,11 @@ message ValueReferenceData {
   FieldPathData path = 31;
 }
 
+// Select a range of values (or a single value) from a Node.
+message ValueSelectionData {
+  BenchType metatype = 1;
+}
+
 // WorkerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['Dependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
 message WorkerImageData {
   BenchType metatype = 1;
@@ -898,7 +927,9 @@ message WorkerImageData {
   repeated DependencyData dependencies = 33;
 }
 
-// Attach a badge to a node with an inline definition. Assumed by the 'holder', applies at the parent.
+// Attach a badge to a node with an inline definition.
+//     A badge's policies are delegated to the 'holder' (any client presenting its secrets).
+//     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
@@ -913,7 +944,7 @@ message BadgeData {
   google.protobuf.Timestamp last_edited_at = 15;
   BadgeType type = 30;
   optional string name = 31;
-  repeated PolicyData assumed_policies = 32;
+  repeated PolicyData delegated_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional string link_token = 40;
   optional string link_password = 41;
@@ -977,7 +1008,7 @@ message BlockData {
   optional google.protobuf.Struct secret_value_packed = 45;
   optional string code = 50;
   optional NodeReferenceData reference_ptr = 51;
-  repeated PolicyData assumed_policies = 52;
+  repeated PolicyData delegated_policies = 52;
 }
 
 // The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512.
@@ -1065,7 +1096,9 @@ message HandleData {
   string slug = 30;
 }
 
-// Attach an identity to a block or member. Assumed by the parent, applies globally.
+// Attach an identity to a block or member.
+//     Identity policies are delegated to the parent and its descendants.
+//     The delegated policies apply to all descendant's actions.
 message IdentityData {
   BenchType metatype = 1;
   string id = 2;
@@ -1081,7 +1114,7 @@ message IdentityData {
   optional NodeReferenceData type_ptr = 30;
 }
 
-// A link node refers to another node in some tree. The referenced subtree is inlined during interp.
+// A reference to another node in some tree. The referenced subtree is inlined on access.
 message LinkData {
   BenchType metatype = 1;
   string id = 2;
@@ -1095,6 +1128,7 @@ message LinkData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional NodeReferenceData reference_ptr = 30;
+  optional string order_key = 31;
 }
 
 // A membership to a Bench or Organization.
@@ -1126,7 +1160,7 @@ message BaseNodeData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.expression.PropertyReference]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1143,7 +1177,7 @@ message NoticeData {
   NoticeType type = 31;
   string message = 33;
   optional FieldPathData path = 34;
-  repeated PropertyReferenceData properties = 35;
+  repeated PropertyReferenceData properties_ptr = 35;
 }
 
 // A notification for a user.
@@ -1248,7 +1282,9 @@ message RecordData {
   optional google.protobuf.Struct value_packed = 30;
 }
 
-// Attach a role to a block or member. Assumed by the parent, applies globally.
+// Attach a role to a block or member.
+//     Role policies are delegated to the parent and its descendants.
+//     The delegated policies apply to all descendant's actions.
 message RoleData {
   BenchType metatype = 1;
   string id = 2;
@@ -1333,6 +1369,23 @@ message SignalData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional NodeReferenceData type_ptr = 30;
   optional google.protobuf.Struct value_packed = 31;
+}
+
+// A reference to another node in some tree that wasn't available for some reason (usually permissions).
+message SkipData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional NodeReferenceData reference_ptr = 30;
+  optional string order_key = 31;
 }
 
 // A space for a user to interact with the Bench.
@@ -1490,23 +1543,24 @@ message SomeNodeData {
     ViewData view = 9;
     NoticeData notice = 10;
     LinkData link = 11;
-    SpaceData space = 12;
-    SessionData session = 13;
-    RunData run = 14;
-    PauseData pause = 15;
-    SignalData signal = 16;
-    BadgeData badge = 17;
-    RoleData role = 18;
-    IdentityData identity = 19;
-    WorkerSetData worker_set = 20;
-    WorkerData worker = 21;
-    BucketObjectData bucket_object = 22;
-    HandleData handle = 23;
-    UserData user = 24;
-    OrganizationData organization = 25;
-    ClientData client = 26;
-    NotificationData notification = 27;
-    MembershipData membership = 28;
+    SkipData skip = 12;
+    SpaceData space = 13;
+    SessionData session = 14;
+    RunData run = 15;
+    PauseData pause = 16;
+    SignalData signal = 17;
+    BadgeData badge = 18;
+    RoleData role = 19;
+    IdentityData identity = 20;
+    WorkerSetData worker_set = 21;
+    WorkerData worker = 22;
+    BucketObjectData bucket_object = 23;
+    HandleData handle = 24;
+    UserData user = 25;
+    OrganizationData organization = 26;
+    ClientData client = 27;
+    NotificationData notification = 28;
+    MembershipData membership = 29;
   };
 }
 

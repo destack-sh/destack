@@ -10,10 +10,10 @@ from bench.language.node import (
     Node,
     NodeList,
     node,
-    node_children,
+    p_child,
     node_component,
-    node_parent,
-    struct_property,
+    p_parent,
+    p_tracked,
 )
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 from bench.utils.func import dict_minus
@@ -33,20 +33,20 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Trigger(Node):
     """A trigger for a block to run."""
 
-    parent: "Block" = node_parent(4, NodeType.BLOCK)
-    type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
-    name: str | None = struct_property(31, default=None)
-    active: bool = struct_property(32, default=True)
-    schedule_type: Optional[ScheduleType] = struct_property(
+    parent: "Block" = p_parent(4, NodeType.BLOCK)
+    type: TriggerType = p_tracked(30, require=True, validate=enum_validator(TriggerType))
+    name: str | None = p_tracked(31, default=None)
+    active: bool = p_tracked(32, default=True)
+    schedule_type: Optional[ScheduleType] = p_tracked(
         33, default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = struct_property(34, default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(
+    timezone: Optional[str] = p_tracked(34, default=pytz.utc.zone)
+    interval: Optional[int] = p_tracked(
         35,
         default=None,
         validate=int_range_validator(TRIGGER_INTERVAL_USR_MIN, TRIGGER_INTERVAL_ABS_MAX),
     )
-    cron: Optional[str] = struct_property(36, default=None)
+    cron: Optional[str] = p_tracked(36, default=None)
 
     @staticmethod
     def new(
@@ -113,7 +113,7 @@ class Trigger(Node):
 
 @node_component
 class HasTriggers(Node):
-    triggers: NodeList[Trigger] = node_children(NodeType.TRIGGER)
+    triggers: NodeList[Trigger] = p_child(NodeType.TRIGGER)
 
 
 class TriggerScheduleIterator:

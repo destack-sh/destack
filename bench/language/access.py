@@ -27,14 +27,15 @@ from bench.language.node import (
     Property,
     Struct,
     node,
-    node_parent,
+    p_parent,
     struct,
-    struct_internal,
-    struct_runtime,
+    p_internal,
+    p_runtime,
     iter_properties,
     ANCESTOR_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     DESCENDANT_NODE_TYPES,
+    p_tracked,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.tree import NodeDataTree, NodeTree
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
         Block,
         Client,
         Expression,
-        PropertyReference,
+        Property,
         User,
         ScopeNode,
     )
@@ -71,24 +72,24 @@ class Badge(Node):
     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
-    parent: Union[Package, "Block"] = node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
-    type: BadgeType = struct_internal(30)
-    name: Optional[str] = struct_internal(31)
-    delegated_policies: list["Policy"] = struct_internal(32, array=True, struct=StructType.POLICY)
-    expires_at: Optional[datetime] = struct_internal(33, default=None)
+    parent: Union[Package, "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    type: BadgeType = p_tracked(30)
+    name: Optional[str] = p_tracked(31)
+    delegated_policies: list["Policy"] = p_tracked(32, array=True, struct=StructType.POLICY)
+    expires_at: Optional[datetime] = p_tracked(33, default=None)
     # sharing link badge
-    link_token: Optional[UUID] = struct_internal(40, unique=True, default=None)
-    link_password: Optional[str] = struct_internal(
+    link_token: Optional[UUID] = p_internal(40, unique=True, default=None)
+    link_password: Optional[str] = p_internal(
         41, default=None, encrypt=True, defer=True, sensitive=True
     )
-    link_password_hash: Optional[str] = struct_internal(
+    link_password_hash: Optional[str] = p_internal(
         42, default=None, encrypt=True, defer=True, sensitive=True
     )
     # access key badge
-    key_value: Optional[str] = struct_internal(
+    key_value: Optional[str] = p_internal(
         50, default=None, encrypt=True, defer=True, sensitive=True
     )
-    key_value_hash: Optional[str] = struct_internal(
+    key_value_hash: Optional[str] = p_internal(
         51, default=None, encrypt=True, defer=True, sensitive=True
     )
 
@@ -101,8 +102,8 @@ class Role(Node):
     The delegated policies apply to all descendant's actions.
     """
 
-    parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
-    type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
+    parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    type: "Block" = p_tracked(30, array=False, require=True, references=NodeType.BLOCK)
 
 
 @node(NodeType.IDENTITY)
@@ -113,8 +114,8 @@ class Identity(Node):
     The delegated policies apply to all descendant's actions.
     """
 
-    parent: Union["Block", "Membership"] = node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
-    type: "Block" = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
+    parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    type: "Block" = p_tracked(30, array=False, require=True, references=NodeType.BLOCK)
 
 
 @struct(StructType.READ_OPTIONS)
@@ -125,26 +126,26 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] | None = struct_internal(30, default=None)
-    descendant_types: list[NodeType] | None = struct_internal(31, default=None)
-    related_types_via: list["PropertyReference"] | None = struct_internal(
-        32, default=None, struct=StructType.PROPERTY_REFERENCE
+    ancestor_types: list[NodeType] | None = p_tracked(30, default=None)
+    descendant_types: list[NodeType] | None = p_tracked(31, default=None)
+    related_types_via: list[Property] | None = p_tracked(
+        32, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # properties (include/exclude relative to default)
-    include_properties: list[PropertyReference] | None = struct_internal(
-        40, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    include_properties: list[Property] | None = p_tracked(
+        40, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    exclude_properties: list[PropertyReference] | None = struct_internal(
-        41, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    exclude_properties: list[Property] | None = p_tracked(
+        41, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # filters (global + per type)
-    global_filter: Optional["Expression"] = struct_internal(
-        50, default=None, require=False, struct=StructType.EXPRESSION
+    global_filter: Optional["Expression"] = p_tracked(
+        50, require=False, default=None, struct=StructType.EXPRESSION
     )
     # (by type is runtime only since we can't / don't need to serialize maps yet)
-    _filter_by_type: dict[NodeType, "Expression"] | None = struct_runtime(default=None)
+    _filter_by_type: dict[NodeType, "Expression"] | None = p_runtime(default=None)
 
     def copy(self) -> "ReadOptions":
         return ReadOptions(
@@ -169,7 +170,7 @@ class ReadOptions(Struct):
             p.type == node_type for p in self.include_properties
         ):
             properties = properties + tuple(
-                p.resolved_property for p in self.include_properties if p.type == node_type
+                p for p in self.include_properties if p.type == node_type
             )
         if self.exclude_properties is not None and any(
             p.type == node_type for p in self.exclude_properties
@@ -203,14 +204,7 @@ class ReadOptions(Struct):
 
     @staticmethod
     def default():
-        from bench.sql.engine import DEFAULT_GLOBAL_FILTER
-
-        return ReadOptions(
-            ancestor_types=None,
-            descendant_types=None,
-            include_sensitive=False,
-            global_filter=DEFAULT_GLOBAL_FILTER,
-        )
+        return ReadOptions(ancestor_types=None, descendant_types=None, global_filter=None)
 
 
 @struct(StructType.POLICY, identifier=IdentifierType.VARIABLE)
@@ -233,14 +227,10 @@ class Policy(Struct):
 
     """
 
-    name: Optional[str] = struct_internal(30, default=None)
-    rules: list["PolicyRule"] = struct_internal(
-        31, default_factory=list, struct=StructType.POLICY_RULE
-    )
-    hidden: bool = struct_internal(
-        32, default=False, description="Hide this policy and its effects."
-    )
-    scopes: list["Block"] | None = struct_internal(
+    name: Optional[str] = p_tracked(30, default=None)
+    rules: list["PolicyRule"] = p_tracked(31, default_factory=list, struct=StructType.POLICY_RULE)
+    hidden: bool = p_tracked(32, default=False, description="Hide this policy and its effects.")
+    scopes: list["Block"] | None = p_tracked(
         33, default=None, require=False, array=True, references=NodeType.BLOCK
     )
 
@@ -259,32 +249,32 @@ class PolicyRule(Struct):
     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
     """
 
+    name: Optional[str] = p_tracked(30, default=None)
+
     # subject (if unset it's a wildcard)
     # if subject is delegated then it always matches if this rule is present
     #  (and no other subject filters make sense)
-    subject_is_delegated: bool = struct_internal(30, default=False)
-    subject_is_authenticated: bool = struct_internal(31, default=False)
-    subject_is_staff: bool = struct_internal(32, default=False)
+    subject_is_delegated: bool = p_tracked(40, default=False)
+    subject_is_authenticated: bool = p_tracked(41, default=False)
+    subject_is_staff: bool = p_tracked(42, default=False)
     # member/owner relative to the object
-    subject_is_member: bool = struct_internal(33, default=False)
-    subject_is_owner: bool = struct_internal(34, default=False)
+    subject_is_member: bool = p_tracked(43, default=False)
+    subject_is_owner: bool = p_tracked(44, default=False)
     # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
-    effect: PolicyEffect = struct_internal(50, default=PolicyEffect.DENY)
-    verbs: list[ActionType] | None = struct_internal(51, default=None)
-    verb_kinds: list[ActionKind] | None = struct_internal(52, default=None)
-    _verb_mask: bitarray | None = struct_runtime(default=None)
+    effect: PolicyEffect = p_tracked(60, default=PolicyEffect.DENY)
+    verbs: list[ActionType] | None = p_tracked(61, default=None)
+    verb_kinds: list[ActionKind] | None = p_tracked(62, default=None)
+    _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard)
-    object_node_types: Optional[list[NodeType]] = struct_internal(70, default=None)
-    _object_node_types_mask: bitarray | None = struct_runtime(default=None)
-    object_properties: list[PropertyReference] | None = struct_internal(
-        73, default=None, struct=StructType.PROPERTY_REFERENCE
+    object_node_types: Optional[list[NodeType]] = p_tracked(80, default=None)
+    _object_node_types_mask: bitarray | None = p_runtime(default=None)
+    object_properties: list[Property] | None = p_tracked(
+        81, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    _object_properties_mask_by_node_type: dict[NodeType, bitarray] | None = struct_runtime(
-        default=None
-    )
+    _object_properties_masks: dict[NodeType, bitarray] | None = p_runtime(default=None)
 
     # object_properties, object_nodes, object_fields, ...
 
@@ -296,12 +286,12 @@ class PolicyRule(Struct):
         for subject_key in (
             "subject_is_delegated",
             "subject_is_authenticated",
+            "subject_is_staff",
             "subject_is_member",
             "subject_is_owner",
-            "subject_is_staff",
         ):
             value = getattr(self, subject_key)
-            if value is not None:
+            if value:
                 subject_str_parts.append(f"{subject_key[8:]}={value}")
         if subject_str_parts:
             subject_str = f"[{', '.join(subject_str_parts)}]"
@@ -309,56 +299,57 @@ class PolicyRule(Struct):
             subject_str = "*"
 
         verb_str_parts = []
-        if self.verbs is not None:
+        if self.verbs:
             verb_str_parts.extend(verb.bench_name for verb in self.verbs)
-        if self.verb_kinds is not None:
+        if self.verb_kinds:
             verb_str_parts.extend(verb_kind.bench_name for verb_kind in self.verb_kinds)
         if verb_str_parts:
             verb_str = f"{', '.join(verb_str_parts)}"
         else:
             verb_str = "*"
 
-        object_str_parts = []
-        if self.object_node_types is not None:
-            object_str_parts.extend(
-                object_type.bench_name for object_type in self.object_node_types
-            )
-        if self.object_properties is not None:
-            object_str_parts.extend(
-                "." + ",".join(prop._resolved_property.name for prop in self.object_properties)
+        if self.object_node_types:
+            object_type_str_parts = tuple(t.bench_name for t in self.object_node_types)
+        else:
+            object_type_str_parts = ("*",)
+        if self.object_properties:
+            object_prop_str_parts = tuple(
+                f"{p.type.bench_name}.{p.name}" for p in self.object_properties
             )
         else:
-            object_str_parts.append(".[*]")
-        if object_str_parts:
-            object_str = f"[{', '.join(object_str_parts)}]"
-        else:
-            object_str = "*"
+            object_prop_str_parts = ("*",)
+        object_type_str = ", ".join(object_type_str_parts) if object_type_str_parts else "*"
+        object_prop_str = ", ".join(object_prop_str_parts) if object_prop_str_parts else "*"
+        object_str = f"[{object_type_str}].[{object_prop_str}]"
 
         return f"{self.effect} {subject_str} {verb_str} {object_str}"
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self._verb_mask = None
         self._object_node_types_mask = None
-        if self._object_properties_mask_by_node_type is not None:
-            self._object_properties_mask_by_node_type.clear()
+        if self._object_properties_masks is not None:
+            self._object_properties_masks.clear()
 
     def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
         self._update_verb_mask()
         self._update_object_mask()
 
     def _update_object_mask(self):
-        self._object_node_types_mask = _enums_to_mask(self.object_node_types)
+        self._object_node_types_mask = _enums_to_mask(self.object_node_types, NodeType)
+
+        self._object_properties_masks = {}
         if self.object_properties:
-            self._object_properties_mask_by_node_type = {}
             for prop in self.object_properties:
-                if prop.type not in self._object_properties_mask_by_node_type:
-                    self._object_properties_mask_by_node_type[prop.type] = bitarray()
-                self._object_properties_mask_by_node_type[prop.type][prop.id] = True
+                if prop.type not in self._object_properties_masks:
+                    self._object_properties_masks[prop.type] = bitarray(
+                        prop.component.__max_property_id__ + 1
+                    )
+                self._object_properties_masks[prop.type][prop.id] = True
 
     def _update_verb_mask(self):
-        self._verb_mask = bitarray()
+        self._verb_mask = bitarray(ActionType.get_max_id())
         if not self.verbs and not self.verb_kinds:
-            self._verb_mask[ActionType.__MIN_ID__ : ActionType.__MAX_ID__] = True
+            self._verb_mask[ActionType.get_min_id() : ActionType.get_max_id()] = True
         else:
             for verb in self.verbs or ():
                 self._verb_mask[verb.id] = True
@@ -375,27 +366,14 @@ class PolicyRule(Struct):
                 return False
         return True  # no mismatch -> match
 
-    @property
-    def is_verb_wildcard(self) -> bool:
-        return not self.verbs and not self.verb_kinds
-
     def matches_verb(self, verb: ActionType) -> bool:
-        if self._verb_mask:
-            return self._verb_mask[verb.id]
-        return True
-
-    @property
-    def is_object_wildcard(self) -> bool:
-        return not self.object_node_types and not self.object_properties
+        return self._verb_mask[verb.id]
 
     def matches_object(self, object: "RequestObject") -> bool:
-        if (
-            self._object_node_types_mask is not None
-            and not self._object_node_types_mask[object.node_type.id]
-        ):
+        if not self._object_node_types_mask[object.node_type.id]:
             return False
-        if self._object_properties_mask_by_node_type is not None:
-            properties_mask = self._object_properties_mask_by_node_type.get(object.node_type)
+        if self._object_properties_masks is not None:
+            properties_mask = self._object_properties_masks.get(object.node_type)
             if (
                 properties_mask is not None
                 and object._properties_mask is not None
@@ -448,25 +426,25 @@ class PolicyRule(Struct):
 class RequestSubject(Struct):
     """The principal issuing a request. Unknown attributes are uninitialized."""
 
-    is_authenticated: bool = struct_internal(30)
-    is_staff: bool = struct_internal(31, default=False)
-    ownerships: list[Owner] = struct_internal(
+    is_authenticated: bool = p_internal(30)
+    is_staff: bool = p_internal(31, default=False)
+    ownerships: list[Owner] = p_internal(
         32,
         require=True,
         array=True,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
     # memberships/roles/...?
-    client: Optional["Client"] = struct_internal(
+    client: Optional["Client"] = p_internal(
         35, default=None, require=False, array=False, references=NodeType.CLIENT
     )
-    user: Optional["User"] = struct_internal(
+    user: Optional["User"] = p_internal(
         36, default=None, require=False, array=False, references=NodeType.USER
     )
-    identity: Optional["Identity"] = struct_internal(
+    identity: Optional["Identity"] = p_internal(
         37, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
-    badge: Optional["Badge"] = struct_internal(
+    badge: Optional["Badge"] = p_internal(
         38, default=None, require=False, array=False, references=NodeType.BADGE
     )
 
@@ -514,17 +492,18 @@ class RequestObject(Struct):
     The object of a request. Often refers to multiple actual objects with shared attributes.
     """
 
-    node_type: BenchType = struct_internal(30)
-    properties: list[PropertyReference] | None = struct_internal(
-        31, default=None, struct=StructType.PROPERTY_REFERENCE
+    node_type: BenchType = p_internal(30)
+    properties: list[Property] | None = p_internal(
+        31, require=False, array=True, default=None, struct=StructType.PROPERTY_REFERENCE
     )
-    owner: Optional[Owner] = struct_internal(
+    owner: Optional[Owner] = p_internal(
         32,
         default=None,
         require=False,
+        array=False,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
-    _properties_mask: bitarray | None = struct_runtime(default=None)
+    _properties_mask: bitarray | None = p_runtime(default=None)
 
     # properties, bases, node, fields, ...
 
@@ -546,8 +525,7 @@ class RequestObject(Struct):
         self._properties_mask = None
 
     def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
-        if self.properties:
-            self._properties_mask = _enums_to_mask(self.properties)
+        self._properties_mask = _properties_to_mask(self.properties, self.node_type)
 
 
 @struct(StructType.ACCESS_ZONE)
@@ -557,36 +535,34 @@ class AccessZone(Struct):
     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
-    id: int = struct_internal(2, require=True)
-    parent_id: int | None = struct_internal(4)
-    scope_id: str = struct_internal(30)
-    identity_id: int = struct_internal(31)
-    rules: list[PolicyRule] = struct_internal(32, array=True, struct=StructType.POLICY_RULE)
+    id: int = p_internal(2, require=True)
+    parent_id: int | None = p_internal(4)
+    scope_id: str = p_internal(30)
+    identity_id: int = p_internal(31)
+    rules: list[PolicyRule] = p_internal(32, array=True, struct=StructType.POLICY_RULE)
 
 
 @struct(StructType.ACCESS_MATRIX)
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    zones: list[AccessZone] = struct_internal(31, array=True, struct=StructType.ACCESS_ZONE)
-    base_zones: list[PolicyRule] = struct_internal(32, array=True, struct=StructType.POLICY_RULE)
-    identities: list[RequestSubject] = struct_internal(
-        33, array=True, struct=StructType.REQUEST_SUBJECT
-    )
+    subject: RequestSubject = p_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
+    zones: list[AccessZone] = p_internal(31, array=True, struct=StructType.ACCESS_ZONE)
+    base_zones: list[PolicyRule] = p_internal(32, array=True, struct=StructType.POLICY_RULE)
+    identities: list[RequestSubject] = p_internal(33, array=True, struct=StructType.REQUEST_SUBJECT)
 
     # quick access to the zone (id = index)
-    _zone_by_scope_and_identity: dict[str, int] = struct_runtime(default_factory=dict)
-    _base_zone_by_root: dict[str, int] = struct_runtime(default_factory=dict)
+    _zone_by_scope_and_identity: dict[str, int] = p_runtime(default_factory=dict)
+    _base_zone_by_root: dict[str, int] = p_runtime(default_factory=dict)
 
 
 @struct(StructType.REQUEST)
 class Request(Struct):
     """The result of evaluating a single request."""
 
-    verb: ActionType = struct_internal(31, require=True)
-    object: RequestObject = struct_internal(32, require=True, struct=StructType.REQUEST_OBJECT)
-    decision: PolicyEffect = struct_internal(33, require=True)
+    verb: ActionType = p_internal(31, require=True)
+    object: RequestObject = p_internal(32, require=True, struct=StructType.REQUEST_OBJECT)
+    decision: PolicyEffect = p_internal(33, require=True)
 
     def __content_str__(self) -> str:
         return f"{self.decision} {self.verb.bench_name} {self.object}"
@@ -599,29 +575,45 @@ class Action(Struct):
     TODO @Feature @Security: store, query and watch action log
     """
 
-    subject: RequestSubject = struct_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    request_evaluations: list[Request] = struct_internal(
+    subject: RequestSubject = p_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
+    request_evaluations: list[Request] = p_internal(
         31, array=True, require=True, struct=StructType.REQUEST
     )
-    deciding_evaluation: Request | None = struct_internal(
+    deciding_evaluation: Request | None = p_internal(
         32, default=None, require=False, struct=StructType.REQUEST
     )
-    decision: PolicyEffect = struct_internal(33, require=True)
+    decision: PolicyEffect = p_internal(33, require=True)
 
     def __content_str__(self) -> str:
         return f"{self.decision} {self.subject} ({', '.join(str(r) for r in self.request_evaluations)})"
 
 
-def _enums_to_mask(values: list[ProtoStrEnum | PropertyReference | Property]) -> bitarray:
-    mask = bitarray()
-    mask.setall(False)
-    for value in values:
-        mask[value.id] = True
-    return mask
+def _enums_to_mask(values: list[ProtoStrEnum], cls: type[ProtoStrEnum]) -> bitarray:
+    """Set the given values in a mask. No values == all values == wildcard!"""
+    mask = bitarray(cls.get_max_id() + 1)
+    if not values:
+        mask.setall(True)
+    else:
+        mask.setall(False)
+        for value in values:
+            mask[value.id] = True
+        return mask
 
 
-def _ints_to_mask(values: list[int]) -> bitarray:
-    mask = bitarray()
+def _properties_to_mask(values: list[Property], node_type: NodeType) -> bitarray:
+    """Set the given properties in a mask. No values == all values == wildcard!"""
+    mask = bitarray(NODE_CLASS_BY_TYPE[node_type].__max_property_id__)
+    if not values:
+        mask.setall(True)
+    else:
+        mask.setall(False)
+        for value in values:
+            mask[value.id] = True
+        return mask
+
+
+def _ints_to_mask(values: list[int], length: int) -> bitarray:
+    mask = bitarray(length)
     mask.setall(False)
     for value in values:
         mask[value] = True
@@ -644,7 +636,11 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("OnlySystemCanEditSystem").append(
         PolicyRule()
         .deny(EditType.UPDATE)
-        .object(properties=tuple(p for p in iter_properties(*NODE_TYPES) if p.is_system))
+        .object(
+            properties=tuple(
+                p for p in iter_properties(*NODE_TYPES) if p.is_system and p.id is not None
+            )
+        )
     ),
     Policy("OwnerCanDoAnything").append(
         PolicyRule().subject(is_owner=True).allow(*ACTION_KINDS),
@@ -667,7 +663,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             properties=tuple(
                 p
                 for p in iter_properties(NodeType.USER, NodeType.ORGANIZATION)
-                if not p.is_sensitive
+                if not p.is_sensitive and p.id is not None
             ),
         )
     ),
@@ -695,7 +691,7 @@ def adapt_read_options(
     # if root >: Bench, also load related actual owner (User/Organization)
     root_node_cls = NODE_CLASS_BY_TYPE[root_node_type]
     if NodeType.BENCH in root_node_cls.__roots__:
-        options.related_types_via.append(Bench.user.to_ref, Bench.organization.to_ref)
+        options.related_types_via.append(Bench.user, Bench.organization)
 
     # TODO @Performance @Security: also pre-filter read options for owner?
 
@@ -704,8 +700,11 @@ def adapt_read_options(
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
-LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
+LEGISLATIVE_NODE_TYPES: tuple[NodeType, ...] = (
+    NodeType.BENCH,
+    NodeType.PACKAGE,
+    NodeType.SPACE,
+    NodeType.BLOCK,
 )
 
 
@@ -852,7 +851,7 @@ def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[Ed
         object = RequestObject(
             node_type=node_type,
             properties=properties,
-            _properties_mask=_ints_to_mask(edit.properties),
+            _properties_mask=_ints_to_mask(edit.properties, node_cls.__max_property_id__),
         )
 
         # When creating nested nodes in one transaction, the tree only knows about the 'root',
