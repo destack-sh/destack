@@ -11,7 +11,7 @@ from bench.language.access import (
     SYSTEM_POLICIES,
     ReadOptions,
     adapt_read_options,
-    evaluate_read,
+    evaluate_and_adapt_read,
     generate_access_matrix,
 )
 from bench.language.const import NodeType
@@ -169,7 +169,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     _tree=tree,  # accumulate into tree
                 )
         access = generate_access_matrix(self.subject, tree)
-        action, adapted_nodes = evaluate_read(access, tree)
+        action, adapted_nodes = evaluate_and_adapt_read(access, tree, adapt_nodes_in_place=True)
 
         return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in adapted_nodes])
 
@@ -202,7 +202,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             else:
                 count = None
         access = generate_access_matrix(self.subject, tree)
-        action, adapted_nodes = evaluate_read(access, tree)
+        action, adapted_nodes = evaluate_and_adapt_read(access, tree)
         await self.log_action(action)
 
         return SearchNodesResponse(

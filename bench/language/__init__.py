@@ -9,8 +9,6 @@ from .access import (
     PolicyRule,
     ReadOptions,
     Request,
-    RequestObject,
-    RequestSubject,
     Role,
 )
 from .block import Block
@@ -116,8 +114,6 @@ __all__ = [
     "Record",
     "render",
     "Request",
-    "RequestObject",
-    "RequestSubject",
     "RichText",
     "RichTextSpan",
     "Role",
