@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.03.2"
+VERSION = "2024.02.03.4"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -130,7 +130,10 @@ class StructType(ProtoStrEnum):
     ACCESS_MATRIX = "ACCESS_MATRIX", 235
     REQUEST = "REQUEST", 236
     ACTION = "ACTION", 237
-    READ_OPTIONS = "READ_OPTIONS", 239
+    REQUEST_TRACE = "REQUEST_TRACE", 238
+    ACTION_TRACE = "ACTION_TRACE", 239
+    ...
+    READ_OPTIONS = "READ_OPTIONS", 250
 
     EXPRESSION = "EXPRESSION", 260
     AGGREGATION = "AGGREGATION", 261

@@ -78,7 +78,8 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
 
     # read user with sensitive data, unauthorized -> success but empty (except public data)
     read_user_req = ReadNodesRequest(
-        roots=[user.to_ref()._to_data()], options=ReadOptions(include_sensitive=True)._to_data()
+        roots=[user.to_ref()._to_data()],
+        options=ReadOptions(include_properties=[User.email])._to_data(),
     )
     _ = await supervisor.read_nodes(read_user_req)
     assert len(read_user_rep.nodes) == 1

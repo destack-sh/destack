@@ -10,8 +10,8 @@ from bench.language import Client, Expression, Handle, NodeReference, User
 from bench.language.access import (
     SYSTEM_POLICIES,
     ReadOptions,
-    evaluate_read,
     adapt_read_options,
+    evaluate_read,
     generate_access_matrix,
 )
 from bench.language.const import NodeType
@@ -152,12 +152,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_read_options(subject=self.subject, options=options)
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         tree = NodeDataTree()
         async with async_pg_cursor() as cur:
             for root_node_type, root_node_references in roots_by_type.items():
+                adapted_options = adapt_read_options(self.subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
                 _ = await pg_read_node_data_tree(
                     cur=cur,
@@ -185,7 +185,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         adapted_options = adapt_read_options(self.subject, options)
 
         async with async_pg_cursor() as cur:
-            combined_filter = adapted_options.combined_filter(node_type, filter)
+            combined_filter = adapted_options.filter(node_type, filter)
             roots, tree = await pg_search_nodes_data_tree(
                 cur=cur,
                 node_type=node_type,
@@ -200,7 +200,8 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             else:
                 count = None
         access = generate_access_matrix(self.subject, tree)
-        eval, adapted_nodes = evaluate_read(subject=self.subject, tree=tree)
+        action, adapted_nodes = evaluate_read(access, tree)
+        await self.log_action(action)
 
         return SearchNodesResponse(
             roots_ids=[r.id for r in roots.nodes],

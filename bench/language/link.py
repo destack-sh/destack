@@ -691,6 +691,7 @@ class NodeQuery(Generic[NodeT]):
             first=self._first,
             skip=self._skip,
             engine=self._engine,
+            options=self._options,
             # cache is not copied on purpose as it shouldn't propagate
         )
 
@@ -780,6 +781,33 @@ class NodeQuery(Generic[NodeT]):
         """Skips the first N results."""
         copy = self.copy()
         copy._skip = count
+        return copy
+
+    def include(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        if copy._options.include_properties is None:
+            copy._options.include_properties = list(properties)
+        else:
+            copy._options.include_properties.extend(*properties)
+        return copy
+
+    def exclude(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        if copy._options.exclude_properties is None:
+            copy._options.exclude_properties = list(properties)
+        else:
+            copy._options.exclude_properties.extend(*properties)
+        return copy
+
+    def related(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        if copy._options.related_properties is None:
+            copy._options.related_properties = list(properties)
+        else:
+            copy._options.related_properties.extend(*properties)
         return copy
 
     def __getitem__(self, item: slice | int) -> Union["NodeQuery[NodeT]", NodeT]:
@@ -950,10 +978,6 @@ class _NodeExpressionBase:
         return NodeQuery(node_type=cls.metatype).sort(sort, *args)
 
     @classmethod
-    def select(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).select(*properties)
-
-    @classmethod
     def include(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
         return NodeQuery(node_type=cls.metatype).include(*properties)
 
@@ -962,8 +986,8 @@ class _NodeExpressionBase:
         return NodeQuery(node_type=cls.metatype).exclude(*properties)
 
     @classmethod
-    def distinct(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).distinct(*properties)
+    def related(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).related(*properties)
 
     @classmethod
     def first(cls: type["Node"], count: int) -> "NodeQuery":

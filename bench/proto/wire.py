@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -136,7 +129,9 @@ class BenchType(betterproto.Enum):
     ACCESS_MATRIX = 235
     REQUEST = 236
     ACTION = 237
-    READ_OPTIONS = 239
+    REQUEST_TRACE = 238
+    ACTION_TRACE = 239
+    READ_OPTIONS = 250
     EXPRESSION = 260
     AGGREGATION = 261
     AGGREGATION_BUCKET = 262
@@ -528,7 +523,9 @@ class StructType(betterproto.Enum):
     ACCESS_MATRIX = 235
     REQUEST = 236
     ACTION = 237
-    READ_OPTIONS = 239
+    REQUEST_TRACE = 238
+    ACTION_TRACE = 239
+    READ_OPTIONS = 250
     EXPRESSION = 260
     AGGREGATION = 261
     AGGREGATION_BUCKET = 262
@@ -638,9 +635,17 @@ class ActionData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
-    request_evaluations: List["RequestData"] = betterproto.message_field(31)
-    deciding_evaluation: Optional["RequestData"] = betterproto.message_field(32, optional=True)
+    requests: List["RequestData"] = betterproto.message_field(31)
+    deciding_request: Optional["RequestData"] = betterproto.message_field(32, optional=True)
     decision: "PolicyEffect" = betterproto.enum_field(33)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ActionTraceData(betterproto.Message):
+    """ActionTrace(_status: bench.language.const.NodeStatus = None)"""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -824,9 +829,10 @@ class PolicyData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
-    rules: List["PolicyRuleData"] = betterproto.message_field(31)
-    hidden: bool = betterproto.bool_field(32)
-    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
+    text: Optional["RichTextData"] = betterproto.message_field(31, optional=True)
+    rules: List["PolicyRuleData"] = betterproto.message_field(32)
+    hidden: bool = betterproto.bool_field(33)
+    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -839,6 +845,7 @@ class PolicyRuleData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(31, optional=True)
     subject_is_delegated: bool = betterproto.bool_field(40)
     subject_is_authenticated: bool = betterproto.bool_field(41)
     subject_is_staff: bool = betterproto.bool_field(42)
@@ -864,8 +871,7 @@ class PropertyReferenceData(betterproto.Message):
     """
     PropertyReference(type: bench.language.const.BenchType = <factory>, id: int
     = <factory>, references_type: Optional[bench.language.const.NodeType] =
-    <factory>, _resolved_property: Optional[bench.language.node.Property] =
-    None, _status: bench.language.const.NodeStatus = None)
+    <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -884,7 +890,7 @@ class ReadOptionsData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     ancestor_types: List["NodeType"] = betterproto.enum_field(30)
     descendant_types: List["NodeType"] = betterproto.enum_field(31)
-    related_types_via_ptr: List["PropertyReferenceData"] = betterproto.message_field(32)
+    related_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(32)
     include_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(40)
     exclude_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(41)
     global_filter: Optional["ExpressionData"] = betterproto.message_field(50, optional=True)
@@ -930,6 +936,13 @@ class RequestSubjectData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RequestTraceData(betterproto.Message):
+    """RequestTrace(_status: bench.language.const.NodeStatus = None)"""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class RichTextData(betterproto.Message):
     """
     RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None =
@@ -944,19 +957,22 @@ class RichTextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RichTextSpanData(betterproto.Message):
     """
-    RichTextSpan(text: str = '', reference: bench.language.node.Node | None =
-    None, is_bold: bool = False, is_italic: bool = False, is_underline: bool =
-    False, is_strikethrough: bool = False, reference_ptr: 'NodeReference' =
-    None, _status: bench.language.const.NodeStatus = None)
+    RichTextSpan(text: str | None = '', reference: bench.language.node.Node |
+    None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool
+    = False, is_italic: bool = False, is_strikethrough: bool = False,
+    is_underline: bool = False, is_code: bool = False, reference_ptr:
+    'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    text: str = betterproto.string_field(30)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    is_bold: bool = betterproto.bool_field(33)
-    is_italic: bool = betterproto.bool_field(34)
-    is_underline: bool = betterproto.bool_field(35)
-    is_strikethrough: bool = betterproto.bool_field(36)
+    text: Optional[str] = betterproto.string_field(30, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    path: Optional["FieldPathData"] = betterproto.message_field(32, optional=True)
+    is_bold: bool = betterproto.bool_field(40)
+    is_italic: bool = betterproto.bool_field(41)
+    is_strikethrough: bool = betterproto.bool_field(42)
+    is_underline: bool = betterproto.bool_field(43)
+    is_code: bool = betterproto.bool_field(44)
 
 
 @dataclass(eq=False, repr=False)
@@ -969,7 +985,7 @@ class RunCodeFrameData(betterproto.Message):
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    node_ptr: "NodeReferenceData" = betterproto.message_field(30)
     lineno: int = betterproto.int32_field(31)
     name: str = betterproto.string_field(32)
     locals: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -1063,7 +1079,7 @@ class ValueReferenceData(betterproto.Message):
     """Reference a value at a path of a Node."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    node_ptr: "NodeReferenceData" = betterproto.message_field(30)
     path: "FieldPathData" = betterproto.message_field(31)
 
 
@@ -1309,7 +1325,7 @@ class IdentityData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    type_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1330,7 +1346,7 @@ class LinkData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    reference_ptr: "NodeReferenceData" = betterproto.message_field(30)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
 
 
@@ -1347,7 +1363,7 @@ class MembershipData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    user_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1441,7 +1457,7 @@ class OrganizationData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    handle_ptr: "NodeReferenceData" = betterproto.message_field(30)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: str = betterproto.string_field(32)
     main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
@@ -1550,7 +1566,7 @@ class RoleData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    type_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1661,7 +1677,7 @@ class SkipData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    reference_ptr: "NodeReferenceData" = betterproto.message_field(30)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
 
 
@@ -1746,7 +1762,7 @@ class UserData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    handle_ptr: "NodeReferenceData" = betterproto.message_field(30)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     email: Optional[str] = betterproto.string_field(33, optional=True)
@@ -3383,74 +3399,76 @@ class WorkerProcessBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
 
+import bench.proto.monkey  # noqa
+
 AnyNodeData = Union[
-    WorkerData,
-    BucketObjectData,
-    SpaceData,
-    RoleData,
     TagData,
-    NoticeData,
-    RunData,
-    ClientData,
-    IdentityData,
-    WorkerSetData,
-    RecordData,
-    BlockData,
-    NotificationData,
-    PauseData,
-    SignalData,
-    MembershipData,
-    PackageData,
-    LinkData,
-    UserData,
-    BadgeData,
-    ViewData,
     SkipData,
-    HandleData,
-    BenchData,
+    IdentityData,
     SessionData,
-    QueryData,
-    TriggerData,
-    FieldData,
+    BenchData,
     OrganizationData,
+    RecordData,
+    RunData,
+    NoticeData,
+    ClientData,
+    PauseData,
+    BadgeData,
+    FieldData,
+    NotificationData,
+    MembershipData,
+    TriggerData,
+    UserData,
+    BucketObjectData,
+    WorkerData,
+    ViewData,
+    BlockData,
+    QueryData,
+    SpaceData,
+    WorkerSetData,
+    PackageData,
+    SignalData,
+    HandleData,
+    LinkData,
+    RoleData,
 ]
 AnyStructData = Union[
-    RunCodeFrameData,
+    PolicyRuleData,
+    RichTextData,
+    RequestTraceData,
     AggregationBucketData,
     WorkerImageData,
+    PropertyPathData,
+    RunCodeFrameData,
+    ValueReferenceData,
     RunErrorData,
-    ValueSelectionData,
-    PolicyRuleData,
-    ReadOptionsData,
-    SpaceDockItemData,
-    FieldPathData,
-    FileData,
+    SpaceDockData,
     RichTextSpanData,
-    BenchPathData,
-    ExpressionData,
-    RequestSubjectData,
-    PropertyReferenceData,
+    NodeReferenceData,
     AccessMatrixData,
-    FieldPathSegmentData,
-    AggregationData,
-    LogEntryData,
-    DependencyData,
+    FieldPathData,
+    PolicyData,
+    ExpressionData,
     RequestObjectData,
     ActionData,
-    PolicyData,
+    FileData,
+    AggregationData,
+    IconData,
+    LogEntryData,
+    PropertyReferenceData,
+    ReadOptionsData,
+    FieldPathSegmentData,
+    SpaceDockItemData,
+    BenchPathData,
+    ValueSelectionData,
     AccessZoneData,
     TypeInfoData,
-    NodeReferenceData,
-    IconData,
-    SpaceDockData,
-    PropertyPathData,
+    RequestSubjectData,
     RequestData,
-    ValueReferenceData,
-    RichTextData,
+    ActionTraceData,
+    DependencyData,
 ]
 
-VERSION = "2024.02.03.2"
+VERSION = "2024.02.03.4"

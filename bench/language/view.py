@@ -1,25 +1,25 @@
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import StructType, NodeType
+from bench.language.const import NodeType, StructType
 from bench.language.node import (
-    struct,
-    Struct,
-    p_tracked,
-    p_parent,
-    p_internal,
-    node,
     Node,
     Package,
-    p_child,
-    node_component,
     ScopeNode,
+    Struct,
+    node,
+    node_component,
+    p_child,
+    p_internal,
+    p_parent,
+    p_tracked,
+    struct,
 )
 from bench.language.validation import enum_validator
 from bench.proto.core import ProtoStrEnum
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Block, Policy, Icon
+    from bench.language import Block, Icon, Policy
 
 
 class ViewType(ProtoStrEnum):
@@ -80,7 +80,7 @@ class Space(ScopeNode, HasViews):
 
     parent: Package = p_parent(4, NodeType.PACKAGE)
     policies: list["Policy"] | None = p_tracked(
-        24, default_factory=list, struct=StructType.POLICY, array=True, sensitive=True
+        24, default_factory=list, struct=StructType.POLICY, array=True
     )
 
     name: str = p_tracked(31)

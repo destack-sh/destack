@@ -2,12 +2,13 @@ import asyncio
 from os import urandom
 
 import structlog
-from grpclib import GRPCError, Status as GRPCStatus
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
 
-from bench.language import Client, Worker, Badge, User
+from bench.language import Badge, Client, User, Worker
 from bench.language.access import RequestSubject
 from bench.proto import wiring
-from bench.proto.wire import RpcMetadata, ClientKind, NodeType
+from bench.proto.wire import ClientKind, NodeType, RpcMetadata
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -90,7 +91,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
     """Gets the authenticated badge (if any)."""
 
     if metadata.badge_link_token:
-        badge: Badge = await Badge.options(include_sensitive=True).get(
+        badge: Badge = await Badge.include(Badge.link_password).get(
             link_token=metadata.badge_link_token
         )
         if badge is None:
@@ -99,9 +100,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge link password")
         return badge
     elif metadata.badge_id:
-        badge: Badge = await Badge.options(include_sensitive=True).get(
-            id=to_uuid(metadata.badge_id)
-        )
+        badge: Badge = await Badge.include(Badge.key_value).get(id=to_uuid(metadata.badge_id))
         if badge.key_value != metadata.badge_key_value:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key value")
         return badge
