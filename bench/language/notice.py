@@ -7,27 +7,27 @@ from bench.language.expression import FieldPath, Property
 from bench.language.node import Node, node, p_parent, p_tracked
 from bench.language.validation import enum_validator
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import IdStrEnum
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language.block import Block
 
 
-class NoticeType(IdStrEnum):
+class NoticeType(IdEnum):
     """Built-in notice types."""
 
     # errors
-    MISSING_REFERENCE = "MISSING_REFERENCE", 1
-    CIRCULAR_BASE = "CIRCULAR_BASE", 2
-    MISMATCHED_BASE = "MISMATCHED_BASE", 3
+    MISSING_REFERENCE = 1
+    CIRCULAR_BASE = 2
+    MISMATCHED_BASE = 3
 
     # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION", 100
+    AMBIGUOUS_DEFINITION = 100
 
     # information
 
     # hints
-    BAD_NAME = "BAD_NAME", 300
+    BAD_NAME = 300
 
     @property
     def bench_name(self):

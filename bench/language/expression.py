@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
-    _CONDITIONAL_OP_SIGN,
     AggregationOp,
     BenchType,
     ConditionalOp,
@@ -32,10 +31,38 @@ if TYPE_CHECKING:
     from bench.language import Block, Field, TypeInfo
     from bench.language.field import HasFields
 
-
 #
 # Expression language. Primarily for package, search and storage (database).
 #
+
+
+_CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
+    # logical
+    ConditionalOp.NOT: "~",
+    ConditionalOp.AND: "&",
+    ConditionalOp.OR: "|",
+    # comparison
+    ConditionalOp.EQUALS: "==",
+    ConditionalOp.NOT_EQUALS: "!=",
+    ConditionalOp.GREATER_THAN: ">",
+    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
+    ConditionalOp.LESS_THAN: "<",
+    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
+    # string comparison
+    ConditionalOp.MATCHES: "~=",
+    ConditionalOp.STARTS_WITH: "^=",
+    ConditionalOp.REGEX: "$re=",
+    # containment
+    ConditionalOp.CONTAINS: "∋",
+    ConditionalOp.NOT_CONTAINS: "!∋",
+    ConditionalOp.IN: "∈",
+    ConditionalOp.NOT_IN: "!∈",
+    # existence
+    ConditionalOp.EXISTS: "?",
+    ConditionalOp.NOT_EXISTS: "!?",
+    # vector
+    ConditionalOp.NEAR: "~=",
+}
 
 
 @struct(StructType.NODE_REFERENCE)
@@ -303,7 +330,6 @@ EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
 EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
 }
-assert len(EXPRESSION_KIND_BY_OP) == len(ExpressionOp), "missing expression op/kind mapping"
 
 CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
     "eq": ConditionalOp.EQUALS,
@@ -439,9 +465,9 @@ def coerce_sort(
 
 
 # single-letter convenience constructors
-def E(op: ExpressionOp, *, _expect_t: type[ExpressionKind] = None, **kwargs) -> Expression:
-    if _expect_t is not None and EXPRESSION_KIND_BY_OP[op] != _expect_t:
-        raise TypeError(f"expected {_expect_t}, got {EXPRESSION_KIND_BY_OP[op]}")
+def E(op: ExpressionOp, *, _expect_kind: type[ExpressionKind] = None, **kwargs) -> Expression:
+    if _expect_kind is not None and op.kind != _expect_kind:
+        raise TypeError(f"expected {_expect_kind}, got {op} ({op.kind})")
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in Expression.__properties__}
     return Expression(op=op, **kwargs)
 

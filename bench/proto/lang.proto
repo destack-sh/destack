@@ -37,14 +37,14 @@ enum ActionType {
 
 enum AggregationOp {
   AGGREGATION_OP_UNSPECIFIED = 0;
-  AGGREGATION_OP_EXISTS = 101;
-  AGGREGATION_OP_COUNT = 102;
-  AGGREGATION_OP_SUM = 103;
-  AGGREGATION_OP_AVERAGE = 104;
-  AGGREGATION_OP_MIN = 105;
-  AGGREGATION_OP_MAX = 106;
-  AGGREGATION_OP_MEDIAN = 107;
-  AGGREGATION_OP_HISTOGRAM = 108;
+  AGGREGATION_OP_EXISTS = 100;
+  AGGREGATION_OP_COUNT = 101;
+  AGGREGATION_OP_SUM = 102;
+  AGGREGATION_OP_AVERAGE = 103;
+  AGGREGATION_OP_MIN = 104;
+  AGGREGATION_OP_MAX = 105;
+  AGGREGATION_OP_MEDIAN = 106;
+  AGGREGATION_OP_HISTOGRAM = 107;
 }
 
 enum BadgeType {
@@ -118,6 +118,7 @@ enum BenchType {
   BENCH_TYPE_EXPRESSION = 560;
   BENCH_TYPE_AGGREGATION = 561;
   BENCH_TYPE_AGGREGATION_BUCKET = 562;
+  BENCH_TYPE_SCHEDULE = 580;
   BENCH_TYPE_LOG_ENTRY = 590;
   BENCH_TYPE_RUN_CODE_FRAME = 591;
   BENCH_TYPE_RUN_ERROR = 592;
@@ -235,18 +236,18 @@ enum ExpressionOp {
   EXPRESSION_OP_NOT_CONTAINS = 31;
   EXPRESSION_OP_IN = 32;
   EXPRESSION_OP_NOT_IN = 33;
-  EXPRESSION_OP_EXISTS = 101;
+  EXPRESSION_OP_EXISTS = 100;
   EXPRESSION_OP_NOT_EXISTS = 41;
   EXPRESSION_OP_NEAR = 50;
-  EXPRESSION_OP_COUNT = 102;
-  EXPRESSION_OP_SUM = 103;
-  EXPRESSION_OP_AVERAGE = 104;
-  EXPRESSION_OP_MIN = 105;
-  EXPRESSION_OP_MAX = 106;
-  EXPRESSION_OP_MEDIAN = 107;
-  EXPRESSION_OP_HISTOGRAM = 108;
-  EXPRESSION_OP_ASCENDING = 201;
-  EXPRESSION_OP_DESCENDING = 202;
+  EXPRESSION_OP_COUNT = 101;
+  EXPRESSION_OP_SUM = 102;
+  EXPRESSION_OP_AVERAGE = 103;
+  EXPRESSION_OP_MIN = 104;
+  EXPRESSION_OP_MAX = 105;
+  EXPRESSION_OP_MEDIAN = 106;
+  EXPRESSION_OP_HISTOGRAM = 107;
+  EXPRESSION_OP_ASCENDING = 200;
+  EXPRESSION_OP_DESCENDING = 201;
 }
 
 enum FileStatus {
@@ -264,15 +265,15 @@ enum FormatHint {
   FORMAT_HINT_URL = 3;
   FORMAT_HINT_MARKDOWN = 4;
   FORMAT_HINT_CODE = 5;
-  FORMAT_HINT_PHONE = 10;
-  FORMAT_HINT_RATING = 11;
-  FORMAT_HINT_SLIDER = 12;
-  FORMAT_HINT_TOGGLE = 20;
-  FORMAT_HINT_CHECKBOX = 21;
-  FORMAT_HINT_THUMBS = 22;
-  FORMAT_HINT_IMAGE = 30;
-  FORMAT_HINT_VIDEO = 31;
-  FORMAT_HINT_AUDIO = 32;
+  FORMAT_HINT_PHONE = 20;
+  FORMAT_HINT_RATING = 21;
+  FORMAT_HINT_SLIDER = 22;
+  FORMAT_HINT_TOGGLE = 40;
+  FORMAT_HINT_CHECKBOX = 41;
+  FORMAT_HINT_THUMBS = 42;
+  FORMAT_HINT_IMAGE = 60;
+  FORMAT_HINT_VIDEO = 61;
+  FORMAT_HINT_AUDIO = 62;
 }
 
 enum IconKind {
@@ -286,11 +287,8 @@ enum IconType {
   ICON_TYPE_UNSPECIFIED = 0;
 }
 
-// enum.StrEnum with an additional id per value.
-//     TODO @Cleanup: convert IdStrEnum to 'regular' int enum
-//      (keep this class, but stop specifying name for everything and store all enums as int)
-enum IdStrEnum {
-  ID_STR_ENUM_UNSPECIFIED = 0;
+enum IdEnum {
+  ID_ENUM_UNSPECIFIED = 0;
 }
 
 // Parent relation between node and descendants.
@@ -430,11 +428,11 @@ enum ReadType {
 
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
-  RUN_ERROR_KIND_Internal = 1;
-  RUN_ERROR_KIND_Parse = 2;
-  RUN_ERROR_KIND_Validation = 3;
-  RUN_ERROR_KIND_Runtime = 4;
-  RUN_ERROR_KIND_Untrusted = 5;
+  RUN_ERROR_KIND_INTERNAL = 1;
+  RUN_ERROR_KIND_PARSE = 2;
+  RUN_ERROR_KIND_VALIDATION = 3;
+  RUN_ERROR_KIND_RUNTIME = 4;
+  RUN_ERROR_KIND_UNTRUSTED = 5;
 }
 
 enum RunStatus {
@@ -442,7 +440,7 @@ enum RunStatus {
   RUN_STATUS_SCHEDULED = 1;
   RUN_STATUS_QUEUED = 2;
   RUN_STATUS_RUNNING = 3;
-  RUN_STATUS_HALTED = 4;
+  RUN_STATUS_PAUSED = 4;
   RUN_STATUS_ABORTING = 5;
   RUN_STATUS_CANCELLED = 6;
   RUN_STATUS_ABORTED = 7;
@@ -495,8 +493,8 @@ enum SortMode {
 
 enum SortOp {
   SORT_OP_UNSPECIFIED = 0;
-  SORT_OP_ASCENDING = 201;
-  SORT_OP_DESCENDING = 202;
+  SORT_OP_ASCENDING = 200;
+  SORT_OP_DESCENDING = 201;
 }
 
 enum StructType {
@@ -523,6 +521,7 @@ enum StructType {
   STRUCT_TYPE_EXPRESSION = 560;
   STRUCT_TYPE_AGGREGATION = 561;
   STRUCT_TYPE_AGGREGATION_BUCKET = 562;
+  STRUCT_TYPE_SCHEDULE = 580;
   STRUCT_TYPE_LOG_ENTRY = 590;
   STRUCT_TYPE_RUN_CODE_FRAME = 591;
   STRUCT_TYPE_RUN_ERROR = 592;
@@ -538,10 +537,8 @@ enum StructType {
 // Triggers for blocks (for both actual runs and pre-defined triggers).
 enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
-  TRIGGER_TYPE_INVOKE = 1;
-  TRIGGER_TYPE_TIME = 2;
-  TRIGGER_TYPE_SIGNAL = 3;
-  TRIGGER_TYPE_API = 4;
+  TRIGGER_TYPE_SCHEDULE = 1;
+  TRIGGER_TYPE_SIGNAL = 2;
 }
 
 enum ViewType {
@@ -777,7 +774,7 @@ message PropertyPathData {
   repeated PropertyReferenceData properties_ptr = 30;
 }
 
-// PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+// PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
 message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
@@ -856,6 +853,15 @@ message RunErrorData {
   optional string message = 32;
   optional NodeReferenceData node_ptr = 33;
   repeated RunCodeFrameData traceback = 34;
+}
+
+// The time-based schedule of something.
+message ScheduleData {
+  BenchType metatype = 1;
+  ScheduleType type = 30;
+  optional string timezone = 31;
+  optional int32 interval = 32;
+  optional string cron = 33;
 }
 
 // ServerAllocation(default_profile: bench.language.const.ServerProfile = <factory>, default_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -1176,7 +1182,7 @@ message BaseNodeData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1348,7 +1354,7 @@ message RunData {
   optional google.protobuf.Struct error = 46;
 }
 
-// Server(parent: 'Bench' = None, target_profile: bench.language.const.ServerProfile = <factory>, target_image: Optional[ForwardRef('ServerImage')] = <factory>, target_version: Optional[str] = <factory>, current_profile: Optional[bench.language.const.ServerProfile] = <factory>, current_image: Optional[ForwardRef('ServerImage')] = <factory>, current_version: Optional[str] = <factory>, sleep: bool = True, status: bench.language.const.ServerStatus = <factory>, last_active_at: Optional[datetime.datetime] = <factory>, last_bumped_at: Optional[datetime.datetime] = <factory>, external_id: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Server(parent: 'Bench' = None, target_profile: bench.language.const.ServerProfile = <factory>, target_image: Optional[ForwardRef('ServerImage')] = <factory>, target_version: Optional[str] = <factory>, current_profile: Optional[bench.language.const.ServerProfile] = <factory>, current_image: Optional[ForwardRef('ServerImage')] = <factory>, current_version: Optional[str] = <factory>, sleep: bool = True, status: bench.language.const.ServerStatus = <factory>, last_active_at: Optional[datetime.datetime] = <factory>, last_bumped_at: Optional[datetime.datetime] = <factory>, external_id: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message ServerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1466,7 +1472,7 @@ message TagData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// A trigger for a block to run.
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1482,10 +1488,8 @@ message TriggerData {
   TriggerType type = 30;
   optional string name = 31;
   bool active = 32;
-  optional ScheduleType schedule_type = 33;
-  optional string timezone = 34;
-  optional int32 interval = 35;
-  optional string cron = 36;
+  optional ScheduleData schedule = 33;
+  optional NodeReferenceData signal_ptr = 34;
 }
 
 // A Bench user.

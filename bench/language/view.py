@@ -15,36 +15,36 @@ from bench.language.node import (
     struct,
 )
 from bench.language.validation import enum_validator
-from bench.utils.func import IdStrEnum
+from bench.utils.func import IdEnum
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
     from bench.language import Block, Icon, Policy
 
 
-class ViewType(IdStrEnum):
+class ViewType(IdEnum):
     # editor
-    PAGE = "PAGE", 1
-    BLOCK = "BLOCK", 2
+    PAGE = 1
+    BLOCK = 2
 
-    EXPLORER = "EXPLORER", 10
-    HISTORY = "HISTORY", 11
-    WATCH = "WATCH", 12
-    TESTING = "TESTING", 13
-    BENCH = "BENCH", 14
-    INSPECTOR = "INSPECTOR", 15
-    LIBRARY = "LIBRARY", 16
-    ACCESS = "ACCESS", 17
+    EXPLORER = 10
+    HISTORY = 11
+    WATCH = 12
+    TESTING = 13
+    BENCH = 14
+    INSPECTOR = 15
+    LIBRARY = 16
+    ACCESS = 17
 
     # containers
-    WINDOW_GROUP = "WINDOW_GROUP", 40
-    WINDOW = "WINDOW", 41
-    PANEL = "PANEL", 42
+    WINDOW_GROUP = 40
+    WINDOW = 41
+    PANEL = 42
     # ...
 
     # separators
-    SPACER = "SPACER", 60
-    DIVIDER = "DIVIDER", 61
+    SPACER = 60
+    DIVIDER = 61
 
     # controls
     # ...
@@ -69,9 +69,9 @@ class View(ScopeNode, HasViews):
     )
 
 
-class PageViewMode(IdStrEnum):
-    NOTEBOOK = "NOTEBOOK", 1
-    SCRIPT = "SCRIPT", 2
+class PageViewMode(IdEnum):
+    NOTEBOOK = 1
+    SCRIPT = 2
 
 
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
@@ -89,12 +89,12 @@ class Space(ScopeNode, HasViews):
     dock: "SpaceDock" = p_tracked(34, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
-class SpaceDockItemType(IdStrEnum):
+class SpaceDockItemType(IdEnum):
     # builtins
-    SEARCH = "SEARCH", 1
-    CHAT = "CHAT", 2
-    ASSIST = "ASSIST", 3
-    HELP = "HELP", 4
+    SEARCH = 1
+    CHAT = 2
+    ASSIST = 3
+    HELP = 4
     # ...?
 
 

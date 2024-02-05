@@ -253,7 +253,7 @@ class RunError(Struct, BenchError):
         else:
             err_str = str(e)
         return RunError(
-            kind=RunErrorKind.Runtime,
+            kind=RunErrorKind.RUNTIME,
             type=type(e).__name__,
             message=err_str,
             block=block,

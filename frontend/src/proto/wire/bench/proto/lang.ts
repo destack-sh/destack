@@ -552,7 +552,7 @@ export interface PropertyPathData {
     propertiesPtr: PropertyReferenceData[];
 }
 /**
- * PropertyReference(type: bench.language.const.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+ * PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -799,6 +799,33 @@ export interface RunErrorData {
      * @generated from protobuf field: repeated symbolx.bench.RunCodeFrameData traceback = 34;
      */
     traceback: RunCodeFrameData[];
+}
+/**
+ * The time-based schedule of something.
+ *
+ * @generated from protobuf message symbolx.bench.ScheduleData
+ */
+export interface ScheduleData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: symbolx.bench.ScheduleType type = 30;
+     */
+    type: ScheduleType;
+    /**
+     * @generated from protobuf field: optional string timezone = 31;
+     */
+    timezone?: string;
+    /**
+     * @generated from protobuf field: optional int32 interval = 32;
+     */
+    interval?: number;
+    /**
+     * @generated from protobuf field: optional string cron = 33;
+     */
+    cron?: string;
 }
 /**
  * ServerAllocation(default_profile: bench.language.const.ServerProfile = <factory>, default_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -1821,7 +1848,7 @@ export interface BaseNodeData {
     lastEditedAt?: Timestamp;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -2422,7 +2449,7 @@ export interface RunData {
     error?: Struct;
 }
 /**
- * Server(parent: 'Bench' = None, target_profile: bench.language.const.ServerProfile = <factory>, target_image: Optional[ForwardRef('ServerImage')] = <factory>, target_version: Optional[str] = <factory>, current_profile: Optional[bench.language.const.ServerProfile] = <factory>, current_image: Optional[ForwardRef('ServerImage')] = <factory>, current_version: Optional[str] = <factory>, sleep: bool = True, status: bench.language.const.ServerStatus = <factory>, last_active_at: Optional[datetime.datetime] = <factory>, last_bumped_at: Optional[datetime.datetime] = <factory>, external_id: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+ * Server(parent: 'Bench' = None, target_profile: bench.language.const.ServerProfile = <factory>, target_image: Optional[ForwardRef('ServerImage')] = <factory>, target_version: Optional[str] = <factory>, current_profile: Optional[bench.language.const.ServerProfile] = <factory>, current_image: Optional[ForwardRef('ServerImage')] = <factory>, current_version: Optional[str] = <factory>, sleep: bool = True, status: bench.language.const.ServerStatus = <factory>, last_active_at: Optional[datetime.datetime] = <factory>, last_bumped_at: Optional[datetime.datetime] = <factory>, external_id: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
  *
  * @generated from protobuf message symbolx.bench.ServerData
  */
@@ -2840,7 +2867,7 @@ export interface TagData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * A trigger for a block to run.
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -2902,21 +2929,13 @@ export interface TriggerData {
      */
     active: boolean;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ScheduleType schedule_type = 33;
+     * @generated from protobuf field: optional symbolx.bench.ScheduleData schedule = 33;
      */
-    scheduleType?: ScheduleType;
+    schedule?: ScheduleData;
     /**
-     * @generated from protobuf field: optional string timezone = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData signal_ptr = 34;
      */
-    timezone?: string;
-    /**
-     * @generated from protobuf field: optional int32 interval = 35;
-     */
-    interval?: number;
-    /**
-     * @generated from protobuf field: optional string cron = 36;
-     */
-    cron?: string;
+    signalPtr?: NodeReferenceData;
 }
 /**
  * A Bench user.
@@ -3383,37 +3402,37 @@ export enum AggregationOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_EXISTS = 101;
+     * @generated from protobuf enum value: AGGREGATION_OP_EXISTS = 100;
      */
-    EXISTS = 101,
+    EXISTS = 100,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_COUNT = 102;
+     * @generated from protobuf enum value: AGGREGATION_OP_COUNT = 101;
      */
-    COUNT = 102,
+    COUNT = 101,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_SUM = 103;
+     * @generated from protobuf enum value: AGGREGATION_OP_SUM = 102;
      */
-    SUM = 103,
+    SUM = 102,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 104;
+     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 103;
      */
-    AVERAGE = 104,
+    AVERAGE = 103,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 105;
+     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 104;
      */
-    MIN = 105,
+    MIN = 104,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 106;
+     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 105;
      */
-    MAX = 106,
+    MAX = 105,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 107;
+     * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 106;
      */
-    MEDIAN = 107,
+    MEDIAN = 106,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_HISTOGRAM = 108;
+     * @generated from protobuf enum value: AGGREGATION_OP_HISTOGRAM = 107;
      */
-    HISTOGRAM = 108
+    HISTOGRAM = 107
 }
 /**
  * @generated from protobuf enum symbolx.bench.BadgeType
@@ -3678,6 +3697,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_BUCKET = 562;
      */
     AGGREGATION_BUCKET = 562,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 580;
+     */
+    SCHEDULE = 580,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_LOG_ENTRY = 590;
      */
@@ -4096,9 +4119,9 @@ export enum ExpressionOp {
      */
     NOT_IN = 33,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_EXISTS = 101;
+     * @generated from protobuf enum value: EXPRESSION_OP_EXISTS = 100;
      */
-    EXISTS = 101,
+    EXISTS = 100,
     /**
      * @generated from protobuf enum value: EXPRESSION_OP_NOT_EXISTS = 41;
      */
@@ -4108,41 +4131,41 @@ export enum ExpressionOp {
      */
     NEAR = 50,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_COUNT = 102;
+     * @generated from protobuf enum value: EXPRESSION_OP_COUNT = 101;
      */
-    COUNT = 102,
+    COUNT = 101,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_SUM = 103;
+     * @generated from protobuf enum value: EXPRESSION_OP_SUM = 102;
      */
-    SUM = 103,
+    SUM = 102,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 104;
+     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 103;
      */
-    AVERAGE = 104,
+    AVERAGE = 103,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 105;
+     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 104;
      */
-    MIN = 105,
+    MIN = 104,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 106;
+     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 105;
      */
-    MAX = 106,
+    MAX = 105,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 107;
+     * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 106;
      */
-    MEDIAN = 107,
+    MEDIAN = 106,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_HISTOGRAM = 108;
+     * @generated from protobuf enum value: EXPRESSION_OP_HISTOGRAM = 107;
      */
-    HISTOGRAM = 108,
+    HISTOGRAM = 107,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_ASCENDING = 201;
+     * @generated from protobuf enum value: EXPRESSION_OP_ASCENDING = 200;
      */
-    ASCENDING = 201,
+    ASCENDING = 200,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_DESCENDING = 202;
+     * @generated from protobuf enum value: EXPRESSION_OP_DESCENDING = 201;
      */
-    DESCENDING = 202
+    DESCENDING = 201
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileStatus
@@ -4196,41 +4219,41 @@ export enum FormatHint {
      */
     CODE = 5,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_PHONE = 10;
+     * @generated from protobuf enum value: FORMAT_HINT_PHONE = 20;
      */
-    PHONE = 10,
+    PHONE = 20,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_RATING = 11;
+     * @generated from protobuf enum value: FORMAT_HINT_RATING = 21;
      */
-    RATING = 11,
+    RATING = 21,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_SLIDER = 12;
+     * @generated from protobuf enum value: FORMAT_HINT_SLIDER = 22;
      */
-    SLIDER = 12,
+    SLIDER = 22,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_TOGGLE = 20;
+     * @generated from protobuf enum value: FORMAT_HINT_TOGGLE = 40;
      */
-    TOGGLE = 20,
+    TOGGLE = 40,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_CHECKBOX = 21;
+     * @generated from protobuf enum value: FORMAT_HINT_CHECKBOX = 41;
      */
-    CHECKBOX = 21,
+    CHECKBOX = 41,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_THUMBS = 22;
+     * @generated from protobuf enum value: FORMAT_HINT_THUMBS = 42;
      */
-    THUMBS = 22,
+    THUMBS = 42,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_IMAGE = 30;
+     * @generated from protobuf enum value: FORMAT_HINT_IMAGE = 60;
      */
-    IMAGE = 30,
+    IMAGE = 60,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_VIDEO = 31;
+     * @generated from protobuf enum value: FORMAT_HINT_VIDEO = 61;
      */
-    VIDEO = 31,
+    VIDEO = 61,
     /**
-     * @generated from protobuf enum value: FORMAT_HINT_AUDIO = 32;
+     * @generated from protobuf enum value: FORMAT_HINT_AUDIO = 62;
      */
-    AUDIO = 32
+    AUDIO = 62
 }
 /**
  * @generated from protobuf enum symbolx.bench.IconKind
@@ -4263,15 +4286,11 @@ export enum IconType {
     UNSPECIFIED = 0
 }
 /**
- * enum.StrEnum with an additional id per value.
- *     TODO @Cleanup: convert IdStrEnum to 'regular' int enum
- *      (keep this class, but stop specifying name for everything and store all enums as int)
- *
- * @generated from protobuf enum symbolx.bench.IdStrEnum
+ * @generated from protobuf enum symbolx.bench.IdEnum
  */
-export enum IdStrEnum {
+export enum IdEnum {
     /**
-     * @generated from protobuf enum value: ID_STR_ENUM_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ID_ENUM_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0
 }
@@ -4720,25 +4739,25 @@ export enum RunErrorKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_Internal = 1;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_INTERNAL = 1;
      */
-    Internal = 1,
+    INTERNAL = 1,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_Parse = 2;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_PARSE = 2;
      */
-    Parse = 2,
+    PARSE = 2,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_Validation = 3;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_VALIDATION = 3;
      */
-    Validation = 3,
+    VALIDATION = 3,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_Runtime = 4;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_RUNTIME = 4;
      */
-    Runtime = 4,
+    RUNTIME = 4,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_Untrusted = 5;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_UNTRUSTED = 5;
      */
-    Untrusted = 5
+    UNTRUSTED = 5
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunStatus
@@ -4761,9 +4780,9 @@ export enum RunStatus {
      */
     RUNNING = 3,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_HALTED = 4;
+     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 4;
      */
-    HALTED = 4,
+    PAUSED = 4,
     /**
      * @generated from protobuf enum value: RUN_STATUS_ABORTING = 5;
      */
@@ -4927,13 +4946,13 @@ export enum SortOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SORT_OP_ASCENDING = 201;
+     * @generated from protobuf enum value: SORT_OP_ASCENDING = 200;
      */
-    ASCENDING = 201,
+    ASCENDING = 200,
     /**
-     * @generated from protobuf enum value: SORT_OP_DESCENDING = 202;
+     * @generated from protobuf enum value: SORT_OP_DESCENDING = 201;
      */
-    DESCENDING = 202
+    DESCENDING = 201
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -5032,6 +5051,10 @@ export enum StructType {
      */
     AGGREGATION_BUCKET = 562,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 580;
+     */
+    SCHEDULE = 580,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_LOG_ENTRY = 590;
      */
     LOG_ENTRY = 590,
@@ -5083,21 +5106,13 @@ export enum TriggerType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TRIGGER_TYPE_INVOKE = 1;
+     * @generated from protobuf enum value: TRIGGER_TYPE_SCHEDULE = 1;
      */
-    INVOKE = 1,
+    SCHEDULE = 1,
     /**
-     * @generated from protobuf enum value: TRIGGER_TYPE_TIME = 2;
+     * @generated from protobuf enum value: TRIGGER_TYPE_SIGNAL = 2;
      */
-    TIME = 2,
-    /**
-     * @generated from protobuf enum value: TRIGGER_TYPE_SIGNAL = 3;
-     */
-    SIGNAL = 3,
-    /**
-     * @generated from protobuf enum value: TRIGGER_TYPE_API = 4;
-     */
-    API = 4
+    SIGNAL = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.ViewType
@@ -7213,6 +7228,82 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
  * @generated MessageType for protobuf message symbolx.bench.RunErrorData
  */
 export const RunErrorData = new RunErrorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ScheduleData$Type extends MessageType<ScheduleData> {
+    constructor() {
+        super("symbolx.bench.ScheduleData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ScheduleType", ScheduleType, "SCHEDULE_TYPE_"] },
+            { no: 31, name: "timezone", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "interval", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 33, name: "cron", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ScheduleData>): ScheduleData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ScheduleData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScheduleData): ScheduleData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.ScheduleType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string timezone */ 31:
+                    message.timezone = reader.string();
+                    break;
+                case /* optional int32 interval */ 32:
+                    message.interval = reader.int32();
+                    break;
+                case /* optional string cron */ 33:
+                    message.cron = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ScheduleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.ScheduleType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string timezone = 31; */
+        if (message.timezone !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.timezone);
+        /* optional int32 interval = 32; */
+        if (message.interval !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.interval);
+        /* optional string cron = 33; */
+        if (message.cron !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.cron);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ScheduleData
+ */
+export const ScheduleData = new ScheduleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ServerAllocationData$Type extends MessageType<ServerAllocationData> {
     constructor() {
@@ -11813,10 +11904,8 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 33, name: "schedule_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ScheduleType", ScheduleType, "SCHEDULE_TYPE_"] },
-            { no: 34, name: "timezone", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "interval", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 36, name: "cron", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 33, name: "schedule", kind: "message", T: () => ScheduleData },
+            { no: 34, name: "signal_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<TriggerData>): TriggerData {
@@ -11878,17 +11967,11 @@ class TriggerData$Type extends MessageType<TriggerData> {
                 case /* bool active */ 32:
                     message.active = reader.bool();
                     break;
-                case /* optional symbolx.bench.ScheduleType schedule_type */ 33:
-                    message.scheduleType = reader.int32();
+                case /* optional symbolx.bench.ScheduleData schedule */ 33:
+                    message.schedule = ScheduleData.internalBinaryRead(reader, reader.uint32(), options, message.schedule);
                     break;
-                case /* optional string timezone */ 34:
-                    message.timezone = reader.string();
-                    break;
-                case /* optional int32 interval */ 35:
-                    message.interval = reader.int32();
-                    break;
-                case /* optional string cron */ 36:
-                    message.cron = reader.string();
+                case /* optional symbolx.bench.NodeReferenceData signal_ptr */ 34:
+                    message.signalPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.signalPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -11944,18 +12027,12 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* bool active = 32; */
         if (message.active !== false)
             writer.tag(32, WireType.Varint).bool(message.active);
-        /* optional symbolx.bench.ScheduleType schedule_type = 33; */
-        if (message.scheduleType !== undefined)
-            writer.tag(33, WireType.Varint).int32(message.scheduleType);
-        /* optional string timezone = 34; */
-        if (message.timezone !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.timezone);
-        /* optional int32 interval = 35; */
-        if (message.interval !== undefined)
-            writer.tag(35, WireType.Varint).int32(message.interval);
-        /* optional string cron = 36; */
-        if (message.cron !== undefined)
-            writer.tag(36, WireType.LengthDelimited).string(message.cron);
+        /* optional symbolx.bench.ScheduleData schedule = 33; */
+        if (message.schedule)
+            ScheduleData.internalBinaryWrite(message.schedule, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData signal_ptr = 34; */
+        if (message.signalPtr)
+            NodeReferenceData.internalBinaryWrite(message.signalPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -3,12 +3,11 @@ from __future__ import annotations
 import contextvars
 import enum
 import typing
-from itertools import chain
 from typing import Optional
 from uuid import UUID
 
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import cyrb53a, IdStrEnum, bytetuple
+from bench.utils.func import cyrb53a, IdEnum, bytetuple
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
@@ -16,7 +15,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.05.1"
+VERSION = "2024.02.05.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -28,57 +27,58 @@ EMPTY_DICT: typing.Mapping = frozendict()
 #
 
 
-class NodeType(IdStrEnum):
+class NodeType(IdEnum):
     # root
-    BENCH = "BENCH", 1
-    # UNIVERSE = "UNIVERSE", 2
-    # PLACE = "PLACE", 3
-    # BRANCH = "BRANCH", 4
+    BENCH = 1
+    # UNIVERSE = 2
+    # PLACE = 3
+    # BRANCH = 4
 
     # source
-    PACKAGE = "PACKAGE", 20
-    BLOCK = "BLOCK", 21
-    TRIGGER = "TRIGGER", 22
-    TAG = "TAG", 23
-    FIELD = "FIELD", 24
-    RECORD = "RECORD", 25  # (local)
-    QUERY = "QUERY", 26
-    VIEW = "VIEW", 27
-    # STEP = "STEP", 28
-    NOTICE = "NOTICE", 29
-    LINK = "LINK", 30
-    SKIP = "SKIP", 31
-    # COMMENT = "COMMENT", ...
-    # REACTION = "REACTION", ...
-    SPACE = "SPACE", 40
-    # DEPENDENCY = "DEPENDENCY", ...
-    # UPGRADE = "UPGRADE", ...
+    PACKAGE = 20
+    BLOCK = 21
+    TRIGGER = 22
+    TAG = 23
+    FIELD = 24
+    RECORD = 25  # (local)
+    QUERY = 26
+    VIEW = 27
+    # STEP = 28
+    NOTICE = 29
+    LINK = 30
+    SKIP = 31
+    # COMMENT = ...
+    # REACTION = ...
+    SPACE = 40
+    # DEPENDENCY = ...
+    # UPGRADE = ...
 
     # session
-    SESSION = "SESSION", 50  # (local)
-    RUN = "RUN", 51  # (local)
-    PAUSE = "PAUSE", 52  # (local)
-    SIGNAL = "SIGNAL", 53  # (local)
+    SESSION = 50  # (local)
+    RUN = 51  # (local)
+    PAUSE = 52  # (local)
+    SIGNAL = 53  # (local)
+    # CURSOR?, LOCK?, ...
 
     # auth
-    BADGE = "BADGE", 60
-    ROLE = "ROLE", 61
-    IDENTITY = "IDENTITY", 62
+    BADGE = 60
+    ROLE = 61
+    IDENTITY = 62
 
     # resources (compute/storage/etc.)
-    SERVER = "SERVER", 160
-    FILE_CONTENT = "FILE_CONTENT", 170
-    # DATABASE, DISK, INDEX/SEARCH, DOMAIN, ...?
+    SERVER = 160
+    FILE_CONTENT = 170
+    # DATABASE, DISK, INDEX/SEARCH, DOMAIN, EMAIL, ...?
 
     # user
-    HANDLE = "HANDLE", 220
-    USER = "USER", 221
-    ORGANIZATION = "ORGANIZATION", 222
-    CLIENT = "CLIENT", 223
-    NOTIFICATION = "NOTIFICATION", 224
+    HANDLE = 220
+    USER = 221
+    ORGANIZATION = 222
+    CLIENT = 223
+    NOTIFICATION = 224
 
-    # INVITE = "INVITE", 240
-    MEMBERSHIP = "MEMBERSHIP", 241
+    # INVITE = 240
+    MEMBERSHIP = 241
 
     @property
     def bench_name(self):
@@ -103,51 +103,54 @@ SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 )
 
 
-class StructType(IdStrEnum):
+class StructType(IdEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    BENCH_PATH = "BENCH_PATH", 500
-    NODE_REFERENCE = "NODE_REFERENCE", 501
-    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 502
-    PROPERTY_PATH = "PROPERTY_PATH", 503
-    FIELD_PATH = "FIELD_PATH", 504
-    FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 505
-    VALUE_REFERENCE = "VALUE_REFERENCE", 506
-    VALUE_SELECTION = "VALUE_SELECTION", 507
+    BENCH_PATH = 500
+    NODE_REFERENCE = 501
+    PROPERTY_REFERENCE = 502
+    PROPERTY_PATH = 503
+    FIELD_PATH = 504
+    FIELD_PATH_SEGMENT = 505
+    VALUE_REFERENCE = 506
+    VALUE_SELECTION = 507
 
-    TYPE_INFO = "TYPE_INFO", 510
+    TYPE_INFO = 510
 
-    FILE = "FILE", 520
-    ICON = "ICON", 521
+    FILE = 520
+    ICON = 521
 
-    POLICY = "POLICY", 530
-    POLICY_RULE = "POLICY_RULE", 531
-    REQUEST_SUBJECT = "REQUEST_SUBJECT", 532
-    ACCESS_ZONE = "ACCESS_ZONE", 534
-    ACCESS_MATRIX = "ACCESS_MATRIX", 535
-    REQUEST = "REQUEST", 536
-    ACTION = "ACTION", 537
+    POLICY = 530
+    POLICY_RULE = 531
+    REQUEST_SUBJECT = 532
+    ACCESS_ZONE = 534
+    ACCESS_MATRIX = 535
+    REQUEST = 536
+    ACTION = 537
     ...
-    READ_OPTIONS = "READ_OPTIONS", 550
+    READ_OPTIONS = 550
 
-    EXPRESSION = "EXPRESSION", 560
-    AGGREGATION = "AGGREGATION", 561
-    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 562
+    EXPRESSION = 560
+    AGGREGATION = 561
+    AGGREGATION_BUCKET = 562
 
-    LOG_ENTRY = "LOG_ENTRY", 590
-    RUN_CODE_FRAME = "RUN_CODE_FRAME", 591
-    RUN_ERROR = "RUN_ERROR", 592
-    # CURSOR = "CURSOR", 293
+    SCHEDULE = 580
 
-    SERVER_ALLOCATION = "SERVER_ALLOCATION", 630
-    SERVER_IMAGE = "SERVER_IMAGE", 631
-    SERVER_IMAGE_DEPENDENCY = "SERVER_IMAGE_DEPENDENCY", 632
+    LOG_ENTRY = 590
+    RUN_CODE_FRAME = 591
+    RUN_ERROR = 592
+    # CONTEXT = ...
+    # CURSOR?
 
-    RICH_TEXT = "RICH_TEXT", 660
-    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 661
+    SERVER_ALLOCATION = 630
+    SERVER_IMAGE = 631
+    SERVER_IMAGE_DEPENDENCY = 632
+
+    RICH_TEXT = 660
+    RICH_TEXT_SPAN = 661
 
     # views
-    SPACE_DOCK = "SPACE_DOCK", 700
-    SPACE_DOCK_ITEM = "SPACE_DOCK_ITEM", 701
+    SPACE_DOCK = 700
+    SPACE_DOCK_ITEM = 701
 
     # ...
 
@@ -167,45 +170,42 @@ STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
-    BenchType = IdStrEnum(
-        "BenchType",
-        {bt.name: (bt.name, bt.id) for bt in chain(NODE_TYPES, STRUCT_TYPES)},
-    )
+    BenchType = IdEnum.combine("BenchType", NodeType, StructType)
     BenchType.bench_name = NodeType.bench_name
 
 BENCH_TYPES: bytetuple[BenchType] = bytetuple(tuple(BenchType))
 INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
-class BlockType(IdStrEnum):
-    PAGE = "page", 1  # group of blocks
-    BLANK = "blank", 2  # placeholder/spacer
-    TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
-    ALIAS = "alias", 4  # refer to / extend an existing block or builtin (like a 'newtype')
+class BlockType(IdEnum):
+    PAGE = 1  # group of blocks
+    BLANK = 2  # placeholder/spacer
+    TEXT = 3  # define a 'paragraph' of text/comment/instruction/etc.
+    ALIAS = 4  # refer to / extend an existing block or builtin (like a 'newtype')
 
-    CLASS = "class", 10  # define a class type with fields
-    CHOICE = "choice", 11  # define a choice type with fields
-    TAG = "tag", 12  # define a tag type with fields
-    SIGNAL = "signal", 13  # define a signal type with fields
-    # NOTICE = "notice", ...  # define a new notice type
-    # NOTIFICATION = "notification", ...  # define a new notification type
-    # BLOCK = "block", ...  # define a new block type?
+    CLASS = 10  # define a class type with fields
+    CHOICE = 11  # define a choice type with fields
+    TAG = 12  # define a tag type with fields
+    SIGNAL = 13  # define a signal type with fields
+    # NOTICE = ...  # define a new notice type
+    # NOTIFICATION = ...  # define a new notification type
+    # BLOCK = ...  # define a new block type?
 
-    SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
-    MULTI_VARIABLE = "multi_variable", 21  # define a variable with (multiple) fields
+    SINGLE_VARIABLE = 20  # define a single-value variable
+    MULTI_VARIABLE = 21  # define a variable with (multiple) fields
 
-    TASK = "task", 30  # define a task function with fields (incl. input/output)
-    ROUTINE = "routine", 31  # define a code function with input/output fields (incl. input/output)
-    SCRIPT = "script", 32  # define a code script with fields
-    FLOW = "flow", 33  # define a flow with steps and fields (optionally incl. input/output)
-    MODEL = "model", 34  # define a model 'function' with input/output fields (incl. input/output)
+    TASK = 30  # define a task function with fields (incl. input/output)
+    ROUTINE = 31  # define a code function with input/output fields (incl. input/output)
+    SCRIPT = 32  # define a code script with fields
+    FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
+    MODEL = 34  # define a model 'function' with input/output fields (incl. input/output)
 
-    QUERY = "query", 40  # define a set of queries
-    DATABASE = "database", 41  # define a database with queries
-    SCREEN = "screen", 42  # define a screen with views
+    QUERY = 40  # define a set of queries
+    DATABASE = 41  # define a database with queries
+    SCREEN = 42  # define a screen with views
 
-    ROLE = "role", 50  # define a role with policies
-    IDENTITY = "identity", 51  # define an identity with roles & policies
+    ROLE = 50  # define a role with policies
+    IDENTITY = 51  # define an identity with roles & policies
 
     @property
     def bench_name(self):
@@ -239,16 +239,16 @@ class BlockTypes:
     NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 
-class NodeSource(IdStrEnum):
-    PERSISTED = "PERSISTED", 1
-    INTERP = "INTERP", 2
-    LOCAL = "LOCAL", 3
+class NodeSource(IdEnum):
+    PERSISTED = 1
+    INTERP = 2
+    LOCAL = 3
 
 
-class NodeVisibility(IdStrEnum):
-    PRIVATE = "PRIVATE", 1
-    INTERNAL = "INTERNAL", 2
-    PUBLIC = "PUBLIC", 3
+class NodeVisibility(IdEnum):
+    PRIVATE = 1
+    INTERNAL = 2
+    PUBLIC = 3
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8
@@ -310,13 +310,13 @@ NS = NodeStatus
 #
 
 
-class ReadType(IdStrEnum):
+class ReadType(IdEnum):
     """A type of Read action on nodes."""
 
-    GET = "GET", 1  # any direct read action
-    AGGREGATE_SCALAR = "AGGREGATE", 2  # count, sum, min, etc.
-    AGGREGATE_BUCKET = "AGGREGATE_BUCKET", 3  # histogram, etc.
-    LIST = "LIST", 4  # list, search, filter, etc.
+    GET = 1  # any direct read action
+    AGGREGATE_SCALAR = 2  # count, sum, min, etc.
+    AGGREGATE_BUCKET = 3  # histogram, etc.
+    LIST = 4  # list, search, filter, etc.
 
     @property
     def bench_name(self):
@@ -327,20 +327,20 @@ class ReadType(IdStrEnum):
         return ActionKind.READ
 
 
-class EditType(IdStrEnum):
+class EditType(IdEnum):
     """A type of Edit action on nodes."""
 
-    BUMP_CHANGED = "BUMP_CHANGED", 10
-    BUMP_ACTIVE = "BUMP_ACTIVE", 11
-    CREATE = "CREATE", 12
-    UPSERT = "UPSERT", 13
-    UPDATE = "UPDATE", 14
-    MOVE = "MOVE", 15
-    ARCHIVE = "ARCHIVE", 16
-    UNARCHIVE = "UNARCHIVE", 17
-    SOFT_DELETE = "SOFT_DELETE", 18
-    RESTORE = "RESTORE", 19
-    DELETE = "DELETE", 20
+    BUMP_CHANGED = 10
+    BUMP_ACTIVE = 11
+    CREATE = 12
+    UPSERT = 13
+    UPDATE = 14
+    MOVE = 15
+    ARCHIVE = 16
+    UNARCHIVE = 17
+    SOFT_DELETE = 18
+    RESTORE = 19
+    DELETE = 20
 
     @property
     def bench_name(self):
@@ -351,13 +351,14 @@ class EditType(IdStrEnum):
         return ActionKind.EDIT
 
 
-class RunType(IdStrEnum):
+class RunType(IdEnum):
     """A type of Run action on nodes."""
 
-    START = "START", 25
-    PAUSE = "PAUSE", 26
-    RESUME = "RESUME", 37
-    KILL = "KILL", 28
+    START = 25
+    PAUSE = 26
+    RESUME = 37
+    KILL = 28
+
     # ideally <32 so we can bitpack into a single int
 
     @property
@@ -376,21 +377,18 @@ RUN_TYPES: tuple[RunType, ...] = tuple(RunType)
 if typing.TYPE_CHECKING:
     ActionType = ReadType | EditType | RunType
 else:
-    ActionType = IdStrEnum(
-        "ActionType",
-        {ak.name: (ak.name, ak.id) for ak in chain(READ_TYPES, EDIT_TYPES, RUN_TYPES)},
-    )
+    ActionType = IdEnum.combine("ActionType", ReadType, EditType, RunType)
     ActionType.bench_name = ReadType.bench_name
     ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
 
 ACTION_TYPES: tuple[ActionType, ...] = tuple(ActionType)
 
 
-class ActionKind(IdStrEnum):
+class ActionKind(IdEnum):
     # NOTE: ActionType ids and their overlap with ActionKind is important for our masks.
-    READ = "READ", 1
-    EDIT = "EDIT", 10
-    RUN = "RUN", 25
+    READ = 1
+    EDIT = 10
+    RUN = 25
 
     @property
     def from_id(self):
@@ -426,136 +424,134 @@ KIND_BY_ACTION: dict[ActionType, ActionKind] = {
 #
 
 
-class BenchStatus(IdStrEnum):
-    PREPARING = "PREPARING", 1
-    MIGRATING = "MIGRATING", 2
-    AVAILABLE = "AVAILABLE", 3
+class BenchStatus(IdEnum):
+    PREPARING = 1
+    MIGRATING = 2
+    AVAILABLE = 3
 
 
-class BadgeType(IdStrEnum):
-    SHARING_LINK = "SHARING_LINK", 1
-    ACCESS_KEY = "ACCESS_KEY", 2
+class BadgeType(IdEnum):
+    SHARING_LINK = 1
+    ACCESS_KEY = 2
 
 
-class PolicyEffect(IdStrEnum):
-    ALLOW = "ALLOW", 1
-    DENY = "DENY", 2
+class PolicyEffect(IdEnum):
+    ALLOW = 1
+    DENY = 2
 
 
-class ClientKind(IdStrEnum):
-    USER = "USER", 1
-    SERVER = "SERVER", 2
+class ClientKind(IdEnum):
+    USER = 1
+    SERVER = 2
 
 
-class NotificationKind(IdStrEnum):
+class NotificationKind(IdEnum):
     pass
 
 
-class PrimitiveType(IdStrEnum):
+class PrimitiveType(IdEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
     NOTE: the ids here are used in encode/decode pipelines, take extra care.
     """
 
-    BOOLEAN = "Boolean", 1
-    INT32 = "Int32", 2  # range: -2147483648 to 2147483647
-    INT64 = "Int64", 3  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT32 = "Float32", 4  # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT64 = "Float64", 5  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
-    DECIMAL = "Decimal", 6  # numeric(precision, scale)
-    STRING = "String", 7
-    DATETIME = "DateTime", 8
-    INTERVAL = "Interval", 9
-    JSON = "Json", 10
-    BYTES = "Bytes", 11
-    VECTOR = "Vector", 12
-    UUID = "UUID", 13
+    BOOLEAN = 1
+    INT32 = 2  # range: -2147483648 to 2147483647
+    INT64 = 3  # range: -9223372036854775808 to 9223372036854775807
+    FLOAT32 = 4  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = 5  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    DECIMAL = 6  # numeric(precision, scale)
+    STRING = 7
+    DATETIME = 8
+    INTERVAL = 9
+    JSON = 10
+    BYTES = 11
+    VECTOR = 12
+    UUID = 13
 
 
-class FormatHint(IdStrEnum):
+class FormatHint(IdEnum):
     """Extra semantic hint for types."""
 
     # string
-    TITLE = "title", 1
-    EMAIL = "email", 2
-    URL = "url", 3
-    MARKDOWN = "markdown", 4
-    CODE = "code", 5
+    TITLE = 1
+    EMAIL = 2
+    URL = 3
+    MARKDOWN = 4
+    CODE = 5
     # number
-    PHONE = "phone", 10
-    RATING = "rating", 11
-    SLIDER = "slider", 12
+    PHONE = 20
+    RATING = 21
+    SLIDER = 22
     # boolean
-    TOGGLE = "toggle", 20
-    CHECKBOX = "checkbox", 21
-    THUMBS = "thumbs", 22
+    TOGGLE = 40
+    CHECKBOX = 41
+    THUMBS = 42
     # files
-    IMAGE = "image", 30
-    VIDEO = "video", 31
-    AUDIO = "audio", 32
+    IMAGE = 60
+    VIDEO = 61
+    AUDIO = 62
 
 
-class FileStatus(IdStrEnum):
-    PENDING = "PENDING", 1
-    UPLOADING = "UPLOADING", 2
-    AVAILABLE = "AVAILABLE", 3
+class FileStatus(IdEnum):
+    PENDING = 1
+    UPLOADING = 2
+    AVAILABLE = 3
 
 
-class TriggerType(IdStrEnum):
+class TriggerType(IdEnum):
     """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
-    INVOKE = "invoke", 1
-    TIME = "time", 2
-    SIGNAL = "signal", 3
-    API = "api", 4
+    SCHEDULE = 1
+    SIGNAL = 2
 
 
-class ScheduleType(IdStrEnum):
+class ScheduleType(IdEnum):
     """Schedules for blocks."""
 
-    INTERVAL = "interval", 1
-    CRON = "cron", 2
+    INTERVAL = 1
+    CRON = 2
 
 
-class NoticeKind(IdStrEnum):
+class NoticeKind(IdEnum):
     """Type of diagnostic in increasing severity."""
 
-    HINT = "HINT", 1
-    INFORMATION = "NOTICE", 2
-    WARNING = "WARNING", 3
-    ERROR = "ERROR", 4
+    HINT = 1
+    INFORMATION = 2
+    WARNING = 3
+    ERROR = 4
 
     @property
     def bench_name(self):
         return to_casing(self.name, Casing.CAMEL)
 
 
-class BenchRegion(IdStrEnum):
-    EU_CENTRAL = "EU_CENTRAL", 1
-    US_WEST = "US_WEST", 10
+class BenchRegion(IdEnum):
+    EU_CENTRAL = 1
+    US_WEST = 10
 
 
-class ServerStatus(IdStrEnum):
-    SLEEPING = "SLEEPING", 1
-    PENDING = "PENDING", 2
-    UPDATING = "UPDATING", 3
-    HEALTHY = "HEALTHY", 4
-    UNHEALTHY = "UNHEALTHY", 5
-    UNAVAILABLE = "UNAVAILABLE", 6
-    UNKNOWN = "UNKNOWN", 7
+class ServerStatus(IdEnum):
+    SLEEPING = 1
+    PENDING = 2
+    UPDATING = 3
+    HEALTHY = 4
+    UNHEALTHY = 5
+    UNAVAILABLE = 6
+    UNKNOWN = 7
 
 
-class RunStatus(IdStrEnum):
-    SCHEDULED = "Scheduled", 1
-    QUEUED = "Queued", 2
-    RUNNING = "Running", 3
-    HALTED = "Halted", 4
-    ABORTING = "Aborting", 5
+class RunStatus(IdEnum):
+    SCHEDULED = 1
+    QUEUED = 2
+    RUNNING = 3
+    PAUSED = 4
+    ABORTING = 5
     # terminal statuses
-    CANCELLED = "Cancelled", 6
-    ABORTED = "Aborted", 7
-    FAILED = "Failed", 8
-    COMPLETED = "Completed", 9
+    CANCELLED = 6
+    ABORTED = 7
+    FAILED = 8
+    COMPLETED = 9
 
 
 TERMINAL_RUN_STATUSES = {
@@ -568,130 +564,98 @@ PENDING_RUN_STATUSES = {
     RunStatus.SCHEDULED,
     RunStatus.QUEUED,
     RunStatus.RUNNING,
-    RunStatus.HALTED,
+    RunStatus.PAUSED,
     RunStatus.ABORTING,
 }
-ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.HALTED, RunStatus.ABORTING}
+ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING}
 
 
-class RunErrorKind(IdStrEnum):
-    Internal = "Internal", 1
-    Parse = "Parse", 2
-    Validation = "Validation", 3
-    Runtime = "Runtime", 4
-    Untrusted = "Untrusted", 5
+class RunErrorKind(IdEnum):
+    INTERNAL = 1
+    PARSE = 2
+    VALIDATION = 3
+    RUNTIME = 4
+    UNTRUSTED = 5
 
 
-class ServerProfile(IdStrEnum):
-    TINY = "TINY", 1
-    SMALL = "SMALL", 2
-    MEDIUM = "MEDIUM", 3
+class ServerProfile(IdEnum):
+    TINY = 1
+    SMALL = 2
+    MEDIUM = 3
 
 
-class ExpressionKind(IdStrEnum):
-    CONDITIONAL = "CONDITIONAL", 1
-    SORT = "SORT", 2
-    AGGREGATION = "AGGREGATION", 3
+class ExpressionKind(IdEnum):
+    CONDITIONAL = 1
+    SORT = 2
+    AGGREGATION = 3
 
 
-class ConditionalOp(IdStrEnum):
+class ConditionalOp(IdEnum):
     # logical
-    TRUE = "TRUE", 1
-    FALSE = "FALSE", 2
-    NOT = "NOT", 3
-    AND = "AND", 4
-    OR = "OR", 5
+    TRUE = 1
+    FALSE = 2
+    NOT = 3
+    AND = 4
+    OR = 5
     # comparison
-    EQUALS = "EQUALS", 10
-    NOT_EQUALS = "NOT_EQUALS", 11
-    GREATER_THAN = "GREATER_THAN", 12
-    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS", 13
-    LESS_THAN = "LESS_THAN", 14
-    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS", 15
+    EQUALS = 10
+    NOT_EQUALS = 11
+    GREATER_THAN = 12
+    GREATER_THAN_OR_EQUALS = 13
+    LESS_THAN = 14
+    LESS_THAN_OR_EQUALS = 15
     # string comparison
-    MATCHES = "MATCHES", 20
-    STARTS_WITH = "STARTS_WITH", 21
-    REGEX = "REGEX", 22
+    MATCHES = 20
+    STARTS_WITH = 21
+    REGEX = 22
     # containment
-    CONTAINS = "CONTAINS", 30
-    NOT_CONTAINS = "NOT_CONTAINS", 31
-    IN = "IN", 32
-    NOT_IN = "NOT_IN", 33
+    CONTAINS = 30
+    NOT_CONTAINS = 31
+    IN = 32
+    NOT_IN = 33
     # existence
-    EXISTS = "EXISTS", 40
-    NOT_EXISTS = "DOES_NOT_EXIST", 41
+    EXISTS = 40
+    NOT_EXISTS = 41
     # vector
-    NEAR = "NEAR", 50
+    NEAR = 50
 
 
-_CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
-    # logical
-    ConditionalOp.NOT: "~",
-    ConditionalOp.AND: "&",
-    ConditionalOp.OR: "|",
-    # comparison
-    ConditionalOp.EQUALS: "==",
-    ConditionalOp.NOT_EQUALS: "!=",
-    ConditionalOp.GREATER_THAN: ">",
-    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
-    ConditionalOp.LESS_THAN: "<",
-    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
-    # string comparison
-    ConditionalOp.MATCHES: "~=",
-    ConditionalOp.STARTS_WITH: "^=",
-    ConditionalOp.REGEX: "$re=",
-    # containment
-    ConditionalOp.CONTAINS: "∋",
-    ConditionalOp.NOT_CONTAINS: "!∋",
-    ConditionalOp.IN: "∈",
-    ConditionalOp.NOT_IN: "!∈",
-    # existence
-    ConditionalOp.EXISTS: "?",
-    ConditionalOp.NOT_EXISTS: "!?",
-    # vector
-    ConditionalOp.NEAR: "~=",
-}
+class AggregationOp(IdEnum):
+    EXISTS = 100
+    COUNT = 101
+    SUM = 102
+    AVERAGE = 103
+    MIN = 104
+    MAX = 105
+    MEDIAN = 106
+    HISTOGRAM = 107
 
 
-class AggregationOp(IdStrEnum):
-    EXISTS = "EXISTS", 101
-    COUNT = "COUNT", 102
-    SUM = "SUM", 103
-    AVERAGE = "AVERAGE", 104
-    MIN = "MIN", 105
-    MAX = "MAX", 106
-    MEDIAN = "MEDIAN", 107
-    HISTOGRAM = "HISTOGRAM", 108
+class SortOp(IdEnum):
+    ASCENDING = 200
+    DESCENDING = 201
 
 
-class SortOp(IdStrEnum):
-    ASCENDING = "ASCENDING", 201
-    DESCENDING = "DESCENDING", 202
+class QueryEngine(IdEnum):
+    IN_MEMORY = 1
+    GLOBAL_POSTGRES = 2
+    GLOBAL_OPENSEARCH = 3
+    LOCAL_POSTGRES = 4
+    LOCAL_OPENSEARCH = 5
 
 
-class QueryEngine(IdStrEnum):
-    IN_MEMORY = "IN_MEMORY", 1
-    GLOBAL_POSTGRES = "GLOBAL_PG", 2
-    GLOBAL_OPENSEARCH = "GLOBAL_OS", 3
-    LOCAL_POSTGRES = "LOCAL_PG", 4
-    LOCAL_OPENSEARCH = "LOCAL_OS", 5
-
-
-class SortMode(IdStrEnum):
-    MAX = "MAX", 1
-    MIN = "MIN", 2
-    AVERAGE = "AVERAGE", 3
-    SUM = "SUM", 4
-    MEDIAN = "MEDIAN", 5
+class SortMode(IdEnum):
+    MAX = 1
+    MIN = 2
+    AVERAGE = 3
+    SUM = 4
+    MEDIAN = 5
 
 
 if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
-    ExpressionOp = IdStrEnum(
-        "ExpressionOp",
-        {op.name: (op.name, op.id) for op in chain(ConditionalOp, AggregationOp, SortOp)},
-    )
+    ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
 
 
 class BenchError(Exception):

@@ -28,7 +28,7 @@ from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import to_uuid
+from bench.utils.func import to_uuid, IdEnum
 
 logger = structlog.get_logger(__name__)
 
@@ -87,20 +87,14 @@ def unpack_json_value(value: BetterprotoStruct) -> dict:
 
 
 def pack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
-    if issubclass(enum_cls, enum.IntFlag):
-        return int(value)
-    else:
-        proto_enum_cls = getattr(wire, enum_cls.__name__)
-        return proto_enum_cls[value.name]
+    assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
+    assert isinstance(value, int), f"{value} is not an int"
+    return value
 
 
 def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
-    if issubclass(enum_cls, int):
-        return enum_cls(value)
-    elif type(value) == str:  # noqa
-        return enum_cls(value)
-    else:
-        return enum_cls[value.name]
+    assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
+    return enum_cls(value)
 
 
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -178,7 +172,7 @@ def pack_struct_maybe(struct: StructT | None) -> StructDataT | None:
 
 def unpack_struct(struct_data: StructDataT) -> StructT:
     """Unpack a struct and any contained structs."""
-    struct_cls = BENCH_CLASS_BY_TYPE[BenchType(struct_data.metatype.name)]
+    struct_cls = BENCH_CLASS_BY_TYPE[BenchType(struct_data.metatype)]
     struct_kwargs = {}
     try:
         for prop in struct_cls.__wired_properties__.values():
@@ -230,7 +224,7 @@ def pack_node_maybe(node: NodeT | None) -> NodeDataT | None:
 def unpack_node(
     node_data: NodeDataT, parent: Node | None = None, session: Session | None = None
 ) -> NodeT:
-    node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype.name)]
+    node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
     node_kwargs = {}
     try:
         for prop in node_cls.__wired_properties__.values():

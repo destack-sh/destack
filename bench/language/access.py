@@ -44,7 +44,7 @@ from bench.language.tree import NodeDataTree, NodeTree
 from bench.language.user import Membership, Organization, User
 from bench.proto.wire import AnyNodeData, EditData
 from bench.utils.casing import IdentifierType
-from bench.utils.func import to_uuid, IdStrEnum, bytetuple
+from bench.utils.func import to_uuid, IdEnum, bytetuple
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Expression, Property, ScopeNode
@@ -364,19 +364,6 @@ class PolicyRule(Struct):
     def matches_verb(self, verb: ActionType) -> bool:
         return self._verb_mask[verb.id]
 
-    def matches_object(self, object: "RequestObject") -> bool:
-        if not self._object_node_types_mask[object.node_type.id]:
-            return False
-        if self._object_properties_masks is not None:
-            properties_mask = self._object_properties_masks.get(object.node_type)
-            if (
-                properties_mask is not None
-                and object._properties_mask is not None
-                and not properties_mask & object._properties_mask
-            ):
-                return False  # any overlap is a match
-        return True
-
     #
     # Builder-style methods
     #
@@ -562,7 +549,7 @@ class Action(Struct):
         return f"{self.decision} {self.subject} ({', '.join(str(r) for r in self.requests)})"
 
 
-def _enums_to_mask(values: list[IdStrEnum], cls: type[IdStrEnum]) -> bitarray:
+def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
     mask = bitarray(cls.get_max_id() + 1)
     if not values:
@@ -615,8 +602,8 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
                 p for p in iter_properties(*NODE_TYPES) if p.is_system and p.id is not None
             )
         ),
-        PolicyRule("CannotEditSystemNodes")
-        .deny(EditType.CREATE, EditType.UPSERT, EditType.DELETE)
+        PolicyRule("CannotCreateOrDeleteSystemNodes")
+        .deny(et for et in EditType if et != EditType.UPDATE)
         .object(node_types=tuple()),
     ),
     Policy("OwnerAccess").append(

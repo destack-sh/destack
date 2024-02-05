@@ -380,25 +380,18 @@ _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 
-class IdStrEnum(enum.StrEnum):
-    """
-    enum.StrEnum with an additional id per value.
-    TODO @Cleanup: convert IdStrEnum to 'regular' int enum
-     (keep this class, but stop specifying name for everything and store all enums as int)
-    """
-
-    def __new__(cls, value: str, id: int):
-        """Create a new instance."""
-        obj = str.__new__(cls, value)
-        obj._value_ = value
+class IdEnum(enum.IntEnum):
+    def __new__(cls, id: int):
+        obj = int.__new__(cls, id)
+        obj._value_ = id
 
         # check id
-        assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
+        assert id > 0, f"invalid id {id}"
         obj.id = id
 
         # check duplicates
         existing = first((v for v in cls if v.id == id), None)
-        assert existing is None, f"{cls} has duplicate id {id} for {value} and {existing}"
+        assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
 
         return obj
 
@@ -416,8 +409,12 @@ class IdStrEnum(enum.StrEnum):
             _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
         return _MAX_ID_BY_ENUM[cls]
 
+    @staticmethod
+    def combine(name: str, *enums: type[IdEnum]) -> type[IdEnum]:
+        return IdEnum(name, {t.name: t.id for e in enums for t in e})
 
-EnumT = TypeVar("EnumT", bound=IdStrEnum)
+
+EnumT = TypeVar("EnumT", bound=IdEnum)
 
 
 # noinspection PyPep8Naming
@@ -433,7 +430,7 @@ class bytetuple(typing.Generic[EnumT]):
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"
             enum_cls = items[0].__class__
-        assert issubclass(enum_cls, IdStrEnum), f"invalid enum_cls: {enum_cls} ({items})"
+        assert issubclass(enum_cls, IdEnum), f"invalid enum_cls: {enum_cls} ({items})"
         self.enum_cls = enum_cls
         self.bits = bitarray(enum_cls.get_max_id() + 1)
         self.bits.setall(False)
@@ -443,6 +440,24 @@ class bytetuple(typing.Generic[EnumT]):
     def __contains__(self, item: EnumT | int):
         id = item if isinstance(item, int) else item.id
         return self.bits[id]
+
+    def __and__(self, other: bytetuple):
+        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits & other.bits
+        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
+        return bytetuple(*items)
+
+    def __or__(self, other: bytetuple):
+        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits | other.bits
+        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
+        return bytetuple(*items)
 
     def __iter__(self):
         return iter(self.tuple)

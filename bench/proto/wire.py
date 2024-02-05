@@ -57,14 +57,14 @@ class ActionType(betterproto.Enum):
 
 class AggregationOp(betterproto.Enum):
     UNSPECIFIED = 0
-    EXISTS = 101
-    COUNT = 102
-    SUM = 103
-    AVERAGE = 104
-    MIN = 105
-    MAX = 106
-    MEDIAN = 107
-    HISTOGRAM = 108
+    EXISTS = 100
+    COUNT = 101
+    SUM = 102
+    AVERAGE = 103
+    MIN = 104
+    MAX = 105
+    MEDIAN = 106
+    HISTOGRAM = 107
 
 
 class BadgeType(betterproto.Enum):
@@ -138,6 +138,7 @@ class BenchType(betterproto.Enum):
     EXPRESSION = 560
     AGGREGATION = 561
     AGGREGATION_BUCKET = 562
+    SCHEDULE = 580
     LOG_ENTRY = 590
     RUN_CODE_FRAME = 591
     RUN_ERROR = 592
@@ -256,18 +257,18 @@ class ExpressionOp(betterproto.Enum):
     NOT_CONTAINS = 31
     IN = 32
     NOT_IN = 33
-    EXISTS = 101
+    EXISTS = 100
     NOT_EXISTS = 41
     NEAR = 50
-    COUNT = 102
-    SUM = 103
-    AVERAGE = 104
-    MIN = 105
-    MAX = 106
-    MEDIAN = 107
-    HISTOGRAM = 108
-    ASCENDING = 201
-    DESCENDING = 202
+    COUNT = 101
+    SUM = 102
+    AVERAGE = 103
+    MIN = 104
+    MAX = 105
+    MEDIAN = 106
+    HISTOGRAM = 107
+    ASCENDING = 200
+    DESCENDING = 201
 
 
 class FileStatus(betterproto.Enum):
@@ -286,15 +287,15 @@ class FormatHint(betterproto.Enum):
     URL = 3
     MARKDOWN = 4
     CODE = 5
-    PHONE = 10
-    RATING = 11
-    SLIDER = 12
-    TOGGLE = 20
-    CHECKBOX = 21
-    THUMBS = 22
-    IMAGE = 30
-    VIDEO = 31
-    AUDIO = 32
+    PHONE = 20
+    RATING = 21
+    SLIDER = 22
+    TOGGLE = 40
+    CHECKBOX = 41
+    THUMBS = 42
+    IMAGE = 60
+    VIDEO = 61
+    AUDIO = 62
 
 
 class IconKind(betterproto.Enum):
@@ -308,13 +309,7 @@ class IconType(betterproto.Enum):
     UNSPECIFIED = 0
 
 
-class IdStrEnum(betterproto.Enum):
-    """
-    enum.StrEnum with an additional id per value.     TODO @Cleanup: convert
-    IdStrEnum to 'regular' int enum      (keep this class, but stop specifying
-    name for everything and store all enums as int)
-    """
-
+class IdEnum(betterproto.Enum):
     UNSPECIFIED = 0
 
 
@@ -463,11 +458,11 @@ class ReadType(betterproto.Enum):
 
 class RunErrorKind(betterproto.Enum):
     UNSPECIFIED = 0
-    Internal = 1
-    Parse = 2
-    Validation = 3
-    Runtime = 4
-    Untrusted = 5
+    INTERNAL = 1
+    PARSE = 2
+    VALIDATION = 3
+    RUNTIME = 4
+    UNTRUSTED = 5
 
 
 class RunStatus(betterproto.Enum):
@@ -475,7 +470,7 @@ class RunStatus(betterproto.Enum):
     SCHEDULED = 1
     QUEUED = 2
     RUNNING = 3
-    HALTED = 4
+    PAUSED = 4
     ABORTING = 5
     CANCELLED = 6
     ABORTED = 7
@@ -530,8 +525,8 @@ class SortMode(betterproto.Enum):
 
 class SortOp(betterproto.Enum):
     UNSPECIFIED = 0
-    ASCENDING = 201
-    DESCENDING = 202
+    ASCENDING = 200
+    DESCENDING = 201
 
 
 class StructType(betterproto.Enum):
@@ -558,6 +553,7 @@ class StructType(betterproto.Enum):
     EXPRESSION = 560
     AGGREGATION = 561
     AGGREGATION_BUCKET = 562
+    SCHEDULE = 580
     LOG_ENTRY = 590
     RUN_CODE_FRAME = 591
     RUN_ERROR = 592
@@ -574,10 +570,8 @@ class TriggerType(betterproto.Enum):
     """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
     UNSPECIFIED = 0
-    INVOKE = 1
-    TIME = 2
-    SIGNAL = 3
-    API = 4
+    SCHEDULE = 1
+    SIGNAL = 2
 
 
 class ViewType(betterproto.Enum):
@@ -865,8 +859,8 @@ class PropertyPathData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: bench.language.const.BenchType = <factory>, id: int
-    = <factory>, references_type: Optional[bench.language.const.NodeType] =
+    PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int =
+    <factory>, references_type: Optional[bench.language.const.NodeType] =
     <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
@@ -988,6 +982,17 @@ class RunErrorData(betterproto.Message):
     message: Optional[str] = betterproto.string_field(32, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     traceback: List["RunCodeFrameData"] = betterproto.message_field(34)
+
+
+@dataclass(eq=False, repr=False)
+class ScheduleData(betterproto.Message):
+    """The time-based schedule of something."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    type: "ScheduleType" = betterproto.enum_field(30)
+    timezone: Optional[str] = betterproto.string_field(31, optional=True)
+    interval: Optional[int] = betterproto.int32_field(32, optional=True)
+    cron: Optional[str] = betterproto.string_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1403,8 +1408,8 @@ class NoticeData(betterproto.Message):
     'NodeReference' = None, properties_ptr: 'PropertyReference' = None,
     _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck:
     uuid.UUID = None, source: bench.language.const.NodeSource =
-    <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at:
-    datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at:
+    <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime
+    = None, updated_at: datetime.datetime = None, deleted_at:
     Optional[datetime.datetime] = None, archived_at:
     Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
@@ -1632,11 +1637,10 @@ class ServerData(betterproto.Message):
     Optional[datetime.datetime] = <factory>, external_id: Optional[str] =
     <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference'
     = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID =
-    None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
-    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at:
-    Optional[datetime.datetime] = None, archived_at:
-    Optional[datetime.datetime] = None, last_edited_at:
+    None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>,
+    revision: int = 0, created_at: datetime.datetime = None, updated_at:
+    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
+    archived_at: Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
@@ -1781,7 +1785,22 @@ class TagData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
-    """A trigger for a block to run."""
+    """
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType =
+    <factory>, name: str | None = None, active: bool = True, schedule:
+    Optional[bench.language.trigger.Schedule] = None, signal:
+    Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None,
+    signal_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
+    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
+    1>, revision: int = 0, created_at: datetime.datetime = None, updated_at:
+    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
+    archived_at: Optional[datetime.datetime] = None, last_edited_at:
+    Optional[datetime.datetime] = None, _session:
+    Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
+    _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1797,10 +1816,8 @@ class TriggerData(betterproto.Message):
     type: "TriggerType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     active: bool = betterproto.bool_field(32)
-    schedule_type: Optional["ScheduleType"] = betterproto.enum_field(33, optional=True)
-    timezone: Optional[str] = betterproto.string_field(34, optional=True)
-    interval: Optional[int] = betterproto.int32_field(35, optional=True)
-    cron: Optional[str] = betterproto.string_field(36, optional=True)
+    schedule: Optional["ScheduleData"] = betterproto.message_field(33, optional=True)
+    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3384,68 +3401,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    TagData,
-    PackageData,
-    RoleData,
-    LinkData,
-    BadgeData,
-    SpaceData,
-    PauseData,
-    FileContentData,
     SkipData,
+    BlockData,
     BenchData,
-    FieldData,
-    ClientData,
-    ServerData,
+    SessionData,
     QueryData,
     SignalData,
-    UserData,
-    BlockData,
     IdentityData,
-    ViewData,
-    NotificationData,
-    HandleData,
-    RecordData,
-    NoticeData,
-    OrganizationData,
-    SessionData,
     RunData,
+    NotificationData,
     MembershipData,
+    TagData,
+    RecordData,
+    FileContentData,
+    PauseData,
+    UserData,
+    ServerData,
+    NoticeData,
+    FieldData,
+    HandleData,
+    OrganizationData,
+    RoleData,
+    BadgeData,
+    ClientData,
+    PackageData,
+    LinkData,
+    SpaceData,
     TriggerData,
+    ViewData,
 ]
 AnyStructData = Union[
-    FieldPathSegmentData,
+    ExpressionData,
+    AggregationBucketData,
+    RichTextSpanData,
+    FieldPathData,
+    RunCodeFrameData,
     RequestSubjectData,
     ActionData,
-    SpaceDockData,
-    ValueSelectionData,
-    PropertyPathData,
-    RichTextSpanData,
-    RunCodeFrameData,
-    ServerImageDependencyData,
-    AggregationBucketData,
-    ExpressionData,
     NodeReferenceData,
+    RunErrorData,
+    PolicyRuleData,
+    ValueReferenceData,
+    PolicyData,
+    RichTextData,
+    ScheduleData,
+    LogEntryData,
+    ServerImageDependencyData,
+    AggregationData,
+    PropertyPathData,
+    RequestData,
     FileData,
     ServerImageData,
-    RequestData,
-    RunErrorData,
-    PolicyData,
-    PropertyReferenceData,
-    ValueReferenceData,
-    PolicyRuleData,
-    LogEntryData,
-    AccessZoneData,
-    AggregationData,
-    ServerAllocationData,
-    RichTextData,
-    FieldPathData,
     BenchPathData,
     IconData,
-    TypeInfoData,
-    AccessMatrixData,
     ReadOptionsData,
+    FieldPathSegmentData,
+    AccessZoneData,
     SpaceDockItemData,
+    TypeInfoData,
+    ValueSelectionData,
+    ServerAllocationData,
+    PropertyReferenceData,
+    AccessMatrixData,
+    SpaceDockData,
 ]
 
-VERSION = "2024.02.05.1"
+VERSION = "2024.02.05.3"
