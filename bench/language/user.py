@@ -6,7 +6,7 @@ from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_t
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Space, Worker, RichText
+    from bench.language import Bench, Space, Server, RichText
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -69,7 +69,7 @@ class Membership(Node):
 class Client(Node):
     """A client to this Bench."""
 
-    parent: Union[User, "Worker"] = p_parent(4, NodeType.USER, NodeType.WORKER)
+    parent: Union[User, "Server"] = p_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
     name: Optional[str] = p_tracked(32, default=None)
     device_name: str = p_tracked(33)

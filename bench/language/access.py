@@ -614,7 +614,10 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             properties=tuple(
                 p for p in iter_properties(*NODE_TYPES) if p.is_system and p.id is not None
             )
-        )
+        ),
+        PolicyRule("CannotEditSystemNodes")
+        .deny(EditType.CREATE, EditType.UPSERT, EditType.DELETE)
+        .object(node_types=tuple()),
     ),
     Policy("OwnerAccess").append(
         PolicyRule("OwnerCanDoAnything").subject(is_owner=True).allow(*ACTION_KINDS),
@@ -800,9 +803,6 @@ def generate_access_matrix(
     return matrix
 
 
-_ALL_PROPERTIES_BY_TYPE: dict[NodeType, bitarray] = ...
-
-
 def evaluate_request(
     *,
     matrix: AccessMatrix,
@@ -819,6 +819,7 @@ def evaluate_request(
 
     # the granted 'allow' mask for properties
     composite_allowed_properties = bitarray(len(object_properties))
+    object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
 
     # check the zones for each identity (separately)
     for identity_id in range(len(matrix.identities)):
@@ -833,7 +834,7 @@ def evaluate_request(
             for rule in current_zone.rules:
                 if rule.matches_verb(verb) and object_node_type in rule._object_node_types_mask:
                     rule_properties_mask = rule._object_properties_masks.get(
-                        object_node_type, _ALL_PROPERTIES_BY_TYPE[object_node_type]
+                        object_node_type, object_node_cls.__properties_mask__
                     )
                     if rule.effect == PolicyEffect.ALLOW:
                         allowed_properties |= rule_properties_mask & unset_properties
@@ -904,7 +905,8 @@ def evaluate_and_adapt_read(
     verb = ReadType.GET  # same for all?
     for node in tree.nodes:
         object_node_type: NodeType = wiring.unpack_enum(NodeType, node.metatype)
-        object_properties: bitarray = _ALL_PROPERTIES_BY_TYPE[object_node_type]
+        object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
+        object_properties: bitarray = object_node_cls.__properties_mask__
 
         root = tree.get_root(node)  # a bit inefficient?
         # nocheckin: cache this per zone!
@@ -1010,19 +1012,20 @@ def check_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditD
 
 
 def evaluate_run(
-    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, block: "Block"
+    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, node: "Block"
 ) -> Action:
     """
     Evaluates whether the given policies (base and in tree) allow the given run action.
     Assumes that all policies are valid.
     """
+    node_cls = NODE_CLASS_BY_TYPE[node.metatype]
     decision, deciding_rule = evaluate_atomic_request(
         matrix=matrix,
         verb=run_type,
-        object_node_type=block.metatype,
-        object_properties=_ALL_PROPERTIES_BY_TYPE[block.metatype],
-        scope_id=str(block.id),
-        root_id=str(block.bench.id),
+        object_node_type=node.metatype,
+        object_properties=node_cls.__properties_mask__,
+        scope_id=str(node.id),
+        root_id=str(node.bench.id),
     )
     return Action(
         subject=matrix.subject,

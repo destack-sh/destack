@@ -63,7 +63,7 @@ from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
 from .view import Space, SpaceDock, View, ViewType
-from .worker import Dependency, Worker, WorkerImage, WorkerSet
+from .compute import ServerImageDependency, Server, ServerImage, ServerAllocation
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 
@@ -80,7 +80,6 @@ __all__ = [
     "C",
     "Client",
     "ConditionalOp",
-    "Dependency",
     "Expression",
     "Field",
     "FieldPath",
@@ -122,6 +121,10 @@ __all__ = [
     "S",
     "ScheduleType",
     "ScopeNode",
+    "Server",
+    "ServerAllocation",
+    "ServerImage",
+    "ServerImageDependency",
     "Session",
     "Signal",
     "SortMode",
@@ -138,9 +141,6 @@ __all__ = [
     "VERSION",
     "View",
     "ViewType",
-    "Worker",
-    "WorkerImage",
-    "WorkerSet",
 ]
 # after all the imports, we can finalize
 _complete_bench_setup()

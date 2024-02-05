@@ -6,10 +6,9 @@
 //
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
-import { WorkerProcess } from "./services";
-import { Worker } from "./services";
-import type { WorkerSetData } from "./lang";
-import type { RestartWorkerRequest } from "./services";
+import { ServerProcess } from "./services";
+import { Server } from "./services";
+import type { ServerData } from "./lang";
 import { PackageHost } from "./services";
 import type { RunProxyBlockResponse } from "./services";
 import type { RunProxyBlockRequest } from "./services";
@@ -18,7 +17,7 @@ import type { KillRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
 import type { StartRunRequest } from "./services";
 import type { Empty } from "../../google/protobuf/empty";
-import type { PushWorkerLogsRequest } from "./services";
+import type { PushServerLogsRequest } from "./services";
 import type { WatchLogsResponse } from "./services";
 import type { WatchLogsRequest } from "./services";
 import type { SearchLogsResponse } from "./services";
@@ -36,9 +35,9 @@ import type { PushEditsRequest } from "./services";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { GlobalSupervisor } from "./services";
-import type { PingWorkerSetRequest } from "./services";
-import type { PingWorkerSetResponse } from "./services";
-import type { RestartWorkerSetRequest } from "./services";
+import type { PingServerRequest } from "./services";
+import type { PingServerResponse } from "./services";
+import type { RestartServerRequest } from "./services";
 import type { WatchEditsResponse } from "./services";
 import type { WatchEditsRequest } from "./services";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
@@ -62,7 +61,7 @@ import type { SignupUserRequest } from "./services";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
- * Global supervisor: the 'control plane' for global stuff like Benches, Users, Workers, etc..
+ * Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
  * Will probably shard this later.
  * Frontend connects to this directly.
  *
@@ -136,24 +135,24 @@ export interface IGlobalSupervisorClient {
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
     // 
-    // Worker stuff
+    // Server stuff
     // 
 
     /**
-     * Force restart the worker set for a Bench.
+     * Force restart the server set for a Bench.
      *
-     * @generated from protobuf rpc: RestartWorkerSet(symbolx.bench.RestartWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
      */
-    restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse>;
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse>;
     /**
-     * Ensure the worker set for a Bench is running.
+     * Ensure the server set for a Bench is running.
      *
-     * @generated from protobuf rpc: PingWorkerSet(symbolx.bench.PingWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
+     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
-    pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse>;
+    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse>;
 }
 /**
- * Global supervisor: the 'control plane' for global stuff like Benches, Users, Workers, etc..
+ * Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
  * Will probably shard this later.
  * Frontend connects to this directly.
  *
@@ -259,26 +258,26 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     // 
-    // Worker stuff
+    // Server stuff
     // 
 
     /**
-     * Force restart the worker set for a Bench.
+     * Force restart the server set for a Bench.
      *
-     * @generated from protobuf rpc: RestartWorkerSet(symbolx.bench.RestartWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
      */
-    restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse> {
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
         const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Ensure the worker set for a Bench is running.
+     * Ensure the server set for a Bench is running.
      *
-     * @generated from protobuf rpc: PingWorkerSet(symbolx.bench.PingWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
+     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
-    pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse> {
+    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
         const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PingWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**
@@ -379,23 +378,23 @@ export interface IPackageHostClient {
      */
     watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse>;
     /**
-     * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+     * Pushes logs from a server *that are already stored* to notify frontend users connected to this host.
      *
-     * @generated from protobuf rpc: PushWorkerLogs(symbolx.bench.PushWorkerLogsRequest) returns (google.protobuf.Empty);
+     * @generated from protobuf rpc: PushServerLogs(symbolx.bench.PushServerLogsRequest) returns (google.protobuf.Empty);
      */
-    pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty>;
+    pushServerLogs(input: PushServerLogsRequest, options?: RpcOptions): UnaryCall<PushServerLogsRequest, Empty>;
     // 
     // Runs
     // 
 
     /**
-     * Starts a run in an appropriate worker (same request/response as for WorkerNode).
+     * Starts a run in an appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
     /**
-     * Kills a run in the appropriate worker (same request/response as for WorkerNode).
+     * Kills a run in the appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
@@ -546,20 +545,20 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
         return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
-     * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+     * Pushes logs from a server *that are already stored* to notify frontend users connected to this host.
      *
-     * @generated from protobuf rpc: PushWorkerLogs(symbolx.bench.PushWorkerLogsRequest) returns (google.protobuf.Empty);
+     * @generated from protobuf rpc: PushServerLogs(symbolx.bench.PushServerLogsRequest) returns (google.protobuf.Empty);
      */
-    pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
+    pushServerLogs(input: PushServerLogsRequest, options?: RpcOptions): UnaryCall<PushServerLogsRequest, Empty> {
         const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
+        return stackIntercept<PushServerLogsRequest, Empty>("unary", this._transport, method, opt, input);
     }
     // 
     // Runs
     // 
 
     /**
-     * Starts a run in an appropriate worker (same request/response as for WorkerNode).
+     * Starts a run in an appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
@@ -568,7 +567,7 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Kills a run in the appropriate worker (same request/response as for WorkerNode).
+     * Kills a run in the appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
@@ -587,56 +586,56 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
     }
 }
 /**
- * A hosted Worker providing a Bench runtime with a set of worker processes.
- * Service is scoped to bench_id/worker_set_id.
+ * A user Server providing a Bench runtime with a set of server processes.
+ * Service is scoped to bench_id/server_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.Worker
+ * @generated from protobuf service symbolx.bench.Server
  */
-export interface IWorkerClient {
+export interface IServerClient {
     /**
-     * Restart this worker immediately.
+     * Restart this server immediately.
      *
-     * @generated from protobuf rpc: RestartWorker(symbolx.bench.RestartWorkerRequest) returns (symbolx.bench.WorkerSetData);
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.ServerData);
      */
-    restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, WorkerSetData>;
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, ServerData>;
     /**
-     * Starts a run in a process in this worker.
+     * Starts a run in a process in this server.
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
     /**
-     * Kills a run in a process in this worker.
+     * Kills a run in a process in this server.
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
- * A hosted Worker providing a Bench runtime with a set of worker processes.
- * Service is scoped to bench_id/worker_set_id.
+ * A user Server providing a Bench runtime with a set of server processes.
+ * Service is scoped to bench_id/server_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.Worker
+ * @generated from protobuf service symbolx.bench.Server
  */
-export class WorkerClient implements IWorkerClient, ServiceInfo {
-    typeName = Worker.typeName;
-    methods = Worker.methods;
-    options = Worker.options;
+export class ServerClient implements IServerClient, ServiceInfo {
+    typeName = Server.typeName;
+    methods = Server.methods;
+    options = Server.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Restart this worker immediately.
+     * Restart this server immediately.
      *
-     * @generated from protobuf rpc: RestartWorker(symbolx.bench.RestartWorkerRequest) returns (symbolx.bench.WorkerSetData);
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.ServerData);
      */
-    restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, WorkerSetData> {
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, ServerData> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartWorkerRequest, WorkerSetData>("unary", this._transport, method, opt, input);
+        return stackIntercept<RestartServerRequest, ServerData>("unary", this._transport, method, opt, input);
     }
     /**
-     * Starts a run in a process in this worker.
+     * Starts a run in a process in this server.
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
@@ -645,7 +644,7 @@ export class WorkerClient implements IWorkerClient, ServiceInfo {
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Kills a run in a process in this worker.
+     * Kills a run in a process in this server.
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
@@ -655,41 +654,41 @@ export class WorkerClient implements IWorkerClient, ServiceInfo {
     }
 }
 /**
- * The actual worker process executing a Bench 'thread'.
- * Service is scoped to bench_id/worker_set_id/worker_process_id.
+ * The actual server process executing a Bench 'thread'.
+ * Service is scoped to bench_id/server_id/server_process_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.WorkerProcess
+ * @generated from protobuf service symbolx.bench.ServerProcess
  */
-export interface IWorkerProcessClient {
+export interface IServerProcessClient {
     /**
-     * Starts a run in this worker process.
+     * Starts a run in this server process.
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
     /**
-     * Kills a run in this worker process.
+     * Kills a run in this server process.
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
- * The actual worker process executing a Bench 'thread'.
- * Service is scoped to bench_id/worker_set_id/worker_process_id.
+ * The actual server process executing a Bench 'thread'.
+ * Service is scoped to bench_id/server_id/server_process_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.WorkerProcess
+ * @generated from protobuf service symbolx.bench.ServerProcess
  */
-export class WorkerProcessClient implements IWorkerProcessClient, ServiceInfo {
-    typeName = WorkerProcess.typeName;
-    methods = WorkerProcess.methods;
-    options = WorkerProcess.options;
+export class ServerProcessClient implements IServerProcessClient, ServiceInfo {
+    typeName = ServerProcess.typeName;
+    methods = ServerProcess.methods;
+    options = ServerProcess.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Starts a run in this worker process.
+     * Starts a run in this server process.
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
@@ -698,7 +697,7 @@ export class WorkerProcessClient implements IWorkerProcessClient, ServiceInfo {
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Kills a run in this worker process.
+     * Kills a run in this server process.
      *
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */

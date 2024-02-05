@@ -12,12 +12,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Expression, NodeReference, Organization, User
-from bench.language.access import (
-    ReadOptions,
-    adapt_read_options,
-    evaluate_and_adapt_read,
-    generate_access_matrix,
-)
+from bench.language.access import ReadOptions, adapt_read_options
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
 from bench.language.tree import NodeDataTree
@@ -38,7 +33,7 @@ from bench.proto.wire import (
     PasteNodesResponse,
     PushEditsRequest,
     PushEditsResponse,
-    PushWorkerLogsRequest,
+    PushServerLogsRequest,
     ReadNodesRequest,
     ReadNodesResponse,
     RunProxyBlockRequest,
@@ -130,7 +125,7 @@ class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
 class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     """
     Host for an (active) Bench package. Manages basically everything that's not actually running it.
-    Any client (frontend, worker, ...) connects to this to do anything with the package.
+    Any client (frontend, server, ...) connects to this to do anything with the package.
     """
 
     def __init__(self, bench_id: UUID, package_id: UUID):
@@ -298,7 +293,7 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     async def watch_logs(self, request: "WatchLogsRequest") -> AsyncIterator["WatchLogsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def push_worker_logs(self, request: "PushWorkerLogsRequest") -> "PushWorkerLogsRequest":
+    async def push_server_logs(self, request: "PushServerLogsRequest") -> "PushServerLogsRequest":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #

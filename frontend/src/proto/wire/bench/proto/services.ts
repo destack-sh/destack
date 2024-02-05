@@ -18,13 +18,12 @@ import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { RunData } from "./lang";
-import { WorkerData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
 import { BenchPathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
 import { LogEntryData } from "./lang";
-import { WorkerSetData } from "./lang";
+import { ServerData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
@@ -348,40 +347,40 @@ export interface WatchEditsResponse {
     edits: EditData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.RestartWorkerSetRequest
+ * @generated from protobuf message symbolx.bench.RestartServerRequest
  */
-export interface RestartWorkerSetRequest {
+export interface RestartServerRequest {
     /**
      * @generated from protobuf field: string bench_id = 1;
      */
     benchId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.RestartWorkerSetResponse
+ * @generated from protobuf message symbolx.bench.RestartServerResponse
  */
-export interface RestartWorkerSetResponse {
+export interface RestartServerResponse {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.WorkerSetData worker_sets = 1;
+     * @generated from protobuf field: repeated symbolx.bench.ServerData servers = 1;
      */
-    workerSets: WorkerSetData[];
+    servers: ServerData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PingWorkerSetRequest
+ * @generated from protobuf message symbolx.bench.PingServerRequest
  */
-export interface PingWorkerSetRequest {
+export interface PingServerRequest {
     /**
      * @generated from protobuf field: string bench_id = 1;
      */
     benchId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.PingWorkerSetResponse
+ * @generated from protobuf message symbolx.bench.PingServerResponse
  */
-export interface PingWorkerSetResponse {
+export interface PingServerResponse {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.WorkerSetData worker_sets = 1;
+     * @generated from protobuf field: repeated symbolx.bench.ServerData servers = 1;
      */
-    workerSets: WorkerSetData[];
+    servers: ServerData[];
 }
 // 
 // Package host
@@ -570,18 +569,18 @@ export interface WatchLogsResponse {
     logs: LogEntryData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PushWorkerLogsRequest
+ * @generated from protobuf message symbolx.bench.PushServerLogsRequest
  */
-export interface PushWorkerLogsRequest {
+export interface PushServerLogsRequest {
     /**
      * @generated from protobuf field: repeated symbolx.bench.LogEntryData logs = 1;
      */
     logs: LogEntryData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PushWorkerLogsResponse
+ * @generated from protobuf message symbolx.bench.PushServerLogsResponse
  */
-export interface PushWorkerLogsResponse {
+export interface PushServerLogsResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.RunProxyBlockRequest
@@ -636,23 +635,9 @@ export interface RunProxyBlockResponse {
     error?: Struct;
 }
 // 
-// Worker node
+// Server node
 // 
 
-/**
- * @generated from protobuf message symbolx.bench.RestartWorkerRequest
- */
-export interface RestartWorkerRequest {
-}
-/**
- * @generated from protobuf message symbolx.bench.RestartWorkerResponse
- */
-export interface RestartWorkerResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.WorkerData worker = 1;
-     */
-    worker?: WorkerData;
-}
 /**
  * @generated from protobuf message symbolx.bench.StartRunRequest
  */
@@ -1933,20 +1918,20 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
  */
 export const WatchEditsResponse = new WatchEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RestartWorkerSetRequest$Type extends MessageType<RestartWorkerSetRequest> {
+class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
     constructor() {
-        super("symbolx.bench.RestartWorkerSetRequest", [
+        super("symbolx.bench.RestartServerRequest", [
             { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<RestartWorkerSetRequest>): RestartWorkerSetRequest {
+    create(value?: PartialMessage<RestartServerRequest>): RestartServerRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.benchId = "";
         if (value !== undefined)
-            reflectionMergePartial<RestartWorkerSetRequest>(this, message, value);
+            reflectionMergePartial<RestartServerRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerSetRequest): RestartWorkerSetRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerRequest): RestartServerRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -1965,7 +1950,7 @@ class RestartWorkerSetRequest$Type extends MessageType<RestartWorkerSetRequest> 
         }
         return message;
     }
-    internalBinaryWrite(message: RestartWorkerSetRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RestartServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string bench_id = 1; */
         if (message.benchId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
@@ -1976,30 +1961,30 @@ class RestartWorkerSetRequest$Type extends MessageType<RestartWorkerSetRequest> 
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RestartWorkerSetRequest
+ * @generated MessageType for protobuf message symbolx.bench.RestartServerRequest
  */
-export const RestartWorkerSetRequest = new RestartWorkerSetRequest$Type();
+export const RestartServerRequest = new RestartServerRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RestartWorkerSetResponse$Type extends MessageType<RestartWorkerSetResponse> {
+class RestartServerResponse$Type extends MessageType<RestartServerResponse> {
     constructor() {
-        super("symbolx.bench.RestartWorkerSetResponse", [
-            { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData }
+        super("symbolx.bench.RestartServerResponse", [
+            { no: 1, name: "servers", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ServerData }
         ]);
     }
-    create(value?: PartialMessage<RestartWorkerSetResponse>): RestartWorkerSetResponse {
+    create(value?: PartialMessage<RestartServerResponse>): RestartServerResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.workerSets = [];
+        message.servers = [];
         if (value !== undefined)
-            reflectionMergePartial<RestartWorkerSetResponse>(this, message, value);
+            reflectionMergePartial<RestartServerResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerSetResponse): RestartWorkerSetResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerResponse): RestartServerResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.WorkerSetData worker_sets */ 1:
-                    message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.ServerData servers */ 1:
+                    message.servers.push(ServerData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2012,10 +1997,10 @@ class RestartWorkerSetResponse$Type extends MessageType<RestartWorkerSetResponse
         }
         return message;
     }
-    internalBinaryWrite(message: RestartWorkerSetResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.WorkerSetData worker_sets = 1; */
-        for (let i = 0; i < message.workerSets.length; i++)
-            WorkerSetData.internalBinaryWrite(message.workerSets[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: RestartServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.ServerData servers = 1; */
+        for (let i = 0; i < message.servers.length; i++)
+            ServerData.internalBinaryWrite(message.servers[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2023,24 +2008,24 @@ class RestartWorkerSetResponse$Type extends MessageType<RestartWorkerSetResponse
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RestartWorkerSetResponse
+ * @generated MessageType for protobuf message symbolx.bench.RestartServerResponse
  */
-export const RestartWorkerSetResponse = new RestartWorkerSetResponse$Type();
+export const RestartServerResponse = new RestartServerResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PingWorkerSetRequest$Type extends MessageType<PingWorkerSetRequest> {
+class PingServerRequest$Type extends MessageType<PingServerRequest> {
     constructor() {
-        super("symbolx.bench.PingWorkerSetRequest", [
+        super("symbolx.bench.PingServerRequest", [
             { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<PingWorkerSetRequest>): PingWorkerSetRequest {
+    create(value?: PartialMessage<PingServerRequest>): PingServerRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.benchId = "";
         if (value !== undefined)
-            reflectionMergePartial<PingWorkerSetRequest>(this, message, value);
+            reflectionMergePartial<PingServerRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingWorkerSetRequest): PingWorkerSetRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerRequest): PingServerRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2059,7 +2044,7 @@ class PingWorkerSetRequest$Type extends MessageType<PingWorkerSetRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: PingWorkerSetRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: PingServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string bench_id = 1; */
         if (message.benchId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
@@ -2070,30 +2055,30 @@ class PingWorkerSetRequest$Type extends MessageType<PingWorkerSetRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PingWorkerSetRequest
+ * @generated MessageType for protobuf message symbolx.bench.PingServerRequest
  */
-export const PingWorkerSetRequest = new PingWorkerSetRequest$Type();
+export const PingServerRequest = new PingServerRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PingWorkerSetResponse$Type extends MessageType<PingWorkerSetResponse> {
+class PingServerResponse$Type extends MessageType<PingServerResponse> {
     constructor() {
-        super("symbolx.bench.PingWorkerSetResponse", [
-            { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData }
+        super("symbolx.bench.PingServerResponse", [
+            { no: 1, name: "servers", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ServerData }
         ]);
     }
-    create(value?: PartialMessage<PingWorkerSetResponse>): PingWorkerSetResponse {
+    create(value?: PartialMessage<PingServerResponse>): PingServerResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.workerSets = [];
+        message.servers = [];
         if (value !== undefined)
-            reflectionMergePartial<PingWorkerSetResponse>(this, message, value);
+            reflectionMergePartial<PingServerResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingWorkerSetResponse): PingWorkerSetResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerResponse): PingServerResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.WorkerSetData worker_sets */ 1:
-                    message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.ServerData servers */ 1:
+                    message.servers.push(ServerData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2106,10 +2091,10 @@ class PingWorkerSetResponse$Type extends MessageType<PingWorkerSetResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: PingWorkerSetResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.WorkerSetData worker_sets = 1; */
-        for (let i = 0; i < message.workerSets.length; i++)
-            WorkerSetData.internalBinaryWrite(message.workerSets[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: PingServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.ServerData servers = 1; */
+        for (let i = 0; i < message.servers.length; i++)
+            ServerData.internalBinaryWrite(message.servers[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2117,9 +2102,9 @@ class PingWorkerSetResponse$Type extends MessageType<PingWorkerSetResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PingWorkerSetResponse
+ * @generated MessageType for protobuf message symbolx.bench.PingServerResponse
  */
-export const PingWorkerSetResponse = new PingWorkerSetResponse$Type();
+export const PingServerResponse = new PingServerResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetLogsRequest$Type extends MessageType<GetLogsRequest> {
     constructor() {
@@ -2908,20 +2893,20 @@ class WatchLogsResponse$Type extends MessageType<WatchLogsResponse> {
  */
 export const WatchLogsResponse = new WatchLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
+class PushServerLogsRequest$Type extends MessageType<PushServerLogsRequest> {
     constructor() {
-        super("symbolx.bench.PushWorkerLogsRequest", [
+        super("symbolx.bench.PushServerLogsRequest", [
             { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
         ]);
     }
-    create(value?: PartialMessage<PushWorkerLogsRequest>): PushWorkerLogsRequest {
+    create(value?: PartialMessage<PushServerLogsRequest>): PushServerLogsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.logs = [];
         if (value !== undefined)
-            reflectionMergePartial<PushWorkerLogsRequest>(this, message, value);
+            reflectionMergePartial<PushServerLogsRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushWorkerLogsRequest): PushWorkerLogsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushServerLogsRequest): PushServerLogsRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2940,7 +2925,7 @@ class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: PushWorkerLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: PushServerLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.LogEntryData logs = 1; */
         for (let i = 0; i < message.logs.length; i++)
             LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2951,24 +2936,24 @@ class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushWorkerLogsRequest
+ * @generated MessageType for protobuf message symbolx.bench.PushServerLogsRequest
  */
-export const PushWorkerLogsRequest = new PushWorkerLogsRequest$Type();
+export const PushServerLogsRequest = new PushServerLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushWorkerLogsResponse$Type extends MessageType<PushWorkerLogsResponse> {
+class PushServerLogsResponse$Type extends MessageType<PushServerLogsResponse> {
     constructor() {
-        super("symbolx.bench.PushWorkerLogsResponse", []);
+        super("symbolx.bench.PushServerLogsResponse", []);
     }
-    create(value?: PartialMessage<PushWorkerLogsResponse>): PushWorkerLogsResponse {
+    create(value?: PartialMessage<PushServerLogsResponse>): PushServerLogsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<PushWorkerLogsResponse>(this, message, value);
+            reflectionMergePartial<PushServerLogsResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushWorkerLogsResponse): PushWorkerLogsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushServerLogsResponse): PushServerLogsResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: PushWorkerLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: PushServerLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2976,9 +2961,9 @@ class PushWorkerLogsResponse$Type extends MessageType<PushWorkerLogsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushWorkerLogsResponse
+ * @generated MessageType for protobuf message symbolx.bench.PushServerLogsResponse
  */
-export const PushWorkerLogsResponse = new PushWorkerLogsResponse$Type();
+export const PushServerLogsResponse = new PushServerLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
     constructor() {
@@ -3123,77 +3108,6 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
  * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockResponse
  */
 export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RestartWorkerRequest$Type extends MessageType<RestartWorkerRequest> {
-    constructor() {
-        super("symbolx.bench.RestartWorkerRequest", []);
-    }
-    create(value?: PartialMessage<RestartWorkerRequest>): RestartWorkerRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RestartWorkerRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerRequest): RestartWorkerRequest {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: RestartWorkerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RestartWorkerRequest
- */
-export const RestartWorkerRequest = new RestartWorkerRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RestartWorkerResponse$Type extends MessageType<RestartWorkerResponse> {
-    constructor() {
-        super("symbolx.bench.RestartWorkerResponse", [
-            { no: 1, name: "worker", kind: "message", T: () => WorkerData }
-        ]);
-    }
-    create(value?: PartialMessage<RestartWorkerResponse>): RestartWorkerResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RestartWorkerResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerResponse): RestartWorkerResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.WorkerData worker */ 1:
-                    message.worker = WorkerData.internalBinaryRead(reader, reader.uint32(), options, message.worker);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RestartWorkerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.WorkerData worker = 1; */
-        if (message.worker)
-            WorkerData.internalBinaryWrite(message.worker, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RestartWorkerResponse
- */
-export const RestartWorkerResponse = new RestartWorkerResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StartRunRequest$Type extends MessageType<StartRunRequest> {
     constructor() {
@@ -3454,8 +3368,8 @@ export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor"
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-    { name: "RestartWorkerSet", options: {}, I: RestartWorkerSetRequest, O: PingWorkerSetResponse },
-    { name: "PingWorkerSet", options: {}, I: PingWorkerSetRequest, O: PingWorkerSetResponse }
+    { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
+    { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.PackageHost
@@ -3473,23 +3387,23 @@ export const PackageHost = new ServiceType("symbolx.bench.PackageHost", [
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
     { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
-    { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty },
+    { name: "PushServerLogs", options: {}, I: PushServerLogsRequest, O: Empty },
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
     { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.Worker
+ * @generated ServiceType for protobuf service symbolx.bench.Server
  */
-export const Worker = new ServiceType("symbolx.bench.Worker", [
-    { name: "RestartWorker", options: {}, I: RestartWorkerRequest, O: WorkerSetData },
+export const Server = new ServiceType("symbolx.bench.Server", [
+    { name: "RestartServer", options: {}, I: RestartServerRequest, O: ServerData },
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.WorkerProcess
+ * @generated ServiceType for protobuf service symbolx.bench.ServerProcess
  */
-export const WorkerProcess = new ServiceType("symbolx.bench.WorkerProcess", [
+export const ServerProcess = new ServiceType("symbolx.bench.ServerProcess", [
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
 ]);

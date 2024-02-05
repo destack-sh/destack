@@ -6,9 +6,9 @@ from grpclib import GRPCError, Status as GRPCStatus
 
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
-    WorkerBase,
-    RestartWorkerRequest,
-    RestartWorkerResponse,
+    ServerBase,
+    RestartServerRequest,
+    RestartServerResponse,
     StartRunRequest,
     StartRunResponse,
     KillRunRequest,
@@ -18,35 +18,33 @@ from bench.proto.wire import (
 logger = structlog.get_logger(__name__)
 
 
-class Worker(WorkerBase, MonitoredServiceBase):
+class Server(ServerBase, MonitoredServiceBase):
     """
-    Manages the lifecycle of the worker node's worker processes in a main sidecar process.
-    During local development, this may also launch the worker node in the same process.
+    Manages the lifecycle of the server node's server processes in a main sidecar process.
+    During local development, this may also launch the server node in the same process.
     """
 
     def __init__(
         self,
-        worker_set_id: UUID | None,
-        worker_id: UUID,
+        server_id: UUID,
         bench_id: UUID | None,
         package_id: UUID | None,
     ):
         super().__init__()
-        self.worker_set_id = worker_set_id
-        self.worker_id = worker_id
+        self.server_id = server_id
         self.bench_id = bench_id
         self.package_id = package_id
         self.processes: dict[UUID, Popen] = {}
         self._stopped = False
 
     def __str__(self):
-        return f"{self.bench_id} {self.worker_set_id} {self.worker_id}"
+        return f"{self.bench_id} {self.server_id}"
 
     def __repr__(self):
-        return f"<WorkerHost {self}>"
+        return f"<ServerHost {self}>"
 
     async def start_quick(self):
-        raise NotImplementedError("nocheckin: worker.start_quick")
+        raise NotImplementedError("nocheckin: server.start_quick")
 
     def close(self):
         pass
@@ -54,9 +52,9 @@ class Worker(WorkerBase, MonitoredServiceBase):
     async def wait_closed(self):
         pass
 
-    async def restart_worker(
-        self, restart_worker_request: "RestartWorkerRequest"
-    ) -> "RestartWorkerResponse":
+    async def restart_server(
+        self, restart_server_request: "RestartServerRequest"
+    ) -> "RestartServerResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":

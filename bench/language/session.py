@@ -58,7 +58,7 @@ from bench.utils.utils import IS_DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Record, Trigger, Worker
+    from bench.language import Block, Record, Trigger, Server
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -114,14 +114,14 @@ _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 @node(NodeType.SESSION, index_in_os=True, local=True)
 class Session(ScopeNode):
     """
-    A managed context for running a Bench package (in a worker).
+    A managed context for running a Bench package (in a server).
     """
 
     parent: Package = p_parent(4, NodeType.PACKAGE)
-    worker: Optional["Worker"] = p_internal(
-        31, require=False, array=False, references=NodeType.WORKER
+    server: Optional["Server"] = p_internal(
+        31, require=False, array=False, references=NodeType.SERVER
     )
-    worker_process_id: Optional[str] = p_internal(32, default=None)
+    server_process_id: Optional[str] = p_internal(32, default=None)
     trigger_type: Optional[TriggerType] = p_internal(33, default=None)
     trigger_id: Optional[UUID] = p_internal(34, default=None)
     opened_at: Optional[datetime] = p_internal(35, default=None)
@@ -823,8 +823,8 @@ class Session(ScopeNode):
             ck=run_ck,
             id=get_node_id(self.package.id, run_ck),
             bench_id=self.session.package.bench_id,
-            worker=self.session.worker_id,
-            worker_process_id=self.session.worker_process_id,
+            server=self.session.server_id,
+            server_process_id=self.session.server_process_id,
             block=block,
             trigger_type=trigger_type,
             trigger_id=trigger.id if not isinstance(trigger, UUID) else trigger,

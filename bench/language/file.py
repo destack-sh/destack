@@ -33,8 +33,8 @@ FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 FILE_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BUCKET_OBJECT)
-class BucketObject(Node):
+@node(NodeType.FILE_CONTENT)
+class FileContent(Node):
     """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
@@ -52,8 +52,8 @@ class File(Struct):
     content_length: Optional[int] = p_internal(31)
     content_type: Optional[str] = p_internal(32)
     name: str = p_tracked(33)
-    object: Optional[BucketObject] = p_internal(
-        34, require=False, array=False, references=NodeType.BUCKET_OBJECT
+    content: Optional[FileContent] = p_internal(
+        34, require=False, array=False, references=NodeType.FILE_CONTENT
     )
     status: FileStatus = p_internal(35, default=FileStatus.PENDING)
 

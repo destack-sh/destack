@@ -8,12 +8,19 @@ if TYPE_CHECKING:
     from bench.language import File
 
 
+class IconKind(IdStrEnum):
+    EMOJI = "EMOJI", 1
+    BUILTIN = "BUILTIN", 2
+    CUSTOM = "CUSTOM", 3
+
+
 class IconType(IdStrEnum):
     pass
 
 
 @struct(StructType.ICON)
 class Icon(Struct):
-    # type: ...
-    is_custom: bool = p_internal(31, default=False)
-    image: Optional["File"] = p_internal(32, require=False, array=False, struct=StructType.FILE)
+    kind: IconKind = p_internal(30, default=False)
+    emoji: Optional[str] = p_internal(31, require=False)
+    type: Optional[IconType] = p_internal(32, require=False)
+    image: Optional["File"] = p_internal(33, require=False, array=False, struct=StructType.FILE)

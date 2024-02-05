@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.03.9"
+VERSION = "2024.02.05.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -49,6 +49,7 @@ BENCH_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("server_allocation", PrimitiveType.JSON, is_nullable=True),
         Column("pg_name", PrimitiveType.STRING, is_nullable=True),
         Column("pg_username", PrimitiveType.STRING, is_nullable=True),
         Column("pg_password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
@@ -633,8 +634,8 @@ SESSION_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("worker_id", PrimitiveType.UUID, is_nullable=True),
-        Column("worker_process_id", PrimitiveType.STRING, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_process_id", PrimitiveType.STRING, is_nullable=True),
         Column("trigger_type", PrimitiveType.STRING, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -693,8 +694,7 @@ RUN_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column("worker_id", PrimitiveType.UUID, is_nullable=True),
-        Column("worker_process_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_path", PrimitiveType.STRING, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -711,7 +711,7 @@ RUN_TABLE = Table(
     indexes=(
         Index("bench_idx_session_id", IndexType.BTREE, ("session_id",)),
         Index("bench_idx_root_run_id", IndexType.BTREE, ("root_run_id",)),
-        Index("bench_idx_worker_id", IndexType.BTREE, ("worker_id",)),
+        Index("bench_idx_server_id", IndexType.BTREE, ("server_id",)),
         Index("bench_idx_node_block_ck", IndexType.BTREE, ("node_block_ck",)),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
@@ -946,8 +946,8 @@ IDENTITY_TABLE = Table(
     ),
 )
 
-WORKER_SET_TABLE = Table(
-    "bench_workerset",
+SERVER_TABLE = Table(
+    "bench_server",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column(
@@ -963,56 +963,23 @@ WORKER_SET_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("profile", PrimitiveType.STRING),
-        Column("sleeping", PrimitiveType.BOOLEAN),
+        Column("target_profile", PrimitiveType.STRING),
+        Column("target_image", PrimitiveType.JSON, is_nullable=True),
+        Column("target_version", PrimitiveType.STRING, is_nullable=True),
+        Column("current_profile", PrimitiveType.STRING, is_nullable=True),
+        Column("current_image", PrimitiveType.JSON, is_nullable=True),
+        Column("current_version", PrimitiveType.STRING, is_nullable=True),
+        Column("sleep", PrimitiveType.BOOLEAN, default="true"),
         Column("status", PrimitiveType.STRING),
-        Column("desired_replicas", PrimitiveType.INT32),
-        Column("target_replicas", PrimitiveType.INT32),
-        Column("available_replicas", PrimitiveType.INT32),
-        Column("ready_replicas", PrimitiveType.INT32),
         Column("last_active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_bumped_at", PrimitiveType.DATETIME, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
-        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
-)
-
-WORKER_TABLE = Table(
-    "bench_worker",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_worker_set_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_workerset",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column("revision", PrimitiveType.INT64, default="0"),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("external_id", PrimitiveType.STRING, is_unique=True),
-        Column("profile", PrimitiveType.STRING),
-        Column("image", PrimitiveType.JSON, is_nullable=True),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("external_id", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
     indexes=(
+        Index("bench_idx_target_version", IndexType.BTREE, ("target_version",)),
+        Index("bench_idx_current_version", IndexType.BTREE, ("current_version",)),
         Index("bench_idx_external_id", IndexType.BTREE, ("external_id",), is_unique=True),
-        Index("bench_idx_version", IndexType.BTREE, ("version",)),
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
         Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
@@ -1026,13 +993,13 @@ WORKER_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_worker_set_id IS NOT NULL)",
+            condition="(parent_bench_id IS NOT NULL)",
         ),
     ),
 )
 
-BUCKET_OBJECT_TABLE = Table(
-    "bench_bucketobject",
+FILE_CONTENT_TABLE = Table(
+    "bench_filecontent",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column(
@@ -1194,9 +1161,9 @@ CLIENT_TABLE = Table(
             is_nullable=True,
         ),
         Column(
-            "parent_worker_id",
+            "parent_server_id",
             PrimitiveType.UUID,
-            is_foreign_key_to="bench_worker",
+            is_foreign_key_to="bench_server",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -1229,7 +1196,7 @@ CLIENT_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_user_id IS NOT NULL) OR (parent_worker_id IS NOT NULL)",
+            condition="(parent_user_id IS NOT NULL) OR (parent_server_id IS NOT NULL)",
         ),
     ),
 )
