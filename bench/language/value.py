@@ -81,7 +81,7 @@ class HasValue(Node):
             # TODO @Performance: type check only the changed value
             check_type(self.value, self._type)
             if self.attached:
-                self.session.update(self, ["value"])
+                self.session.update(self, (self.__class__.value,))
 
         assert self._type is not None, f"missing type for {self!r}"
 

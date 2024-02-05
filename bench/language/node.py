@@ -634,9 +634,9 @@ def p_property(
 
 
 if TYPE_CHECKING:
-    p_tracked = p_internal = p_system = p_property
+    p_regular = p_internal = p_system = p_property
 else:
-    p_tracked = functools.partial(p_property, internal=False, system=False)
+    p_regular = functools.partial(p_property, internal=False, system=False)
     p_internal = functools.partial(p_property, internal=True, system=False)
     p_system = functools.partial(p_property, internal=True, system=True)
 
@@ -955,9 +955,15 @@ def _process_struct_base_cls(
             del cls.__annotations__[name]
         # also set extra computed reference properties
         if prop.reference_kind and not prop.reference_source and prop.reference_wired_ptr:
-            for computed_attr in ("id", "ck", "type"):
-                computed_prop = _node_computed_prop(computed_attr, prop, prop.reference_wired_ptr)
-                setattr(cls, prop.name + "_" + computed_attr, computed_prop)
+            for postfix, ref_key, ptr_key in (
+                ("id", "id", "id"),
+                ("ck", "ck", "ck"),
+                ("type", "metatype", "type"),
+            ):
+                computed_prop = _node_ref_computed_prop(
+                    ref_key, ptr_key, prop, prop.reference_wired_ptr
+                )
+                setattr(cls, prop.name + "_" + postfix, computed_prop)
 
     # TODO @Performance: use slots for struct/node classes?
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
@@ -976,7 +982,7 @@ def _process_struct_base_cls(
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.is_wired and not prop.reference_wired_ptr:
+        if prop.id is not None and prop.id is not UNSET and not prop.reference_source:
             existing = properties_by_id.get(prop.id, None)
             if existing is not None:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
@@ -1266,21 +1272,31 @@ def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-def _node_computed_prop(x: str, prop: Property, backup_prop: Property) -> property:
+def _node_ref_computed_prop(
+    key_ref: str, key_ptr: str, ref_prop: Property, ptr_prop: Property
+) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
+    is_array = ref_prop.is_array
+
     def get(self: NodeT) -> Optional[Any]:
-        reference = getattr(self, prop.name)
-        if reference is None:
-            reference = getattr(self, backup_prop.name)
-        if prop.is_array:
-            return tuple(getattr(elem, x) for elem in reference or ())
-        elif reference is not None:
-            return getattr(reference, x)
-        return None
+        ref = getattr(self, ref_prop.name)
+        ptr = getattr(self, ptr_prop.name)
+        if is_array:
+            if ref:
+                return tuple(getattr(r, key_ref) for r in ref or ())
+            else:
+                return tuple(getattr(p, key_ptr) for p in ptr or ())
+        else:
+            if ref is not None:
+                return getattr(ref, key_ref)
+            elif ptr is not None:
+                return getattr(ptr, key_ptr)
+            else:
+                return None
 
     def set(self: NodeT, value: Any):
-        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
+        raise NotImplementedError(f"cannot set computed property {ref_prop!r}: {value!r}")
 
     return property(get, set)
 
@@ -1827,28 +1843,27 @@ class Node(Struct, _NodeExpressionBase):
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.reference_kind == NodeReferenceKind.CHILD:
-                return getattr(self, key).set(value)
-            elif prop.is_internal:
+                return getattr(self, key).set(value)  # has its own set
+            elif prop.is_runtime_only:  # untracked
                 return super().__setattr__(key, value)
-            else:
-                prev = getattr(self, key)
-                self.__dict__[key] = value
-                try:
-                    self._validate_self([key], on_invalid=on_invalid_raise)
-                except ValidationError:  # reset on error
-                    self.__dict__[key] = prev
-                    raise
-                if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
-                    from bench.language.expression import NodeReference
+            prev = getattr(self, key)
+            self.__dict__[key] = value
+            try:
+                self._validate_self([key], on_invalid=on_invalid_raise)
+            except ValidationError:  # reset on error
+                self.__dict__[key] = prev
+                raise
+            if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
+                from bench.language.expression import NodeReference
 
-                    self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(value)
-                    if self.attached:
-                        self._session.update(self, [key])
-                        self._updated_self((prop.reference_wired_ptr.name,))
-                elif self.attached:
-                    self._session.update(self, [key])
-                    self._updated_self((key,))
-                return
+                self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(value)
+                if not self._is_new:
+                    self._session.update(self, (prop,))
+                    self._updated_self((prop.reference_wired_ptr.name,))
+            elif not self._is_new:
+                self._session.update(self, (prop,))
+                self._updated_self((key,))
+            return
         elif key in self.__dict__:
             self.__dict__[key] = value
             return
@@ -2264,13 +2279,13 @@ class BenchPath(Struct):
     For absolute paths, the bench name is required.
     """
 
-    bench_slug: Optional[str] = p_tracked(30, default=None)
-    block_path: tuple[str, ...] | None = p_tracked(31, default=None)
-    sub_node_path: tuple[str, ...] | None = p_tracked(32, default=None)
-    field_path: tuple[str, ...] | None = p_tracked(33, default=None)
+    bench_slug: Optional[str] = p_regular(30, default=None)
+    block_path: tuple[str, ...] | None = p_regular(31, default=None)
+    sub_node_path: tuple[str, ...] | None = p_regular(32, default=None)
+    field_path: tuple[str, ...] | None = p_regular(33, default=None)
 
-    branch_slug: Optional[str] = p_tracked(34, default=None)  # (not yet supported)
-    package_slug: Optional[str] = p_tracked(35, default=None)  # (not yet supported)
+    branch_slug: Optional[str] = p_regular(34, default=None)  # (not yet supported)
+    package_slug: Optional[str] = p_regular(35, default=None)  # (not yet supported)
 
     def __content_str__(self) -> str:
         path_str = self.bench_slug or ""
@@ -2397,7 +2412,7 @@ class Link(Node):
     """A reference to another node in some tree. The referenced subtree is inlined on access."""
 
     parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
-    reference: Optional[Node] = p_tracked(
+    reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
     order_key: Optional[str] = p_internal(31, default=None)
@@ -2408,7 +2423,7 @@ class Skip(Node):
     """A reference to another node in some tree that wasn't available for some reason (usually permissions)."""
 
     parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
-    reference: Optional[Node] = p_tracked(
+    reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
     order_key: Optional[str] = p_internal(31, default=None)
@@ -2421,12 +2436,12 @@ class Bench(ScopeNode):
     """
 
     parent: None = p_parent(4)
-    policies: list["Policy"] | None = p_tracked(
+    policies: list["Policy"] | None = p_regular(
         24, default_factory=list, struct=StructType.POLICY, array=True
     )
     slug: str = p_system(30, unique=True)
-    name: str = p_tracked(31)
-    description: Optional[str] = p_tracked(32, default=None)
+    name: str = p_regular(31)
+    description: Optional[str] = p_regular(32, default=None)
     organization: Optional["Organization"] = p_system(
         33, require=False, array=False, references=NodeType.ORGANIZATION
     )
@@ -2489,7 +2504,7 @@ class Package(ScopeNode):
     """A package is a semi-isolated version of a Bench, containing the actual blocks and so on."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
-    policies: list["Policy"] | None = p_tracked(
+    policies: list["Policy"] | None = p_regular(
         24, default_factory=list, struct=StructType.POLICY, array=True
     )
     is_snapshot: bool = p_system(32, default=False)  # snapshot or head?

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, NamedTuple, Optional, Union
 from uuid import UUID
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, p_internal, p_tracked, struct
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, p_internal, p_regular, struct
 
 if TYPE_CHECKING:
     from bench.language import FieldPath
@@ -144,7 +144,7 @@ def parse_text_multi(text_raw: str) -> list[TextSpan]:
 
 @struct(StructType.RICH_TEXT)
 class RichText(Struct):
-    spans: list["RichTextSpan"] = p_tracked(30, default_factory=list, struct=StructType.RICH_TEXT)
+    spans: list["RichTextSpan"] = p_regular(30, default_factory=list, struct=StructType.RICH_TEXT)
     plain_text: str | None = p_internal(31, default=None)
 
     def __content_str__(self):
@@ -154,21 +154,21 @@ class RichText(Struct):
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
     # plain text
-    text: str | None = p_tracked(30, default="")
+    text: str | None = p_regular(30, default="")
     # mentions
-    reference: Node | None = p_tracked(
+    reference: Node | None = p_regular(
         31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
-    path: Optional["FieldPath"] = p_tracked(
+    path: Optional["FieldPath"] = p_regular(
         32, array=False, default=None, require=False, struct=StructType.FIELD_PATH
     )
 
     # flags
-    is_bold: bool = p_tracked(40, default=False)
-    is_italic: bool = p_tracked(41, default=False)
-    is_strikethrough: bool = p_tracked(42, default=False)
-    is_underline: bool = p_tracked(43, default=False)
-    is_code: bool = p_tracked(44, default=False)
+    is_bold: bool = p_regular(40, default=False)
+    is_italic: bool = p_regular(41, default=False)
+    is_strikethrough: bool = p_regular(42, default=False)
+    is_underline: bool = p_regular(43, default=False)
+    is_code: bool = p_regular(44, default=False)
 
     def __content_str__(self):
         return self.text

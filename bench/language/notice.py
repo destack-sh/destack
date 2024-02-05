@@ -4,7 +4,7 @@ from uuid import UUID
 from bench.language.node import Package, Property
 from bench.language.const import NoticeKind, NodeType, StructType, BenchError
 from bench.language.expression import FieldPath, Property
-from bench.language.node import Node, node, p_parent, p_tracked
+from bench.language.node import Node, node, p_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
@@ -58,14 +58,14 @@ class NoticeError(BenchError, ValueError):
 @node(NodeType.NOTICE)
 class Notice(Node):
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    kind: NoticeKind = p_tracked(30, default=None, validate=enum_validator(NoticeKind))
-    type: NoticeType = p_tracked(31, validate=enum_validator(NoticeType))
+    kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
+    type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
-    message: str = p_tracked(33)
-    path: Optional[FieldPath] = p_tracked(
+    message: str = p_regular(33)
+    path: Optional[FieldPath] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.FIELD_PATH
     )
-    properties: Optional[list[Property]] = p_tracked(
+    properties: Optional[list[Property]] = p_regular(
         35, default=None, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 

@@ -16,20 +16,17 @@ message ClientOrigin {
 // Core metadata for all RPC requests.
 // (This is passed as specially encoded headers, but it's nice to have a common definition.)
 message RpcMetadata {
-  // Client origin
+  // Client
   optional ClientKind client_kind = 1;
   optional string client_id = 2;
   optional string client_nonce = 3;
   optional string client_access_token = 4;
 
-  // Scope
-  optional string bench_id = 5;
-
   // Badge
-  optional string badge_id = 7;
-  optional string badge_link_token = 8;
-  optional string badge_link_password = 9;
-  optional string badge_key_value = 10;
+  optional string badge_id = 5;
+  optional string badge_link_token = 6;
+  optional string badge_link_password = 7;
+  optional string badge_key_value = 8;
 }
 
 

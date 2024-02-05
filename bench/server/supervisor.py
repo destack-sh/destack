@@ -122,14 +122,21 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         )
 
     async def logout_user(self, request: "LogoutUserRequest") -> "LogoutUserResponse":
-        client: Client | None = self.subject.client
-        if client is None:
+        if self.subject.client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         async with detached_session() as session:
-            session.track(client)
-            client.logged_in_at = None
-            client.access_token = None
-            client.last_seen_at = utcnow_with_tz()
+            # log out the current or the specified clients
+            if request.client_ids:
+                clients = await Client.filter(
+                    parent=self.subject.user, id__in=request.client_ids
+                ).tolist()
+            else:
+                clients = (self.subject.client,)
+                session.track(self.subject.client)
+            for client in clients:
+                client.logged_in_at = None
+                client.access_token = None
+                client.last_seen_at = utcnow_with_tz()
             await session.commit()
         return LogoutUserResponse()
 

@@ -565,8 +565,8 @@ message AccessMatrixData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
   repeated RequestSubjectData identities = 32;
-  repeated AccessZoneData zones = 33;
-  repeated PolicyRuleData base_zones = 34;
+  repeated AccessZoneData scope_zones = 33;
+  repeated AccessZoneData base_zones = 34;
 }
 
 // The pre-filtered access rules for a given identity.
@@ -745,26 +745,28 @@ message PolicyData {
   optional string name = 30;
   optional RichTextData text = 31;
   repeated PolicyRuleData rules = 32;
-  bool hidden = 33;
-  repeated NodeReferenceData scopes_ptr = 34;
+  repeated NodeReferenceData scopes_ptr = 33;
 }
 
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
-//     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
+//     The 3 groups (subject/verb/object) are ORed together, but inner-group conditions are ANDed.
+//     (where None/empty -> wildcard, any value -> filter)
 message PolicyRuleData {
   BenchType metatype = 1;
   optional string name = 30;
   optional RichTextData text = 31;
-  bool subject_is_delegated = 40;
-  bool subject_is_authenticated = 41;
-  bool subject_is_staff = 42;
-  bool subject_is_member = 43;
-  bool subject_is_owner = 44;
+  optional bool subject_is_delegated = 40;
+  optional bool subject_is_authenticated = 41;
+  optional bool subject_is_staff = 42;
+  optional bool subject_is_member = 43;
+  optional bool subject_is_owner = 44;
   PolicyEffect effect = 60;
   repeated ActionType verbs = 61;
   repeated ActionKind verb_kinds = 62;
   repeated NodeType object_node_types = 80;
   repeated PropertyReferenceData object_properties_ptr = 81;
+  optional bool object_properties_is_system = 82;
+  optional bool object_properties_is_sensitive = 83;
 }
 
 // A path of Node/Struct properties.

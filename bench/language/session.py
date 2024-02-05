@@ -18,6 +18,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from bitarray import bitarray
 import psycopg
 import structlog
 
@@ -45,6 +46,7 @@ from bench.language.node import (
     struct,
     p_internal,
     p_runtime,
+    Property,
 )
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
@@ -96,7 +98,7 @@ _Edit = NamedTuple(
     [
         ("kind", EditType),
         ("node", Node),
-        ("properties", tuple[int, ...] | None),
+        ("properties", bitarray | None),
     ],
 )
 _CombinedEdits = NamedTuple(
@@ -418,12 +420,14 @@ class Session(ScopeNode):
 
     def track(self, node: Node):
         """Start tracking the node in this session."""
-        node._track_self(self)
+        if node._session != self:
+            node._track_self(self)
 
     def track_many(self, *nodes: Node):
         """Start tracking the nodes in this session."""
         for n in nodes:
-            n._track_self(self)
+            if n._session != self:
+                n._track_self(self)
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""
@@ -454,21 +458,21 @@ class Session(ScopeNode):
         for n in nodes:
             self._edit(EditType.UPSERT, n=n)
 
-    def update(self, n: Node, properties: list[str]):
+    def update(self, n: Node, properties: list[Property] | tuple[Property, ...]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if n.ck not in self._created_nodes_ck:
             self._edit(EditType.UPDATE, n=n, properties=properties)
 
-    def update_many(self, *nodes: Node, properties: list[str]):
+    def update_many(self, *nodes: Node, properties: list[Property] | tuple[Property, ...]):
         for n in nodes:
             if n.ck not in self._created_nodes_ck:
                 self._edit(EditType.UPDATE, n=n, properties=properties)
 
-    def move(self, n: Node, properties: list[str] = None):
+    def move(self, n: Node, properties: list[Property] | tuple[Property, ...] = None):
         """Moves and updates an existing node. Can update any properties."""
         self._edit(EditType.MOVE, n=n, properties=properties)
 
-    def move_many(self, *nodes: Node, properties: list[str] = None):
+    def move_many(self, *nodes: Node, properties: list[Property] | tuple[Property, ...] = None):
         for n in nodes:
             self._edit(EditType.MOVE, n=n, properties=properties)
 
@@ -528,7 +532,7 @@ class Session(ScopeNode):
         self._touched_databases_by_id[database.id] = database
         self._changed_record_ids_by_db_id[database.id].update(record_ids)
 
-    def _edit(self, kind: EditType, n: Node, properties: list[str] = None):
+    def _edit(self, kind: EditType, n: Node, properties: list[Property] = None):
         """Register a non-session edit event to a node (local or global)."""
         assert self.closed_at is None, f"cannot {kind.name} {n!r} in closed session {self!r}"
         assert n._track & NTL.FULL, f"cannot {kind.name} untracked {n!r}"
@@ -536,8 +540,7 @@ class Session(ScopeNode):
 
         if n.metatype == NodeType.FIELD:
             self._schema_changed = True
-        if properties:
-            properties = tuple(n.__properties__[p].id for p in properties)
+
         edits = self._local_edits if n.__is_local__ else self._global_edits
 
         if kind == EditType.CREATE:
@@ -546,16 +549,20 @@ class Session(ScopeNode):
             # merge with previous update if there is one
             update_idx = self._updated_nodes_event_by_ck.get(n.ck)
             if update_idx is not None:
-                # merge edited properties ids
-                if any(p not in properties for p in properties):
-                    # TODO @Performance: track edited properties more efficiently
-                    edits[update_idx].properties = tuple(
-                        set(edits[update_idx].properties) | set(properties)
-                    )
+                for prop in properties:
+                    edits[update_idx].properties[prop.id] = True
                 return  # merged, ignore this edit
             else:  # remember update event index
                 self._updated_nodes_event_by_ck[n.ck] = len(edits)
-        edit = _Edit(kind=kind, node=n, properties=properties)
+
+        # create new mini-edit
+        if properties:
+            properties_mask = bitarray(n.__max_property_id__ + 1)
+            for prop in properties:
+                properties_mask[prop.id] = True
+        else:
+            properties_mask = None
+        edit = _Edit(kind=kind, node=n, properties=properties_mask)
         edits.append(edit)
 
         if n.metatype == NodeType.RECORD:
@@ -589,11 +596,14 @@ class Session(ScopeNode):
 
             if local:
                 for event in self._local_edits:
+                    properties = (
+                        event.properties.search(True) if event.properties is not None else None
+                    )
                     edit = EditData(
                         type=event.kind,
                         node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
                         node=wrap_some_node(pack_node(cast(Record, event.node))),
-                        properties=event.properties,
+                        properties=properties,
                     )
                     if not global_:  # not needed if including everything
                         local_seen_cks.add(cast(Record, event.node).ck)
@@ -604,11 +614,14 @@ class Session(ScopeNode):
             global_edits: list[EditData] | None = [] if global_ else None
             if global_:
                 for event in self._global_edits:
+                    properties = (
+                        event.properties.search(True) if event.properties is not None else None
+                    )
                     edit = EditData(
                         type=event.kind,
                         node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
                         node=wrap_some_node(pack_node(event.node)),
-                        properties=event.properties,
+                        properties=properties,
                     )
                     global_edits.append(edit)
                 self._global_edits.clear()

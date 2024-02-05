@@ -6,6 +6,7 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, ReadOptions, User
+from bench.language.const import NodeType
 from bench.proto import wire
 from bench.proto.wire import (
     GlobalSupervisorStub,
@@ -77,7 +78,9 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
     # read user with sensitive data, unauthorized -> success but empty (except public data)
     read_user_req = ReadNodesRequest(
         roots=[user.to_ref()._to_data()],
-        options=ReadOptions(include_properties=[User.email])._to_data(),
+        options=ReadOptions(
+            include_properties=[User.email], descendant_types=[NodeType.CLIENT]
+        )._to_data(),
     )
     _ = await supervisor.read_nodes(read_user_req)
     assert len(read_user_rep.nodes) == 1
@@ -97,13 +100,13 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
 
     # logout, invalid token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
-        bad_access_metadata = replace(access_metadata, client_token="bad")
+        bad_access_metadata = replace(access_metadata, client_access_token="bad")
         _ = await supervisor.logout_user(
             LogoutUserRequest(), metadata=bad_access_metadata.to_headers()
         )
 
     # logout, valid token -> success
-    await supervisor.logout_user(LogoutUserRequest(), metadata=access_metadata.to_headers())
+    _ = await supervisor.logout_user(LogoutUserRequest(), metadata=access_metadata.to_headers())
 
     # read user, logged out, expired token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):

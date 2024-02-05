@@ -125,7 +125,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 log = log.bind(subject=subject)
 
                 # call
-                log.info(rpc_name, metadata=metadata)
+                log.info(rpc_name)
                 await func(stream)
                 duration = asyncio.get_running_loop().time() - start
                 log.info(f"{rpc_name}.done", duration=duration)

@@ -128,6 +128,12 @@ export interface LoginUserResponse {
  * @generated from protobuf message symbolx.bench.LogoutUserRequest
  */
 export interface LogoutUserRequest {
+    /**
+     * If specified, log out only the specified clients (instead of the current client).
+     *
+     * @generated from protobuf field: repeated string client_ids = 1;
+     */
+    clientIds: string[];
 }
 /**
  * @generated from protobuf message symbolx.bench.LogoutUserResponse
@@ -250,9 +256,9 @@ export interface SearchNodesResponse {
      */
     nodes: SomeNodeData[];
     /**
-     * @generated from protobuf field: repeated string roots_ids = 2;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots = 2;
      */
-    rootsIds: string[];
+    roots: NodeReferenceData[];
     /**
      * @generated from protobuf field: repeated string cursors = 3;
      */
@@ -1015,18 +1021,40 @@ export const LoginUserResponse = new LoginUserResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
     constructor() {
-        super("symbolx.bench.LogoutUserRequest", []);
+        super("symbolx.bench.LogoutUserRequest", [
+            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
     create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.clientIds = [];
         if (value !== undefined)
             reflectionMergePartial<LogoutUserRequest>(this, message, value);
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserRequest): LogoutUserRequest {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated string client_ids */ 1:
+                    message.clientIds.push(reader.string());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: LogoutUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated string client_ids = 1; */
+        for (let i = 0; i < message.clientIds.length; i++)
+            writer.tag(1, WireType.LengthDelimited).string(message.clientIds[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1471,7 +1499,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
     constructor() {
         super("symbolx.bench.SearchNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 2, name: "roots_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -1481,7 +1509,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
-        message.rootsIds = [];
+        message.roots = [];
         message.cursors = [];
         message.startCursor = "";
         message.total = 0;
@@ -1497,8 +1525,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                 case /* repeated symbolx.bench.SomeNodeData nodes */ 1:
                     message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated string roots_ids */ 2:
-                    message.rootsIds.push(reader.string());
+                case /* repeated symbolx.bench.NodeReferenceData roots */ 2:
+                    message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated string cursors */ 3:
                     message.cursors.push(reader.string());
@@ -1527,9 +1555,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* repeated symbolx.bench.SomeNodeData nodes = 1; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string roots_ids = 2; */
-        for (let i = 0; i < message.rootsIds.length; i++)
-            writer.tag(2, WireType.LengthDelimited).string(message.rootsIds[i]);
+        /* repeated symbolx.bench.NodeReferenceData roots = 2; */
+        for (let i = 0; i < message.roots.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* repeated string cursors = 3; */
         for (let i = 0; i < message.cursors.length; i++)
             writer.tag(3, WireType.LengthDelimited).string(message.cursors[i]);

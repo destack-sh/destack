@@ -21,7 +21,7 @@ from bench.language.node import (
     node,
     p_parent,
     struct,
-    p_tracked,
+    p_regular,
     BENCH_CLASS_BY_TYPE,
 )
 from bench.sql.core import PrimitiveType
@@ -67,10 +67,10 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 @struct(StructType.NODE_REFERENCE)
 class NodeReference(Struct):
-    type: NodeType = p_tracked(30, require=True)
-    id: Optional[UUID] = p_tracked(31, default=None)
-    ck: Optional[UUID] = p_tracked(32, default=None)
-    base_ck: Optional[UUID] = p_tracked(33, default=None)
+    type: NodeType = p_regular(30, require=True)
+    id: Optional[UUID] = p_regular(31, default=None)
+    ck: Optional[UUID] = p_regular(32, default=None)
+    base_ck: Optional[UUID] = p_regular(33, default=None)
 
     def __content_str__(self):
         return f"{self.type.bench_name}:[id={self.id}, ck={self.ck}]"
@@ -93,10 +93,10 @@ class NodeReference(Struct):
 
 @struct(StructType.PROPERTY_REFERENCE)
 class PropertyReference(Struct):
-    type: BenchType = p_tracked(30, require=True)
-    id: int = p_tracked(31)
+    type: BenchType = p_regular(30, require=True)
+    id: int = p_regular(31)
     # to disambiguate contributed properties
-    references_type: Optional[NodeType] = p_tracked(32)
+    references_type: Optional[NodeType] = p_regular(32)
 
     def __content_str__(self):
         return f"{self.type.bench_name}.[id={self.id}]"
@@ -110,7 +110,7 @@ class PropertyReference(Struct):
 class PropertyPath(Struct):
     """A path of Node/Struct properties."""
 
-    properties: list[Property] = p_tracked(
+    properties: list[Property] = p_regular(
         30, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
@@ -122,7 +122,7 @@ class PropertyPath(Struct):
 class FieldPath(Struct):
     """A path of built-in Node/Struct properties and user-defined Fields."""
 
-    segments: list["FieldPathSegment"] = p_tracked(
+    segments: list["FieldPathSegment"] = p_regular(
         30, require=True, array=True, struct=StructType.FIELD_PATH_SEGMENT
     )
 
@@ -134,10 +134,10 @@ class FieldPath(Struct):
 class FieldPathSegment(Struct):
     """A single segment of a FieldPath."""
 
-    property: Optional[Property] = p_tracked(
+    property: Optional[Property] = p_regular(
         30, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    field: Optional["Field"] = p_tracked(31, require=False, array=False, references=NodeType.FIELD)
+    field: Optional["Field"] = p_regular(31, require=False, array=False, references=NodeType.FIELD)
 
     def __content_str__(self):
         return f"{self.property.name}{f'.{self.field}' if self.field else ''}"
@@ -147,8 +147,8 @@ class FieldPathSegment(Struct):
 class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
-    node: Node = p_tracked(30, require=True, array=False, references=(NodeType.BLOCK,))
-    path: FieldPath = p_tracked(31, require=True, struct=StructType.FIELD_PATH)
+    node: Node = p_regular(30, require=True, array=False, references=(NodeType.BLOCK,))
+    path: FieldPath = p_regular(31, require=True, struct=StructType.FIELD_PATH)
 
     def __content_str__(self):
         if self.node is not None:
@@ -182,14 +182,14 @@ __property__ = property
 class Expression(Struct):
     """An expression (conditional, aggregation, sort, etc)."""
 
-    op: ExpressionOp = p_tracked(30, require=True)
-    field: Optional["Field"] = p_tracked(31, require=False, array=False, references=NodeType.FIELD)
-    property: Optional[Property] = p_tracked(
+    op: ExpressionOp = p_regular(30, require=True)
+    field: Optional["Field"] = p_regular(31, require=False, array=False, references=NodeType.FIELD)
+    property: Optional[Property] = p_regular(
         32, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    clauses: list["Expression"] | None = p_tracked(35, default=None, struct=StructType.EXPRESSION)
-    value: Any = p_tracked(36, default=None, primitive_type=PrimitiveType.JSON)
-    mode: Optional[SortMode] = p_tracked(37, default=None)
+    clauses: list["Expression"] | None = p_regular(35, default=None, struct=StructType.EXPRESSION)
+    value: Any = p_regular(36, default=None, primitive_type=PrimitiveType.JSON)
+    mode: Optional[SortMode] = p_regular(37, default=None)
 
     @__property__
     def kind(self) -> ExpressionKind:
@@ -347,10 +347,10 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 class Aggregation(Struct):
     """The result of an aggregation expression."""
 
-    op: AggregationOp = p_tracked(30, require=True)
-    exists: Optional[bool] = p_tracked(31, default=False)
-    scalar: Optional[float] = p_tracked(32, default=None)
-    buckets: list["AggregationBucket"] | None = p_tracked(
+    op: AggregationOp = p_regular(30, require=True)
+    exists: Optional[bool] = p_regular(31, default=False)
+    scalar: Optional[float] = p_regular(32, default=None)
+    buckets: list["AggregationBucket"] | None = p_regular(
         33, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
     )
 
@@ -359,8 +359,8 @@ class Aggregation(Struct):
 class AggregationBucket(Struct):
     """One bucket of an aggregation histogram."""
 
-    key: Any = p_tracked(30, require=True, primitive_type=PrimitiveType.JSON)
-    count: int = p_tracked(31, require=True)
+    key: Any = p_regular(30, require=True, primitive_type=PrimitiveType.JSON)
+    count: int = p_regular(31, require=True)
 
 
 def coerce_conditional(
@@ -394,11 +394,11 @@ def coerce_conditional(
             target = node.fields.get(field_key)
         if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
-        _check_field_supports(target._as_type, op)
-        if isinstance(target, Property):
+        elif isinstance(target, Property):
             field, property = None, target
         else:
             field, property = target, None
+        _check_field_supports(target._as_type, op)
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
@@ -451,7 +451,7 @@ def coerce_sort(
                 target = node.fields.get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
-            if isinstance(target, Property):
+            elif isinstance(target, Property):
                 item = S(op, field=None, property=target)
             else:
                 item = S(op, field=target, property=None)
@@ -537,14 +537,14 @@ class Query(Node):
     """A persistent query."""
 
     parent: Union["Block"] = p_parent(4, NodeType.BLOCK)
-    name: str | None = p_tracked(30, default=None)
-    order_key: str | None = p_tracked(31, default=None)
-    node_type: NodeType = p_tracked(32)
-    bases: list["Block"] | None = p_tracked(
+    name: str | None = p_regular(30, default=None)
+    order_key: str | None = p_regular(31, default=None)
+    node_type: NodeType = p_regular(32)
+    bases: list["Block"] | None = p_regular(
         33, array=True, require=False, default=None, references=NodeType.BLOCK
     )
-    filter: Optional[Expression] = p_tracked(34, default=None, struct=StructType.EXPRESSION)
-    sort: Optional[list[Expression]] = p_tracked(35, default=None, struct=StructType.EXPRESSION)
+    filter: Optional[Expression] = p_regular(34, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list[Expression]] = p_regular(35, default=None, struct=StructType.EXPRESSION)
 
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"

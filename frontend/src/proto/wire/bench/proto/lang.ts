@@ -32,13 +32,13 @@ export interface AccessMatrixData {
      */
     identities: RequestSubjectData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.AccessZoneData zones = 33;
+     * @generated from protobuf field: repeated symbolx.bench.AccessZoneData scope_zones = 33;
      */
-    zones: AccessZoneData[];
+    scopeZones: AccessZoneData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData base_zones = 34;
+     * @generated from protobuf field: repeated symbolx.bench.AccessZoneData base_zones = 34;
      */
-    baseZones: PolicyRuleData[];
+    baseZones: AccessZoneData[];
 }
 /**
  * The pre-filtered access rules for a given identity.
@@ -464,17 +464,14 @@ export interface PolicyData {
      */
     rules: PolicyRuleData[];
     /**
-     * @generated from protobuf field: bool hidden = 33;
-     */
-    hidden: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData scopes_ptr = 34;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData scopes_ptr = 33;
      */
     scopesPtr: NodeReferenceData[];
 }
 /**
  * A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
- *     If set, subject/verb/object are ORed together, i.e. any overlap is a match.
+ *     The 3 groups (subject/verb/object) are ORed together, but inner-group conditions are ANDed.
+ *     (where None/empty -> wildcard, any value -> filter)
  *
  * @generated from protobuf message symbolx.bench.PolicyRuleData
  */
@@ -492,25 +489,25 @@ export interface PolicyRuleData {
      */
     text?: RichTextData;
     /**
-     * @generated from protobuf field: bool subject_is_delegated = 40;
+     * @generated from protobuf field: optional bool subject_is_delegated = 40;
      */
-    subjectIsDelegated: boolean;
+    subjectIsDelegated?: boolean;
     /**
-     * @generated from protobuf field: bool subject_is_authenticated = 41;
+     * @generated from protobuf field: optional bool subject_is_authenticated = 41;
      */
-    subjectIsAuthenticated: boolean;
+    subjectIsAuthenticated?: boolean;
     /**
-     * @generated from protobuf field: bool subject_is_staff = 42;
+     * @generated from protobuf field: optional bool subject_is_staff = 42;
      */
-    subjectIsStaff: boolean;
+    subjectIsStaff?: boolean;
     /**
-     * @generated from protobuf field: bool subject_is_member = 43;
+     * @generated from protobuf field: optional bool subject_is_member = 43;
      */
-    subjectIsMember: boolean;
+    subjectIsMember?: boolean;
     /**
-     * @generated from protobuf field: bool subject_is_owner = 44;
+     * @generated from protobuf field: optional bool subject_is_owner = 44;
      */
-    subjectIsOwner: boolean;
+    subjectIsOwner?: boolean;
     /**
      * @generated from protobuf field: symbolx.bench.PolicyEffect effect = 60;
      */
@@ -531,6 +528,14 @@ export interface PolicyRuleData {
      * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 81;
      */
     objectPropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: optional bool object_properties_is_system = 82;
+     */
+    objectPropertiesIsSystem?: boolean;
+    /**
+     * @generated from protobuf field: optional bool object_properties_is_sensitive = 83;
+     */
+    objectPropertiesIsSensitive?: boolean;
 }
 /**
  * A path of Node/Struct properties.
@@ -5186,15 +5191,15 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
             { no: 32, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestSubjectData },
-            { no: 33, name: "zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
-            { no: 34, name: "base_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData }
+            { no: 33, name: "scope_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
+            { no: 34, name: "base_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData }
         ]);
     }
     create(value?: PartialMessage<AccessMatrixData>): AccessMatrixData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.identities = [];
-        message.zones = [];
+        message.scopeZones = [];
         message.baseZones = [];
         if (value !== undefined)
             reflectionMergePartial<AccessMatrixData>(this, message, value);
@@ -5214,11 +5219,11 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                 case /* repeated symbolx.bench.RequestSubjectData identities */ 32:
                     message.identities.push(RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.AccessZoneData zones */ 33:
-                    message.zones.push(AccessZoneData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.AccessZoneData scope_zones */ 33:
+                    message.scopeZones.push(AccessZoneData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.PolicyRuleData base_zones */ 34:
-                    message.baseZones.push(PolicyRuleData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.AccessZoneData base_zones */ 34:
+                    message.baseZones.push(AccessZoneData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -5241,12 +5246,12 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* repeated symbolx.bench.RequestSubjectData identities = 32; */
         for (let i = 0; i < message.identities.length; i++)
             RequestSubjectData.internalBinaryWrite(message.identities[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.AccessZoneData zones = 33; */
-        for (let i = 0; i < message.zones.length; i++)
-            AccessZoneData.internalBinaryWrite(message.zones[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyRuleData base_zones = 34; */
+        /* repeated symbolx.bench.AccessZoneData scope_zones = 33; */
+        for (let i = 0; i < message.scopeZones.length; i++)
+            AccessZoneData.internalBinaryWrite(message.scopeZones[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.AccessZoneData base_zones = 34; */
         for (let i = 0; i < message.baseZones.length; i++)
-            PolicyRuleData.internalBinaryWrite(message.baseZones[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            AccessZoneData.internalBinaryWrite(message.baseZones[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -6222,15 +6227,13 @@ class PolicyData$Type extends MessageType<PolicyData> {
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => RichTextData },
             { no: 32, name: "rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData },
-            { no: 33, name: "hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 34, name: "scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 33, name: "scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PolicyData>): PolicyData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.rules = [];
-        message.hidden = false;
         message.scopesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<PolicyData>(this, message, value);
@@ -6253,10 +6256,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
                 case /* repeated symbolx.bench.PolicyRuleData rules */ 32:
                     message.rules.push(PolicyRuleData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool hidden */ 33:
-                    message.hidden = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData scopes_ptr */ 34:
+                case /* repeated symbolx.bench.NodeReferenceData scopes_ptr */ 33:
                     message.scopesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -6283,12 +6283,9 @@ class PolicyData$Type extends MessageType<PolicyData> {
         /* repeated symbolx.bench.PolicyRuleData rules = 32; */
         for (let i = 0; i < message.rules.length; i++)
             PolicyRuleData.internalBinaryWrite(message.rules[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* bool hidden = 33; */
-        if (message.hidden !== false)
-            writer.tag(33, WireType.Varint).bool(message.hidden);
-        /* repeated symbolx.bench.NodeReferenceData scopes_ptr = 34; */
+        /* repeated symbolx.bench.NodeReferenceData scopes_ptr = 33; */
         for (let i = 0; i < message.scopesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.scopesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.scopesPtr[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -6306,26 +6303,23 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => RichTextData },
-            { no: 40, name: "subject_is_delegated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 41, name: "subject_is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 42, name: "subject_is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 43, name: "subject_is_member", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 44, name: "subject_is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 40, name: "subject_is_delegated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "subject_is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 42, name: "subject_is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 43, name: "subject_is_member", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 44, name: "subject_is_owner", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "effect", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 61, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
             { no: 62, name: "verb_kinds", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
             { no: 80, name: "object_node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 81, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 81, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 82, name: "object_properties_is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "object_properties_is_sensitive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.subjectIsDelegated = false;
-        message.subjectIsAuthenticated = false;
-        message.subjectIsStaff = false;
-        message.subjectIsMember = false;
-        message.subjectIsOwner = false;
         message.effect = 0;
         message.verbs = [];
         message.verbKinds = [];
@@ -6349,19 +6343,19 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* optional symbolx.bench.RichTextData text */ 31:
                     message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* bool subject_is_delegated */ 40:
+                case /* optional bool subject_is_delegated */ 40:
                     message.subjectIsDelegated = reader.bool();
                     break;
-                case /* bool subject_is_authenticated */ 41:
+                case /* optional bool subject_is_authenticated */ 41:
                     message.subjectIsAuthenticated = reader.bool();
                     break;
-                case /* bool subject_is_staff */ 42:
+                case /* optional bool subject_is_staff */ 42:
                     message.subjectIsStaff = reader.bool();
                     break;
-                case /* bool subject_is_member */ 43:
+                case /* optional bool subject_is_member */ 43:
                     message.subjectIsMember = reader.bool();
                     break;
-                case /* bool subject_is_owner */ 44:
+                case /* optional bool subject_is_owner */ 44:
                     message.subjectIsOwner = reader.bool();
                     break;
                 case /* symbolx.bench.PolicyEffect effect */ 60:
@@ -6391,6 +6385,12 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr */ 81:
                     message.objectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional bool object_properties_is_system */ 82:
+                    message.objectPropertiesIsSystem = reader.bool();
+                    break;
+                case /* optional bool object_properties_is_sensitive */ 83:
+                    message.objectPropertiesIsSensitive = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -6412,20 +6412,20 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* optional symbolx.bench.RichTextData text = 31; */
         if (message.text)
             RichTextData.internalBinaryWrite(message.text, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* bool subject_is_delegated = 40; */
-        if (message.subjectIsDelegated !== false)
+        /* optional bool subject_is_delegated = 40; */
+        if (message.subjectIsDelegated !== undefined)
             writer.tag(40, WireType.Varint).bool(message.subjectIsDelegated);
-        /* bool subject_is_authenticated = 41; */
-        if (message.subjectIsAuthenticated !== false)
+        /* optional bool subject_is_authenticated = 41; */
+        if (message.subjectIsAuthenticated !== undefined)
             writer.tag(41, WireType.Varint).bool(message.subjectIsAuthenticated);
-        /* bool subject_is_staff = 42; */
-        if (message.subjectIsStaff !== false)
+        /* optional bool subject_is_staff = 42; */
+        if (message.subjectIsStaff !== undefined)
             writer.tag(42, WireType.Varint).bool(message.subjectIsStaff);
-        /* bool subject_is_member = 43; */
-        if (message.subjectIsMember !== false)
+        /* optional bool subject_is_member = 43; */
+        if (message.subjectIsMember !== undefined)
             writer.tag(43, WireType.Varint).bool(message.subjectIsMember);
-        /* bool subject_is_owner = 44; */
-        if (message.subjectIsOwner !== false)
+        /* optional bool subject_is_owner = 44; */
+        if (message.subjectIsOwner !== undefined)
             writer.tag(44, WireType.Varint).bool(message.subjectIsOwner);
         /* symbolx.bench.PolicyEffect effect = 60; */
         if (message.effect !== 0)
@@ -6454,6 +6454,12 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 81; */
         for (let i = 0; i < message.objectPropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.objectPropertiesPtr[i], writer.tag(81, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool object_properties_is_system = 82; */
+        if (message.objectPropertiesIsSystem !== undefined)
+            writer.tag(82, WireType.Varint).bool(message.objectPropertiesIsSystem);
+        /* optional bool object_properties_is_sensitive = 83; */
+        if (message.objectPropertiesIsSensitive !== undefined)
+            writer.tag(83, WireType.Varint).bool(message.objectPropertiesIsSensitive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

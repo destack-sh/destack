@@ -2,7 +2,7 @@ import enum
 from collections import OrderedDict
 from copy import copy
 from itertools import chain
-from typing import Any, TypeVar, Union, cast
+from typing import Any, TypeVar, Union, cast, Collection
 from uuid import UUID
 
 import betterproto
@@ -260,29 +260,32 @@ def unpack_nodes_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
-) -> tuple[Node, ...]:
-    """Unpack a node and all its inline descendants"""
+    roots: Collection[NodeDataT] = None,
+) -> tuple[Node, ...] | list[Node]:
+    """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
+
     exclude = exclude or tuple()
-    unpacked_trees: list[Node] = []
-    for root_data in source_tree.find_roots():
+    unpacked_roots: list[Node] = []
+    source_roots = source_tree.find_roots()
+    if roots is not None and len(roots) != len(source_roots):
+        raise ValueError(f"wanted {len(roots)} roots, got {len(source_roots)} in {source_tree!r}")
+
+    for i, root_data in enumerate(source_roots):
         unpacked_tree = NodeTree()
         # unpack all nodes top down (breadth first)
         for node_data in chain((root_data,), source_tree.iter_descendants(root_data)):
             if node_data.metatype in exclude:
                 continue
 
-            if node_data.parent_ptr is None:
+            node_parent_id: UUID | None = (
+                to_uuid(node_data.parent_ptr.id) if node_data.parent_ptr is not None else None
+            )
+            if node_parent_id is None or parent is not None and node_parent_id == parent.id:
                 node_parent = parent
-            elif node_data.parent_ptr.id not in unpacked_tree.nodes_by_id:
-                if parent is not None and node_data.parent_ptr.id == parent.id:
-                    node_parent = parent
-                else:
-                    logger.warn(
-                        f"node {node_data.id} parent {node_data.parent_ptr} not in unpacked {unpacked_tree!r}"
-                    )
-                    continue  # can happen if there was a race condition in delete cascade and create
             else:
-                node_parent = unpacked_tree.get(to_uuid(node_data.parent_ptr.id))
+                node_parent = unpacked_tree.get(node_parent_id)
+                if node_parent is None:
+                    raise ValueError(f"parent {node_parent_id} not found in {unpacked_tree!r}")
             node = unpack_node(node_data, node_parent, session=session)
 
             # keep parent instance if it was passed (update in place)
@@ -295,18 +298,31 @@ def unpack_nodes_inline(
             unpacked_tree.add(node)
 
         # index & recover node lists
-        root_data = unpacked_tree.find_root()
-        assert root_data is not None, f"{unpacked_tree} for {root_data} has no root"
-        if isinstance(root_data, ScopeNode):
-            root_data._root_tree.set(unpacked_tree.nodes)
+        root = unpacked_tree.find_root()
+        if root is None:
+            raise ValueError(f"no root found in {unpacked_tree!r}")
+        if isinstance(root, ScopeNode):
+            root._root_tree.set(unpacked_tree.nodes)
         for node in unpacked_tree.nodes_by_id.values():
             node._status = (
                 NodeStatus.SOURCE
             )  # status is auto-set to interpreted if a session is active
+        unpacked_roots.append(root)
 
-        unpacked_roots.append(root_data)
-
-    return tuple(unpacked_roots)
+    if roots:
+        # recover roots if specified (may not be actual roots)
+        recovered_roots = []
+        for root in roots:
+            for found_root in unpacked_roots:  # somewhat inefficient...
+                recovered = found_root._root_tree.get(to_uuid(root.id))
+                if recovered is not None:
+                    recovered_roots.append(recovered)
+                    break
+            else:
+                raise ValueError(f"root {root} not found in {unpacked_roots!r}")
+        return recovered_roots
+    else:
+        return unpacked_roots
 
 
 def unpack_node_inline(
@@ -314,9 +330,12 @@ def unpack_node_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
+    root: NodeDataT = None,
 ) -> Node:
     """Unpack a node and all its inline descendants"""
-    roots = unpack_nodes_inline(source_tree, parent, session, exclude)
+    roots = unpack_nodes_inline(
+        source_tree, parent, session, exclude, roots=[root] if root is not None else None
+    )
     if len(roots) != 1:
         raise ValueError(f"expected 1 root, got {len(roots)}")
     return roots[0]

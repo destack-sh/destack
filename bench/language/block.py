@@ -19,7 +19,7 @@ from bench.language.node import (
     p_child,
     p_internal,
     p_parent,
-    p_tracked,
+    p_regular,
 )
 from bench.language.run import HasRun
 from bench.language.tag import HasTags
@@ -134,20 +134,20 @@ class Block(ScopeNode, HasTags):
     children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
-    visibility: NodeVisibility = p_tracked(20, default=NodeVisibility.PUBLIC)
-    policies: list["Policy"] | None = p_tracked(24, default_factory=list, struct=StructType.POLICY)
+    visibility: NodeVisibility = p_regular(20, default=NodeVisibility.PUBLIC)
+    policies: list["Policy"] | None = p_regular(24, default_factory=list, struct=StructType.POLICY)
     type: BlockType = p_internal(30, default=BlockType.BLANK)
-    bases: list["Block"] | None = p_tracked(
+    bases: list["Block"] | None = p_regular(
         31, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = p_tracked(32, default=None, struct=StructType.TYPE_INFO)
-    is_page: bool = p_tracked(33, default=False)
+    builtin_base: Optional["TypeInfo"] = p_regular(32, default=None, struct=StructType.TYPE_INFO)
+    is_page: bool = p_regular(33, default=False)
 
     # shared
-    name: str | None = p_tracked(40, default=None, validate=validate_name)
+    name: str | None = p_regular(40, default=None, validate=validate_name)
     order_key: str | None = p_internal(41, default=None)
     dynamic_key: str | None = p_internal(42, default=None)
-    text: str | None = p_tracked(43, default=None)
+    text: str | None = p_regular(43, default=None)
     value_packed: Any | None = p_internal(
         44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
@@ -160,13 +160,13 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    code: str | None = p_tracked(50, default=None)
+    code: str | None = p_regular(50, default=None)
 
     # specific
-    reference: Optional["Block"] = p_tracked(
+    reference: Optional["Block"] = p_regular(
         51, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] | None = p_tracked(
+    delegated_policies: list["Policy"] | None = p_regular(
         52, default_factory=list, struct=StructType.POLICY
     )
 

@@ -13,7 +13,7 @@ from bench.language.node import (
     p_child,
     node_component,
     p_parent,
-    p_tracked,
+    p_regular,
     struct,
     Struct,
 )
@@ -34,14 +34,14 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Schedule(Struct):
     """The time-based schedule of something."""
 
-    type: ScheduleType = p_tracked(30, require=True, validate=enum_validator(ScheduleType))
-    timezone: Optional[str] = p_tracked(31, default=pytz.utc.zone)
-    interval: Optional[int] = p_tracked(
+    type: ScheduleType = p_regular(30, require=True, validate=enum_validator(ScheduleType))
+    timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
+    interval: Optional[int] = p_regular(
         32,
         default=None,
         validate=int_range_validator(TRIGGER_INTERVAL_USR_MIN, TRIGGER_INTERVAL_ABS_MAX),
     )
-    cron: Optional[str] = p_tracked(33, default=None)
+    cron: Optional[str] = p_regular(33, default=None)
 
     def __content_str__(self) -> str:
         return f"{self.type} {self.timezone} {self.interval or self.cron}"
@@ -63,13 +63,13 @@ class Schedule(Struct):
 @node(NodeType.TRIGGER)
 class Trigger(Node):
     parent: "Block" = p_parent(4, NodeType.BLOCK)
-    type: TriggerType = p_tracked(30, require=True, validate=enum_validator(TriggerType))
-    name: str | None = p_tracked(31, default=None)
-    active: bool = p_tracked(32, default=True)
-    schedule: Optional[Schedule] = p_tracked(
+    type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
+    name: str | None = p_regular(31, default=None)
+    active: bool = p_regular(32, default=True)
+    schedule: Optional[Schedule] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
-    signal: Optional["Block"] = p_tracked(
+    signal: Optional["Block"] = p_regular(
         34, default=None, require=False, array=False, references=NodeType.BLOCK
     )
     # cursor, filter, ...

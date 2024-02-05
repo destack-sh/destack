@@ -11,7 +11,7 @@ from bench.language.node import (
     p_child,
     p_internal,
     p_parent,
-    p_tracked,
+    p_regular,
     struct,
 )
 from bench.language.validation import enum_validator
@@ -62,9 +62,9 @@ class View(ScopeNode, HasViews):
     parent: Union["Space", "View", "Block"] = p_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
-    type: ViewType = p_tracked(30, require=True, validate=enum_validator(ViewType))
-    name: Optional[str] = p_tracked(31, default=None)
-    icon: Optional["Icon"] = p_tracked(
+    type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
+    name: Optional[str] = p_regular(31, default=None)
+    icon: Optional["Icon"] = p_regular(
         32, default=None, require=False, array=False, struct=StructType.ICON
     )
 
@@ -79,14 +79,14 @@ class Space(ScopeNode, HasViews):
     """A space for a user to interact with the Bench."""
 
     parent: Package = p_parent(4, NodeType.PACKAGE)
-    policies: list["Policy"] | None = p_tracked(
+    policies: list["Policy"] | None = p_regular(
         24, default_factory=list, struct=StructType.POLICY, array=True
     )
 
-    name: str = p_tracked(31)
+    name: str = p_regular(31)
     order_key: str = p_internal(32)
     # layout/views/...
-    dock: "SpaceDock" = p_tracked(34, require=True, array=False, struct=StructType.SPACE_DOCK)
+    dock: "SpaceDock" = p_regular(34, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
 class SpaceDockItemType(IdEnum):
@@ -100,14 +100,14 @@ class SpaceDockItemType(IdEnum):
 
 @struct(StructType.SPACE_DOCK_ITEM)
 class SpaceDockItem(Struct):
-    # type: SpaceDockItemType = p_tracked(
+    # type: SpaceDockItemType = p_regular(
     #     30, require=True, validate=enum_validator(SpaceDockItemType)
     # )
-    hidden: bool = p_tracked(31, default=False)
+    hidden: bool = p_regular(31, default=False)
 
 
 @struct(StructType.SPACE_DOCK)
 class SpaceDock(Struct):
-    items: list[SpaceDockItem] = p_tracked(
+    items: list[SpaceDockItem] = p_regular(
         30, require=True, array=True, default_factory=list, struct=StructType.SPACE_DOCK_ITEM
     )

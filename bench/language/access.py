@@ -22,7 +22,6 @@ from bench.language.const import (
     StructType,
     ReadType,
     UNSET,
-    ACTION_TYPES,
     ACTION_CLASSES,
 )
 from bench.language.link import on_notice_raise
@@ -38,7 +37,7 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_runtime,
-    p_tracked,
+    p_regular,
     struct,
     CHILD_NODE_TYPES,
 )
@@ -70,10 +69,10 @@ class Badge(Node):
     """
 
     parent: Union[Package, "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
-    type: BadgeType = p_tracked(30)
-    name: Optional[str] = p_tracked(31)
-    delegated_policies: list["Policy"] = p_tracked(32, array=True, struct=StructType.POLICY)
-    expires_at: Optional[datetime] = p_tracked(33, default=None)
+    type: BadgeType = p_regular(30)
+    name: Optional[str] = p_regular(31)
+    delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
+    expires_at: Optional[datetime] = p_regular(33, default=None)
     # sharing link badge
     link_token: Optional[UUID] = p_internal(40, unique=True, default=None)
     link_password: Optional[str] = p_internal(
@@ -100,7 +99,7 @@ class Role(Node):
     """
 
     parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
-    type: "Block" = p_tracked(30, array=False, require=True, references=NodeType.BLOCK)
+    type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
 @node(NodeType.IDENTITY)
@@ -112,7 +111,7 @@ class Identity(Node):
     """
 
     parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
-    type: "Block" = p_tracked(30, array=False, require=True, references=NodeType.BLOCK)
+    type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
 @struct(StructType.READ_OPTIONS)
@@ -123,22 +122,22 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] | None = p_tracked(30, default=None)
-    descendant_types: list[NodeType] | None = p_tracked(31, default=None)
-    related_properties: list[Property] | None = p_tracked(
+    ancestor_types: list[NodeType] | None = p_regular(30, default=None)
+    descendant_types: list[NodeType] | None = p_regular(31, default=None)
+    related_properties: list[Property] | None = p_regular(
         32, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # properties (include/exclude relative to default)
-    include_properties: list[Property] | None = p_tracked(
+    include_properties: list[Property] | None = p_regular(
         40, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    exclude_properties: list[Property] | None = p_tracked(
+    exclude_properties: list[Property] | None = p_regular(
         41, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # filters (global + per type)
-    global_filter: Optional["Expression"] = p_tracked(
+    global_filter: Optional["Expression"] = p_regular(
         50, require=False, default=None, struct=StructType.EXPRESSION
     )
     # (by type is runtime only since we can't / don't need to serialize maps yet)
@@ -224,10 +223,10 @@ class Policy(Struct):
 
     """
 
-    name: Optional[str] = p_tracked(30, default=None)
-    text: Optional["RichText"] = p_tracked(31, default=None, struct=StructType.RICH_TEXT)
-    rules: list["PolicyRule"] = p_tracked(32, default_factory=list, struct=StructType.POLICY_RULE)
-    scopes: list["Block"] | None = p_tracked(
+    name: Optional[str] = p_regular(30, default=None)
+    text: Optional["RichText"] = p_regular(31, default=None, struct=StructType.RICH_TEXT)
+    rules: list["PolicyRule"] = p_regular(32, default_factory=list, struct=StructType.POLICY_RULE)
+    scopes: list["Block"] | None = p_regular(
         33, default=None, require=False, array=True, references=NodeType.BLOCK
     )
 
@@ -251,34 +250,34 @@ class PolicyRule(Struct):
     (where None/empty -> wildcard, any value -> filter)
     """
 
-    name: Optional[str] = p_tracked(30, default=None)
-    text: Optional["RichText"] = p_tracked(31, default=None, struct=StructType.RICH_TEXT)
+    name: Optional[str] = p_regular(30, default=None)
+    text: Optional["RichText"] = p_regular(31, default=None, struct=StructType.RICH_TEXT)
 
     # subject
     # if subject is delegated then it always matches if this rule is present
     #  (and no other subject filters make sense)
-    subject_is_delegated: Optional[bool] = p_tracked(40, default=None)
-    subject_is_authenticated: Optional[bool] = p_tracked(41, default=None)
-    subject_is_staff: Optional[bool] = p_tracked(42, default=None)
+    subject_is_delegated: Optional[bool] = p_regular(40, default=None)
+    subject_is_authenticated: Optional[bool] = p_regular(41, default=None)
+    subject_is_staff: Optional[bool] = p_regular(42, default=None)
     # member/owner is evaluated relative to the object
-    subject_is_member: Optional[bool] = p_tracked(43, default=None)
-    subject_is_owner: Optional[bool] = p_tracked(44, default=None)
+    subject_is_member: Optional[bool] = p_regular(43, default=None)
+    subject_is_owner: Optional[bool] = p_regular(44, default=None)
     # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
-    effect: PolicyEffect = p_tracked(60, default=PolicyEffect.DENY)
-    verbs: list[ActionType] | None = p_tracked(61, default=None)
-    verb_kinds: list[ActionKind] | None = p_tracked(62, default=None)
+    effect: PolicyEffect = p_regular(60, default=PolicyEffect.DENY)
+    verbs: list[ActionType] | None = p_regular(61, default=None)
+    verb_kinds: list[ActionKind] | None = p_regular(62, default=None)
     _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard, except for _properties_is_<...>)
-    object_node_types: Optional[list[NodeType]] = p_tracked(80, default=None)
+    object_node_types: Optional[list[NodeType]] = p_regular(80, default=None)
     _object_node_types_mask: bitarray | None = p_runtime(default=None)
-    object_properties: list[Property] | None = p_tracked(
+    object_properties: list[Property] | None = p_regular(
         81, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    object_properties_is_system: Optional[bool] = p_tracked(82, default=None)
-    object_properties_is_sensitive: Optional[bool] = p_tracked(83, default=None)
+    object_properties_is_system: Optional[bool] = p_regular(82, default=None)
+    object_properties_is_sensitive: Optional[bool] = p_regular(83, default=None)
     _object_properties_masks: dict[NodeType, bitarray] | None = p_runtime(default=None)
 
     # object_properties, object_nodes, object_fields, ...
@@ -460,29 +459,27 @@ class PolicyRule(Struct):
 class RequestSubject(Struct):
     """The <whoever/whatever> issuing a request. Unknown attributes are uninitialized."""
 
-    is_authenticated: bool = p_internal(30)
+    is_authenticated: bool = p_internal(30, default=False)
     is_staff: bool = p_internal(31, default=False)
+    client: Optional["Client"] = p_internal(
+        33, default=None, require=False, array=False, references=NodeType.CLIENT
+    )
+    user: Optional["User"] = p_internal(
+        34, default=None, require=False, array=False, references=NodeType.USER
+    )
+    identity: Optional["Identity"] = p_internal(
+        35, default=None, require=False, array=False, references=NodeType.IDENTITY
+    )
+    badge: Optional["Badge"] = p_internal(
+        36, default=None, require=False, array=False, references=NodeType.BADGE
+    )
     ownerships: list[Owner] = p_internal(
-        32,
+        37,
         require=True,
         array=True,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
     # memberships/roles/...?
-    client: Optional["Client"] = p_internal(
-        35, default=None, require=False, array=False, references=NodeType.CLIENT
-    )
-    user: Optional["User"] = p_internal(
-        36, default=None, require=False, array=False, references=NodeType.USER
-    )
-    identity: Optional["Identity"] = p_internal(
-        37, default=None, require=False, array=False, references=NodeType.IDENTITY
-    )
-    badge: Optional["Badge"] = p_internal(
-        38, default=None, require=False, array=False, references=NodeType.BADGE
-    )
-
-    # groups, identities, roles, ...
 
     def split_into_acting_subjects(self) -> tuple["RequestSubject", ...]:
         """
@@ -493,8 +490,8 @@ class RequestSubject(Struct):
         applicable_principals: list[RequestSubject] = []
         if self.is_authenticated:
             applicable_principals.append(RequestSubject(is_authenticated=True))
-        else:
-            applicable_principals.append(RequestSubject(is_authenticated=False))
+        else:  # anonymous
+            applicable_principals.append(RequestSubject())
         if self.is_staff:
             applicable_principals.append(RequestSubject(is_staff=True))
         if self.client:
@@ -505,6 +502,8 @@ class RequestSubject(Struct):
             applicable_principals.append(RequestSubject(identity=self.identity))
         if self.badge:
             applicable_principals.append(RequestSubject(badge=self.badge))
+        # for role, membership, ownership, ...
+
         assert len(applicable_principals) > 0, f"no applicable principals in {self!r}"
         return tuple(applicable_principals)
 
@@ -516,7 +515,7 @@ class RequestSubject(Struct):
                 if isinstance(value, bool):
                     str_parts.append(prop.name)
                 else:
-                    str_parts.append(repr(value))
+                    str_parts.append(f"{prop.name}={value}")
         if str_parts:
             return f"{', '.join(str_parts)}"
         else:
