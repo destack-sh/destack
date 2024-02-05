@@ -87,6 +87,6 @@ class NoticeHandler:
         type: NoticeType,
         message: Optional[str] = None,
         path: Optional[FieldPath] = None,
-        properties: Optional[list[Property]] = None,
+        properties: Optional[list[Property] | tuple[Property, ...]] = None,
     ):
         pass

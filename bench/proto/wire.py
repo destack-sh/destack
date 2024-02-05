@@ -641,9 +641,8 @@ class ActionData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
-    requests: List["RequestData"] = betterproto.message_field(31)
-    decision: "PolicyEffect" = betterproto.enum_field(32)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    decision: "PolicyEffect" = betterproto.enum_field(31)
+    requests: List["RequestData"] = betterproto.message_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -888,13 +887,16 @@ class ReadOptionsData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RequestData(betterproto.Message):
-    """The result of evaluating a single request."""
+    """
+    A sub-action on some objects as part of a larger Action (by the same
+    subject).
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    verb: "ActionType" = betterproto.enum_field(31)
-    object_type: "BenchType" = betterproto.enum_field(32)
-    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(33)
-    decision: "PolicyEffect" = betterproto.enum_field(34)
+    decision: "PolicyEffect" = betterproto.enum_field(31)
+    verb: "ActionType" = betterproto.enum_field(32)
+    object_type: "BenchType" = betterproto.enum_field(33)
+    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -1929,7 +1931,6 @@ class RpcMetadata(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(5, optional=True)
     """Scope"""
 
-    package_id: Optional[str] = betterproto.string_field(6, optional=True)
     badge_id: Optional[str] = betterproto.string_field(7, optional=True)
     """Badge"""
 
@@ -1941,8 +1942,8 @@ class RpcMetadata(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
     """
-    Edit describes an edit to a node in a Bench. (Manually defined here since
-    Node properties inside structs aren't supported.)
+    Edit describes an edit to a Node. (Manually defined here since inline Node
+    properties inside structs aren't supported.)
     """
 
     type: "EditType" = betterproto.enum_field(1)
@@ -1950,6 +1951,8 @@ class EditData(betterproto.Message):
     node: "SomeNodeData" = betterproto.message_field(3)
     properties: List[int] = betterproto.sint32_field(4)
     origin: "ClientOrigin" = betterproto.message_field(5)
+    package_id: Optional[str] = betterproto.string_field(6, optional=True)
+    """Specify package id for routing (if node is in a Package)."""
 
 
 @dataclass(eq=False, repr=False)
@@ -2015,6 +2018,7 @@ class CreateBenchResponse(betterproto.Message):
 class ReadNodesRequest(betterproto.Message):
     roots: List["NodeReferenceData"] = betterproto.message_field(1)
     options: Optional["ReadOptionsData"] = betterproto.message_field(2, optional=True)
+    package_id: Optional[str] = betterproto.string_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2033,6 +2037,7 @@ class SearchNodesRequest(betterproto.Message):
     after: Optional[str] = betterproto.string_field(6, optional=True)
     options: Optional["ReadOptionsData"] = betterproto.message_field(7, optional=True)
     count: Optional[bool] = betterproto.bool_field(8, optional=True)
+    package_id: Optional[str] = betterproto.string_field(9, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2052,6 +2057,7 @@ class AggregateNodesRequest(betterproto.Message):
     filter: Optional["ExpressionData"] = betterproto.message_field(3, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(4)
     aggregation: "ExpressionData" = betterproto.message_field(5)
+    package_id: Optional[str] = betterproto.string_field(6, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2410,42 +2416,8 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
         ):
             yield response
 
-    async def restart_server(
-        self,
-        restart_server_request: "RestartServerRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PingServerResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.GlobalSupervisor/RestartServer",
-            restart_server_request,
-            PingServerResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
 
-    async def ping_server(
-        self,
-        ping_server_request: "PingServerRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PingServerResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.GlobalSupervisor/PingServer",
-            ping_server_request,
-            PingServerResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-
-class PackageHostStub(betterproto.ServiceStub):
+class BenchHostStub(betterproto.ServiceStub):
     async def read_nodes(
         self,
         read_nodes_request: "ReadNodesRequest",
@@ -2455,7 +2427,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "ReadNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/ReadNodes",
+            "/symbolx.bench.BenchHost/ReadNodes",
             read_nodes_request,
             ReadNodesResponse,
             timeout=timeout,
@@ -2472,7 +2444,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/SearchNodes",
+            "/symbolx.bench.BenchHost/SearchNodes",
             search_nodes_request,
             SearchNodesResponse,
             timeout=timeout,
@@ -2489,7 +2461,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "AggregateNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/AggregateNodes",
+            "/symbolx.bench.BenchHost/AggregateNodes",
             aggregate_nodes_request,
             AggregateNodesResponse,
             timeout=timeout,
@@ -2506,7 +2478,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CommitEditsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/CommitEdits",
+            "/symbolx.bench.BenchHost/CommitEdits",
             commit_edits_request,
             CommitEditsResponse,
             timeout=timeout,
@@ -2523,7 +2495,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> AsyncIterator["WatchEditsResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.PackageHost/WatchEdits",
+            "/symbolx.bench.BenchHost/WatchEdits",
             watch_edits_request,
             WatchEditsResponse,
             timeout=timeout,
@@ -2541,7 +2513,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PushEditsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/PushEdits",
+            "/symbolx.bench.BenchHost/PushEdits",
             push_edits_request,
             PushEditsResponse,
             timeout=timeout,
@@ -2558,7 +2530,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PasteNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/PasteNodes",
+            "/symbolx.bench.BenchHost/PasteNodes",
             paste_nodes_request,
             PasteNodesResponse,
             timeout=timeout,
@@ -2575,7 +2547,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SnapshotPackageResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/Snapshot",
+            "/symbolx.bench.BenchHost/Snapshot",
             snapshot_package_request,
             SnapshotPackageResponse,
             timeout=timeout,
@@ -2592,7 +2564,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "UploadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/UploadFiles",
+            "/symbolx.bench.BenchHost/UploadFiles",
             upload_files_request,
             UploadFilesResponse,
             timeout=timeout,
@@ -2609,7 +2581,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "DownloadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/DownloadFiles",
+            "/symbolx.bench.BenchHost/DownloadFiles",
             download_files_request,
             DownloadFilesResponse,
             timeout=timeout,
@@ -2626,7 +2598,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchLogsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/SearchLogs",
+            "/symbolx.bench.BenchHost/SearchLogs",
             search_logs_request,
             SearchLogsResponse,
             timeout=timeout,
@@ -2643,7 +2615,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> AsyncIterator["WatchLogsResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.PackageHost/WatchLogs",
+            "/symbolx.bench.BenchHost/WatchLogs",
             watch_logs_request,
             WatchLogsResponse,
             timeout=timeout,
@@ -2661,9 +2633,43 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/PushServerLogs",
+            "/symbolx.bench.BenchHost/PushServerLogs",
             push_server_logs_request,
             betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def restart_server(
+        self,
+        restart_server_request: "RestartServerRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PingServerResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.BenchHost/RestartServer",
+            restart_server_request,
+            PingServerResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def ping_server(
+        self,
+        ping_server_request: "PingServerRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PingServerResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.BenchHost/PingServer",
+            ping_server_request,
+            PingServerResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2678,7 +2684,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/StartRun",
+            "/symbolx.bench.BenchHost/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -2695,7 +2701,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/KillRun",
+            "/symbolx.bench.BenchHost/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -2712,7 +2718,7 @@ class PackageHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "RunProxyBlockResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/RunProxyBlock",
+            "/symbolx.bench.BenchHost/RunProxyBlock",
             run_proxy_block_request,
             RunProxyBlockResponse,
             timeout=timeout,
@@ -2849,14 +2855,6 @@ class GlobalSupervisorBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def restart_server(
-        self, restart_server_request: "RestartServerRequest"
-    ) -> "PingServerResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def ping_server(self, ping_server_request: "PingServerRequest") -> "PingServerResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def __rpc_signup_user(
         self, stream: "grpclib.server.Stream[SignupUserRequest, SignupUserResponse]"
     ) -> None:
@@ -2924,20 +2922,6 @@ class GlobalSupervisorBase(ServiceBase):
             request,
         )
 
-    async def __rpc_restart_server(
-        self, stream: "grpclib.server.Stream[RestartServerRequest, PingServerResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.restart_server(request)
-        await stream.send_message(response)
-
-    async def __rpc_ping_server(
-        self, stream: "grpclib.server.Stream[PingServerRequest, PingServerResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.ping_server(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.GlobalSupervisor/SignupUser": grpclib.const.Handler(
@@ -2994,22 +2978,10 @@ class GlobalSupervisorBase(ServiceBase):
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
-            "/symbolx.bench.GlobalSupervisor/RestartServer": grpclib.const.Handler(
-                self.__rpc_restart_server,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                RestartServerRequest,
-                PingServerResponse,
-            ),
-            "/symbolx.bench.GlobalSupervisor/PingServer": grpclib.const.Handler(
-                self.__rpc_ping_server,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PingServerRequest,
-                PingServerResponse,
-            ),
         }
 
 
-class PackageHostBase(ServiceBase):
+class BenchHostBase(ServiceBase):
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -3067,6 +3039,14 @@ class PackageHostBase(ServiceBase):
     async def push_server_logs(
         self, push_server_logs_request: "PushServerLogsRequest"
     ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def restart_server(
+        self, restart_server_request: "RestartServerRequest"
+    ) -> "PingServerResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def ping_server(self, ping_server_request: "PingServerRequest") -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
@@ -3181,6 +3161,20 @@ class PackageHostBase(ServiceBase):
         response = await self.push_server_logs(request)
         await stream.send_message(response)
 
+    async def __rpc_restart_server(
+        self, stream: "grpclib.server.Stream[RestartServerRequest, PingServerResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.restart_server(request)
+        await stream.send_message(response)
+
+    async def __rpc_ping_server(
+        self, stream: "grpclib.server.Stream[PingServerRequest, PingServerResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.ping_server(request)
+        await stream.send_message(response)
+
     async def __rpc_start_run(
         self, stream: "grpclib.server.Stream[StartRunRequest, StartRunResponse]"
     ) -> None:
@@ -3205,97 +3199,109 @@ class PackageHostBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.PackageHost/ReadNodes": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/ReadNodes": grpclib.const.Handler(
                 self.__rpc_read_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 ReadNodesRequest,
                 ReadNodesResponse,
             ),
-            "/symbolx.bench.PackageHost/SearchNodes": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
             ),
-            "/symbolx.bench.PackageHost/AggregateNodes": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.PackageHost/CommitEdits": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/CommitEdits": grpclib.const.Handler(
                 self.__rpc_commit_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitEditsRequest,
                 CommitEditsResponse,
             ),
-            "/symbolx.bench.PackageHost/WatchEdits": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
-            "/symbolx.bench.PackageHost/PushEdits": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/PushEdits": grpclib.const.Handler(
                 self.__rpc_push_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PushEditsRequest,
                 PushEditsResponse,
             ),
-            "/symbolx.bench.PackageHost/PasteNodes": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/PasteNodes": grpclib.const.Handler(
                 self.__rpc_paste_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PasteNodesRequest,
                 PasteNodesResponse,
             ),
-            "/symbolx.bench.PackageHost/Snapshot": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/Snapshot": grpclib.const.Handler(
                 self.__rpc_snapshot,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SnapshotPackageRequest,
                 SnapshotPackageResponse,
             ),
-            "/symbolx.bench.PackageHost/UploadFiles": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/UploadFiles": grpclib.const.Handler(
                 self.__rpc_upload_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 UploadFilesRequest,
                 UploadFilesResponse,
             ),
-            "/symbolx.bench.PackageHost/DownloadFiles": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/DownloadFiles": grpclib.const.Handler(
                 self.__rpc_download_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DownloadFilesRequest,
                 DownloadFilesResponse,
             ),
-            "/symbolx.bench.PackageHost/SearchLogs": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/SearchLogs": grpclib.const.Handler(
                 self.__rpc_search_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchLogsRequest,
                 SearchLogsResponse,
             ),
-            "/symbolx.bench.PackageHost/WatchLogs": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/WatchLogs": grpclib.const.Handler(
                 self.__rpc_watch_logs,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchLogsRequest,
                 WatchLogsResponse,
             ),
-            "/symbolx.bench.PackageHost/PushServerLogs": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/PushServerLogs": grpclib.const.Handler(
                 self.__rpc_push_server_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PushServerLogsRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
-            "/symbolx.bench.PackageHost/StartRun": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/RestartServer": grpclib.const.Handler(
+                self.__rpc_restart_server,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RestartServerRequest,
+                PingServerResponse,
+            ),
+            "/symbolx.bench.BenchHost/PingServer": grpclib.const.Handler(
+                self.__rpc_ping_server,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PingServerRequest,
+                PingServerResponse,
+            ),
+            "/symbolx.bench.BenchHost/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/symbolx.bench.PackageHost/KillRun": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
                 KillRunResponse,
             ),
-            "/symbolx.bench.PackageHost/RunProxyBlock": grpclib.const.Handler(
+            "/symbolx.bench.BenchHost/RunProxyBlock": grpclib.const.Handler(
                 self.__rpc_run_proxy_block,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RunProxyBlockRequest,
@@ -3401,69 +3407,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    SkipData,
-    BlockData,
-    BenchData,
-    SessionData,
+    LinkData,
+    TriggerData,
+    ClientData,
     QueryData,
     SignalData,
-    IdentityData,
-    RunData,
-    NotificationData,
-    MembershipData,
-    TagData,
-    RecordData,
-    FileContentData,
     PauseData,
+    SkipData,
+    BenchData,
+    TagData,
+    FileContentData,
     UserData,
-    ServerData,
-    NoticeData,
-    FieldData,
-    HandleData,
-    OrganizationData,
-    RoleData,
-    BadgeData,
-    ClientData,
-    PackageData,
-    LinkData,
-    SpaceData,
-    TriggerData,
+    IdentityData,
     ViewData,
+    ServerData,
+    SessionData,
+    HandleData,
+    FieldData,
+    NoticeData,
+    RecordData,
+    PackageData,
+    BadgeData,
+    SpaceData,
+    BlockData,
+    OrganizationData,
+    MembershipData,
+    RoleData,
+    NotificationData,
+    RunData,
 ]
 AnyStructData = Union[
-    ExpressionData,
-    AggregationBucketData,
-    RichTextSpanData,
-    FieldPathData,
-    RunCodeFrameData,
-    RequestSubjectData,
-    ActionData,
-    NodeReferenceData,
-    RunErrorData,
-    PolicyRuleData,
-    ValueReferenceData,
-    PolicyData,
-    RichTextData,
     ScheduleData,
-    LogEntryData,
-    ServerImageDependencyData,
-    AggregationData,
-    PropertyPathData,
-    RequestData,
-    FileData,
-    ServerImageData,
-    BenchPathData,
-    IconData,
-    ReadOptionsData,
     FieldPathSegmentData,
-    AccessZoneData,
+    AggregationBucketData,
+    NodeReferenceData,
     SpaceDockItemData,
-    TypeInfoData,
+    RequestData,
+    ServerImageDependencyData,
+    RunCodeFrameData,
     ValueSelectionData,
-    ServerAllocationData,
+    RichTextSpanData,
     PropertyReferenceData,
-    AccessMatrixData,
+    LogEntryData,
+    IconData,
+    ServerAllocationData,
+    AccessZoneData,
     SpaceDockData,
+    AggregationData,
+    FieldPathData,
+    ReadOptionsData,
+    AccessMatrixData,
+    ValueReferenceData,
+    ServerImageData,
+    FileData,
+    RequestSubjectData,
+    PolicyData,
+    ActionData,
+    TypeInfoData,
+    RichTextData,
+    BenchPathData,
+    PropertyPathData,
+    PolicyRuleData,
+    RunErrorData,
+    ExpressionData,
 ]
 
-VERSION = "2024.02.05.3"
+VERSION = "2024.02.05.5"

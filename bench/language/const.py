@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.05.3"
+VERSION = "2024.02.05.5"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -370,20 +370,6 @@ class RunType(IdEnum):
         return ActionKind.RUN
 
 
-READ_TYPES: tuple[ReadType, ...] = tuple(ReadType)
-EDIT_TYPES: tuple[EditType, ...] = tuple(EditType)
-RUN_TYPES: tuple[RunType, ...] = tuple(RunType)
-
-if typing.TYPE_CHECKING:
-    ActionType = ReadType | EditType | RunType
-else:
-    ActionType = IdEnum.combine("ActionType", ReadType, EditType, RunType)
-    ActionType.bench_name = ReadType.bench_name
-    ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
-
-ACTION_TYPES: tuple[ActionType, ...] = tuple(ActionType)
-
-
 class ActionKind(IdEnum):
     # NOTE: ActionType ids and their overlap with ActionKind is important for our masks.
     READ = 1
@@ -403,11 +389,23 @@ class ActionKind(IdEnum):
         return to_casing(self.name, Casing.CAMEL)
 
 
-ACTION_KINDS = tuple(ActionKind)
-ACTIONS_BY_KIND: dict[ActionKind, set[ActionType]] = {
-    ActionKind.READ: set(READ_TYPES),
-    ActionKind.EDIT: set(EDIT_TYPES),
-    ActionKind.RUN: set(RUN_TYPES),
+if typing.TYPE_CHECKING:
+    ActionType = ReadType | EditType | RunType
+else:
+    ActionType = IdEnum.combine("ActionType", ReadType, EditType, RunType)
+    ActionType.bench_name = ReadType.bench_name
+    ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
+
+READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
+EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
+RUN_TYPES: bytetuple[RunType] = bytetuple(tuple(RunType))
+ACTION_TYPES: bytetuple[ActionType] = bytetuple(tuple(ActionType))
+ACTION_CLASSES: tuple[type[ActionType], ...] = (ReadType, EditType, RunType, ActionType)
+ACTION_KINDS = bytetuple(tuple(ActionKind))
+ACTIONS_BY_KIND: dict[ActionKind, bytetuple[ActionType]] = {
+    ActionKind.READ: bytetuple(READ_TYPES),
+    ActionKind.EDIT: bytetuple(EDIT_TYPES),
+    ActionKind.RUN: bytetuple(RUN_TYPES),
 }
 ACTION_CLASS_BY_KIND: dict[ActionKind, type[ActionType]] = {
     ActionKind.READ: ReadType,

@@ -6,7 +6,7 @@ import typer
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.proto.services import BenchServer
-from bench.server.host import PackageHostMultiplexer
+from bench.server.host import BenchHostMultiplexer
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env, IS_DEBUG
@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 async def control(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.control", host=host, port=port)
-    services = [GlobalSupervisor(), PackageHostMultiplexer()]
+    services = [GlobalSupervisor(), BenchHostMultiplexer()]
     server = BenchServer(services)
     if IS_DEBUG and watch:
         asyncio.create_task(restart_on_file_changes())

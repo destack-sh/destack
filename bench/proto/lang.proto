@@ -585,9 +585,8 @@ message AccessZoneData {
 message ActionData {
   BenchType metatype = 1;
   RequestSubjectData subject = 30;
-  repeated RequestData requests = 31;
-  PolicyEffect decision = 32;
-  optional NodeReferenceData user_ptr = 42;
+  PolicyEffect decision = 31;
+  repeated RequestData requests = 32;
 }
 
 // The result of an aggregation expression.
@@ -794,13 +793,13 @@ message ReadOptionsData {
   optional ExpressionData global_filter = 50;
 }
 
-// The result of evaluating a single request.
+// A sub-action on some objects as part of a larger Action (by the same subject).
 message RequestData {
   BenchType metatype = 1;
-  ActionType verb = 31;
-  BenchType object_type = 32;
-  repeated PropertyReferenceData object_properties_ptr = 33;
-  PolicyEffect decision = 34;
+  PolicyEffect decision = 31;
+  ActionType verb = 32;
+  BenchType object_type = 33;
+  repeated PropertyReferenceData object_properties_ptr = 34;
 }
 
 // The <whoever/whatever> issuing a request. Unknown attributes are uninitialized.

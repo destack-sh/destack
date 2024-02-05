@@ -127,10 +127,7 @@ class _InterpChange:
 
         if level & _NC.Attach:
             for _node in self.affected:
-                _node._interp_self(
-                    _node.scope,
-                    on_notice=_node.scope._on_notice if _node.scope else on_notice_raise,
-                )
+                _node._interp_self(_node.scope, on_notice=_node._on_notice)
                 if self.prev_session is not None and self.prev_status == NS.TRACKED:
                     _node._track_self(self.prev_session)
 
@@ -615,7 +612,8 @@ class _TypeExpressionBase:
     descending = desc
 
 
-FieldOrProperty = Union["Field", "Property"]
+FieldOrProperty = Union["Field", "Property", Any]
+# NOTE: For some reason Node.id type checks as <annotation>', but it's a Property? dataclass transform broken?
 _NodeFetchResult = NamedTuple(
     "_NodeFetchResult",
     [
@@ -694,6 +692,14 @@ class NodeQuery(Generic[NodeT]):
             options=self._options,
             # cache is not copied on purpose as it shouldn't propagate
         )
+
+    def _copy_options(self) -> "ReadOptions":
+        from bench.language.access import ReadOptions
+
+        if self._options is None:
+            return ReadOptions()
+        else:
+            return self._options.copy()
 
     def _invalidate(self):
         self._cached_records = None
@@ -785,7 +791,7 @@ class NodeQuery(Generic[NodeT]):
 
     def include(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
-        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        copy._options = self._copy_options()
         if copy._options.include_properties is None:
             copy._options.include_properties = list(properties)
         else:
@@ -794,7 +800,7 @@ class NodeQuery(Generic[NodeT]):
 
     def exclude(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
-        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        copy._options = self._copy_options()
         if copy._options.exclude_properties is None:
             copy._options.exclude_properties = list(properties)
         else:
@@ -803,11 +809,23 @@ class NodeQuery(Generic[NodeT]):
 
     def related(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
-        copy._options = copy._options.copy() if copy._options is not None else ReadOptions()
+        copy._options = self._copy_options()
         if copy._options.related_properties is None:
             copy._options.related_properties = list(properties)
         else:
             copy._options.related_properties.extend(*properties)
+        return copy
+
+    def ancestors(self, *node_types: NodeType) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.ancestor_types = node_types
+        return copy
+
+    def descendants(self, *node_types: NodeType) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.descendant_types = node_types
         return copy
 
     def __getitem__(self, item: slice | int) -> Union["NodeQuery[NodeT]", NodeT]:
@@ -831,72 +849,44 @@ class NodeQuery(Generic[NodeT]):
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
-    async def _fetch(self) -> list[NodeT]:
-        from bench.proto import wiring
+    async def _fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
+        from bench.proto import wire, wiring
+        from bench.sql.engine import pg_search_nodes, ReadOptions
 
         session = active_session()
-        fetched = await self._do_fetch(session)
-        nodes: list[NodeT] = []
-        for node_data in fetched.nodes:
-            node = wiring.unpack_node(node_data, parent=None, session=session)
-            node._track_self(session)
-            nodes.append(node)
-
-        if self._cache:
-            self._cached_nodes = nodes
-            self._cached_cursors = fetched.cursors
-        return nodes
-
-    async def _do_fetch(
-        self, session: "Session", count: bool = False, after: str = None
-    ) -> _NodeFetchResult:
-        from bench.proto import wire, wiring
-        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_nodes_data
 
         engine = self._get_target_engine()
         if engine == QueryEngine.LOCAL_POSTGRES or (
             engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
         ):
-            cur = session._global_pg_cursor or session._local_pg_cursor
-            nodes_data = await pg_select_nodes_data(
-                cur=cur,
+            nodes, cursors, _ = await pg_search_nodes(
+                session=session,
                 node_type=self._node_type,
+                options=self._options or ReadOptions(),
                 filter=self._filter,
                 sort=self._sort,
                 first=self._first,
                 skip=self._skip,
-                after=after,
-            )
-            if count:
-                count = await pg_count(
-                    cur=cur,
-                    table=self._node_cls.__table__,
-                    where=compile_pg_conditional(self._node_cls, self._filter),
-                )
-            else:
-                count = None
-            return _NodeFetchResult(
-                nodes=nodes_data.nodes,
-                cursors=nodes_data.cursors,
-                start_cursor=nodes_data.start_cursor,
-                total=count,
-                engine=engine,
             )
         elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
-            assert not count, "count not supported in host query"
             request = wire.SearchNodesRequest(
                 node_type=wiring.pack_enum(NodeType, self._node_type),
                 filter=wiring.pack_struct_maybe(self._filter),
                 sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
                 limit=self._first,
-                after=after,
-                count=count,
+                options=wiring.pack_struct_maybe(self._options),
             )
             await session.host.search_nodes(request)
             # return [wiring.unwrap_some_node(n) for n in response.nodes]
             raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
         else:
             raise ValueError(f"unexpected query engine {engine}")
+
+        if self._cache:
+            self._cached_nodes = nodes
+            self._cached_cursors = cursors
+
+        return nodes
 
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
@@ -961,6 +951,10 @@ class NodeQuery(Generic[NodeT]):
 
 
 class _NodeExpressionBase:
+    @classmethod
+    def query(cls: type["Node"]):
+        return NodeQuery(node_type=cls.metatype)
+
     @classmethod
     async def tolist(cls: type["Node"]) -> list[NodeT]:
         return await NodeQuery(node_type=cls.metatype).tolist()

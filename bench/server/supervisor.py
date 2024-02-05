@@ -65,7 +65,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         return "shards=*"
 
     def __repr__(self):
-        return f"<GlobalSupervisor {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     async def start_quick(self) -> None:
         pass
@@ -106,7 +106,9 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
-            user = await User.get(cast(Expression, User.__properties__[key_name] == key_value))
+            user = await User.include(User.password_salt, User.password_hash).get(
+                User.__properties__[key_name] == key_value
+            )
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
 
@@ -169,7 +171,9 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     _tree=tree,  # accumulate into tree
                 )
         access = generate_access_matrix(self.subject, tree)
-        action, adapted_nodes = evaluate_and_adapt_read(access, tree, adapt_nodes_in_place=True)
+        action, adapted_nodes = evaluate_and_adapt_read(
+            access, tree, required_nodes=request.roots, adapt_nodes_in_place=True
+        )
 
         return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in adapted_nodes])
 
@@ -202,7 +206,9 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             else:
                 count = None
         access = generate_access_matrix(self.subject, tree)
-        action, adapted_nodes = evaluate_and_adapt_read(access, tree)
+        action, adapted_nodes = evaluate_and_adapt_read(
+            access, tree, adapt_nodes_in_place=True, required_nodes=request.bases
+        )
         await self.log_action(action)
 
         return SearchNodesResponse(

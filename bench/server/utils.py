@@ -10,7 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Session
-from bench.proto.wire import AnyNodeData, AnyStructData, PackageHostStub
+from bench.proto.wire import AnyNodeData, AnyStructData, BenchHostStub
 from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
 
@@ -18,9 +18,7 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def detached_session(
-    read_only: bool = False, host: PackageHostStub | None = None
-) -> "Session":
+async def detached_session(read_only: bool = False, host: BenchHostStub | None = None) -> "Session":
     """Gets a global session."""
     from bench.sql.client import async_pg_cursor
     from bench.language.const import _active_session

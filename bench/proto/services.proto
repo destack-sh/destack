@@ -64,6 +64,7 @@ message CreateBenchResponse {
 message ReadNodesRequest {
   repeated NodeReferenceData roots = 1;
   optional ReadOptionsData options = 2;
+  optional string package_id = 3;
 }
 message ReadNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -79,10 +80,11 @@ message SearchNodesRequest {
   optional string after = 6;
   optional ReadOptionsData options = 7;
   optional bool count = 8;
+  optional string package_id = 9;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
-  repeated string roots_ids = 2;
+  repeated NodeReferenceData roots = 2;
   repeated string cursors = 3;
   string start_cursor = 4;
   int32 total = 5;
@@ -95,6 +97,7 @@ message AggregateNodesRequest {
   optional ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
   ExpressionData aggregation = 5;
+  optional string package_id = 6;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
@@ -134,8 +137,8 @@ message PingServerResponse {
   repeated ServerData servers = 1;
 }
 
-// Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
-// Will probably shard this later.
+// Global control plane: all the global stuff like Benches, Users, etc..
+// Will probably shard this  at some point.
 // Frontend connects to this directly.
 service GlobalSupervisor {
   //
@@ -157,7 +160,7 @@ service GlobalSupervisor {
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 
   //
-  // General Bench IO for > package & global nodes only :BenchIO
+  // General IO for > package & global nodes only :BenchIO
   //
 
   // Get global nodes.
@@ -171,14 +174,6 @@ service GlobalSupervisor {
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
-  //
-  // Server stuff
-  //
-
-  // Force restart the server set for a Bench.
-  rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
-  // Ensure the server set for a Bench is running.
-  rpc PingServer(PingServerRequest) returns (PingServerResponse);
 }
 
 //
@@ -271,11 +266,10 @@ message RunProxyBlockResponse {
 }
 
 
-// The Bench host for a specific package.
-// Service is scoped to bench_id/package_id.
+// The Bench host managing the runtime for all its packages.
+// Service is scoped to bench_id.
 // Frontend connects to this directly.
-// Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
-service PackageHost {
+service BenchHost {
   //
   // General Bench IO for this package only :BenchIO
   //
@@ -326,6 +320,10 @@ service PackageHost {
   // Runs
   //
 
+  // Force restart the server for a Bench.
+  rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
+  // Ensure the server for a Bench is running.
+  rpc PingServer(PingServerRequest) returns (PingServerResponse);
   // Starts a run in an appropriate server (same request/response as for ServerNode).
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   // Kills a run in the appropriate server (same request/response as for ServerNode).
@@ -371,9 +369,9 @@ message KillRunResponse {
   RunData run = 1;
 }
 
-// A user Server providing a Bench runtime with a set of server processes.
+// A user Server providing an isolated Bench runtime to execute user stuff.
 // Service is scoped to bench_id/server_id.
-// Not accessible from the outside.
+// Not directly accessible from the outside.
 service Server {
   // Restart this server immediately.
   rpc RestartServer(RestartServerRequest) returns (ServerData);
@@ -385,7 +383,7 @@ service Server {
 
 // The actual server process executing a Bench 'thread'.
 // Service is scoped to bench_id/server_id/server_process_id.
-// Not accessible from the outside.
+// Not directly accessible from the outside.
 service ServerProcess {
   // Starts a run in this server process.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
