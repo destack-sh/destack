@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.05.1"
+VERSION = "2024.02.05.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -135,9 +135,9 @@ BLOCK_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("visibility", PrimitiveType.STRING, default="'PUBLIC'::character varying"),
+        Column("visibility", PrimitiveType.STRING, default="3"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("type", PrimitiveType.STRING, default="'blank'::character varying"),
+        Column("type", PrimitiveType.STRING, default="2"),
         Column("bases_block_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
@@ -191,12 +191,8 @@ TRIGGER_TABLE = Table(
         Column("type", PrimitiveType.STRING),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("active", PrimitiveType.BOOLEAN, default="true"),
-        Column("schedule_type", PrimitiveType.STRING, is_nullable=True),
-        Column(
-            "timezone", PrimitiveType.STRING, is_nullable=True, default="'UTC'::character varying"
-        ),
-        Column("interval", PrimitiveType.INT32, is_nullable=True),
-        Column("cron", PrimitiveType.STRING, is_nullable=True),
+        Column("schedule", PrimitiveType.JSON, is_nullable=True),
+        Column("signal_block_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),

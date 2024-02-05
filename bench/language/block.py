@@ -265,7 +265,7 @@ for _type in BlockType:
     method = staticmethod(
         lambda name=None, _type=_type, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
     )
-    method_name = _type.lower()
+    method_name = _type.name.lower()
     if method_name in ("type", "class"):
         method_name += "_"
     setattr(Block, method_name, method)

@@ -243,7 +243,7 @@ class TaskError(RunError):
         path: str = None,
     ):
         super().__init__(
-            kind=RunErrorKind.Runtime,
+            kind=RunErrorKind.RUNTIME,
             type=type.name,
             block=block,
             message=f"{type.value}: {message}",

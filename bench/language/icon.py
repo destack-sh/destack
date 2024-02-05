@@ -2,19 +2,19 @@ from typing import Optional, TYPE_CHECKING
 
 from bench.language.const import StructType
 from bench.language.node import struct, Struct, p_internal
-from bench.utils.func import IdStrEnum
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import File
 
 
-class IconKind(IdStrEnum):
-    EMOJI = "EMOJI", 1
-    BUILTIN = "BUILTIN", 2
-    CUSTOM = "CUSTOM", 3
+class IconKind(IdEnum):
+    EMOJI = 1
+    BUILTIN = 2
+    CUSTOM = 3
 
 
-class IconType(IdStrEnum):
+class IconType(IdEnum):
     pass
 
 

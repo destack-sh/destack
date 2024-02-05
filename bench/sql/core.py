@@ -12,7 +12,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import PrimitiveType
-from bench.utils.func import IdStrEnum
+from bench.utils.func import IdEnum
 
 
 def stable_hash(*args) -> int:
@@ -166,16 +166,16 @@ SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(No
 SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
 
 
-class CascadeAction(IdStrEnum):
+class CascadeAction(enum.StrEnum):
     """
     A SQL cascade action.
     """
 
-    RESTRICT = "RESTRICT", 1
-    CASCADE = "CASCADE", 2
-    SET_NULL = "SET NULL", 3
-    NO_ACTION = "NO ACTION", 4
-    SET_DEFAULT = "SET DEFAULT", 5
+    RESTRICT = "RESTRICT"
+    CASCADE = "CASCADE"
+    SET_NULL = "SET NULL"
+    NO_ACTION = "NO ACTION"
+    SET_DEFAULT = "SET DEFAULT"
 
 
 @dataclass

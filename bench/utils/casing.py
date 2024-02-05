@@ -2,22 +2,22 @@ import re
 
 import cachetools
 
-from bench.utils.func import IdStrEnum
+from bench.utils.func import IdEnum
 
 
-class IdentifierType(IdStrEnum):
-    FILE = "file", 1
-    TYPE = "type", 2
-    CONSTANT = "constant", 3
-    FUNCTION = "function", 4
-    VARIABLE = "variable", 5
-    PROPERTY = "field", 6
+class IdentifierType(IdEnum):
+    FILE = 1
+    TYPE = 2
+    CONSTANT = 3
+    FUNCTION = 4
+    VARIABLE = 5
+    PROPERTY = 6
 
 
-class Casing(IdStrEnum):
-    SNAKE = "snake", 1
-    CAMEL = "camel", 2
-    ALL_CAPS = "all_caps", 3
+class Casing(IdEnum):
+    SNAKE = 1
+    CAMEL = 2
+    ALL_CAPS = 3
 
 
 # NOTE: BENCH_CASING also allows (and encourages) spaces in identifiers (instead of _)

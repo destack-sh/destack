@@ -45,7 +45,7 @@ from bench.language.node import (
 )
 from bench.language.tree import NodeDataTree
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
+from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData, IdEnum
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import (
@@ -202,10 +202,8 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         )
         # default
         if prop.default is not UNSET and prop.default is not None:
-            if isinstance(prop.default, enum.Enum) and not isinstance(
-                prop.default, (enum.IntEnum, enum.IntFlag)
-            ):
-                column.default = f"'{prop.default.value}'::character varying"
+            if isinstance(prop.default, IdEnum):
+                column.default = f"'{prop.default.name}'::character varying"
             elif isinstance(prop.default, bool):
                 column.default = "false" if prop.default is False else "true"
             elif isinstance(prop.default, int):

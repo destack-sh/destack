@@ -89,7 +89,7 @@ from bench.utils.func import (
     get_subclasses,
     parse_py_type,
     try_tuple,
-    IdStrEnum,
+    IdEnum,
     bytetuple,
 )
 from bench.utils.utils import frozendict
@@ -394,9 +394,9 @@ class Property(_TypeExpressionBase):
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
-            if issubclass(annotation.type, enum.StrEnum):
+            if issubclass(annotation.type, IdEnum):  # store as string for now
                 self.primitive_type = PrimitiveType.STRING
-            elif issubclass(annotation.type, (enum.IntFlag, enum.IntEnum)):
+            elif issubclass(annotation.type, enum.IntFlag):
                 self.primitive_type = PrimitiveType.INT64
             elif issubclass(annotation.type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
@@ -983,9 +983,9 @@ def _process_struct_base_cls(
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__max_property_id__ = max(p.id for p in props if p.id is not None and p.id is not UNSET)
-    cls.__properties_mask__ = bitarray(cls.__max_property_id__)
+    cls.__properties_mask__ = bitarray(cls.__max_property_id__ + 1)
     for p in props:
-        if p.id is not UNSET:
+        if p.id and p.id is not UNSET:
             cls.__properties_mask__[p.id] = True
 
     return cls, properties_by_name
@@ -1726,17 +1726,28 @@ class Node(Struct, _NodeExpressionBase):
         return self.__identifier_type__
 
     @property
-    def bench_ident(self):
+    def bench_ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.identifier_type is None:
             return None
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent.bench_ident
+            return self.parent.bench_ident  # package shares its Bench's identifier
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
                 return slug
         return getattr(self, "name")
+
+    @property
+    def bench_path_ident(self) -> Optional[str]:
+        """The Bench *path* identifier of this node (prefers bench_ident, ck/id filter otherwise)"""
+        bench_ident = self.bench_ident
+        if bench_ident is not None:
+            return bench_ident
+        elif "ck" in self.__properties__:
+            return f"[ck={self.ck}]"
+        else:
+            return f"[id={self.id}]"
 
     @property
     def py_ident(self) -> Optional[str]:
@@ -1761,13 +1772,13 @@ class Node(Struct, _NodeExpressionBase):
         if self.__parent_property__ is None or not self.__parent_property__.reference_types:
             return self.bench_ident
         elif self.parent is None:
-            return f"<detached>/{self.bench_ident or '<unnamed>'}"
+            return f"<detached>/{self.bench_path_ident}"
         else:
             path_segments: list[str] = []
             current = self
             while True:
                 # skip bench (same path as pkg)
-                path_segments.append(current.bench_ident or "<unnamed>")
+                path_segments.append(current.bench_path_ident)
                 next_parent = current.parent
                 has_next = next_parent is not None and next_parent.metatype != NodeType.BENCH
                 if not has_next:
@@ -2795,6 +2806,6 @@ def _complete_bench_setup():
     for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
         for prop in struct_t.__properties__.values():
             if prop.is_enum and not issubclass(
-                prop.py_type_stripped, (IdStrEnum, enum.IntEnum, enum.IntFlag)
+                prop.py_type_stripped, (IdEnum, enum.IntEnum, enum.IntFlag)
             ):
                 raise ValueError(f"{prop!r} is not a valid proto enum")
