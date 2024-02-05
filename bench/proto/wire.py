@@ -108,49 +108,46 @@ class BenchType(betterproto.Enum):
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
-    WORKER_SET = 80
-    WORKER = 81
-    BUCKET_OBJECT = 83
-    HANDLE = 120
-    USER = 121
-    ORGANIZATION = 122
-    CLIENT = 123
-    NOTIFICATION = 124
-    MEMBERSHIP = 141
-    BENCH_PATH = 200
-    NODE_REFERENCE = 201
-    PROPERTY_REFERENCE = 202
-    PROPERTY_PATH = 203
-    FIELD_PATH = 204
-    FIELD_PATH_SEGMENT = 205
-    VALUE_REFERENCE = 206
-    VALUE_SELECTION = 207
-    TYPE_INFO = 210
-    FILE = 220
-    ICON = 221
-    POLICY = 230
-    POLICY_RULE = 231
-    REQUEST_SUBJECT = 232
-    REQUEST_OBJECT = 233
-    ACCESS_ZONE = 234
-    ACCESS_MATRIX = 235
-    REQUEST = 236
-    ACTION = 237
-    REQUEST_TRACE = 238
-    ACTION_TRACE = 239
-    READ_OPTIONS = 250
-    EXPRESSION = 260
-    AGGREGATION = 261
-    AGGREGATION_BUCKET = 262
-    LOG_ENTRY = 290
-    RUN_CODE_FRAME = 291
-    RUN_ERROR = 292
-    WORKER_IMAGE = 320
-    DEPENDENCY = 321
-    RICH_TEXT = 350
-    RICH_TEXT_SPAN = 351
-    SPACE_DOCK = 500
-    SPACE_DOCK_ITEM = 501
+    SERVER = 160
+    FILE_CONTENT = 170
+    HANDLE = 220
+    USER = 221
+    ORGANIZATION = 222
+    CLIENT = 223
+    NOTIFICATION = 224
+    MEMBERSHIP = 241
+    BENCH_PATH = 500
+    NODE_REFERENCE = 501
+    PROPERTY_REFERENCE = 502
+    PROPERTY_PATH = 503
+    FIELD_PATH = 504
+    FIELD_PATH_SEGMENT = 505
+    VALUE_REFERENCE = 506
+    VALUE_SELECTION = 507
+    TYPE_INFO = 510
+    FILE = 520
+    ICON = 521
+    POLICY = 530
+    POLICY_RULE = 531
+    REQUEST_SUBJECT = 532
+    ACCESS_ZONE = 534
+    ACCESS_MATRIX = 535
+    REQUEST = 536
+    ACTION = 537
+    READ_OPTIONS = 550
+    EXPRESSION = 560
+    AGGREGATION = 561
+    AGGREGATION_BUCKET = 562
+    LOG_ENTRY = 590
+    RUN_CODE_FRAME = 591
+    RUN_ERROR = 592
+    SERVER_ALLOCATION = 630
+    SERVER_IMAGE = 631
+    SERVER_IMAGE_DEPENDENCY = 632
+    RICH_TEXT = 660
+    RICH_TEXT_SPAN = 661
+    SPACE_DOCK = 700
+    SPACE_DOCK_ITEM = 701
 
 
 class BlockType(betterproto.Enum):
@@ -187,7 +184,7 @@ class Casing(betterproto.Enum):
 class ClientKind(betterproto.Enum):
     UNSPECIFIED = 0
     USER = 1
-    WORKER = 2
+    SERVER = 2
 
 
 class ConditionalOp(betterproto.Enum):
@@ -300,6 +297,17 @@ class FormatHint(betterproto.Enum):
     AUDIO = 32
 
 
+class IconKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    EMOJI = 1
+    BUILTIN = 2
+    CUSTOM = 3
+
+
+class IconType(betterproto.Enum):
+    UNSPECIFIED = 0
+
+
 class IdStrEnum(betterproto.Enum):
     """
     enum.StrEnum with an additional id per value.     TODO @Cleanup: convert
@@ -363,15 +371,14 @@ class NodeType(betterproto.Enum):
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
-    WORKER_SET = 80
-    WORKER = 81
-    BUCKET_OBJECT = 83
-    HANDLE = 120
-    USER = 121
-    ORGANIZATION = 122
-    CLIENT = 123
-    NOTIFICATION = 124
-    MEMBERSHIP = 141
+    SERVER = 160
+    FILE_CONTENT = 170
+    HANDLE = 220
+    USER = 221
+    ORGANIZATION = 222
+    CLIENT = 223
+    NOTIFICATION = 224
+    MEMBERSHIP = 241
 
 
 class NodeVisibility(betterproto.Enum):
@@ -494,6 +501,24 @@ class ScheduleType(betterproto.Enum):
     CRON = 2
 
 
+class ServerProfile(betterproto.Enum):
+    UNSPECIFIED = 0
+    TINY = 1
+    SMALL = 2
+    MEDIUM = 3
+
+
+class ServerStatus(betterproto.Enum):
+    UNSPECIFIED = 0
+    SLEEPING = 1
+    PENDING = 2
+    UPDATING = 3
+    HEALTHY = 4
+    UNHEALTHY = 5
+    UNAVAILABLE = 6
+    UNKNOWN = 7
+
+
 class SortMode(betterproto.Enum):
     UNSPECIFIED = 0
     MAX = 1
@@ -511,40 +536,38 @@ class SortOp(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    BENCH_PATH = 200
-    NODE_REFERENCE = 201
-    PROPERTY_REFERENCE = 202
-    PROPERTY_PATH = 203
-    FIELD_PATH = 204
-    FIELD_PATH_SEGMENT = 205
-    VALUE_REFERENCE = 206
-    VALUE_SELECTION = 207
-    TYPE_INFO = 210
-    FILE = 220
-    ICON = 221
-    POLICY = 230
-    POLICY_RULE = 231
-    REQUEST_SUBJECT = 232
-    REQUEST_OBJECT = 233
-    ACCESS_ZONE = 234
-    ACCESS_MATRIX = 235
-    REQUEST = 236
-    ACTION = 237
-    REQUEST_TRACE = 238
-    ACTION_TRACE = 239
-    READ_OPTIONS = 250
-    EXPRESSION = 260
-    AGGREGATION = 261
-    AGGREGATION_BUCKET = 262
-    LOG_ENTRY = 290
-    RUN_CODE_FRAME = 291
-    RUN_ERROR = 292
-    WORKER_IMAGE = 320
-    DEPENDENCY = 321
-    RICH_TEXT = 350
-    RICH_TEXT_SPAN = 351
-    SPACE_DOCK = 500
-    SPACE_DOCK_ITEM = 501
+    BENCH_PATH = 500
+    NODE_REFERENCE = 501
+    PROPERTY_REFERENCE = 502
+    PROPERTY_PATH = 503
+    FIELD_PATH = 504
+    FIELD_PATH_SEGMENT = 505
+    VALUE_REFERENCE = 506
+    VALUE_SELECTION = 507
+    TYPE_INFO = 510
+    FILE = 520
+    ICON = 521
+    POLICY = 530
+    POLICY_RULE = 531
+    REQUEST_SUBJECT = 532
+    ACCESS_ZONE = 534
+    ACCESS_MATRIX = 535
+    REQUEST = 536
+    ACTION = 537
+    READ_OPTIONS = 550
+    EXPRESSION = 560
+    AGGREGATION = 561
+    AGGREGATION_BUCKET = 562
+    LOG_ENTRY = 590
+    RUN_CODE_FRAME = 591
+    RUN_ERROR = 592
+    SERVER_ALLOCATION = 630
+    SERVER_IMAGE = 631
+    SERVER_IMAGE_DEPENDENCY = 632
+    RICH_TEXT = 660
+    RICH_TEXT_SPAN = 661
+    SPACE_DOCK = 700
+    SPACE_DOCK_ITEM = 701
 
 
 class TriggerType(betterproto.Enum):
@@ -574,24 +597,6 @@ class ViewType(betterproto.Enum):
     PANEL = 42
     SPACER = 60
     DIVIDER = 61
-
-
-class WorkerProfile(betterproto.Enum):
-    UNSPECIFIED = 0
-    TINY = 1
-    SMALL = 2
-    MEDIUM = 3
-
-
-class WorkerSetStatus(betterproto.Enum):
-    UNSPECIFIED = 0
-    SLEEPING = 1
-    PENDING = 2
-    UPDATING = 3
-    HEALTHY = 4
-    UNHEALTHY = 5
-    UNAVAILABLE = 6
-    UNKNOWN = 7
 
 
 class StartRunResponseErrorType(betterproto.Enum):
@@ -643,16 +648,8 @@ class ActionData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
     requests: List["RequestData"] = betterproto.message_field(31)
-    deciding_request: Optional["RequestData"] = betterproto.message_field(32, optional=True)
-    decision: "PolicyEffect" = betterproto.enum_field(33)
+    decision: "PolicyEffect" = betterproto.enum_field(32)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class ActionTraceData(betterproto.Message):
-    """ActionTrace(_status: bench.language.const.NodeStatus = None)"""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -714,18 +711,6 @@ class BenchPathData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class DependencyData(betterproto.Message):
-    """
-    Dependency(name: str = <factory>, version: str = <factory>, _status:
-    bench.language.const.NodeStatus = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    name: str = betterproto.string_field(30)
-    version: str = betterproto.string_field(31)
-
-
-@dataclass(eq=False, repr=False)
 class ExpressionData(betterproto.Message):
     """An expression (conditional, aggregation, sort, etc)."""
 
@@ -764,20 +749,24 @@ class FileData(betterproto.Message):
     content_length: Optional[int] = betterproto.int32_field(31, optional=True)
     content_type: Optional[str] = betterproto.string_field(32, optional=True)
     name: str = betterproto.string_field(33)
-    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    content_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     status: "FileStatus" = betterproto.enum_field(35)
 
 
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(is_custom: bool = False, image: Optional[ForwardRef('File')] =
-    <factory>, _status: bench.language.const.NodeStatus = None)
+    Icon(kind: bench.language.icon.IconKind = False, emoji: Optional[str] =
+    <factory>, type: Optional[bench.language.icon.IconType] = <factory>, image:
+    Optional[ForwardRef('File')] = <factory>, _status:
+    bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    is_custom: bool = betterproto.bool_field(31)
-    image: Optional["FileData"] = betterproto.message_field(32, optional=True)
+    kind: "IconKind" = betterproto.enum_field(30)
+    emoji: Optional[str] = betterproto.string_field(31, optional=True)
+    type: Optional["IconType"] = betterproto.enum_field(32, optional=True)
+    image: Optional["FileData"] = betterproto.message_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -909,27 +898,16 @@ class RequestData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     verb: "ActionType" = betterproto.enum_field(31)
-    object: "RequestObjectData" = betterproto.message_field(32)
-    decision: "PolicyEffect" = betterproto.enum_field(33)
-
-
-@dataclass(eq=False, repr=False)
-class RequestObjectData(betterproto.Message):
-    """
-    The object of a request. Often refers to multiple actual objects with
-    shared attributes.
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    node_type: "BenchType" = betterproto.enum_field(30)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(31)
-    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    object_type: "BenchType" = betterproto.enum_field(32)
+    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(33)
+    decision: "PolicyEffect" = betterproto.enum_field(34)
 
 
 @dataclass(eq=False, repr=False)
 class RequestSubjectData(betterproto.Message):
     """
-    The principal issuing a request. Unknown attributes are uninitialized.
+    The <whoever/whatever> issuing a request. Unknown attributes are
+    uninitialized.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -940,13 +918,6 @@ class RequestSubjectData(betterproto.Message):
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
     badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class RequestTraceData(betterproto.Message):
-    """RequestTrace(_status: bench.language.const.NodeStatus = None)"""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1017,6 +988,46 @@ class RunErrorData(betterproto.Message):
     message: Optional[str] = betterproto.string_field(32, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     traceback: List["RunCodeFrameData"] = betterproto.message_field(34)
+
+
+@dataclass(eq=False, repr=False)
+class ServerAllocationData(betterproto.Message):
+    """
+    ServerAllocation(default_profile: bench.language.const.ServerProfile =
+    <factory>, default_image: Optional[ForwardRef('ServerImage')] = <factory>,
+    _status: bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    default_profile: "ServerProfile" = betterproto.enum_field(30)
+    default_image: Optional["ServerImageData"] = betterproto.message_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ServerImageData(betterproto.Message):
+    """
+    ServerImage(language: str = <factory>, version: str = <factory>, platform:
+    str = <factory>, dependencies: list['ServerImageDependency'] = <factory>,
+    _status: bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    language: str = betterproto.string_field(30)
+    version: str = betterproto.string_field(31)
+    platform: str = betterproto.string_field(32)
+    dependencies: List["ServerImageDependencyData"] = betterproto.message_field(33)
+
+
+@dataclass(eq=False, repr=False)
+class ServerImageDependencyData(betterproto.Message):
+    """
+    ServerImageDependency(name: str = <factory>, version: str = <factory>,
+    _status: bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    name: str = betterproto.string_field(30)
+    version: str = betterproto.string_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -1098,21 +1109,6 @@ class ValueSelectionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class WorkerImageData(betterproto.Message):
-    """
-    WorkerImage(language: str = <factory>, version: str = <factory>, platform:
-    str = <factory>, dependencies: list['Dependency'] = <factory>, _status:
-    bench.language.const.NodeStatus = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    language: str = betterproto.string_field(30)
-    version: str = betterproto.string_field(31)
-    platform: str = betterproto.string_field(32)
-    dependencies: List["DependencyData"] = betterproto.message_field(33)
-
-
-@dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
     """
     Attach a badge to a node with an inline definition.     A badge's policies
@@ -1167,12 +1163,15 @@ class BenchData(betterproto.Message):
     organization_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     head_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    pg_name: Optional[str] = betterproto.string_field(41, optional=True)
-    pg_username: Optional[str] = betterproto.string_field(42, optional=True)
-    pg_password: Optional[str] = betterproto.string_field(43, optional=True)
-    os_name: Optional[str] = betterproto.string_field(44, optional=True)
-    os_username: Optional[str] = betterproto.string_field(45, optional=True)
-    os_password: Optional[str] = betterproto.string_field(46, optional=True)
+    server_allocation: Optional["ServerAllocationData"] = betterproto.message_field(
+        50, optional=True
+    )
+    pg_name: Optional[str] = betterproto.string_field(51, optional=True)
+    pg_username: Optional[str] = betterproto.string_field(52, optional=True)
+    pg_password: Optional[str] = betterproto.string_field(53, optional=True)
+    os_name: Optional[str] = betterproto.string_field(54, optional=True)
+    os_username: Optional[str] = betterproto.string_field(55, optional=True)
+    os_password: Optional[str] = betterproto.string_field(56, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1213,28 +1212,6 @@ class BlockData(betterproto.Message):
     code: Optional[str] = betterproto.string_field(50, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(52)
-
-
-@dataclass(eq=False, repr=False)
-class BucketObjectData(betterproto.Message):
-    """
-    The actual file resource ('object') stored in a bucket somewhere. De-duped
-    to 1 per sha512.
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    sha512: str = betterproto.string_field(30)
-    content_length: int = betterproto.int64_field(31)
-    content_type: str = betterproto.string_field(32)
-    status: "FileStatus" = betterproto.enum_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -1295,6 +1272,28 @@ class FieldData(betterproto.Message):
     is_input: bool = betterproto.bool_field(60)
     is_output: bool = betterproto.bool_field(61)
     is_option: bool = betterproto.bool_field(62)
+
+
+@dataclass(eq=False, repr=False)
+class FileContentData(betterproto.Message):
+    """
+    The actual file resource ('object') stored in a bucket somewhere. De-duped
+    to 1 per sha512.
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    sha512: str = betterproto.string_field(30)
+    content_length: int = betterproto.int64_field(31)
+    content_type: str = betterproto.string_field(32)
+    status: "FileStatus" = betterproto.enum_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -1595,8 +1594,7 @@ class RunData(betterproto.Message):
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     session_ptr: "NodeReferenceData" = betterproto.message_field(30)
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    worker_process_id: Optional[str] = betterproto.string_field(33, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     node_path: Optional[str] = betterproto.string_field(35, optional=True)
     scheduled_at: Optional[datetime] = betterproto.message_field(36, optional=True)
@@ -1620,8 +1618,57 @@ class RunData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ServerData(betterproto.Message):
+    """
+    Server(parent: 'Bench' = None, target_profile:
+    bench.language.const.ServerProfile = <factory>, target_image:
+    Optional[ForwardRef('ServerImage')] = <factory>, target_version:
+    Optional[str] = <factory>, current_profile:
+    Optional[bench.language.const.ServerProfile] = <factory>, current_image:
+    Optional[ForwardRef('ServerImage')] = <factory>, current_version:
+    Optional[str] = <factory>, sleep: bool = True, status:
+    bench.language.const.ServerStatus = <factory>, last_active_at:
+    Optional[datetime.datetime] = <factory>, last_bumped_at:
+    Optional[datetime.datetime] = <factory>, external_id: Optional[str] =
+    <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference'
+    = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID =
+    None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
+    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at:
+    Optional[datetime.datetime] = None, archived_at:
+    Optional[datetime.datetime] = None, last_edited_at:
+    Optional[datetime.datetime] = None, _session:
+    Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
+    _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    target_profile: "ServerProfile" = betterproto.enum_field(30)
+    target_image: Optional["ServerImageData"] = betterproto.message_field(31, optional=True)
+    target_version: Optional[str] = betterproto.string_field(32, optional=True)
+    current_profile: Optional["ServerProfile"] = betterproto.enum_field(33, optional=True)
+    current_image: Optional["ServerImageData"] = betterproto.message_field(34, optional=True)
+    current_version: Optional[str] = betterproto.string_field(35, optional=True)
+    sleep: bool = betterproto.bool_field(36)
+    status: "ServerStatus" = betterproto.enum_field(37)
+    last_active_at: Optional[datetime] = betterproto.message_field(38, optional=True)
+    last_bumped_at: Optional[datetime] = betterproto.message_field(39, optional=True)
+    external_id: Optional[str] = betterproto.string_field(50, optional=True)
+    access_token: Optional[str] = betterproto.string_field(51, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
-    """A managed context for running a Bench package (in a worker)."""
+    """A managed context for running a Bench package (in a server)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1635,8 +1682,8 @@ class SessionData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    worker_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    worker_process_id: Optional[str] = betterproto.string_field(32, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    server_process_id: Optional[str] = betterproto.string_field(32, optional=True)
     trigger_type: Optional["TriggerType"] = betterproto.enum_field(33, optional=True)
     trigger_id: Optional[str] = betterproto.string_field(34, optional=True)
     opened_at: Optional[datetime] = betterproto.message_field(35, optional=True)
@@ -1805,66 +1852,6 @@ class ViewData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class WorkerData(betterproto.Message):
-    """
-    Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile:
-    bench.language.const.WorkerProfile = <factory>, image:
-    Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] =
-    <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference'
-    = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID =
-    None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
-    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at:
-    Optional[datetime.datetime] = None, archived_at:
-    Optional[datetime.datetime] = None, last_edited_at:
-    Optional[datetime.datetime] = None, _session:
-    Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    external_id: str = betterproto.string_field(30)
-    profile: "WorkerProfile" = betterproto.enum_field(31)
-    image: Optional["WorkerImageData"] = betterproto.message_field(32, optional=True)
-    version: Optional[str] = betterproto.string_field(33, optional=True)
-    access_token: Optional[str] = betterproto.string_field(34, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class WorkerSetData(betterproto.Message):
-    """Set of workers to run a Bench's packages."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    profile: "WorkerProfile" = betterproto.enum_field(31)
-    sleeping: bool = betterproto.bool_field(32)
-    status: "WorkerSetStatus" = betterproto.enum_field(33)
-    desired_replicas: int = betterproto.int32_field(34)
-    target_replicas: int = betterproto.int32_field(35)
-    available_replicas: int = betterproto.int32_field(36)
-    ready_replicas: int = betterproto.int32_field(37)
-    last_active_at: Optional[datetime] = betterproto.message_field(38, optional=True)
-    last_bumped_at: Optional[datetime] = betterproto.message_field(39, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
     bench: "BenchData" = betterproto.message_field(1, group="node")
     package: "PackageData" = betterproto.message_field(2, group="node")
@@ -1886,15 +1873,14 @@ class SomeNodeData(betterproto.Message):
     badge: "BadgeData" = betterproto.message_field(18, group="node")
     role: "RoleData" = betterproto.message_field(19, group="node")
     identity: "IdentityData" = betterproto.message_field(20, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(21, group="node")
-    worker: "WorkerData" = betterproto.message_field(22, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(23, group="node")
-    handle: "HandleData" = betterproto.message_field(24, group="node")
-    user: "UserData" = betterproto.message_field(25, group="node")
-    organization: "OrganizationData" = betterproto.message_field(26, group="node")
-    client: "ClientData" = betterproto.message_field(27, group="node")
-    notification: "NotificationData" = betterproto.message_field(28, group="node")
-    membership: "MembershipData" = betterproto.message_field(29, group="node")
+    server: "ServerData" = betterproto.message_field(21, group="node")
+    file_content: "FileContentData" = betterproto.message_field(22, group="node")
+    handle: "HandleData" = betterproto.message_field(23, group="node")
+    user: "UserData" = betterproto.message_field(24, group="node")
+    organization: "OrganizationData" = betterproto.message_field(25, group="node")
+    client: "ClientData" = betterproto.message_field(26, group="node")
+    notification: "NotificationData" = betterproto.message_field(27, group="node")
+    membership: "MembershipData" = betterproto.message_field(28, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -2087,23 +2073,23 @@ class WatchEditsResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RestartWorkerSetRequest(betterproto.Message):
+class RestartServerRequest(betterproto.Message):
     bench_id: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class RestartWorkerSetResponse(betterproto.Message):
-    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+class RestartServerResponse(betterproto.Message):
+    servers: List["ServerData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class PingWorkerSetRequest(betterproto.Message):
+class PingServerRequest(betterproto.Message):
     bench_id: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class PingWorkerSetResponse(betterproto.Message):
-    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+class PingServerResponse(betterproto.Message):
+    servers: List["ServerData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -2199,12 +2185,12 @@ class WatchLogsResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PushWorkerLogsRequest(betterproto.Message):
+class PushServerLogsRequest(betterproto.Message):
     logs: List["LogEntryData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class PushWorkerLogsResponse(betterproto.Message):
+class PushServerLogsResponse(betterproto.Message):
     pass
 
 
@@ -2222,16 +2208,6 @@ class RunProxyBlockRequest(betterproto.Message):
 class RunProxyBlockResponse(betterproto.Message):
     outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
     error: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class RestartWorkerRequest(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class RestartWorkerResponse(betterproto.Message):
-    worker: "WorkerData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -2417,35 +2393,35 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
         ):
             yield response
 
-    async def restart_worker_set(
+    async def restart_server(
         self,
-        restart_worker_set_request: "RestartWorkerSetRequest",
+        restart_server_request: "RestartServerRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PingWorkerSetResponse":
+    ) -> "PingServerResponse":
         return await self._unary_unary(
-            "/symbolx.bench.GlobalSupervisor/RestartWorkerSet",
-            restart_worker_set_request,
-            PingWorkerSetResponse,
+            "/symbolx.bench.GlobalSupervisor/RestartServer",
+            restart_server_request,
+            PingServerResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def ping_worker_set(
+    async def ping_server(
         self,
-        ping_worker_set_request: "PingWorkerSetRequest",
+        ping_server_request: "PingServerRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PingWorkerSetResponse":
+    ) -> "PingServerResponse":
         return await self._unary_unary(
-            "/symbolx.bench.GlobalSupervisor/PingWorkerSet",
-            ping_worker_set_request,
-            PingWorkerSetResponse,
+            "/symbolx.bench.GlobalSupervisor/PingServer",
+            ping_server_request,
+            PingServerResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2659,17 +2635,17 @@ class PackageHostStub(betterproto.ServiceStub):
         ):
             yield response
 
-    async def push_worker_logs(
+    async def push_server_logs(
         self,
-        push_worker_logs_request: "PushWorkerLogsRequest",
+        push_server_logs_request: "PushServerLogsRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/PushWorkerLogs",
-            push_worker_logs_request,
+            "/symbolx.bench.PackageHost/PushServerLogs",
+            push_server_logs_request,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
@@ -2728,19 +2704,19 @@ class PackageHostStub(betterproto.ServiceStub):
         )
 
 
-class WorkerStub(betterproto.ServiceStub):
-    async def restart_worker(
+class ServerStub(betterproto.ServiceStub):
+    async def restart_server(
         self,
-        restart_worker_request: "RestartWorkerRequest",
+        restart_server_request: "RestartServerRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "WorkerSetData":
+    ) -> "ServerData":
         return await self._unary_unary(
-            "/symbolx.bench.Worker/RestartWorker",
-            restart_worker_request,
-            WorkerSetData,
+            "/symbolx.bench.Server/RestartServer",
+            restart_server_request,
+            ServerData,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2755,7 +2731,7 @@ class WorkerStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Worker/StartRun",
+            "/symbolx.bench.Server/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -2772,7 +2748,7 @@ class WorkerStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Worker/KillRun",
+            "/symbolx.bench.Server/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -2781,7 +2757,7 @@ class WorkerStub(betterproto.ServiceStub):
         )
 
 
-class WorkerProcessStub(betterproto.ServiceStub):
+class ServerProcessStub(betterproto.ServiceStub):
     async def start_run(
         self,
         start_run_request: "StartRunRequest",
@@ -2791,7 +2767,7 @@ class WorkerProcessStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.WorkerProcess/StartRun",
+            "/symbolx.bench.ServerProcess/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -2808,7 +2784,7 @@ class WorkerProcessStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.WorkerProcess/KillRun",
+            "/symbolx.bench.ServerProcess/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -2856,14 +2832,12 @@ class GlobalSupervisorBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def restart_worker_set(
-        self, restart_worker_set_request: "RestartWorkerSetRequest"
-    ) -> "PingWorkerSetResponse":
+    async def restart_server(
+        self, restart_server_request: "RestartServerRequest"
+    ) -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def ping_worker_set(
-        self, ping_worker_set_request: "PingWorkerSetRequest"
-    ) -> "PingWorkerSetResponse":
+    async def ping_server(self, ping_server_request: "PingServerRequest") -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_signup_user(
@@ -2933,20 +2907,18 @@ class GlobalSupervisorBase(ServiceBase):
             request,
         )
 
-    async def __rpc_restart_worker_set(
-        self,
-        stream: "grpclib.server.Stream[RestartWorkerSetRequest, PingWorkerSetResponse]",
+    async def __rpc_restart_server(
+        self, stream: "grpclib.server.Stream[RestartServerRequest, PingServerResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.restart_worker_set(request)
+        response = await self.restart_server(request)
         await stream.send_message(response)
 
-    async def __rpc_ping_worker_set(
-        self,
-        stream: "grpclib.server.Stream[PingWorkerSetRequest, PingWorkerSetResponse]",
+    async def __rpc_ping_server(
+        self, stream: "grpclib.server.Stream[PingServerRequest, PingServerResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.ping_worker_set(request)
+        response = await self.ping_server(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -3005,17 +2977,17 @@ class GlobalSupervisorBase(ServiceBase):
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
-            "/symbolx.bench.GlobalSupervisor/RestartWorkerSet": grpclib.const.Handler(
-                self.__rpc_restart_worker_set,
+            "/symbolx.bench.GlobalSupervisor/RestartServer": grpclib.const.Handler(
+                self.__rpc_restart_server,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RestartWorkerSetRequest,
-                PingWorkerSetResponse,
+                RestartServerRequest,
+                PingServerResponse,
             ),
-            "/symbolx.bench.GlobalSupervisor/PingWorkerSet": grpclib.const.Handler(
-                self.__rpc_ping_worker_set,
+            "/symbolx.bench.GlobalSupervisor/PingServer": grpclib.const.Handler(
+                self.__rpc_ping_server,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                PingWorkerSetRequest,
-                PingWorkerSetResponse,
+                PingServerRequest,
+                PingServerResponse,
             ),
         }
 
@@ -3075,8 +3047,8 @@ class PackageHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchLogsResponse()
 
-    async def push_worker_logs(
-        self, push_worker_logs_request: "PushWorkerLogsRequest"
+    async def push_server_logs(
+        self, push_server_logs_request: "PushServerLogsRequest"
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -3184,12 +3156,12 @@ class PackageHostBase(ServiceBase):
             request,
         )
 
-    async def __rpc_push_worker_logs(
+    async def __rpc_push_server_logs(
         self,
-        stream: "grpclib.server.Stream[PushWorkerLogsRequest, betterproto_lib_google_protobuf.Empty]",
+        stream: "grpclib.server.Stream[PushServerLogsRequest, betterproto_lib_google_protobuf.Empty]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.push_worker_logs(request)
+        response = await self.push_server_logs(request)
         await stream.send_message(response)
 
     async def __rpc_start_run(
@@ -3288,10 +3260,10 @@ class PackageHostBase(ServiceBase):
                 WatchLogsRequest,
                 WatchLogsResponse,
             ),
-            "/symbolx.bench.PackageHost/PushWorkerLogs": grpclib.const.Handler(
-                self.__rpc_push_worker_logs,
+            "/symbolx.bench.PackageHost/PushServerLogs": grpclib.const.Handler(
+                self.__rpc_push_server_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                PushWorkerLogsRequest,
+                PushServerLogsRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
             "/symbolx.bench.PackageHost/StartRun": grpclib.const.Handler(
@@ -3315,10 +3287,8 @@ class PackageHostBase(ServiceBase):
         }
 
 
-class WorkerBase(ServiceBase):
-    async def restart_worker(
-        self, restart_worker_request: "RestartWorkerRequest"
-    ) -> "WorkerSetData":
+class ServerBase(ServiceBase):
+    async def restart_server(self, restart_server_request: "RestartServerRequest") -> "ServerData":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
@@ -3327,11 +3297,11 @@ class WorkerBase(ServiceBase):
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_restart_worker(
-        self, stream: "grpclib.server.Stream[RestartWorkerRequest, WorkerSetData]"
+    async def __rpc_restart_server(
+        self, stream: "grpclib.server.Stream[RestartServerRequest, ServerData]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.restart_worker(request)
+        response = await self.restart_server(request)
         await stream.send_message(response)
 
     async def __rpc_start_run(
@@ -3350,19 +3320,19 @@ class WorkerBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Worker/RestartWorker": grpclib.const.Handler(
-                self.__rpc_restart_worker,
+            "/symbolx.bench.Server/RestartServer": grpclib.const.Handler(
+                self.__rpc_restart_server,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RestartWorkerRequest,
-                WorkerSetData,
+                RestartServerRequest,
+                ServerData,
             ),
-            "/symbolx.bench.Worker/StartRun": grpclib.const.Handler(
+            "/symbolx.bench.Server/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/symbolx.bench.Worker/KillRun": grpclib.const.Handler(
+            "/symbolx.bench.Server/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
@@ -3371,7 +3341,7 @@ class WorkerBase(ServiceBase):
         }
 
 
-class WorkerProcessBase(ServiceBase):
+class ServerProcessBase(ServiceBase):
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -3394,13 +3364,13 @@ class WorkerProcessBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.WorkerProcess/StartRun": grpclib.const.Handler(
+            "/symbolx.bench.ServerProcess/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/symbolx.bench.WorkerProcess/KillRun": grpclib.const.Handler(
+            "/symbolx.bench.ServerProcess/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
@@ -3414,71 +3384,68 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    QueryData,
-    BlockData,
-    SessionData,
-    RunData,
-    UserData,
-    TriggerData,
-    SpaceData,
-    PackageData,
-    HandleData,
-    NotificationData,
-    LinkData,
     TagData,
-    NoticeData,
-    OrganizationData,
-    SignalData,
-    WorkerData,
-    IdentityData,
-    FieldData,
-    ClientData,
-    RecordData,
-    WorkerSetData,
+    PackageData,
+    RoleData,
+    LinkData,
     BadgeData,
+    SpaceData,
+    PauseData,
+    FileContentData,
     SkipData,
     BenchData,
-    MembershipData,
-    PauseData,
+    FieldData,
+    ClientData,
+    ServerData,
+    QueryData,
+    SignalData,
+    UserData,
+    BlockData,
+    IdentityData,
     ViewData,
-    RoleData,
-    BucketObjectData,
+    NotificationData,
+    HandleData,
+    RecordData,
+    NoticeData,
+    OrganizationData,
+    SessionData,
+    RunData,
+    MembershipData,
+    TriggerData,
 ]
 AnyStructData = Union[
-    NodeReferenceData,
-    SpaceDockItemData,
-    TypeInfoData,
-    RequestObjectData,
-    ValueReferenceData,
-    PropertyReferenceData,
-    BenchPathData,
-    ActionTraceData,
-    SpaceDockData,
-    FileData,
-    AggregationData,
-    RunCodeFrameData,
-    FieldPathData,
-    AccessZoneData,
-    RequestTraceData,
-    DependencyData,
-    IconData,
-    WorkerImageData,
-    RequestSubjectData,
-    RequestData,
-    RunErrorData,
     FieldPathSegmentData,
-    AccessMatrixData,
-    PolicyRuleData,
-    RichTextSpanData,
-    PropertyPathData,
-    ValueSelectionData,
+    RequestSubjectData,
     ActionData,
-    PolicyData,
-    LogEntryData,
+    SpaceDockData,
+    ValueSelectionData,
+    PropertyPathData,
+    RichTextSpanData,
+    RunCodeFrameData,
+    ServerImageDependencyData,
     AggregationBucketData,
     ExpressionData,
+    NodeReferenceData,
+    FileData,
+    ServerImageData,
+    RequestData,
+    RunErrorData,
+    PolicyData,
+    PropertyReferenceData,
+    ValueReferenceData,
+    PolicyRuleData,
+    LogEntryData,
+    AccessZoneData,
+    AggregationData,
+    ServerAllocationData,
     RichTextData,
+    FieldPathData,
+    BenchPathData,
+    IconData,
+    TypeInfoData,
+    AccessMatrixData,
     ReadOptionsData,
+    SpaceDockItemData,
 ]
 
-VERSION = "2024.02.03.9"
+VERSION = "2024.02.05.1"

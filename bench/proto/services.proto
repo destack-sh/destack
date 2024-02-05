@@ -120,21 +120,21 @@ message WatchEditsResponse {
   repeated EditData edits = 1;
 }
 
-message RestartWorkerSetRequest {
+message RestartServerRequest {
   string bench_id = 1;
 }
-message RestartWorkerSetResponse {
-  repeated WorkerSetData worker_sets = 1;
+message RestartServerResponse {
+  repeated ServerData servers = 1;
 }
 
-message PingWorkerSetRequest {
+message PingServerRequest {
   string bench_id = 1;
 }
-message PingWorkerSetResponse {
-  repeated WorkerSetData worker_sets = 1;
+message PingServerResponse {
+  repeated ServerData servers = 1;
 }
 
-// Global supervisor: the 'control plane' for global stuff like Benches, Users, Workers, etc..
+// Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
 // Will probably shard this later.
 // Frontend connects to this directly.
 service GlobalSupervisor {
@@ -172,13 +172,13 @@ service GlobalSupervisor {
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
   //
-  // Worker stuff
+  // Server stuff
   //
 
-  // Force restart the worker set for a Bench.
-  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
-  // Ensure the worker set for a Bench is running.
-  rpc PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
+  // Force restart the server set for a Bench.
+  rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
+  // Ensure the server set for a Bench is running.
+  rpc PingServer(PingServerRequest) returns (PingServerResponse);
 }
 
 //
@@ -248,10 +248,10 @@ message WatchLogsResponse {
   repeated LogEntryData logs = 1;
 }
 
-message PushWorkerLogsRequest {
+message PushServerLogsRequest {
   repeated LogEntryData logs = 1;
 }
-message PushWorkerLogsResponse {
+message PushServerLogsResponse {
 }
 
 message RunProxyBlockRequest {
@@ -319,16 +319,16 @@ service PackageHost {
   rpc SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
   // Subscribes to future logs.
   rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-  // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
-  rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
+  // Pushes logs from a server *that are already stored* to notify frontend users connected to this host.
+  rpc PushServerLogs(PushServerLogsRequest) returns (google.protobuf.Empty);
 
   //
   // Runs
   //
 
-  // Starts a run in an appropriate worker (same request/response as for WorkerNode).
+  // Starts a run in an appropriate server (same request/response as for ServerNode).
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in the appropriate worker (same request/response as for WorkerNode).
+  // Kills a run in the appropriate server (same request/response as for ServerNode).
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
   // Runs a well-known internal block in the host with our credentials.
   rpc RunProxyBlock(RunProxyBlockRequest) returns (RunProxyBlockResponse);
@@ -336,13 +336,8 @@ service PackageHost {
 }
 
 //
-// Worker node
+// Server node
 //
-
-message RestartWorkerRequest {}
-message RestartWorkerResponse {
-  WorkerData worker = 1;
-}
 
 message StartRunRequest {
   RunData run = 1;
@@ -376,24 +371,24 @@ message KillRunResponse {
   RunData run = 1;
 }
 
-// A hosted Worker providing a Bench runtime with a set of worker processes.
-// Service is scoped to bench_id/worker_set_id.
+// A user Server providing a Bench runtime with a set of server processes.
+// Service is scoped to bench_id/server_id.
 // Not accessible from the outside.
-service Worker {
-  // Restart this worker immediately.
-  rpc RestartWorker(RestartWorkerRequest) returns (WorkerSetData);
-  // Starts a run in a process in this worker.
+service Server {
+  // Restart this server immediately.
+  rpc RestartServer(RestartServerRequest) returns (ServerData);
+  // Starts a run in a process in this server.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in a process in this worker.
+  // Kills a run in a process in this server.
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }
 
-// The actual worker process executing a Bench 'thread'.
-// Service is scoped to bench_id/worker_set_id/worker_process_id.
+// The actual server process executing a Bench 'thread'.
+// Service is scoped to bench_id/server_id/server_process_id.
 // Not accessible from the outside.
-service WorkerProcess {
-  // Starts a run in this worker process.
+service ServerProcess {
+  // Starts a run in this server process.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in this worker process.
+  // Kills a run in this server process.
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }

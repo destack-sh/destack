@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import cyrb53a, IdStrEnum
+from bench.utils.func import cyrb53a, IdStrEnum, bytetuple
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.03.9"
+VERSION = "2024.02.05.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -66,89 +66,88 @@ class NodeType(IdStrEnum):
     IDENTITY = "IDENTITY", 62
 
     # resources (compute/storage/etc.)
-    WORKER_SET = "WORKER_SET", 80
-    WORKER = "WORKER", 81
-    # WORKER_PROCESS = "WORKER_PROCESS", 82
-    BUCKET_OBJECT = "BUCKET_OBJECT", 83
+    SERVER = "SERVER", 160
+    FILE_CONTENT = "FILE_CONTENT", 170
+    # DATABASE, DISK, INDEX/SEARCH, DOMAIN, ...?
 
     # user
-    HANDLE = "HANDLE", 120
-    USER = "USER", 121
-    ORGANIZATION = "ORGANIZATION", 122
-    CLIENT = "CLIENT", 123
-    NOTIFICATION = "NOTIFICATION", 124
+    HANDLE = "HANDLE", 220
+    USER = "USER", 221
+    ORGANIZATION = "ORGANIZATION", 222
+    CLIENT = "CLIENT", 223
+    NOTIFICATION = "NOTIFICATION", 224
 
-    # INVITE = "INVITE", 140
-    MEMBERSHIP = "MEMBERSHIP", 141
+    # INVITE = "INVITE", 240
+    MEMBERSHIP = "MEMBERSHIP", 241
 
     @property
     def bench_name(self):
-        return BENCH_TYPE_NAME[self]
+        return to_casing(self.name, Casing.CAMEL)
 
 
-NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
+NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
 # (we duplicate in-package/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
-IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80) + (
-    NodeType.SPACE,
+IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100) + (NodeType.SPACE,)
 )
-SUB_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt for nt in IN_PACKAGE_NODE_TYPES if nt != NodeType.PACKAGE
+SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in IN_PACKAGE_NODE_TYPES if nt != NodeType.PACKAGE)
 )
-IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100) + (
-    NodeType.MEMBERSHIP,
-    NodeType.CLIENT,
-    NodeType.SPACE,
+IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if nt.id < 200)
+    + (NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.SPACE)
 )
-SUB_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH
+SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
 
 
 class StructType(IdStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    BENCH_PATH = "BENCH_PATH", 200
-    NODE_REFERENCE = "NODE_REFERENCE", 201
-    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 202
-    PROPERTY_PATH = "PROPERTY_PATH", 203
-    FIELD_PATH = "FIELD_PATH", 204
-    FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
-    VALUE_REFERENCE = "VALUE_REFERENCE", 206
-    VALUE_SELECTION = "VALUE_SELECTION", 207
+    BENCH_PATH = "BENCH_PATH", 500
+    NODE_REFERENCE = "NODE_REFERENCE", 501
+    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 502
+    PROPERTY_PATH = "PROPERTY_PATH", 503
+    FIELD_PATH = "FIELD_PATH", 504
+    FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 505
+    VALUE_REFERENCE = "VALUE_REFERENCE", 506
+    VALUE_SELECTION = "VALUE_SELECTION", 507
 
-    TYPE_INFO = "TYPE_INFO", 210
+    TYPE_INFO = "TYPE_INFO", 510
 
-    FILE = "FILE", 220
-    ICON = "ICON", 221
+    FILE = "FILE", 520
+    ICON = "ICON", 521
 
-    POLICY = "POLICY", 230
-    POLICY_RULE = "POLICY_RULE", 231
-    REQUEST_SUBJECT = "REQUEST_SUBJECT", 232
-    ACCESS_ZONE = "ACCESS_ZONE", 234
-    ACCESS_MATRIX = "ACCESS_MATRIX", 235
-    REQUEST = "REQUEST", 236
-    ACTION = "ACTION", 237
+    POLICY = "POLICY", 530
+    POLICY_RULE = "POLICY_RULE", 531
+    REQUEST_SUBJECT = "REQUEST_SUBJECT", 532
+    ACCESS_ZONE = "ACCESS_ZONE", 534
+    ACCESS_MATRIX = "ACCESS_MATRIX", 535
+    REQUEST = "REQUEST", 536
+    ACTION = "ACTION", 537
     ...
-    READ_OPTIONS = "READ_OPTIONS", 250
+    READ_OPTIONS = "READ_OPTIONS", 550
 
-    EXPRESSION = "EXPRESSION", 260
-    AGGREGATION = "AGGREGATION", 261
-    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 262
+    EXPRESSION = "EXPRESSION", 560
+    AGGREGATION = "AGGREGATION", 561
+    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 562
 
-    LOG_ENTRY = "LOG_ENTRY", 290
-    RUN_CODE_FRAME = "RUN_CODE_FRAME", 291
-    RUN_ERROR = "RUN_ERROR", 292
+    LOG_ENTRY = "LOG_ENTRY", 590
+    RUN_CODE_FRAME = "RUN_CODE_FRAME", 591
+    RUN_ERROR = "RUN_ERROR", 592
     # CURSOR = "CURSOR", 293
 
-    WORKER_IMAGE = "WORKER_IMAGE", 320
-    DEPENDENCY = "DEPENDENCY", 321
+    SERVER_ALLOCATION = "SERVER_ALLOCATION", 630
+    SERVER_IMAGE = "SERVER_IMAGE", 631
+    SERVER_IMAGE_DEPENDENCY = "SERVER_IMAGE_DEPENDENCY", 632
 
-    RICH_TEXT = "RICH_TEXT", 350
-    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 351
+    RICH_TEXT = "RICH_TEXT", 660
+    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 661
 
     # views
-    SPACE_DOCK = "SPACE_DOCK", 500
-    SPACE_DOCK_ITEM = "SPACE_DOCK_ITEM", 501
+    SPACE_DOCK = "SPACE_DOCK", 700
+    SPACE_DOCK_ITEM = "SPACE_DOCK_ITEM", 701
 
     # ...
 
@@ -160,10 +159,10 @@ class StructType(IdStrEnum):
 
     @property
     def bench_name(self):
-        return BENCH_TYPE_NAME[self]
+        return to_casing(self.name, Casing.CAMEL)
 
 
-STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
+STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
 
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
@@ -174,10 +173,7 @@ else:
     )
     BenchType.bench_name = NodeType.bench_name
 
-BENCH_TYPES: tuple[BenchType, ...] = tuple(BenchType)
-BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
-    _type: to_casing(_type, Casing.CAMEL) for _type in chain(NODE_TYPES, STRUCT_TYPES)
-}
+BENCH_TYPES: bytetuple[BenchType] = bytetuple(tuple(BenchType))
 INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
@@ -448,7 +444,7 @@ class PolicyEffect(IdStrEnum):
 
 class ClientKind(IdStrEnum):
     USER = "USER", 1
-    WORKER = "WORKER", 2
+    SERVER = "SERVER", 2
 
 
 class NotificationKind(IdStrEnum):
@@ -539,7 +535,7 @@ class BenchRegion(IdStrEnum):
     US_WEST = "US_WEST", 10
 
 
-class WorkerSetStatus(IdStrEnum):
+class ServerStatus(IdStrEnum):
     SLEEPING = "SLEEPING", 1
     PENDING = "PENDING", 2
     UPDATING = "UPDATING", 3
@@ -586,7 +582,7 @@ class RunErrorKind(IdStrEnum):
     Untrusted = "Untrusted", 5
 
 
-class WorkerProfile(IdStrEnum):
+class ServerProfile(IdStrEnum):
     TINY = "TINY", 1
     SMALL = "SMALL", 2
     MEDIUM = "MEDIUM", 3

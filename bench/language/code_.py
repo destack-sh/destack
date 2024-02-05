@@ -43,7 +43,7 @@ class CodeParse:
 
 
 def _install_package(name: str, timeout: int = 300, try_import: str = None) -> None:
-    """Helper to install a package in the current worker. Not in lib because it feels wrong."""
+    """Helper to install a package in the current server. Not in lib because it feels wrong."""
     if try_import:
         try:
             __import__(try_import)

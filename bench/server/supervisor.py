@@ -32,11 +32,11 @@ from bench.proto.wire import (
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
-    PingWorkerSetRequest,
-    PingWorkerSetResponse,
+    PingServerRequest,
+    PingServerResponse,
     ReadNodesRequest,
     ReadNodesResponse,
-    RestartWorkerSetRequest,
+    RestartServerRequest,
     SearchNodesRequest,
     SearchNodesResponse,
     SignupUserRequest,
@@ -53,8 +53,8 @@ from bench.utils.func import group_by
 
 logger = structlog.get_logger("global_supervisor")
 
-WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
-WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
+SERVER_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
+SERVER_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
 class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorBase):
@@ -233,13 +233,11 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
-    # Worker stuff
+    # Server stuff
     #
 
-    async def restart_worker_set(
-        self, request: "RestartWorkerSetRequest"
-    ) -> "PingWorkerSetResponse":
+    async def restart_server(self, request: "RestartServerRequest") -> "PingServerResponse":
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def ping_worker_set(self, request: "PingWorkerSetRequest") -> "PingWorkerSetResponse":
+    async def ping_server(self, request: "PingServerRequest") -> "PingServerResponse":
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)

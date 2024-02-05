@@ -37,7 +37,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language import Block, Session, Worker
+    from bench.language import Block, Session, Server
 
 
 @node_component
@@ -117,10 +117,9 @@ class Run(ScopeNode, HasValue):
         wire=True,
         index_in_pg=True,
     )
-    worker: Optional["Worker"] = p_internal(
-        32, index_in_pg=True, require=False, array=False, references=NodeType.WORKER
+    server: Optional["Server"] = p_internal(
+        32, index_in_pg=True, require=False, array=False, references=NodeType.SERVER
     )
-    worker_process_id: Optional[UUID] = p_internal(33)
     node: Optional["Block"] = p_internal(
         34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )

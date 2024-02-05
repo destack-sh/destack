@@ -29,6 +29,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from bitarray import bitarray
 import structlog
 from cachetools import cached
 
@@ -106,7 +107,7 @@ if TYPE_CHECKING:
         Space,
         TypeInfo,
         User,
-        WorkerSet,
+        ServerAllocation,
     )
     from bench.language.notice import NoticeHandler
 
@@ -413,7 +414,7 @@ class Property(_TypeExpressionBase):
             raise ValueError(f"encrypted properties should be sensitive {self!r}")
         if self.is_encrypted and not self.is_deferred:
             raise ValueError(f"encrypted properties should be deferred {self!r}")
-        if self.is_struct and self.is_deferred:
+        if self.type and self.type in STRUCT_TYPES and self.is_deferred:
             raise ValueError(f"cannot defer properties in structs {self!r}")
 
     def _contribute_ptrs(self) -> tuple["Property", ...]:
@@ -982,6 +983,10 @@ def _process_struct_base_cls(
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__max_property_id__ = max(p.id for p in props if p.id is not None and p.id is not UNSET)
+    cls.__properties_mask__ = bitarray(cls.__max_property_id__)
+    for p in props:
+        if p.id is not UNSET:
+            cls.__properties_mask__[p.id] = True
 
     return cls, properties_by_name
 
@@ -1154,7 +1159,7 @@ def node(
         if parent_property is None:
             raise ValueError(f"node {cls} has no parent property")
         cls.__parent_property__ = parent_property
-        cls.__roots__ = roots
+        cls.__roots__ = bytetuple(roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
@@ -1353,6 +1358,7 @@ class Struct(abc.ABC):
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
     __max_property_id__: ClassVar[int] = None
+    __properties_mask__: ClassVar[bitarray] = None
 
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
@@ -1558,28 +1564,13 @@ class Node(Struct, _NodeExpressionBase):
     __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None
 
-    __properties__: ClassVar[dict[str, Property]] = {}
-    __own_properties__: ClassVar[dict[str, Property]] = {}
-    __declared_properties__: ClassVar[dict[str, Property]] = {}
-    __properties_by_id__: ClassVar[dict[int, Property]] = {}
-    __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties_by_child__: ClassVar[dict[NodeType, tuple[Property, ...]]] = defaultdict(list)
-    __tracked_properties__: ClassVar[dict[str, Property]] = {}
-    __internal_properties__: ClassVar[dict[str, Property]] = {}
-    __reference_properties__: ClassVar[dict[str, Property]] = {}
-    __sensitive_properties__: ClassVar[dict[str, Property]] = {}
-    __struct_properties__: ClassVar[dict[str, Property]] = {}
-    __stored_properties__: ClassVar[dict[str, Property]] = {}
-    __wired_properties__: ClassVar[dict[str, Property]] = {}
-    __runtime_properties__: ClassVar[dict[str, Property]] = {}
-    __reserved_properties__: ClassVar[set[int | str]] = set()
     __parent_property__: ClassVar[Property] = None
-    __max_property_id__: ClassVar[int] = None
 
     __has_scope__: ClassVar[bool] = False  # can have node children
-    __roots__: ClassVar[tuple[NodeType, ...]] = UNSET
+    __roots__: ClassVar[bytetuple[NodeType]] = UNSET
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
@@ -2095,7 +2086,7 @@ class ScopeNode(Node):
 
     def _init_inner(self) -> None:
         if self.parent is None:
-            # if we don't have a tree, start a new one
+            # if we're not in a tree, start a new one
             if NodeType.BENCH in self.__roots__:
                 self._tree = DetachedNodeTree()
             else:
@@ -2297,7 +2288,11 @@ class BenchPath(Struct):
         if not path:
             raise InvalidBenchPath("empty path")
 
-        # tried to use a single regex here, but it's too convoluted to be worth it
+        # optionally strip 'bench://' prefix
+        if path.startswith("bench://"):
+            path = path[8:]
+
+        # I tried to use a single regex here, but it's too convoluted to be worth it
         cur_pos = 0
         bench_slug = BENCH_SLUG_PATTERN.match(path)
         if bench_slug is not None:
@@ -2430,19 +2425,19 @@ class Bench(ScopeNode):
     head = p_system(40, require=False, array=False, references=NodeType.PACKAGE)
 
     # resources (should probably be managed separately)
-    pg_name: Optional[str] = p_system(41, sensitive=True, default=None)
-    pg_username: Optional[str] = p_system(42, sensitive=True, default=None, defer=True)
+    server_allocation: Optional["ServerAllocation"] = p_system(
+        50, default=None, struct=StructType.SERVER_ALLOCATION, defer=True
+    )
+    pg_name: Optional[str] = p_system(51, sensitive=True, default=None)
+    pg_username: Optional[str] = p_system(52, sensitive=True, default=None, defer=True)
     pg_password: Optional[str] = p_system(
-        43, default=None, defer=True, encrypt=True, sensitive=True
+        53, default=None, defer=True, encrypt=True, sensitive=True
     )
-    os_name: Optional[str] = p_system(44, sensitive=True, default=None)
-    os_username: Optional[str] = p_system(45, sensitive=True, default=None, defer=True)
+    os_name: Optional[str] = p_system(54, sensitive=True, default=None)
+    os_username: Optional[str] = p_system(55, sensitive=True, default=None, defer=True)
     os_password: Optional[str] = p_system(
-        46, default=None, defer=True, encrypt=True, sensitive=True
+        56, default=None, defer=True, encrypt=True, sensitive=True
     )
-    worker_sets: NodeList["WorkerSet"] = p_child(NodeType.WORKER_SET)
-
-    # versions: NodeList["Package"] = node_children(NodeType.PACKAGE, NRel.Remote)
 
     @property
     def owner(self) -> Union["Organization", "User", None]:
