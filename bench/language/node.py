@@ -108,6 +108,7 @@ if TYPE_CHECKING:
         TypeInfo,
         User,
         ServerAllocation,
+        NoticeType,
     )
     from bench.language.notice import NoticeHandler
 
@@ -296,6 +297,10 @@ class Property(_TypeExpressionBase):
         return self.component.metatype
 
     @property
+    def has_id(self) -> int:
+        return self.id is not None and self.id is not UNSET
+
+    @property
     def is_introspectable(self) -> bool:
         return not self.is_runtime_only and self.is_stored
 
@@ -317,7 +322,11 @@ class Property(_TypeExpressionBase):
 
     @property
     def is_struct(self) -> bool:
-        return self.struct_type is not None
+        return self.struct_type is not None and (
+            # 'Property' references are represented as structs .. bleh
+            self.struct_type != StructType.PROPERTY_REFERENCE
+            or self.reference_source is not None
+        )
 
     @property
     def is_property_reference(self) -> bool:
@@ -442,9 +451,11 @@ class Property(_TypeExpressionBase):
                 is_required=self.is_required,
                 is_array=self.is_array,
                 default=None,
+                reference_source=self,
             )
             self.reference_ptr = property_ptr
             self.reference_stored_ptrs = (property_ptr,)
+            self.reference_wired_ptr = property_ptr
             self.is_wired = False
             self.is_stored = False
             self.is_runtime = True
@@ -944,8 +955,8 @@ def _process_struct_base_cls(
             del cls.__annotations__[name]
         # also set extra computed reference properties
         if prop.reference_kind and not prop.reference_source and prop.reference_wired_ptr:
-            for computed_attr in ("id", "ck"):
-                computed_prop = _node_computed_attr(computed_attr, prop, prop.reference_wired_ptr)
+            for computed_attr in ("id", "ck", "type"):
+                computed_prop = _node_computed_prop(computed_attr, prop, prop.reference_wired_ptr)
                 setattr(cls, prop.name + "_" + computed_attr, computed_prop)
 
     # TODO @Performance: use slots for struct/node classes?
@@ -1255,7 +1266,7 @@ def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-def _node_computed_attr(x: str, prop: Property, backup_prop: Property) -> property:
+def _node_computed_prop(x: str, prop: Property, backup_prop: Property) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
     def get(self: NodeT) -> Optional[Any]:
@@ -1277,7 +1288,6 @@ def _node_computed_attr(x: str, prop: Property, backup_prop: Property) -> proper
 def _make_self_method(
     method: _ComponentMethod,
     wraps,
-    from_status: NodeStatus = None,
     to_status: NodeStatus = None,
 ):
     """Creates method that calls _method_inner for all components in call order"""
@@ -1286,24 +1296,6 @@ def _make_self_method(
     def self_method(self: "Struct", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
         if self._status == to_status:
             return
-        elif from_status is not None and self._status != from_status:
-            # auto coerce the node into the desired to_status if allowed and feasible
-            if not _coerce:
-                raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
-            elif isinstance(self, Node):
-                if self._status == NS.SOURCE and to_status > NS.INTERP:
-                    self._interp_self(self, on_notice=self.scope._on_notice)
-            else:  # Struct
-                if self._status == NS.SOURCE and to_status > NS.INTERP:
-                    # where to get struct scope? track 'parent node' in struct? :StructScope
-                    self._interp_self(self, on_notice_raise)
-            if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
-                return  # nothing to do
-            if self._status < from_status:
-                raise RuntimeError(
-                    f"cannot coerce {method.name} {self!r} (status={self._status.name})"
-                )
-
         for meth in _get_component_methods(self._components, method, self._instance_cache_key):
             meth(self, *args, **kwargs)
         if to_status is not None:
@@ -1363,6 +1355,8 @@ class Struct(abc.ABC):
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
     _status: NodeStatus = p_runtime(default=None)
+
+    # _node: Optional["Node"] = p_runtime(default=None) (for real Structs only)
 
     def __post_init__(self):
         if self._status is None:
@@ -1433,8 +1427,11 @@ class Struct(abc.ABC):
         # init reference pointers if references are set :NodeReferences
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
-            if prop.reference_wired_ptr is not None and ref is not None:
-                self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
+            if prop.reference_wired_ptr is not None and ref:
+                if prop.is_array:
+                    self.__dict__[prop.reference_wired_ptr.name] = [r.to_ref() for r in ref]
+                else:
+                    self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
@@ -1475,7 +1472,7 @@ class Struct(abc.ABC):
                         resolved = scope.lookup(p.id or p.ck)
                         if resolved is None:
                             on_notice(
-                                type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name
+                                type=NoticeType.MISSING_REFERENCE, subject=self, properties=(prop,)
                             )
                         resolved.append(resolved)
                     setattr(self, prop.name, resolved)
@@ -1483,7 +1480,9 @@ class Struct(abc.ABC):
                     ptr = cast("NodeReference", ptr)
                     resolved = scope.lookup(ptr.id or ptr.ck)
                     if resolved is None:
-                        on_notice(type=NoticeType.MISSING_REFERENCE, subject=self, path=prop.name)
+                        on_notice(
+                            type=NoticeType.MISSING_REFERENCE, subject=self, properties=(prop,)
+                        )
                     setattr(self, prop.name, resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor"):
@@ -1511,8 +1510,8 @@ class Struct(abc.ABC):
 
     # struct has basic set of lifecycle methods (no index because no scope)
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.INTERP)
     _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
 
@@ -1520,11 +1519,12 @@ class Struct(abc.ABC):
         yield self
         for prop in self.__struct_properties__.values():
             value = getattr(self, prop.name)
-            if isinstance(value, list):
-                for item in value:
-                    yield from item._walk_self()
-            elif value is not None:
-                yield from value._walk_self()
+            if value:
+                if prop.is_array:
+                    for item in value:
+                        yield from item._walk_self()
+                else:
+                    yield from value._walk_self()
 
     @staticmethod
     def _make_rec_method(method: _ComponentMethod, wraps):
@@ -1548,6 +1548,8 @@ class Struct(abc.ABC):
         from bench.proto.wiring import pack_struct
 
         return pack_struct(self)
+
+    _on_notice = on_notice_raise  # struct doesn't have a scope (yet?), so raise :StructScope
 
 
 @node_component
@@ -2010,12 +2012,10 @@ class Node(Struct, _NodeExpressionBase):
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
-    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NS.INTERP, NS.TRACKED)
-    _untrack_self = _make_self_method(
-        _ComponentMethod.untrack, _untrack_inner, NS.TRACKED, NS.INTERP
-    )
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.INTERP)
+    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NS.TRACKED)
+    _untrack_self = _make_self_method(_ComponentMethod.untrack, _untrack_inner, NS.INTERP)
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
     @final
@@ -2046,8 +2046,11 @@ class Node(Struct, _NodeExpressionBase):
     def _on_notice(
         self, subject: "Node", type: "NoticeType", message: str = None, **kwargs
     ) -> None:
-        # only scope nodes can host notices, forward to parent
-        self.parent._on_notice(subject=self, type=type, message=message, **kwargs)
+        if self.parent is None:
+            on_notice_raise(subject=subject, type=type, message=message, **kwargs)
+        else:
+            # only scope nodes can host notices, forward to parent
+            self.parent._on_notice(subject=self, type=type, message=message, **kwargs)
 
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""
@@ -2114,9 +2117,7 @@ class ScopeNode(Node):
     _interp_rec = _make_rec_method(
         _ComponentMethod.interp,
         Node._interp_self,
-        custom_kwargs=lambda n: dict(
-            scope=n.scope, on_notice=n.scope._on_notice if n.scope else on_notice_raise
-        ),
+        custom_kwargs=lambda n: dict(scope=n.scope, on_notice=n._on_notice),
     )
     _visit_rec = _make_rec_method(_ComponentMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(
@@ -2584,27 +2585,6 @@ class Package(ScopeNode):
         if change.interp_edits:
             self._apply_edits_to_source(change.interp_edits)
         return change
-
-    def _reset_from_source(self, source: Optional["NodeTree"] = None):
-        """Resets the package completely from the source."""
-        from bench.proto.wiring import unpack_node_inline
-
-        if source is not None:
-            self._source = source
-        assert self._source and self.id in self._source, f"cannot reset {self!r} without source"
-
-        prev_session = self.package._session
-        if prev_session:
-            self.package._untrack_self()
-
-        if self.package._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
-            self.package._clear_rec()
-        self.package._tree.clear()
-        _ = unpack_node_inline(self._source, parent=self, exclude=INTERP_NODE_TYPES)
-        self.package._interp_rec()
-
-        if prev_session:
-            self.package._track_rec(prev_session)
 
     def _apply_edits_to_source(self, edits: list[EditData]) -> None:
         """Applies the edits directly to the source without any interp."""

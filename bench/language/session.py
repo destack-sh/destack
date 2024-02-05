@@ -49,7 +49,7 @@ from bench.language.node import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import CommitEditsRequest, EditData, PackageHostStub
+from bench.proto.wire import CommitEditsRequest, EditData, BenchHostStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -127,7 +127,7 @@ class Session(ScopeNode):
     opened_at: Optional[datetime] = p_internal(35, default=None)
     closed_at: Optional[datetime] = p_internal(36, default=None)
 
-    _host: Optional["PackageHostStub"] = p_runtime(default=None)
+    _host: Optional["BenchHostStub"] = p_runtime(default=None)
     _root_run_ck: UUID | None = p_runtime(default=None)
     _root_run_value: dict | None = p_runtime(default=None)
     _init_run_value: dict | None = p_runtime(default=None)
@@ -187,7 +187,7 @@ class Session(ScopeNode):
         return tuple(n for n in self.dangling if isinstance(n, type_))
 
     @property
-    def host(self) -> "PackageHostStub":
+    def host(self) -> "BenchHostStub":
         """The remote host."""
         assert self._host is not None, f"host not available in {self!r}"
         return self._host

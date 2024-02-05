@@ -9,13 +9,16 @@
 import { ServerProcess } from "./services";
 import { Server } from "./services";
 import type { ServerData } from "./lang";
-import { PackageHost } from "./services";
+import { BenchHost } from "./services";
 import type { RunProxyBlockResponse } from "./services";
 import type { RunProxyBlockRequest } from "./services";
 import type { KillRunResponse } from "./services";
 import type { KillRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
 import type { StartRunRequest } from "./services";
+import type { PingServerRequest } from "./services";
+import type { PingServerResponse } from "./services";
+import type { RestartServerRequest } from "./services";
 import type { Empty } from "../../google/protobuf/empty";
 import type { PushServerLogsRequest } from "./services";
 import type { WatchLogsResponse } from "./services";
@@ -35,9 +38,6 @@ import type { PushEditsRequest } from "./services";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { GlobalSupervisor } from "./services";
-import type { PingServerRequest } from "./services";
-import type { PingServerResponse } from "./services";
-import type { RestartServerRequest } from "./services";
 import type { WatchEditsResponse } from "./services";
 import type { WatchEditsRequest } from "./services";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
@@ -61,8 +61,8 @@ import type { SignupUserRequest } from "./services";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
- * Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
- * Will probably shard this later.
+ * Global control plane: all the global stuff like Benches, Users, etc..
+ * Will probably shard this  at some point.
  * Frontend connects to this directly.
  *
  *
@@ -134,26 +134,10 @@ export interface IGlobalSupervisorClient {
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
-    // 
-    // Server stuff
-    // 
-
-    /**
-     * Force restart the server set for a Bench.
-     *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse>;
-    /**
-     * Ensure the server set for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse>;
 }
 /**
- * Global supervisor: the 'control plane' for global stuff like Benches, Users, Servers, etc..
- * Will probably shard this later.
+ * Global control plane: all the global stuff like Benches, Users, etc..
+ * Will probably shard this  at some point.
  * Frontend connects to this directly.
  *
  *
@@ -257,42 +241,19 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
-    // 
-    // Server stuff
-    // 
-
-    /**
-     * Force restart the server set for a Bench.
-     *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Ensure the server set for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
-    }
 }
 /**
- * The Bench host for a specific package.
- * Service is scoped to bench_id/package_id.
+ * The Bench host managing the runtime for all its packages.
+ * Service is scoped to bench_id.
  * Frontend connects to this directly.
- * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
  * General Bench IO for this package only :BenchIO
  *
  *
- * @generated from protobuf service symbolx.bench.PackageHost
+ * @generated from protobuf service symbolx.bench.BenchHost
  */
-export interface IPackageHostClient {
+export interface IBenchHostClient {
     /**
      * Reads local or global nodes.
      *
@@ -388,6 +349,18 @@ export interface IPackageHostClient {
     // 
 
     /**
+     * Force restart the server for a Bench.
+     *
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
+     */
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse>;
+    /**
+     * Ensure the server for a Bench is running.
+     *
+     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
+     */
+    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse>;
+    /**
      * Starts a run in an appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
@@ -407,21 +380,20 @@ export interface IPackageHostClient {
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse>;
 }
 /**
- * The Bench host for a specific package.
- * Service is scoped to bench_id/package_id.
+ * The Bench host managing the runtime for all its packages.
+ * Service is scoped to bench_id.
  * Frontend connects to this directly.
- * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
  * General Bench IO for this package only :BenchIO
  *
  *
- * @generated from protobuf service symbolx.bench.PackageHost
+ * @generated from protobuf service symbolx.bench.BenchHost
  */
-export class PackageHostClient implements IPackageHostClient, ServiceInfo {
-    typeName = PackageHost.typeName;
-    methods = PackageHost.methods;
-    options = PackageHost.options;
+export class BenchHostClient implements IBenchHostClient, ServiceInfo {
+    typeName = BenchHost.typeName;
+    methods = BenchHost.methods;
+    options = BenchHost.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
@@ -558,12 +530,30 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
     // 
 
     /**
+     * Force restart the server for a Bench.
+     *
+     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
+     */
+    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Ensure the server for a Bench is running.
+     *
+     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
+     */
+    pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
      * Starts a run in an appropriate server (same request/response as for ServerNode).
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        const method = this.methods[15], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -572,7 +562,7 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[16], opt = this._transport.mergeOptions(options);
         return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -581,14 +571,14 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
      * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse> {
-        const method = this.methods[15], opt = this._transport.mergeOptions(options);
+        const method = this.methods[17], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**
- * A user Server providing a Bench runtime with a set of server processes.
+ * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
- * Not accessible from the outside.
+ * Not directly accessible from the outside.
  *
  * @generated from protobuf service symbolx.bench.Server
  */
@@ -613,9 +603,9 @@ export interface IServerClient {
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
- * A user Server providing a Bench runtime with a set of server processes.
+ * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
- * Not accessible from the outside.
+ * Not directly accessible from the outside.
  *
  * @generated from protobuf service symbolx.bench.Server
  */
@@ -656,7 +646,7 @@ export class ServerClient implements IServerClient, ServiceInfo {
 /**
  * The actual server process executing a Bench 'thread'.
  * Service is scoped to bench_id/server_id/server_process_id.
- * Not accessible from the outside.
+ * Not directly accessible from the outside.
  *
  * @generated from protobuf service symbolx.bench.ServerProcess
  */
@@ -677,7 +667,7 @@ export interface IServerProcessClient {
 /**
  * The actual server process executing a Bench 'thread'.
  * Service is scoped to bench_id/server_id/server_process_id.
- * Not accessible from the outside.
+ * Not directly accessible from the outside.
  *
  * @generated from protobuf service symbolx.bench.ServerProcess
  */

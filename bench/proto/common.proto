@@ -24,7 +24,6 @@ message RpcMetadata {
 
   // Scope
   optional string bench_id = 5;
-  optional string package_id = 6;
 
   // Badge
   optional string badge_id = 7;
@@ -34,12 +33,14 @@ message RpcMetadata {
 }
 
 
-// Edit describes an edit to a node in a Bench.
-// (Manually defined here since Node properties inside structs aren't supported.)
+// Edit describes an edit to a Node.
+// (Manually defined here since inline Node properties inside structs aren't supported.)
 message EditData {
   EditType type = 1;
   NodeType node_type = 2;
   SomeNodeData node = 3;
   repeated sint32 properties = 4;
   ClientOrigin origin = 5;
+  // Specify package id for routing (if node is in a Package).
+  optional string package_id = 6;
 }

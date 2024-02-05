@@ -5,10 +5,11 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Badge, Client, User, Server
+from bench.language import Badge, Client, User
 from bench.language.access import RequestSubject
-from bench.proto import wiring
-from bench.proto.wire import ClientKind, NodeType, RpcMetadata
+from bench.language.const import NodeType
+from bench.proto.wire import RpcMetadata
+from bench.server.utils import detached_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -75,12 +76,11 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     if metadata.client_kind is None:
         return None
 
-    client: Client = await Client.options(
-        include_properties=(User.email,),
-        ancestor_types=(NodeType.USER, NodeType.SERVER),
-    ).get(
-        kind=wiring.unpack_enum(ClientKind, metadata.client_kind),
-        id=to_uuid(metadata.client_id),
+    client_id = to_uuid(metadata.client_id)
+    client: Client = (
+        await Client.include(User.email, Client.access_token)
+        .ancestors(NodeType.USER, NodeType.SERVER)
+        .get(id=client_id)
     )
     if client.access_token != metadata.client_access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
@@ -109,20 +109,21 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
 
 
 async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
-    client = await _get_client_from_metadata(metadata)
-    badge = await _get_badge_from_metadata(metadata)
-    if client is None:
-        return RequestSubject(is_authenticated=False, badge=badge)
-    elif client.parent_type == NodeType.USER:
-        return RequestSubject(
-            is_authenticated=True,
-            is_staff=client.user.is_staff,
-            client=client,
-            user=client.user,
-            badge=badge,
-            # TODO @Broken: fetch subject memberships & ownerships
-            memberships=[],
-            ownerships=[client.user],
-        )
-    else:
-        raise ValueError(f"unexpected client: {client!r}")
+    async with detached_session(read_only=True):
+        client = await _get_client_from_metadata(metadata)
+        badge = await _get_badge_from_metadata(metadata)
+        if client is None:
+            return RequestSubject(is_authenticated=False, badge=badge)
+        elif client.parent_type == NodeType.USER:
+            return RequestSubject(
+                is_authenticated=True,
+                is_staff=client.user.is_staff,
+                client=client,
+                user=client.user,
+                badge=badge,
+                # TODO @Broken: fetch subject memberships & ownerships
+                memberships=[],
+                ownerships=[client.user],
+            )
+        else:
+            raise ValueError(f"unexpected client: {client!r}")

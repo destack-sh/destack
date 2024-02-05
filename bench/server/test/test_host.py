@@ -1,17 +1,17 @@
 from grpclib.testing import ChannelFor
 import pytest
 
-from bench.proto.wire import PackageHostStub
-from bench.server.host import PackageHost
+from bench.proto.wire import BenchHostStub
+from bench.server.host import BenchHost
 
 
 @pytest.fixture(scope="module")
-async def host(event_loop) -> PackageHostStub:
-    service = PackageHost()
+async def host(event_loop) -> BenchHostStub:
+    service = BenchHost()
     await service.start_quick()
     try:
         async with ChannelFor([service]) as channel:
-            stub = PackageHostStub(channel)
+            stub = BenchHostStub(channel)
             yield stub
     finally:
         service.close()

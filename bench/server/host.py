@@ -27,8 +27,8 @@ from bench.proto.wire import (
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
-    PackageHostBase,
-    PackageHostStub,
+    BenchHostBase,
+    BenchHostStub,
     PasteNodesRequest,
     PasteNodesResponse,
     PushEditsRequest,
@@ -67,15 +67,16 @@ LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
 )
 
 
-class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
+class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
     """
-    Multiplexes requests per package to a PackageHost using gRPC metadata ('bench-id' and 'package-id').
-    Hosts are loaded for all active packages; new ones 'ping' the multiplexer to add themselves.
+    Multiplexes requests per Bench to a BenchHost using gRPC metadata ('bench-id').
+    Hosts are loaded for all active Benches; new ones 'ping' the multiplexer service to add themselves.
     """
 
     def __init__(self):
         super().__init__()
-        self._hosts_by_package_id: dict[UUID, "PackageHost"] = {}
+        self._bench_hosts: dict[UUID, "BenchHost"] = {}
+        self._bench_hosts_lock = asyncio.Lock()
 
     def __str__(self):
         return "shards=*"
@@ -89,14 +90,14 @@ class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
         await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
 
     def close(self) -> None:
-        for host in self._hosts_by_package_id.values():
+        for host in self._bench_hosts.values():
             host.close()
 
     async def wait_closed(self) -> None:
-        await asyncio.gather(*[host.wait_closed() for host in self._hosts_by_package_id.values()])
+        await asyncio.gather(*[host.wait_closed() for host in self._bench_hosts.values()])
 
-    async def _start_host(self, bench_id: UUID, package_id: UUID) -> "PackageHost":
-        host = PackageHost(bench_id, package_id)
+    async def _start_host(self, bench_id: UUID) -> "BenchHost":
+        host = BenchHost(bench_id)
         await host.start_quick()
         return host
 
@@ -106,13 +107,16 @@ class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
         @functools.wraps(func)
         async def proxied_method(stream: grpclib.server.Stream) -> None:
             bench_id = to_uuid(self.metadata.bench_id)
-            package_id = to_uuid(self.metadata.package_id)
 
             # get package host
-            host = self._hosts_by_package_id.get(package_id)
+            host = self._bench_hosts.get(bench_id)
             if host is None:
-                host = await self._start_host(bench_id, package_id)
-                self._hosts_by_package_id[package_id] = host
+                async with self._bench_hosts_lock:
+                    # check again in case another request added it
+                    host = self._bench_hosts.get(bench_id)
+                    if host is None:
+                        host = await self._start_host(bench_id)
+                        self._bench_hosts[bench_id] = host
 
             # forward to host
             host._stream.set(stream)
@@ -122,25 +126,25 @@ class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
         return proxied_method
 
 
-class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
+class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     """
     Host for an (active) Bench package. Manages basically everything that's not actually running it.
     Any client (frontend, server, ...) connects to this to do anything with the package.
     """
 
     def __init__(self, bench_id: UUID, package_id: UUID):
-        super().__init__(loopback_stub_to=PackageHostStub)
+        super().__init__(loopback_stub_to=BenchHostStub)
         self.bench_id = bench_id
         self.package_id = package_id
         self._bench: Bench | None = None
         self._owner: User | Organization | None = None
-        self._package: Package | None = None
+        self._packages: dict[str, Package] = {}
 
     def __str__(self):
         return f"{self._package or self.package_id}"
 
     def __repr__(self):
-        return f"<PackageHost {self}>"
+        return f"<{self.__class__.__name} {self}>"
 
     @property
     def package_source(self) -> NodeDataTree:
@@ -168,13 +172,13 @@ class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
                 ),
             )
             self._owner = self._bench.owner
-            self._package: Package = await pg_read_node(
-                session=session,
-                root_type=NodeType.PACKAGE,
-                root_id=self.package_id,
-                descendant_types=LOADED_SOURCE_TYPES,
-                parent=self.bench,
-            )
+            # self._package: Package = await pg_read_node(
+            #     session=session,
+            #     root_type=NodeType.PACKAGE,
+            #     root_id=self.package_id,
+            #     descendant_types=LOADED_SOURCE_TYPES,
+            #     parent=self.bench,
+            # )
 
     #
     # General Bench IO for this package :BenchIO

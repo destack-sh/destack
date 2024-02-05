@@ -182,6 +182,10 @@ export interface ReadNodesRequest {
      * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 2;
      */
     options?: ReadOptionsData;
+    /**
+     * @generated from protobuf field: optional string package_id = 3;
+     */
+    packageId?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.ReadNodesResponse
@@ -232,6 +236,10 @@ export interface SearchNodesRequest {
      * @generated from protobuf field: optional bool count = 8;
      */
     count?: boolean;
+    /**
+     * @generated from protobuf field: optional string package_id = 9;
+     */
+    packageId?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesResponse
@@ -286,6 +294,10 @@ export interface AggregateNodesRequest {
      * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 5;
      */
     aggregation?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional string package_id = 6;
+     */
+    packageId?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesResponse
@@ -1239,7 +1251,8 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     constructor() {
         super("symbolx.bench.ReadNodesRequest", [
             { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 2, name: "options", kind: "message", T: () => ReadOptionsData }
+            { no: 2, name: "options", kind: "message", T: () => ReadOptionsData },
+            { no: 3, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ReadNodesRequest>): ReadNodesRequest {
@@ -1260,6 +1273,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
                 case /* optional symbolx.bench.ReadOptionsData options */ 2:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
+                case /* optional string package_id */ 3:
+                    message.packageId = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1278,6 +1294,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         /* optional symbolx.bench.ReadOptionsData options = 2; */
         if (message.options)
             ReadOptionsData.internalBinaryWrite(message.options, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* optional string package_id = 3; */
+        if (message.packageId !== undefined)
+            writer.tag(3, WireType.LengthDelimited).string(message.packageId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1353,7 +1372,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 5, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 7, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 8, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 8, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 9, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1394,6 +1414,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional bool count */ 8:
                     message.count = reader.bool();
                     break;
+                case /* optional string package_id */ 9:
+                    message.packageId = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1430,6 +1453,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional bool count = 8; */
         if (message.count !== undefined)
             writer.tag(8, WireType.Varint).bool(message.count);
+        /* optional string package_id = 9; */
+        if (message.packageId !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.packageId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1534,7 +1560,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
             { no: 2, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 5, name: "aggregation", kind: "message", T: () => ExpressionData }
+            { no: 5, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 6, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
@@ -1566,6 +1593,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.ExpressionData aggregation */ 5:
                     message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
+                case /* optional string package_id */ 6:
+                    message.packageId = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1593,6 +1623,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.ExpressionData aggregation = 5; */
         if (message.aggregation)
             ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional string package_id = 6; */
+        if (message.packageId !== undefined)
+            writer.tag(6, WireType.LengthDelimited).string(message.packageId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3367,14 +3400,12 @@ export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor"
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
-    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-    { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
-    { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse }
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.PackageHost
+ * @generated ServiceType for protobuf service symbolx.bench.BenchHost
  */
-export const PackageHost = new ServiceType("symbolx.bench.PackageHost", [
+export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
@@ -3388,6 +3419,8 @@ export const PackageHost = new ServiceType("symbolx.bench.PackageHost", [
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
     { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
     { name: "PushServerLogs", options: {}, I: PushServerLogsRequest, O: Empty },
+    { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
+    { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
     { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }

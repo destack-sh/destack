@@ -1070,13 +1070,13 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                     ptr = NodeReferenceData(
                         metatype=wire.StructType.NODE_REFERENCE,
                         type=prop.reference_types[0],
-                        ck=value,
+                        ck=str(value),
                     )
                 else:
                     ptr = NodeReferenceData(
                         metatype=wire.StructType.NODE_REFERENCE,
                         type=prop.reference_types[0],
-                        id=value,
+                        id=str(value),
                     )
                 assert prop.reference_source is not None, f"no reference source for {prop!r}"
                 setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
@@ -1308,6 +1308,37 @@ async def pg_read_node(
     if len(roots) != 1:
         raise ValueError(f"could not find root {root_type.name}:{root_id} (in {session!r})")
     return roots[0]
+
+
+async def pg_search_nodes(
+    session: Session,
+    node_type: NodeType,
+    *,
+    options: ReadOptions,
+    filter: Expression | None = None,
+    sort: Collection[Expression] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+    parent: Node | None = None,
+) -> tuple[tuple[NodeT, ...], list[str] | tuple[str, ...], str | None]:
+    """Searches 'regular' nodes from the given PG database and unpacks them into the session."""
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    cur = session.local_pg_cursor if node_cls.__is_local__ else session.global_pg_cursor
+    roots, tree = await pg_search_nodes_data_tree(
+        cur=cur,
+        node_type=node_type,
+        options=options,
+        filter=filter,
+        sort=sort,
+        first=first,
+        skip=skip,
+        after=after,
+    )
+    if not tree:
+        return (), (), None
+    nodes = wiring.unpack_nodes_inline(tree, parent=parent, session=session)
+    return nodes, roots.cursors, roots.start_cursor
 
 
 # TODO @Performance: use psycopg3 pipelining to batch edits?
