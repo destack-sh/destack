@@ -43,6 +43,8 @@ message LoginUserResponse {
 }
 
 message LogoutUserRequest {
+  // If specified, log out only the specified clients (instead of the current client).
+  repeated string client_ids = 1;
 }
 message LogoutUserResponse {
 }

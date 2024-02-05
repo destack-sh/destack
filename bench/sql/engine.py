@@ -1292,8 +1292,8 @@ async def pg_read_nodes(
     source_tree = await pg_read_node_data_tree(cur, root_type, root_ids, options)
     if source_tree is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
-    root = wiring.unpack_node_inline(source_tree, parent=parent, session=session)
-    return tuple(root.lookup(id) for id in root_ids)
+    roots = tuple(source_tree.get(str(id)) for id in root_ids)
+    return wiring.unpack_nodes_inline(source_tree, parent=parent, session=session, roots=roots)
 
 
 async def pg_read_node(
@@ -1337,7 +1337,7 @@ async def pg_search_nodes(
     )
     if not tree:
         return (), (), None
-    nodes = wiring.unpack_nodes_inline(tree, parent=parent, session=session)
+    nodes = wiring.unpack_nodes_inline(tree, parent=parent, session=session, roots=roots.nodes)
     return nodes, roots.cursors, roots.start_cursor
 
 
@@ -1453,7 +1453,7 @@ async def _pg_write_regular_edit_batch(
             node = wiring.unwrap_some_node(edit.node)
             row = {"id": node.id}
             for prop_id in updated_properties:
-                prop = node_cls.__properties__[prop_id]
+                prop = node_cls.__properties_by_id__[prop_id]
                 if prop_id in edit.properties:  # this is pretty inefficient
                     value = getattr(node, prop.name)
                     value = _pack_struct_data_prop(prop, value, ignore_array=False)
@@ -1471,7 +1471,7 @@ async def _pg_write_regular_edit_batch(
             cur=cur,
             table=table,
             static_values=static_values,
-            dynamic_columns=tuple(prop.column for prop in node_cls.__properties__.values()),
+            dynamic_columns=tuple(prop.column for prop in node_cls.__stored_properties__.values()),
             dynamic_values=dynamic_values,
             returning=selected_columns if return_nodes else None,
         )

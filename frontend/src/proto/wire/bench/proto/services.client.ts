@@ -101,7 +101,7 @@ export interface IGlobalSupervisorClient {
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     // 
-    // General Bench IO for > package & global nodes only :BenchIO
+    // General IO for > package & global nodes only :BenchIO
     // 
 
     /**
@@ -193,7 +193,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // General Bench IO for > package & global nodes only :BenchIO
+    // General IO for > package & global nodes only :BenchIO
     // 
 
     /**

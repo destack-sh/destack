@@ -17,7 +17,7 @@ from bench.language.node import (
     p_parent,
     struct,
     p_internal,
-    p_tracked,
+    p_regular,
     p_runtime,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
@@ -51,7 +51,7 @@ class File(Struct):
     sha512: Optional[str] = p_internal(30)
     content_length: Optional[int] = p_internal(31)
     content_type: Optional[str] = p_internal(32)
-    name: str = p_tracked(33)
+    name: str = p_regular(33)
     content: Optional[FileContent] = p_internal(
         34, require=False, array=False, references=NodeType.FILE_CONTENT
     )

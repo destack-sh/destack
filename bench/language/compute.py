@@ -11,7 +11,7 @@ from bench.language.node import (
     p_parent,
     struct,
     p_internal,
-    p_tracked,
+    p_regular,
     p_system,
 )
 from bench.utils.dt import utcnow_with_tz
@@ -19,16 +19,16 @@ from bench.utils.dt import utcnow_with_tz
 
 @struct(StructType.SERVER_ALLOCATION)
 class ServerAllocation(Struct):
-    default_profile: ServerProfile = p_tracked(30)
-    default_image: Optional["ServerImage"] = p_tracked(31, struct=StructType.SERVER_IMAGE)
+    default_profile: ServerProfile = p_regular(30)
+    default_image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
 
 
 @node(NodeType.SERVER)
 class Server(Node):
     parent: "Bench" = p_parent(4, NodeType.BENCH)
 
-    target_profile: ServerProfile = p_tracked(30)
-    target_image: Optional["ServerImage"] = p_tracked(31, struct=StructType.SERVER_IMAGE)
+    target_profile: ServerProfile = p_regular(30)
+    target_image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
     target_version: Optional[str] = p_system(32, index_in_pg=True)
     current_profile: Optional[ServerProfile] = p_system(33)
     current_image: Optional["ServerImage"] = p_system(34, struct=StructType.SERVER_IMAGE)
@@ -47,15 +47,15 @@ class Server(Node):
 
 @struct(StructType.SERVER_IMAGE)
 class ServerImage(Struct):
-    language: str = p_tracked(30)
-    version: str = p_tracked(31)
-    platform: str = p_tracked(32)
-    dependencies: list["ServerImageDependency"] = p_tracked(
+    language: str = p_regular(30)
+    version: str = p_regular(31)
+    platform: str = p_regular(32)
+    dependencies: list["ServerImageDependency"] = p_regular(
         33, struct=StructType.SERVER_IMAGE_DEPENDENCY
     )
 
 
 @struct(StructType.SERVER_IMAGE_DEPENDENCY)
 class ServerImageDependency(Struct):
-    name: str = p_tracked(30)
-    version: str = p_tracked(31)
+    name: str = p_regular(30)
+    version: str = p_regular(31)

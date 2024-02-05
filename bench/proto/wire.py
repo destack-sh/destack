@@ -613,8 +613,8 @@ class AccessMatrixData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "RequestSubjectData" = betterproto.message_field(30)
     identities: List["RequestSubjectData"] = betterproto.message_field(32)
-    zones: List["AccessZoneData"] = betterproto.message_field(33)
-    base_zones: List["PolicyRuleData"] = betterproto.message_field(34)
+    scope_zones: List["AccessZoneData"] = betterproto.message_field(33)
+    base_zones: List["AccessZoneData"] = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -820,31 +820,33 @@ class PolicyData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(30, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(31, optional=True)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
-    hidden: bool = betterproto.bool_field(33)
-    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(34)
+    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
 class PolicyRuleData(betterproto.Message):
     """
     A rule in a policy: <subject> + can/cannot <verb> + <object> [if
-    condition].     If set, subject/verb/object are ORed together, i.e. any
-    overlap is a match.
+    condition].     The 3 groups (subject/verb/object) are ORed together, but
+    inner-group conditions are ANDed.     (where None/empty -> wildcard, any
+    value -> filter)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(31, optional=True)
-    subject_is_delegated: bool = betterproto.bool_field(40)
-    subject_is_authenticated: bool = betterproto.bool_field(41)
-    subject_is_staff: bool = betterproto.bool_field(42)
-    subject_is_member: bool = betterproto.bool_field(43)
-    subject_is_owner: bool = betterproto.bool_field(44)
+    subject_is_delegated: Optional[bool] = betterproto.bool_field(40, optional=True)
+    subject_is_authenticated: Optional[bool] = betterproto.bool_field(41, optional=True)
+    subject_is_staff: Optional[bool] = betterproto.bool_field(42, optional=True)
+    subject_is_member: Optional[bool] = betterproto.bool_field(43, optional=True)
+    subject_is_owner: Optional[bool] = betterproto.bool_field(44, optional=True)
     effect: "PolicyEffect" = betterproto.enum_field(60)
     verbs: List["ActionType"] = betterproto.enum_field(61)
     verb_kinds: List["ActionKind"] = betterproto.enum_field(62)
     object_node_types: List["NodeType"] = betterproto.enum_field(80)
     object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(81)
+    object_properties_is_system: Optional[bool] = betterproto.bool_field(82, optional=True)
+    object_properties_is_sensitive: Optional[bool] = betterproto.bool_field(83, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1986,7 +1988,11 @@ class LoginUserResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogoutUserRequest(betterproto.Message):
-    pass
+    client_ids: List[str] = betterproto.string_field(1)
+    """
+    If specified, log out only the specified clients (instead of the current
+    client).
+    """
 
 
 @dataclass(eq=False, repr=False)
@@ -2043,7 +2049,7 @@ class SearchNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SearchNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
-    roots_ids: List[str] = betterproto.string_field(2)
+    roots: List["NodeReferenceData"] = betterproto.message_field(2)
     cursors: List[str] = betterproto.string_field(3)
     start_cursor: str = betterproto.string_field(4)
     total: int = betterproto.int32_field(5)
@@ -3407,69 +3413,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    LinkData,
-    TriggerData,
-    ClientData,
-    QueryData,
-    SignalData,
-    PauseData,
     SkipData,
-    BenchData,
     TagData,
-    FileContentData,
-    UserData,
-    IdentityData,
-    ViewData,
-    ServerData,
     SessionData,
-    HandleData,
-    FieldData,
-    NoticeData,
+    BenchData,
+    RoleData,
     RecordData,
+    RunData,
+    UserData,
     PackageData,
     BadgeData,
-    SpaceData,
-    BlockData,
+    HandleData,
     OrganizationData,
+    FieldData,
+    PauseData,
+    SignalData,
+    SpaceData,
+    NoticeData,
+    QueryData,
     MembershipData,
-    RoleData,
+    TriggerData,
+    ClientData,
+    ServerData,
     NotificationData,
-    RunData,
+    BlockData,
+    LinkData,
+    FileContentData,
+    ViewData,
+    IdentityData,
 ]
 AnyStructData = Union[
-    ScheduleData,
     FieldPathSegmentData,
-    AggregationBucketData,
-    NodeReferenceData,
-    SpaceDockItemData,
     RequestData,
-    ServerImageDependencyData,
-    RunCodeFrameData,
-    ValueSelectionData,
-    RichTextSpanData,
-    PropertyReferenceData,
-    LogEntryData,
-    IconData,
-    ServerAllocationData,
-    AccessZoneData,
     SpaceDockData,
-    AggregationData,
-    FieldPathData,
-    ReadOptionsData,
-    AccessMatrixData,
-    ValueReferenceData,
-    ServerImageData,
-    FileData,
-    RequestSubjectData,
-    PolicyData,
-    ActionData,
+    RunErrorData,
+    ValueSelectionData,
+    PropertyReferenceData,
     TypeInfoData,
     RichTextData,
-    BenchPathData,
-    PropertyPathData,
-    PolicyRuleData,
-    RunErrorData,
+    ServerAllocationData,
     ExpressionData,
+    RunCodeFrameData,
+    AggregationBucketData,
+    AccessMatrixData,
+    FieldPathData,
+    IconData,
+    ServerImageDependencyData,
+    NodeReferenceData,
+    ScheduleData,
+    RichTextSpanData,
+    LogEntryData,
+    BenchPathData,
+    ValueReferenceData,
+    ActionData,
+    ServerImageData,
+    PolicyData,
+    FileData,
+    AggregationData,
+    PropertyPathData,
+    AccessZoneData,
+    SpaceDockItemData,
+    PolicyRuleData,
+    ReadOptionsData,
+    RequestSubjectData,
 ]
 
 VERSION = "2024.02.05.5"

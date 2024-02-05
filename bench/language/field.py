@@ -28,7 +28,7 @@ from bench.language.node import (
     p_parent,
     struct,
     p_internal,
-    p_tracked,
+    p_regular,
     p_runtime,
 )
 from bench.language.validation import validate_name
@@ -104,29 +104,29 @@ class TypeInfo(Struct):
     """
 
     # type identity (must set at least one of these)
-    primitive_type: Optional[PrimitiveType] = p_tracked(40, default=None)
-    bench_type: Optional[BenchType] = p_tracked(41, default=None)
-    base_type: Optional["Block"] = p_tracked(
+    primitive_type: Optional[PrimitiveType] = p_regular(40, default=None)
+    bench_type: Optional[BenchType] = p_regular(41, default=None)
+    base_type: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     # + bonus info/constraints
     # visibility: NodeVisibility = struct_property(43, default=NodeVisibility.PUBLIC)
-    format_hint: Optional[FormatHint] = p_tracked(44, default=None)
-    condition: Optional["Expression"] = p_tracked(
+    format_hint: Optional[FormatHint] = p_regular(44, default=None)
+    condition: Optional["Expression"] = p_regular(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = p_tracked(46, require=False, default=None)
-    precision: Optional[int] = p_tracked(47, require=False, default=None)
-    scale: Optional[int] = p_tracked(48, require=False, default=None)
+    length: Optional[int] = p_regular(46, require=False, default=None)
+    precision: Optional[int] = p_regular(47, require=False, default=None)
+    scale: Optional[int] = p_regular(48, require=False, default=None)
     # default for this type :GeneralizeHasValue
     # default: Optional[Any] = struct_property(
     #     49, require=False, default=None, primitive_type=PrimitiveType.JSON
     # )
 
     # flags
-    is_array: bool = p_tracked(50, default=False)
-    is_required: bool = p_tracked(51, default=False)
-    is_secret: bool = p_tracked(52, default=False)
+    is_array: bool = p_regular(50, default=False)
+    is_required: bool = p_regular(51, default=False)
+    is_secret: bool = p_regular(52, default=False)
 
     # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
     _fields: tuple["Field", ...] | None = p_runtime(default=None)
@@ -240,10 +240,10 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
-    name: str | None = p_tracked(30, default=None, validate=validate_name)
+    name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str | None = p_internal(31, default=None)
     dynamic_key: str | None = p_internal(32, default=None)
-    text: str | None = p_tracked(33, default=None)
+    text: str | None = p_regular(33, default=None)
     value_packed: Any | None = p_internal(
         34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )

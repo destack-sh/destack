@@ -27,7 +27,7 @@ from bench.language.node import (
     node_component,
     p_parent,
     p_internal,
-    p_tracked,
+    p_regular,
     p_runtime,
 )
 from bench.language.value import HasValue

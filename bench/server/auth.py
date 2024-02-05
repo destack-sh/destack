@@ -122,7 +122,6 @@ async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
                 user=client.user,
                 badge=badge,
                 # TODO @Broken: fetch subject memberships & ownerships
-                memberships=[],
                 ownerships=[client.user],
             )
         else:

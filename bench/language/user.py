@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, NotificationKind, StructType
-from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_tracked, p_system
+from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_regular, p_system
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -22,13 +22,14 @@ class User(ScopeNode):
 
     handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
-    name: Optional[str] = p_tracked(32, default=None)
-    text: Optional["RichText"] = p_tracked(33, default=None, struct=StructType.RICH_TEXT)
+    name: Optional[str] = p_regular(32, default=None)
+    text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
     email: str = p_system(34, defer=True, unique=True, sensitive=True)
     main_bench: Optional["Bench"] = p_system(
         35, array=False, require=False, references=NodeType.BENCH
     )
 
+    # auth
     password_salt: Optional[bytes] = p_system(
         40, default=None, defer=True, encrypt=True, sensitive=True
     )
@@ -48,13 +49,14 @@ class Organization(ScopeNode):
 
     handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
-    name: str = p_tracked(32)
-    text: Optional["RichText"] = p_tracked(33, default=None, struct=StructType.RICH_TEXT)
+    name: str = p_regular(32)
+    text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
     main_bench: Optional["Bench"] = p_system(
         35, array=False, require=False, references=NodeType.BENCH
     )
 
     # flags
+    # ...
 
 
 @node(NodeType.MEMBERSHIP)
@@ -71,9 +73,9 @@ class Client(Node):
 
     parent: Union[User, "Server"] = p_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
-    name: Optional[str] = p_tracked(32, default=None)
-    device_name: str = p_tracked(33)
-    browser_name: Optional[str] = p_tracked(34, default=None)
+    name: Optional[str] = p_regular(32, default=None)
+    device_name: str = p_regular(33)
+    browser_name: Optional[str] = p_regular(34, default=None)
     last_seen_at: datetime = p_system(35)
     logged_in_at: Optional[datetime] = p_system(36, default=None)
     access_token: Optional[str] = p_system(

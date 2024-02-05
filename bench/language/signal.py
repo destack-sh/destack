@@ -8,7 +8,7 @@ from bench.language.node import (
     node,
     p_parent,
     p_internal,
-    p_tracked,
+    p_regular,
 )
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
