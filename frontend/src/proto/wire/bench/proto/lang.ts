@@ -657,25 +657,25 @@ export interface RequestSubjectData {
      */
     isStaff: boolean;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData ownerships_ptr = 32;
-     */
-    ownershipsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 33;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 34;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 35;
      */
     identityPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData badge_ptr = 38;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData badge_ptr = 36;
      */
     badgePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData ownerships_ptr = 37;
+     */
+    ownershipsPtr: NodeReferenceData[];
 }
 /**
  * RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -3833,27 +3833,6 @@ export enum BlockType {
     IDENTITY = 51
 }
 /**
- * @generated from protobuf enum symbolx.bench.Casing
- */
-export enum Casing {
-    /**
-     * @generated from protobuf enum value: CASING_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CASING_SNAKE = 1;
-     */
-    SNAKE = 1,
-    /**
-     * @generated from protobuf enum value: CASING_CAMEL = 2;
-     */
-    CAMEL = 2,
-    /**
-     * @generated from protobuf enum value: CASING_ALL_CAPS = 3;
-     */
-    ALL_CAPS = 3
-}
-/**
  * @generated from protobuf enum symbolx.bench.ClientKind
  */
 export enum ClientKind {
@@ -6791,11 +6770,11 @@ class RequestSubjectData$Type extends MessageType<RequestSubjectData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "is_authenticated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 31, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 32, name: "ownerships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 35, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "badge_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 33, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "badge_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "ownerships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<RequestSubjectData>): RequestSubjectData {
@@ -6822,20 +6801,20 @@ class RequestSubjectData$Type extends MessageType<RequestSubjectData> {
                 case /* bool is_staff */ 31:
                     message.isStaff = reader.bool();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData ownerships_ptr */ 32:
-                    message.ownershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 35:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 33:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 34:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 35:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData badge_ptr */ 38:
+                case /* optional symbolx.bench.NodeReferenceData badge_ptr */ 36:
                     message.badgePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.badgePtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData ownerships_ptr */ 37:
+                    message.ownershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -6858,21 +6837,21 @@ class RequestSubjectData$Type extends MessageType<RequestSubjectData> {
         /* bool is_staff = 31; */
         if (message.isStaff !== false)
             writer.tag(31, WireType.Varint).bool(message.isStaff);
-        /* repeated symbolx.bench.NodeReferenceData ownerships_ptr = 32; */
-        for (let i = 0; i < message.ownershipsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.ownershipsPtr[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 35; */
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 33; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 36; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 34; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 35; */
         if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData badge_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData badge_ptr = 36; */
         if (message.badgePtr)
-            NodeReferenceData.internalBinaryWrite(message.badgePtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.badgePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData ownerships_ptr = 37; */
+        for (let i = 0; i < message.ownershipsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.ownershipsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

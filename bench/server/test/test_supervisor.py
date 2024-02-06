@@ -48,9 +48,15 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
 
     # signup -> success
     signup_req = SignupUserRequest(
-        user=user._to_data(), client=client._to_data(), password="Password123!"
+        id=str(user.id),
+        slug=user.slug,
+        name=user.name,
+        email=user.email,
+        client=client._to_data(),
+        password="Password123!",
     )
     signup_rep = await supervisor.signup_user(signup_req)
+    assert signup_rep.user.slug == str(user.slug)
     assert signup_rep.user.id == str(user.id)
 
     # login, invalid password -> fail

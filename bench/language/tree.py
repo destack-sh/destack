@@ -255,11 +255,13 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         self.nodes_by_parent_id_and_type: dict[
             tuple[str, wire.NodeType], list[NodeDataT]
         ] = defaultdict(list)
-        if isinstance(nodes, list):
+        if isinstance(nodes, (list, tuple)):
             for node in nodes or []:
                 self.add(node)
         elif isinstance(nodes, NodeDataTree):
             self.add_tree(nodes)
+        elif nodes is not None:
+            raise ValueError(f"expected list or NodeDataTree, got {nodes!r}")
 
     @property
     def nodes(self) -> Collection[NodeDataT]:

@@ -40,6 +40,7 @@ from bench.language.node import (
     p_regular,
     struct,
     CHILD_NODE_TYPES,
+    p_system,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -459,21 +460,21 @@ class PolicyRule(Struct):
 class RequestSubject(Struct):
     """The <whoever/whatever> issuing a request. Unknown attributes are uninitialized."""
 
-    is_authenticated: bool = p_internal(30, default=False)
-    is_staff: bool = p_internal(31, default=False)
-    client: Optional["Client"] = p_internal(
+    is_authenticated: bool = p_system(30, default=False)
+    is_staff: bool = p_system(31, default=False)
+    client: Optional["Client"] = p_system(
         33, default=None, require=False, array=False, references=NodeType.CLIENT
     )
-    user: Optional["User"] = p_internal(
+    user: Optional["User"] = p_system(
         34, default=None, require=False, array=False, references=NodeType.USER
     )
-    identity: Optional["Identity"] = p_internal(
+    identity: Optional["Identity"] = p_system(
         35, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
-    badge: Optional["Badge"] = p_internal(
+    badge: Optional["Badge"] = p_system(
         36, default=None, require=False, array=False, references=NodeType.BADGE
     )
-    ownerships: list[Owner] = p_internal(
+    ownerships: list[Owner] = p_system(
         37,
         require=True,
         array=True,

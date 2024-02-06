@@ -175,13 +175,6 @@ class BlockType(betterproto.Enum):
     IDENTITY = 51
 
 
-class Casing(betterproto.Enum):
-    UNSPECIFIED = 0
-    SNAKE = 1
-    CAMEL = 2
-    ALL_CAPS = 3
-
-
 class ClientKind(betterproto.Enum):
     UNSPECIFIED = 0
     USER = 1
@@ -911,11 +904,11 @@ class RequestSubjectData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     is_authenticated: bool = betterproto.bool_field(30)
     is_staff: bool = betterproto.bool_field(31)
-    ownerships_ptr: List["NodeReferenceData"] = betterproto.message_field(32)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
-    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    ownerships_ptr: List["NodeReferenceData"] = betterproto.message_field(37)
 
 
 @dataclass(eq=False, repr=False)
@@ -1925,20 +1918,17 @@ class RpcMetadata(betterproto.Message):
     """
 
     client_kind: Optional["ClientKind"] = betterproto.enum_field(1, optional=True)
-    """Client origin"""
+    """Client"""
 
     client_id: Optional[str] = betterproto.string_field(2, optional=True)
     client_nonce: Optional[str] = betterproto.string_field(3, optional=True)
     client_access_token: Optional[str] = betterproto.string_field(4, optional=True)
-    bench_id: Optional[str] = betterproto.string_field(5, optional=True)
-    """Scope"""
-
-    badge_id: Optional[str] = betterproto.string_field(7, optional=True)
+    badge_id: Optional[str] = betterproto.string_field(5, optional=True)
     """Badge"""
 
-    badge_link_token: Optional[str] = betterproto.string_field(8, optional=True)
-    badge_link_password: Optional[str] = betterproto.string_field(9, optional=True)
-    badge_key_value: Optional[str] = betterproto.string_field(10, optional=True)
+    badge_link_token: Optional[str] = betterproto.string_field(6, optional=True)
+    badge_link_password: Optional[str] = betterproto.string_field(7, optional=True)
+    badge_key_value: Optional[str] = betterproto.string_field(8, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1959,9 +1949,12 @@ class EditData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SignupUserRequest(betterproto.Message):
-    user: "UserData" = betterproto.message_field(1)
-    password: str = betterproto.string_field(2)
-    client: "ClientData" = betterproto.message_field(3)
+    id: str = betterproto.string_field(1)
+    slug: str = betterproto.string_field(2)
+    name: Optional[str] = betterproto.string_field(3, optional=True)
+    email: str = betterproto.string_field(4)
+    password: str = betterproto.string_field(5)
+    client: "ClientData" = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -3413,69 +3406,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    SkipData,
-    TagData,
-    SessionData,
-    BenchData,
-    RoleData,
-    RecordData,
     RunData,
-    UserData,
-    PackageData,
-    BadgeData,
-    HandleData,
-    OrganizationData,
-    FieldData,
-    PauseData,
-    SignalData,
-    SpaceData,
-    NoticeData,
-    QueryData,
-    MembershipData,
-    TriggerData,
-    ClientData,
-    ServerData,
-    NotificationData,
-    BlockData,
-    LinkData,
-    FileContentData,
-    ViewData,
     IdentityData,
+    SpaceData,
+    SessionData,
+    NoticeData,
+    HandleData,
+    TriggerData,
+    FieldData,
+    LinkData,
+    ViewData,
+    ServerData,
+    PackageData,
+    SkipData,
+    NotificationData,
+    SignalData,
+    BadgeData,
+    TagData,
+    BenchData,
+    MembershipData,
+    OrganizationData,
+    QueryData,
+    FileContentData,
+    RecordData,
+    BlockData,
+    PauseData,
+    ClientData,
+    RoleData,
+    UserData,
 ]
 AnyStructData = Union[
-    FieldPathSegmentData,
-    RequestData,
-    SpaceDockData,
-    RunErrorData,
-    ValueSelectionData,
-    PropertyReferenceData,
-    TypeInfoData,
-    RichTextData,
-    ServerAllocationData,
-    ExpressionData,
-    RunCodeFrameData,
-    AggregationBucketData,
-    AccessMatrixData,
-    FieldPathData,
-    IconData,
-    ServerImageDependencyData,
-    NodeReferenceData,
-    ScheduleData,
-    RichTextSpanData,
-    LogEntryData,
-    BenchPathData,
-    ValueReferenceData,
-    ActionData,
-    ServerImageData,
-    PolicyData,
-    FileData,
-    AggregationData,
     PropertyPathData,
-    AccessZoneData,
+    ActionData,
+    TypeInfoData,
+    ServerAllocationData,
+    RunErrorData,
+    SpaceDockData,
+    AccessMatrixData,
+    FieldPathSegmentData,
     SpaceDockItemData,
-    PolicyRuleData,
-    ReadOptionsData,
+    ServerImageDependencyData,
+    ServerImageData,
+    ValueSelectionData,
+    RunCodeFrameData,
+    PropertyReferenceData,
+    ExpressionData,
+    AggregationBucketData,
     RequestSubjectData,
+    FieldPathData,
+    ScheduleData,
+    PolicyData,
+    NodeReferenceData,
+    IconData,
+    ValueReferenceData,
+    FileData,
+    PolicyRuleData,
+    RequestData,
+    RichTextSpanData,
+    AccessZoneData,
+    RichTextData,
+    ReadOptionsData,
+    BenchPathData,
+    LogEntryData,
+    AggregationData,
 ]
 
-VERSION = "2024.02.05.5"
+VERSION = "2024.02.06.0"

@@ -34,8 +34,8 @@ import { ReadOptionsData } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
-import { ClientData } from "./lang";
 import { UserData } from "./lang";
+import { ClientData } from "./lang";
 // 
 // Global supervisor
 // 
@@ -45,15 +45,27 @@ import { UserData } from "./lang";
  */
 export interface SignupUserRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.UserData user = 1;
+     * @generated from protobuf field: string id = 1;
      */
-    user?: UserData;
+    id: string;
     /**
-     * @generated from protobuf field: string password = 2;
+     * @generated from protobuf field: string slug = 2;
+     */
+    slug: string;
+    /**
+     * @generated from protobuf field: optional string name = 3;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: string email = 4;
+     */
+    email: string;
+    /**
+     * @generated from protobuf field: string password = 5;
      */
     password: string;
     /**
-     * @generated from protobuf field: symbolx.bench.ClientData client = 3;
+     * @generated from protobuf field: symbolx.bench.ClientData client = 6;
      */
     client?: ClientData;
 }
@@ -761,13 +773,19 @@ export interface KillRunResponse {
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
         super("symbolx.bench.SignupUserRequest", [
-            { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "client", kind: "message", T: () => ClientData }
+            { no: 1, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.id = "";
+        message.slug = "";
+        message.email = "";
         message.password = "";
         if (value !== undefined)
             reflectionMergePartial<SignupUserRequest>(this, message, value);
@@ -778,13 +796,22 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.UserData user */ 1:
-                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                case /* string id */ 1:
+                    message.id = reader.string();
                     break;
-                case /* string password */ 2:
+                case /* string slug */ 2:
+                    message.slug = reader.string();
+                    break;
+                case /* optional string name */ 3:
+                    message.name = reader.string();
+                    break;
+                case /* string email */ 4:
+                    message.email = reader.string();
+                    break;
+                case /* string password */ 5:
                     message.password = reader.string();
                     break;
-                case /* symbolx.bench.ClientData client */ 3:
+                case /* symbolx.bench.ClientData client */ 6:
                     message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 default:
@@ -799,15 +826,24 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         return message;
     }
     internalBinaryWrite(message: SignupUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.UserData user = 1; */
-        if (message.user)
-            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string password = 2; */
+        /* string id = 1; */
+        if (message.id !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.id);
+        /* string slug = 2; */
+        if (message.slug !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.slug);
+        /* optional string name = 3; */
+        if (message.name !== undefined)
+            writer.tag(3, WireType.LengthDelimited).string(message.name);
+        /* string email = 4; */
+        if (message.email !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.email);
+        /* string password = 5; */
         if (message.password !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.password);
-        /* symbolx.bench.ClientData client = 3; */
+            writer.tag(5, WireType.LengthDelimited).string(message.password);
+        /* symbolx.bench.ClientData client = 6; */
         if (message.client)
-            ClientData.internalBinaryWrite(message.client, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+            ClientData.internalBinaryWrite(message.client, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

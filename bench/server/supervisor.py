@@ -1,4 +1,4 @@
-from typing import AsyncIterator, cast
+from typing import AsyncIterator
 
 import betterproto
 import grpclib
@@ -8,7 +8,6 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Client, Expression, Handle, NodeReference, User
 from bench.language.access import (
-    SYSTEM_POLICIES,
     ReadOptions,
     adapt_read_options,
     evaluate_and_adapt_read,
@@ -49,7 +48,7 @@ from bench.server.utils import detached_session, validate_bench_data_many
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import pg_count, pg_read_node_data_tree, pg_search_nodes_data_tree
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import group_by
+from bench.utils.func import group_by, to_uuid
 
 logger = structlog.get_logger("global_supervisor")
 
@@ -84,15 +83,21 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         if self.subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        validate_bench_data_many(request.user, request.client)
+        validate_bench_data_many(request.client)
         async with detached_session() as session:
-            user: User = wiring.unpack_node(request.user, parent=None, session=session)
-            user.is_staff = False
-            user.is_activated = True
+            user = User(
+                id=to_uuid(request.id),
+                slug=request.slug,
+                name=request.name,
+                email=request.email,
+                is_activated=True,
+                _is_new=True,  # despite already having an id
+            )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             user.handle = Handle(slug=user.slug)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
+            # nocheckin: setting non existing property should error
             client.token = generate_access_token()
             session.create_many(user.handle, user, client)
             await session.commit()

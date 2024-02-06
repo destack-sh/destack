@@ -18,9 +18,12 @@ import "google/protobuf/struct.proto";
 //
 
 message SignupUserRequest {
-  UserData user = 1;
-  string password = 2;
-  ClientData client = 3;
+  string id = 1;
+  string slug = 2;
+  optional string name = 3;
+  string email = 4;
+  string password = 5;
+  ClientData client = 6;
 }
 message SignupUserResponse {
   UserData user = 1;

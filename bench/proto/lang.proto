@@ -155,13 +155,6 @@ enum BlockType {
   BLOCK_TYPE_IDENTITY = 51;
 }
 
-enum Casing {
-  CASING_UNSPECIFIED = 0;
-  CASING_SNAKE = 1;
-  CASING_CAMEL = 2;
-  CASING_ALL_CAPS = 3;
-}
-
 enum ClientKind {
   CLIENT_KIND_UNSPECIFIED = 0;
   CLIENT_KIND_USER = 1;
@@ -809,11 +802,11 @@ message RequestSubjectData {
   BenchType metatype = 1;
   bool is_authenticated = 30;
   bool is_staff = 31;
-  repeated NodeReferenceData ownerships_ptr = 32;
-  optional NodeReferenceData client_ptr = 35;
-  optional NodeReferenceData user_ptr = 36;
-  optional NodeReferenceData identity_ptr = 37;
-  optional NodeReferenceData badge_ptr = 38;
+  optional NodeReferenceData client_ptr = 33;
+  optional NodeReferenceData user_ptr = 34;
+  optional NodeReferenceData identity_ptr = 35;
+  optional NodeReferenceData badge_ptr = 36;
+  repeated NodeReferenceData ownerships_ptr = 37;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
