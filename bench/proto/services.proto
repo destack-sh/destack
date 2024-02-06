@@ -88,7 +88,7 @@ message ReadNodesResponse {
 message SearchNodesRequest {
   NodeType node_type = 1;
   repeated NodeReferenceData bases = 2;
-  ExpressionData filter = 3;
+  optional ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
   optional int32 limit = 5;
   optional string after = 6;
