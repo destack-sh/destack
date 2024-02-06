@@ -30,6 +30,14 @@ message SignupUserResponse {
   string access_token = 2;
 }
 
+message ChangeUserPasswordRequest {
+  string old_password = 1;
+  string new_password = 2;
+}
+message ChangeUserPasswordResponse {
+  UserData user = 1;
+}
+
 message LoginUserRequest {
   oneof user {
     string id = 1;
@@ -48,6 +56,7 @@ message LoginUserResponse {
 message LogoutUserRequest {
   // If specified, log out only the specified clients (instead of the current client).
   repeated string client_ids = 1;
+  optional bool logout_all = 2;
 }
 message LogoutUserResponse {
 }
@@ -152,6 +161,8 @@ service GlobalSupervisor {
 
   // Create user account.
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
+  // Change user password.
+  rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
   // Login user account with the current client.
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
   // Logout user account with the current client.

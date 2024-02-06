@@ -348,9 +348,8 @@ enum NodeType {
 
 enum NodeVisibility {
   NODE_VISIBILITY_UNSPECIFIED = 0;
-  NODE_VISIBILITY_PRIVATE = 1;
-  NODE_VISIBILITY_INTERNAL = 2;
-  NODE_VISIBILITY_PUBLIC = 3;
+  NODE_VISIBILITY_INTERNAL = 4;
+  NODE_VISIBILITY_PUBLIC = 7;
 }
 
 // Type of diagnostic in increasing severity.
@@ -731,8 +730,8 @@ message NodeReferenceData {
 //         (This means you can read a sub block but not its parent.)
 //      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 // 
-//      * Conceptually, we do 'ray trace' up the tree for every node, but actually doing it for every request
-//         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use that as a shortcut.
+//      * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+//         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
   optional string name = 30;
@@ -797,16 +796,19 @@ message RequestData {
   repeated PropertyReferenceData object_properties_ptr = 34;
 }
 
-// The <whoever/whatever> issuing a request. Unknown attributes are uninitialized.
+// The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
+//     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message RequestSubjectData {
   BenchType metatype = 1;
-  bool is_authenticated = 30;
-  bool is_staff = 31;
-  optional NodeReferenceData client_ptr = 33;
+  optional bool is_authenticated = 30;
+  optional bool is_staff = 31;
+  optional NodeReferenceData client_ptr = 32;
   optional NodeReferenceData user_ptr = 34;
   optional NodeReferenceData identity_ptr = 35;
   optional NodeReferenceData badge_ptr = 36;
-  repeated NodeReferenceData ownerships_ptr = 37;
+  repeated NodeReferenceData owned_ptr = 37;
+  repeated NodeReferenceData memberships_ptr = 38;
+  repeated NodeReferenceData roles_ptr = 39;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -980,12 +982,12 @@ message BenchData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 24;
   string slug = 30;
   string name = 31;
   optional string description = 32;
   optional NodeReferenceData organization_ptr = 33;
   optional NodeReferenceData user_ptr = 34;
+  repeated PolicyData policies = 36;
   optional NodeReferenceData head_ptr = 40;
   optional ServerAllocationData server_allocation = 50;
   optional string pg_name = 51;
@@ -1010,21 +1012,21 @@ message BlockData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  NodeVisibility visibility = 20;
-  repeated PolicyData policies = 24;
   BlockType type = 30;
-  repeated NodeReferenceData bases_ptr = 31;
-  optional TypeInfoData builtin_base = 32;
-  bool is_page = 33;
+  NodeVisibility visibility = 31;
+  repeated PolicyData policies = 32;
+  repeated NodeReferenceData bases_ptr = 33;
+  optional TypeInfoData builtin_base = 34;
+  bool is_page = 35;
   optional string name = 40;
   optional string order_key = 41;
   optional string dynamic_key = 42;
   optional string text = 43;
   optional google.protobuf.Struct value_packed = 44;
   optional google.protobuf.Struct secret_value_packed = 45;
-  optional string code = 50;
-  optional NodeReferenceData reference_ptr = 51;
-  repeated PolicyData delegated_policies = 52;
+  optional string code = 46;
+  optional NodeReferenceData reference_ptr = 50;
+  repeated PolicyData delegated_policies = 51;
 }
 
 // A client to this Bench.
@@ -1127,6 +1129,7 @@ message IdentityData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData type_ptr = 30;
 }
 
@@ -1158,6 +1161,7 @@ message MembershipData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData user_ptr = 30;
 }
 
@@ -1212,7 +1216,7 @@ message NotificationData {
   google.protobuf.Timestamp read_at = 34;
 }
 
-// A Bench organization.
+// A Bench organization with Users as members.
 message OrganizationData {
   BenchType metatype = 1;
   string id = 2;

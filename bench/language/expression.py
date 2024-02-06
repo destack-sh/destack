@@ -73,7 +73,15 @@ class NodeReference(Struct):
     base_ck: Optional[UUID] = p_regular(33, default=None)
 
     def __content_str__(self):
-        return f"{self.type.bench_name}:[id={self.id}, ck={self.ck}]"
+        selector_str_parts = []
+        if self.id is not None:
+            selector_str_parts.append(f"id={self.id}")
+        if self.ck is not None:
+            selector_str_parts.append(f"ck={self.ck}")
+        if self.base_ck is not None:
+            selector_str_parts.append(f"base_ck={self.base_ck}")
+        selector_str = ", ".join(selector_str_parts)
+        return f"{self.type.bench_name}:[{selector_str}]"
 
     @staticmethod
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
@@ -416,7 +424,7 @@ def coerce_conditional(
 def coerce_sort(
     node: Union[Node, type[Node], "HasFields"],
     sort: list[Expression | str] | Expression | str | None,
-    args: str | None = None,
+    *args: str,
 ) -> Optional[list[Expression]]:
     """
     Coerce a sort expression from either the given expression or args.

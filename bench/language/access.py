@@ -24,12 +24,14 @@ from bench.language.const import (
     RunType,
     StructType,
 )
-from bench.language.link import on_notice_raise
+from bench.language.link import on_notice_raise, NodeList
 from bench.language.node import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     Node,
+    ScopeNode,
+    Bench,
     Package,
     Property,
     Struct,
@@ -41,6 +43,7 @@ from bench.language.node import (
     p_runtime,
     p_system,
     struct,
+    p_child,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -51,7 +54,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Expression, Property, ScopeNode
+    from bench.language import Block, Expression, Organization, Client
 
 Owner = Union["User", "Organization", "Bench"]
 
@@ -104,7 +107,7 @@ class Role(Node):
 
 
 @node(NodeType.IDENTITY)
-class Identity(Node):
+class Identity(ScopeNode):
     """
     Attach an identity to a block or member.
     Identity policies are delegated to the parent and its descendants.
@@ -113,6 +116,8 @@ class Identity(Node):
 
     parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
+
+    roles: NodeList["Role"] = p_child(NodeType.ROLE)
 
 
 @struct(StructType.READ_OPTIONS)
@@ -143,6 +148,17 @@ class ReadOptions(Struct):
     )
     # (by type is runtime only since we can't / don't need to serialize maps yet)
     _filter_by_type: dict[NodeType, "Expression"] | None = p_runtime(default=None)
+
+    def __content_str__(self) -> str:
+        content_parts = []
+        for key, prop in self.__declared_properties__.items():
+            value = getattr(self, key)
+            if value:
+                content_parts.append(f"{prop.name}={value}")
+        if content_parts:
+            return ", ".join(content_parts)
+        else:
+            return "<default>"
 
     def copy(self) -> "ReadOptions":
         _copy_list_maybe = lambda x: list(x) if x is not None else None
@@ -219,8 +235,8 @@ class Policy(Struct):
         (This means you can read a sub block but not its parent.)
      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 
-     * Conceptually, we do 'ray trace' up the tree for every node, but actually doing it for every request
-        is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use that as a shortcut.
+     * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+        is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 
     """
 
@@ -380,15 +396,19 @@ class PolicyRule(Struct):
                 self._verb_mask[verb_kind.from_id : verb_kind.to_id + 1] = True
 
     def matches_subject(self, subject: "RequestSubject", object_owner: Owner) -> bool:
-        if self.subject_is_delegated is False:
+        if not self.subject_is_delegated:
             # subject always matches (by definition) if the policy is delegated
             if (
                 self.subject_is_authenticated is not None
                 and self.subject_is_authenticated != subject.is_authenticated
             ):
                 return False
+            if self.subject_is_member is not None and self.subject_is_member != (
+                subject.memberships and object_owner not in subject.owned
+            ):
+                return False
             if self.subject_is_owner is not None and self.subject_is_owner != (
-                subject.ownerships and object_owner not in subject.ownerships
+                subject.owned and object_owner not in subject.owned
             ):
                 return False
             if self.subject_is_staff and not subject.is_staff:
@@ -456,12 +476,16 @@ class PolicyRule(Struct):
 
 @struct(StructType.REQUEST_SUBJECT)
 class RequestSubject(Struct):
-    """The <whoever/whatever> issuing a request. Unknown attributes are uninitialized."""
+    """
+    The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
+    (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
+    """
 
-    is_authenticated: bool = p_system(30, default=False)
-    is_staff: bool = p_system(31, default=False)
+    is_authenticated: Optional[bool] = p_system(30, default=None)
+    is_staff: Optional[bool] = p_system(31, default=None)
+    # (Client isn't a separate subject but useful to know)
     client: Optional["Client"] = p_system(
-        33, default=None, require=False, array=False, references=NodeType.CLIENT
+        32, default=None, require=False, array=False, references=NodeType.CLIENT
     )
     user: Optional["User"] = p_system(
         34, default=None, require=False, array=False, references=NodeType.USER
@@ -472,36 +496,52 @@ class RequestSubject(Struct):
     badge: Optional["Badge"] = p_system(
         36, default=None, require=False, array=False, references=NodeType.BADGE
     )
-    ownerships: list[Owner] = p_system(
+    owned: list[Owner] = p_system(
         37,
-        require=True,
         array=True,
+        require=False,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
-    # memberships/roles/...?
+    memberships: list[Union["Bench", "Organization"]] = p_system(
+        38, require=False, array=True, references=NodeType.MEMBERSHIP
+    )
+    roles: list["Role"] = p_system(39, require=False, array=True, references=NodeType.ROLE)
 
-    def split_into_acting_subjects(self) -> tuple["RequestSubject", ...]:
+    def split_into_acting_subjects(self, tree: NodeDataTree) -> tuple["RequestSubject", ...]:
         """
-        Split into different subjects that may have different access.
-        Basically, this is every 'identity' where we could say "acting as X".
+        Split into different subjects that may have different access and are relevant in the given tree.
+         (The tree is assumed to contain all relevant owners!).
+        Basically, acting subject X in "subject is acting as X" (where X may have different access).
         """
 
-        applicable_principals: list[RequestSubject] = []
+        applicable_principals: list[RequestSubject] = [
+            RequestSubject(is_authenticated=False)  # anonymous
+        ]
         if self.is_authenticated:
             applicable_principals.append(RequestSubject(is_authenticated=True))
-        else:  # anonymous
-            applicable_principals.append(RequestSubject())
         if self.is_staff:
             applicable_principals.append(RequestSubject(is_staff=True))
-        if self.client:
-            applicable_principals.append(RequestSubject(client=self.client))
         if self.user:
             applicable_principals.append(RequestSubject(user=self.user))
         if self.identity:
             applicable_principals.append(RequestSubject(identity=self.identity))
         if self.badge:
             applicable_principals.append(RequestSubject(badge=self.badge))
-        # for role, membership, ownership, ...
+        for owner in self.owned or ():
+            if str(owner.id) in tree:
+                applicable_principals.append(RequestSubject(owned=[owner]))
+        for membership in self.memberships or ():
+            if str(membership.parent_id) in tree:
+                applicable_principals.append(RequestSubject(memberships=[membership]))
+        for role in self.roles or ():
+            if role.parent_type == NodeType.BLOCK:
+                if str(role.parent_id) in tree:
+                    applicable_principals.append(RequestSubject(roles=[role]))
+            elif role.parent_type == NodeType.MEMBERSHIP:
+                if str(role.parent.parent_id) in tree:
+                    applicable_principals.append(RequestSubject(roles=[role]))
+            else:
+                raise BenchError(f"unexpected parent to {role!r}")
 
         assert len(applicable_principals) > 0, f"no applicable principals in {self!r}"
         return tuple(applicable_principals)
@@ -531,8 +571,13 @@ class AccessZone(Struct):
     id: int = p_internal(2, require=True)
     parent_id: int | None = p_internal(4)
     scope_id: str = p_internal(30)
+    _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_internal(31)
+    _identity: Optional[Identity] = p_runtime(default=None)
     rules: list[PolicyRule] = p_internal(32, array=True, struct=StructType.POLICY_RULE)
+
+    def __content_str__(self) -> str:
+        return f"{self.id} for {self._identity or self.identity_id} in {self.scope_id} ({len(self.rules)} rules)"
 
 
 @struct(StructType.ACCESS_MATRIX)
@@ -546,7 +591,7 @@ class AccessMatrix(Struct):
 
     # quick access to the zone (id = index)
     _lowest_zone_by_scope: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
-    _base_zone_by_root: dict[str, AccessZone] = p_runtime(default_factory=dict)
+    _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
 
     def __content_str__(self) -> str:
         return f"for {self.subject} ({len(self.identities)} identities, {len(self.scope_zones)} node zones, {len(self.base_zones)} base zones)"
@@ -564,18 +609,11 @@ class Request(Struct):
     )
 
     def __content_str__(self) -> str:
-        object_str_parts = []
-        for object_key in ("properties", "owner"):
-            value = getattr(self, object_key)
-            if value:
-                if isinstance(value, bool):
-                    object_str_parts.append(object_key)
-                else:
-                    object_str_parts.append(f"{object_key}={value}")
-        if object_str_parts:
-            object_str = f"{self.object_type.bench_name} [{', '.join(object_str_parts)}]"
+        if self.object_properties:
+            object_properties_str = "|".join(p.name for p in self.object_properties)
+            object_str = f"{self.object_type.bench_name} [{object_properties_str}]"
         else:
-            object_str = self.object_type.bench_name
+            object_str = f"{self.object_type.bench_name} [*]"
         return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
 
 
@@ -597,7 +635,7 @@ class Action(Struct):
     # bench, package, space, user, ...
 
     def __content_str__(self) -> str:
-        return f"{self.decision.bench_name} {self.subject} ({', '.join(str(r) for r in self.requests)})"
+        return f"{self.decision.bench_name} [{self.subject}]: ({', '.join(str(r) for r in self.requests)})"
 
 
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
@@ -651,7 +689,7 @@ class AccessError(BenchError, ValueError):
 
 
 SYSTEM_POLICIES: tuple[Policy, ...] = (
-    # evaluated in order!
+    # NOTE: all policies (incl. these) and their rules are evaluated in order
     Policy("SystemProtection").append(
         PolicyRule("CannotEditSystemProperties")
         .deny(EditType.UPDATE)
@@ -659,6 +697,9 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     ),
     Policy("OwnerAccess").append(
         PolicyRule("OwnerCanDoAnything").subject(is_owner=True).allow(*ACTION_KINDS),
+    ),
+    Policy("StaffAccess").append(
+        PolicyRule("StaffCanReadAnything").subject(is_staff=True).allow(ActionKind.READ),
     ),
     Policy("MemberAccess").append(
         # meta = nodes belonging to the bench, outside  package
@@ -681,7 +722,10 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(node_types=(NodeType.ORGANIZATION,), properties_is_sensitive=False),
     ),
     Policy("AnonymousAccess").append(
-        PolicyRule("AnonCanReadHandle").subject().allow(ActionKind.READ).object((NodeType.HANDLE,))
+        PolicyRule("AnonCanReadHandle")
+        .subject(is_authenticated=False)
+        .allow(ActionKind.READ)
+        .object((NodeType.HANDLE,))
     ),
 )
 for policy in SYSTEM_POLICIES:
@@ -731,19 +775,19 @@ def generate_access_matrix(
 
     from bench.proto import wiring
 
-    identities = subject.split_into_acting_subjects()
+    roots = tree.find_roots()
+    identities = subject.split_into_acting_subjects(tree)
     scope_zones: list[AccessZone] = []
     base_zones: list[AccessZone] = []
     matrix = AccessMatrix(
         subject=subject, scope_zones=scope_zones, base_zones=base_zones, identities=identities
     )
-    roots = tree.find_roots()
     applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
         current_node: AnyNodeData, owner: Owner, parent_zones_by_identity: tuple[int | None, ...]
     ):
-        """Generates any new applicable access zones downstream from the node."""
+        """Generates any new applicable access zones downstream from the node for all identities."""
 
         # if this node defines new policies, apply them to their scope
         if getattr(current_node, "policies", None):
@@ -779,7 +823,9 @@ def generate_access_matrix(
                         id=len(scope_zones),
                         parent_id=parent_zones_by_identity[identity_id],
                         scope_id=current_node.id,
+                        _scope=current_node,
                         identity_id=identity_id,
+                        _identity=identity,
                         rules=applicable_rules,
                     )
                     scope_zones.append(zone)
@@ -790,13 +836,14 @@ def generate_access_matrix(
         if current_zones_by_identity is not parent_zones_by_identity:  # back to tuple if modified
             current_zones_by_identity = tuple(current_zones_by_identity)
 
-        # update 'lowest zone' shortcuts
+        # update 'lowest zone' shortcuts (per identity)
         for identity_id in range(len(identities)):
             zone_id = current_zones_by_identity[identity_id]
             zone = scope_zones[zone_id] if zone_id is not None else None
             matrix._lowest_zone_by_scope[(identity_id, current_node.id)] = zone
 
         # descend into children
+        #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
         current_type: NodeType = wiring.unpack_enum(NodeType, current_node.metatype)
         for child_type in CHILD_NODE_TYPES[current_type]:
             for child_node in tree.iter_descendants(current_node, child_type):
@@ -827,12 +874,14 @@ def generate_access_matrix(
             base_zone = AccessZone(
                 id=len(base_zones),
                 scope_id=root.id,
+                _scope=root,
                 parent_id=None,
                 identity_id=identity_id,
+                _identity=identity,
                 rules=base_rules,
             )
             base_zones.append(base_zone)
-            matrix._base_zone_by_root[root.id] = base_zone
+            matrix._base_zone_by_root[(identity_id, root.id)] = base_zone
 
         # add nested zones if there are any legislative nodes down here
         _assign_access_zones(root, owner, root_zones_by_identity)
@@ -859,7 +908,7 @@ def _evaluate_request_object(
         unset_properties = object_properties  # the unmatched properties so far
 
         # first check the base zones, then walk the zones starting from the lowest
-        base_zone: AccessZone = matrix._base_zone_by_root[root_id]
+        base_zone: AccessZone = matrix._base_zone_by_root[(identity_id, root_id)]
         start_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
         current_zone = base_zone
         while unset_properties.any():
@@ -1012,6 +1061,7 @@ def evaluate_and_adapt_read(
             for pruned_prop_id in pruned_properties.search(True):
                 prop_name = node_cls.__properties_name_by_id__[pruned_prop_id]
                 setattr(node, prop_name, None)
+            visible_nodes.append(node)
 
     # add any required skipped nodes back in (as Skips)
     for node in visible_nodes:

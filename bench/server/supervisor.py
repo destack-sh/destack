@@ -42,6 +42,8 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
+    ChangeUserPasswordRequest,
+    ChangeUserPasswordResponse,
 )
 from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.server.utils import detached_session, validate_bench_data_many
@@ -102,6 +104,25 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             await session.commit()
         return SignupUserResponse(user=user._to_data(), access_token=client.access_token)
 
+    async def change_user_password(
+        self, request: "ChangeUserPasswordRequest"
+    ) -> "ChangeUserPasswordResponse":
+        if not self.subject.is_authenticated:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+        async with detached_session() as session:
+            user = self.subject.user
+            if not await check_password(
+                request.old_password, user.password_salt, user.password_hash
+            ):
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
+
+            # set new password
+            user.password_salt = generate_salt()
+            user.password_hash = hash_password(request.password, user.password_salt)
+            session.track(user)
+            await session.commit()
+        return ChangeUserPasswordResponse(user=user._to_data())
+
     async def login_user(self, request: "LoginUserRequest") -> "LoginUserResponse":
         if self.subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
@@ -134,6 +155,8 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 clients = await Client.filter(
                     parent=self.subject.user, id__in=request.client_ids
                 ).tolist()
+            elif request.logout_all:
+                clients = await Client.filter(parent=self.subject.user).tolist()
             else:
                 clients = (self.subject.client,)
                 session.track(self.subject.client)
@@ -164,6 +187,8 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
     async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
+        if not roots:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
@@ -181,6 +206,11 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
+        # check all the roots were found
+        if any(root.id not in tree for root in request.roots):
+            missing_roots = tuple(root for root in roots if str(root.id) not in tree)
+            raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
+
         access = generate_access_matrix(self.subject, tree)
         action, adapted_nodes = evaluate_and_adapt_read(
             access, tree, required_nodes=request.roots, adapt_nodes_in_place=True

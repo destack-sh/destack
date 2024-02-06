@@ -2,11 +2,21 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, NotificationKind, StructType
-from bench.language.node import Node, ScopeNode, node, p_parent, p_internal, p_regular, p_system
+from bench.language.link import NodeList
+from bench.language.node import (
+    Node,
+    ScopeNode,
+    node,
+    p_parent,
+    p_internal,
+    p_regular,
+    p_system,
+    p_child,
+)
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Space, Server, RichText
+    from bench.language import Bench, Space, Server, RichText, Role
 
 
 @node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
@@ -60,11 +70,14 @@ class Organization(ScopeNode):
 
 
 @node(NodeType.MEMBERSHIP)
-class Membership(Node):
+class Membership(ScopeNode):
     """A membership to a Bench or Organization."""
 
     parent: Union["Bench", "Organization"] = p_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
+
+    # roles are defined (and resolved) in the main bench
+    roles: NodeList["Role"] = p_child(NodeType.ROLE)
 
 
 @node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)

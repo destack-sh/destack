@@ -25,7 +25,7 @@ from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
 from bench.language.access import ReadOptions
-from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp
+from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp, EMPTY_DICT
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -676,7 +676,7 @@ async def pg_select(
         statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
     logger.debug("pg.select", table=table, query=sql_to_str(cur, statement))
     if any(c.is_encrypted for c in columns):
-        params = {**(params or {}), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
@@ -1181,7 +1181,10 @@ async def pg_read_node_data_tree(
     options: ReadOptions,
     _tree: NodeDataTree | None = None,
 ) -> NodeDataTree | None:
-    """Reads regular nodes from the given PG database. Returns a tree of nodes."""
+    """
+    Reads regular nodes from the given PG database.
+    Returns a tree of nodes that *may* contain the requested nodes.
+    """
 
     visited_tree = _tree if _tree is not None else NodeDataTree()
 

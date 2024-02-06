@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from dataclasses import replace
+from uuid import UUID
 
 import grpclib
 import pytest
@@ -76,23 +77,13 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
-    # read user without sensitive data, unauthorized -> success
-    read_user_req = ReadNodesRequest(roots=[user.to_ref()._to_data()])
-    read_user_rep = await supervisor.read_nodes(read_user_req)
-    assert read_user_rep.nodes[0].user.slug == user.slug
-
-    # read user with sensitive data, unauthorized -> success but empty (except public data)
+    # read user with sensitive data, authorized -> success
     read_user_req = ReadNodesRequest(
         roots=[user.to_ref()._to_data()],
         options=ReadOptions(
             include_properties=[User.email], descendant_types=[NodeType.CLIENT]
         )._to_data(),
     )
-    _ = await supervisor.read_nodes(read_user_req)
-    assert len(read_user_rep.nodes) == 1
-    assert not read_user_rep.nodes[0].user.email
-
-    # read user with sensitive data, authorized -> success
     access_metadata = RpcMetadata(
         client_id=str(client.id),
         client_kind=wire.ClientKind.USER,
@@ -119,8 +110,77 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
         _ = await supervisor.read_nodes(read_user_req, metadata=access_metadata.to_headers())
 
 
-async def test_user_crud(supervisor: GlobalSupervisorStub):
+async def test_cross_user_protection(supervisor: GlobalSupervisorStub):
+    """Users can only make some actions on their own behalf."""
+
+    user_a = User(slug="alice", name="Alice", email="alice@bench.app")
+    user_b = User(slug="bob", name="Bob", email="bob@bench.app")
+    user_c = User(slug="carol", name="Carol", email="carol@bench.app")
+    all_users = (user_a, user_b, user_c)
+
+    # signup users
+    metadata_by_user: dict[UUID, RpcMetadata] = {}
+    for user in all_users:
+        client = Client(
+            parent=user,
+            name=f"{user.name}'s device",
+            device_name="pytest",
+            last_seen_at=utcnow_with_tz(),
+        )
+        signup_req = SignupUserRequest(
+            id=str(user.id),
+            slug=user.slug,
+            name=user.name,
+            email=user.email,
+            password=f"Password{user.slug}123!",
+            client=client._to_data(),
+        )
+        signup_rep = await supervisor.signup_user(signup_req)
+        assert signup_rep.user.slug == user.slug
+        metadata_by_user[user.id] = RpcMetadata(
+            client_id=str(client.id),
+            client_kind=wire.ClientKind.USER,
+            client_access_token=signup_rep.access_token,
+        )
+
+    # cross-test user access/actions
+    for actor in all_users:
+        for target in all_users:
+            is_self = actor == target
+
+            # request our own and everyone else's data
+            sensitive_properties = (User.email, User.password_salt, User.password_hash)
+            read_user_req = ReadNodesRequest(
+                roots=[target.to_ref()._to_data()],
+                options=ReadOptions(include_properties=sensitive_properties)._to_data(),
+            )
+            read_user_rep = await supervisor.read_nodes(
+                read_user_req, metadata=metadata_by_user[actor.id].to_headers()
+            )
+            read_target = read_user_rep.nodes[0].user
+            assert read_target.slug == target.slug
+            if is_self:  # we should be able to read our own sensitive data
+                assert read_target.email == target.email
+                assert read_target.password_salt
+                assert read_target.password_hash
+            else:  # but not others'
+                assert not read_target.email
+                assert not read_target.password_salt
+                assert not read_target.password_hash
+
+
+async def test_global_crud_protection(supervisor: GlobalSupervisorStub):
+    """Create, read, update and search global nodes directly. Shouldn't be possible for most nodes."""
+
     pass
+    # read user with owned data, unauthorized -> success but empty (except public data)
+    # read_user_req = ReadNodesRequest(
+    #     roots=[user.to_ref()._to_data()],
+    #     options=ReadOptions(descendant_types=[NodeType.CLIENT])._to_data(),
+    # )
+    # read_user_rep = await supervisor.read_nodes(read_user_req)
+    # assert not len(read_user_rep.nodes) == 1
+    # assert not read_user_rep.nodes[0].email
     # create User -> fail
     # upsert User -> fail
 
@@ -146,15 +206,3 @@ async def test_user_crud(supervisor: GlobalSupervisorStub):
     # edit_req = CommitEditsRequest(edits=[edit])
     # with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
     #     _ = await supervisor.commit_edits(edit_req, access_metadata.to_headers())
-
-
-async def test_global_read(supervisor: GlobalSupervisorStub):
-    pass
-    # read user with owned data, unauthorized -> success but empty (except public data)
-    # read_user_req = ReadNodesRequest(
-    #     roots=[user.to_ref()._to_data()],
-    #     options=ReadOptions(descendant_types=[NodeType.CLIENT])._to_data(),
-    # )
-    # read_user_rep = await supervisor.read_nodes(read_user_req)
-    # assert not len(read_user_rep.nodes) == 1
-    # assert not read_user_rep.nodes[0].email
