@@ -5,17 +5,18 @@ from typing import TYPE_CHECKING, Collection, Deque, Optional
 import pytz
 from croniter import croniter
 
-from bench.language.const import NodeType, ScheduleType, TriggerType, StructType
+from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
 from bench.language.node import (
     Node,
     NodeList,
+    Property,
+    Struct,
     node,
-    p_child,
     node_component,
+    p_child,
     p_parent,
     p_regular,
     struct,
-    Struct,
 )
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 
@@ -46,7 +47,9 @@ class Schedule(Struct):
     def __content_str__(self) -> str:
         return f"{self.type} {self.timezone} {self.interval or self.cron}"
 
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
+    def _validate_inner(
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+    ) -> None:
         if self.type == ScheduleType.CRON:
             if not croniter.is_valid(self.cron):
                 on_invalid(self, f"cron: invalid expression ('{self.cron}')", [Schedule.cron])

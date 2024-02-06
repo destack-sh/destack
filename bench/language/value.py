@@ -4,16 +4,17 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 
 import structlog
 
-from bench.language.notice import NoticeHandler
 from bench.language.node import (
     NS,
     UNSET,
     Node,
+    Property,
     ScopeNode,
     node_component,
-    p_runtime,
     p_internal,
+    p_runtime,
 )
+from bench.language.notice import NoticeHandler
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType
@@ -42,9 +43,11 @@ class HasValue(Node):
     def _type(self) -> Optional["TypeInfo"]:
         raise NotImplementedError(f"{self.__class__.__name__} does not implement HasValue._type")
 
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
+    def _validate_inner(
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+    ) -> None:
         # type may not be ready if not attached (e.g. Record in a Database)
-        if "value" in properties and self._type is not None:
+        if self._type is not None and any(p.id == self.__class__.value.id for p in properties):
             try:
 
                 def get_k(f):

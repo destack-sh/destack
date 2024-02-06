@@ -29,11 +29,12 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from bitarray import bitarray
 import structlog
+from bitarray import bitarray
 from cachetools import cached
 
 from bench.language.const import (
+    EMPTY_DICT,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     INTERP_NODE_TYPES,
@@ -53,7 +54,6 @@ from bench.language.const import (
     NRel,
     StructType,
     _active_session,
-    EMPTY_DICT,
 )
 from bench.language.link import (
     _NC,
@@ -85,13 +85,13 @@ from bench.sql.core import (
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
+    IdEnum,
+    bytetuple,
     check_collections_equal,
     did_you_mean_str,
     get_subclasses,
     parse_py_type,
     try_tuple,
-    IdEnum,
-    bytetuple,
 )
 from bench.utils.utils import frozendict
 
@@ -101,15 +101,15 @@ if TYPE_CHECKING:
         NodeReference,
         NodeVisitor,
         Notice,
+        NoticeType,
         Organization,
         Policy,
         PropertyReference,
+        ServerAllocation,
         Session,
         Space,
         TypeInfo,
         User,
-        ServerAllocation,
-        NoticeType,
     )
     from bench.language.notice import NoticeHandler
 
@@ -139,7 +139,7 @@ class NodeReferenceKind(enum.StrEnum):
     CHILD = "child"
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, slots=True)
 class Property(_TypeExpressionBase):
     """A system-defined attribute of a node or struct."""
 
@@ -185,8 +185,9 @@ class Property(_TypeExpressionBase):
     default_factory: Callable[[], Any] | None = None
     custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
     custom_copy: Callable[[Any], Any] | None = None
-    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
-    _as_ref: Optional["PropertyReference"] = None
+    ignore_conflicts: bool = False
+    _cached_as_ref: Optional["PropertyReference"] = None
+    _cached_as_type: Optional["TypeInfo"] = None
 
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
@@ -242,46 +243,52 @@ class Property(_TypeExpressionBase):
     def clone(self):
         return dataclasses.replace(self, component=None)
 
-    @functools.cached_property
+    @property
     def _as_type(self) -> "TypeInfo":
-        assert self.is_introspectable, f"{self!r} is not introspectable"
-        from bench.language.field import TypeInfo
+        """The type info for this property (can't extend TypeInfo because circles)."""
 
-        if self.reference_kind:
-            return TypeInfo(
-                bench_type=self.reference_types[0],  # don't have unions yet, doesn't matter
-                is_array=self.is_array,
-                is_required=self.is_required,
-            )
-        elif self.is_struct:
-            return TypeInfo(
-                bench_type=self.struct_type, is_array=self.is_array, is_required=self.is_required
-            )
-        elif self.primitive_type:
-            return TypeInfo(
-                primitive_type=self.primitive_type,
-                is_array=self.is_array,
-                is_required=self.is_required,
-            )
-        else:
-            raise ValueError(f"cannot determine type info for {self!r}")
+        if self._cached_as_type is None:
+            assert self.is_introspectable, f"{self!r} is not introspectable"
+            from bench.language.field import TypeInfo
+
+            if self.reference_kind:
+                self._cached_as_type = TypeInfo(
+                    bench_type=self.reference_types[0],  # don't have unions yet, doesn't matter
+                    is_array=self.is_array,
+                    is_required=self.is_required,
+                )
+            elif self.is_struct:
+                self._cached_as_type = TypeInfo(
+                    bench_type=self.struct_type,
+                    is_array=self.is_array,
+                    is_required=self.is_required,
+                )
+            elif self.primitive_type:
+                self._cached_as_type = TypeInfo(
+                    primitive_type=self.primitive_type,
+                    is_array=self.is_array,
+                    is_required=self.is_required,
+                )
+            else:
+                raise ValueError(f"cannot determine type info for {self!r}")
+        return self._cached_as_type
 
     def to_ref(self) -> "PropertyReference":
-        """A pointer to this property."""
-        if self._as_ref is not None:
-            return self._as_ref
-        assert self.component is not None, f"{self!r} is not finalized"
-        from bench.language.expression import PropertyReference
+        """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
-        if self.reference_kind and len(self.reference_types) == 1:
-            references_type = self.reference_types[0]
-        else:
-            references_type = None
-        ref = PropertyReference(
-            type=self.component.metatype, id=self.id, references_type=references_type
-        )
-        self._as_ref = ref
-        return ref
+        if self._cached_as_ref is None:
+            assert self.component is not None, f"{self!r} is not finalized"
+            from bench.language.expression import PropertyReference
+
+            if self.reference_kind and len(self.reference_types) == 1:
+                references_type = self.reference_types[0]
+            else:
+                references_type = None
+            ref = PropertyReference(
+                type=self.component.metatype, id=self.id, references_type=references_type
+            )
+            self._cached_as_ref = ref
+        return self._cached_as_ref
 
     @property
     def py_ident(self) -> str:
@@ -294,7 +301,7 @@ class Property(_TypeExpressionBase):
         return self.component.__table__._columns_by_name[self.name]
 
     @property
-    def type(self) -> BenchType:
+    def type(self) -> Optional[BenchType]:
         return self.component.metatype
 
     @property
@@ -356,7 +363,7 @@ class Property(_TypeExpressionBase):
             if k.name in (
                 "id",
                 "component",
-                "ignore_conflicts_with",
+                "ignore_conflicts",
                 "reference_wired_ptr",
                 "reference_stored_ptrs",
                 "reference_source",
@@ -610,7 +617,7 @@ def p_property(
     encrypt: bool = False,
     unique: bool = False,
     sensitive: bool = False,
-    ignore_conflicts_with: tuple[type["Node"], ...] = None,
+    ignore_conflicts: bool = False,
     copy: Callable[[Any], Any] = None,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
 ):
@@ -626,7 +633,7 @@ def p_property(
         custom_validate=validate,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
-        ignore_conflicts_with=ignore_conflicts_with,
+        ignore_conflicts=ignore_conflicts,
         is_stored=store,
         struct_type=struct,
         primitive_type=primitive_type,
@@ -909,9 +916,7 @@ def _process_struct_base_cls(
                     prop.component = cls
                     properties_by_name[name] = prop
             elif not prop._equals_type(existing):
-                if existing.ignore_conflicts_with and any(
-                    issubclass(component, c) for c in existing.ignore_conflicts_with
-                ):
+                if existing.ignore_conflicts:
                     continue
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
@@ -971,9 +976,6 @@ def _process_struct_base_cls(
                 )
                 setattr(cls, prop.name + "_" + postfix, computed_prop)
 
-    # nocheckin: use slots for struct/node classes?
-    cls = dataclass(cls, repr=False, eq=False)  # type: ignore
-
     # collect methods implemented in this class (specifically)
     for meth_type in _ComponentMethod:
         meth = getattr(cls, meth_type.inner, None)
@@ -1010,6 +1012,16 @@ def _process_struct_base_cls(
     for p in props:
         if p.id and p.id is not UNSET:
             cls.__properties_mask__[p.id] = True
+
+    # TODO @Performance!: use slots for Struct/Node and in wire types (StructData/NodeData/...)
+    #  Using slots for our structs bit trickier than it seems because
+    #   1) we use dynamic props in Blocks
+    #   2) lack of betterproto support (unclear how challenging it would be to add)
+
+    # transform class
+    cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
+    for prop in props:  # update reference to 'new' class
+        prop.component = cls
 
     return cls, properties_by_name
 
@@ -1514,21 +1526,21 @@ class Struct(abc.ABC):
             if isinstance(value, Node):
                 visitor.visit_reference(value)
 
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
+    def _validate_inner(
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+    ) -> None:
         """Validate cross-property constraints given the modified properties."""
         # since this is the root package, we also validate the properties directly
-        for name in properties:
-            prop = self.__properties__.get(name)
-            assert prop is not None, f"unknown property '{name}' on {self!r}"
-            value = getattr(self, name)
+        for prop in properties:
+            value = getattr(self, prop.name)
             if value is None:
                 if prop.is_required:
-                    on_invalid(self, f"{prop.name}: is required", [prop.name])
+                    on_invalid(self, f"{prop.name}: is required", [prop])
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_invalid)
                 valid = prop.validate(value, handler)
                 if valid is False:
-                    on_invalid(self, f"{prop.name}: invalid value", [prop.name])
+                    on_invalid(self, f"{prop.name}: invalid value", [prop])
 
     # struct has basic set of lifecycle methods (no index because no scope)
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
@@ -1843,34 +1855,33 @@ class Node(Struct, _NodeExpressionBase):
 
     def __setattr__(self, key, value):
         if self._status != NS.TRACKED:
-            return super().__setattr__(key, value)
+            return object.__setattr__(self, key, value)
 
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.reference_kind == NodeReferenceKind.CHILD:
                 return getattr(self, key).set(value)  # has its own set
             elif prop.is_runtime_only:  # untracked
-                return super().__setattr__(key, value)
+                return object.__setattr__(self, key, value)
+
+            # validated set
             prev = getattr(self, key)
-            self.__dict__[key] = value
+            object.__setattr__(self, key, value)
             try:
-                self._validate_self([key], on_invalid=on_invalid_raise)
+                self._validate_self([prop], on_invalid=on_invalid_raise)
             except ValidationError:  # reset on error
-                self.__dict__[key] = prev
+                object.__setattr__(self, key, prev)
                 raise
+
             if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
                 from bench.language.expression import NodeReference
 
-                self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(value)
-                if not self._is_new:
-                    self._session.update(self, (prop,))
-                    self._updated_self((prop.reference_wired_ptr.name,))
-            elif not self._is_new:
+                object.__setattr__(
+                    self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
+                )
+            if not self._is_new:
                 self._session.update(self, (prop,))
-                self._updated_self((key,))
-            return
-        elif key in self.__dict__:
-            self.__dict__[key] = value
+            self._updated_self((prop,))
             return
 
         if self._session is not None:
@@ -1891,8 +1902,7 @@ class Node(Struct, _NodeExpressionBase):
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
     def __getattr__(self, item):
-        if item in self.__dict__:  # 'native' property or method
-            return self.__dict__[item]
+        # we're using slots so this is not an instance attribute
 
         attr = UNSET
         # prefer components methods
@@ -1969,7 +1979,7 @@ class Node(Struct, _NodeExpressionBase):
         """Called when this node is detached from a package."""
         pass
 
-    def _updated_inner(self, properties: Collection[str]) -> None:
+    def _updated_inner(self, properties: Collection[Property]) -> None:
         """Called when this node is updated."""
         pass
 
@@ -2031,7 +2041,7 @@ class Node(Struct, _NodeExpressionBase):
             and self._session is not None
             and self._session is not UNSET
         ):
-            self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
+            self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.SOURCE)
@@ -2129,8 +2139,8 @@ class ScopeNode(Node):
                 self._tree = NodeTree()
             self._tree.add(self)
 
-    def _updated_inner(self, properties: Collection[str]) -> None:
-        if "name" in properties:
+    def _updated_inner(self, properties: Collection[Property]) -> None:
+        if any(p.name == "name" for p in properties):
             _InterpChange._collect(self.parent, self.parent, (self,), _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
@@ -2700,7 +2710,7 @@ def _complete_bench_setup():
             if prop.is_runtime and not prop.is_runtime_only and not prop.is_computed:
                 setattr(cls, name, prop)
 
-            # ensure the introspected field works (and cache it)
+            # ensure the introspected property type works (and cache it)
             if prop.is_introspectable:
                 prop._as_type  # noqa
 

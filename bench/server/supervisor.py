@@ -97,11 +97,10 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             user.password_hash = hash_password(request.password, user.password_salt)
             user.handle = Handle(slug=user.slug)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
-            # nocheckin: setting non existing property should error
-            client.token = generate_access_token()
+            client.access_token = generate_access_token()
             session.create_many(user.handle, user, client)
             await session.commit()
-        return SignupUserResponse(user=user._to_data(), access_token=client.token)
+        return SignupUserResponse(user=user._to_data(), access_token=client.access_token)
 
     async def login_user(self, request: "LoginUserRequest") -> "LoginUserResponse":
         if self.subject.is_authenticated:

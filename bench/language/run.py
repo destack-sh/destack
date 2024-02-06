@@ -25,19 +25,19 @@ from bench.language.node import (
     ScopeNode,
     Struct,
     node,
+    node_component,
     p_ancestor,
     p_child,
-    node_component,
+    p_internal,
     p_parent,
     struct,
-    p_internal,
 )
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language import Block, Session, Server
+    from bench.language import Block, Server, Session
 
 
 @node_component
@@ -142,7 +142,7 @@ class Run(ScopeNode, HasValue):
         default=None,
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
-        ignore_conflicts_with=(HasValue,),
+        ignore_conflicts=True,
     )
     error: Optional["RunError"] = p_internal(46, default=None, primitive_type=PrimitiveType.JSON)
     runs: list["Run"] = p_child(NodeType.RUN)
