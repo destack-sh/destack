@@ -447,7 +447,7 @@ class Table(TableObject):
 
     def __str__(self):
         columns_str = ", ".join(
-            f"{c.name} {c.underlying_type}{c.__flags_str__()}" for c in self.columns
+            f"{c.name} {c.underlying_type.bench_name}{c.__flags_str__()}" for c in self.columns
         )
         constraints_str = ", ".join(f"{c.name} {c.type}" for c in self.constraints)
         indexes_str = ", ".join(f"{c.name} {c.type}" for c in self.indexes)

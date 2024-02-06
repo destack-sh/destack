@@ -6,7 +6,6 @@ import typing
 from typing import Optional
 from uuid import UUID
 
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import cyrb53a, IdEnum, bytetuple
 from bench.utils.utils import frozendict
 
@@ -15,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.05.5"
+VERSION = "2024.02.06.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -79,10 +78,6 @@ class NodeType(IdEnum):
 
     # INVITE = 240
     MEMBERSHIP = 241
-
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
@@ -160,10 +155,6 @@ class StructType(IdEnum):
     # workspace
     # ...
 
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
-
 
 STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
 
@@ -171,7 +162,6 @@ if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
     BenchType = IdEnum.combine("BenchType", NodeType, StructType)
-    BenchType.bench_name = NodeType.bench_name
 
 BENCH_TYPES: bytetuple[BenchType] = bytetuple(tuple(BenchType))
 INTERP_NODE_TYPES = (NodeType.NOTICE,)
@@ -206,10 +196,6 @@ class BlockType(IdEnum):
 
     ROLE = 50  # define a role with policies
     IDENTITY = 51  # define an identity with roles & policies
-
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
 
     @property
     def is_type(self) -> bool:
@@ -319,10 +305,6 @@ class ReadType(IdEnum):
     LIST = 4  # list, search, filter, etc.
 
     @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
-
-    @property
     def kind(self) -> ActionKind:
         return ActionKind.READ
 
@@ -343,10 +325,6 @@ class EditType(IdEnum):
     DELETE = 20
 
     @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
-
-    @property
     def kind(self) -> ActionKind:
         return ActionKind.EDIT
 
@@ -360,10 +338,6 @@ class RunType(IdEnum):
     KILL = 28
 
     # ideally <32 so we can bitpack into a single int
-
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
 
     @property
     def kind(self) -> ActionKind:
@@ -384,16 +358,11 @@ class ActionKind(IdEnum):
     def to_id(self):
         return ACTION_CLASS_BY_KIND[self].get_max_id()
 
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
-
 
 if typing.TYPE_CHECKING:
     ActionType = ReadType | EditType | RunType
 else:
     ActionType = IdEnum.combine("ActionType", ReadType, EditType, RunType)
-    ActionType.bench_name = ReadType.bench_name
     ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
 
 READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
@@ -518,10 +487,6 @@ class NoticeKind(IdEnum):
     INFORMATION = 2
     WARNING = 3
     ERROR = 4
-
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
 
 
 class BenchRegion(IdEnum):

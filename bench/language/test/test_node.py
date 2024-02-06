@@ -1,6 +1,14 @@
 import pytest
 
+from bench.language.const import NodeType
 from bench.language.node import BenchPath, InvalidBenchPath
+from bench.language.test.fabricator import Fabricator
+
+
+def test_set_non_existing_property(fabricator: "Fabricator"):
+    client = fabricator.fabricate(NodeType.CLIENT)
+    with pytest.raises(AttributeError):
+        client.wadabadaboo = "wadabadaboo"
 
 
 @pytest.mark.parametrize(

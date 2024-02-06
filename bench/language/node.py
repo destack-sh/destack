@@ -53,6 +53,7 @@ from bench.language.const import (
     NRel,
     StructType,
     _active_session,
+    EMPTY_DICT,
 )
 from bench.language.link import (
     _NC,
@@ -305,13 +306,18 @@ class Property(_TypeExpressionBase):
         return not self.is_runtime_only and self.is_stored
 
     @property
-    def is_tree_relation(self) -> bool:
+    def is_tree_reference(self) -> bool:
         """Whether this is a node relation property (parent/child/ancestor)."""
         return self.reference_kind in (
             NodeReferenceKind.PARENT,
             NodeReferenceKind.ANCESTOR,
             NodeReferenceKind.CHILD,
         )
+
+    @property
+    def reference_type(self) -> NodeType:
+        assert len(self.reference_types) == 1, f"expected single reference type for {self!r}"
+        return self.reference_types[0]
 
     @property
     def reference_ptrs(self) -> Iterable["Property"]:
@@ -366,7 +372,7 @@ class Property(_TypeExpressionBase):
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.primitive_type is UNSET and (self.is_tree_relation or self.reference_types):
+        if self.primitive_type is UNSET and (self.is_tree_reference or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
             self.primitive_type = None
@@ -516,7 +522,7 @@ class Property(_TypeExpressionBase):
             )
         if is_stored:
             stored_ptr_props = []
-            for ref_type in self.reference_types:
+            for ref_type in self.reference_types:  # :RavelReferences
                 store_as_id = (
                     self.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR)
                     or ref_type not in IN_PACKAGE_NODE_TYPES
@@ -565,7 +571,7 @@ class Property(_TypeExpressionBase):
 
     def copy(self, value: Any) -> Any:
         """Copies a non-None value of this property"""
-        if self.is_tree_relation:
+        if self.is_tree_reference:
             raise ValueError(f"cannot copy relation {self!r}")
         elif self.reference_types:
             return value  # identity
@@ -908,7 +914,7 @@ def _process_struct_base_cls(
                 ):
                     continue
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-            if not is_node and prop.is_tree_relation:
+            if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
         reserved_properties.update(component.__reserved_properties__)
     cls.__reserved_properties__ = frozenset(reserved_properties)
@@ -965,7 +971,7 @@ def _process_struct_base_cls(
                 )
                 setattr(cls, prop.name + "_" + postfix, computed_prop)
 
-    # TODO @Performance: use slots for struct/node classes?
+    # nocheckin: use slots for struct/node classes?
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
     # collect methods implemented in this class (specifically)
@@ -1426,7 +1432,7 @@ class Struct(abc.ABC):
             other_value = getattr(other, prop.name)
             if self_value != other_value and (
                 prop.py_type_stripped != float
-                or math.isclose(self_value, other_value, rel_tol=1e-9)
+                or not math.isclose(self_value, other_value, rel_tol=1e-5)
             ):
                 return False
         return True
@@ -1776,10 +1782,10 @@ class Node(Struct, _NodeExpressionBase):
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.py_ident
         if "slug" in self.__properties__:
-            slug = getattr(self, "slug")
+            slug = getattr(self, "slug", None)
             if slug:  # prefer slug as ident
                 return slug
-        name = getattr(self, "name")
+        name = getattr(self, "name", None)
         if name is None:
             return None
         return to_casing(name, PYTHON_CASING[identifier_type])
@@ -1839,7 +1845,6 @@ class Node(Struct, _NodeExpressionBase):
         if self._status != NS.TRACKED:
             return super().__setattr__(key, value)
 
-        # tracked set
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.reference_kind == NodeReferenceKind.CHILD:
@@ -1868,18 +1873,20 @@ class Node(Struct, _NodeExpressionBase):
             self.__dict__[key] = value
             return
 
-        # try first full passthrough target (if any)
-        for target, mode in self.__passthrough_targets__:
-            target = getattr(self, target)
-            if mode == _Passthrough.Full:
-                setattr(target, key, value)
-                return  # success
+        if self._session is not None:
+            # while in a session: also try first full passthrough target (if any)
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    setattr(target, key, value)
+                    return  # success
 
         # report set error with additional info
         candidates = {
             **(self.__tracked_properties__ if self._status == NS.TRACKED else self.__properties__),
         }
-        candidates.update(self._get_children_by_ident())
+        if isinstance(self, ScopeNode):
+            candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
@@ -1916,7 +1923,7 @@ class Node(Struct, _NodeExpressionBase):
         # report lookup error with additional info
         candidates = {k: v for k, v in self.__runtime_properties__.items() if not k.startswith("_")}
         if isinstance(self, ScopeNode):
-            candidates.update(self._get_children_by_ident())
+            candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
@@ -2041,7 +2048,7 @@ class Node(Struct, _NodeExpressionBase):
         """
         props = {}
         for name, prop in self.__properties__.items():
-            if prop.is_tree_relation or prop.is_computed:
+            if prop.is_tree_reference or prop.is_computed:
                 continue
             props[name] = prop.copy(getattr(self, name))
         if keep_parent:
@@ -2146,11 +2153,12 @@ class ScopeNode(Node):
     _untrack_rec = _make_rec_method(_ComponentMethod.untrack, Node._untrack_self)
 
     def _get_children_by_ident(self) -> Mapping[str, Node]:
+        roo = self._root_scope
+        if roo is None or roo._tree is None:
+            return EMPTY_DICT
         seen_by_ident = {}
-        for child in self._root_tree.collect_descendants(self):
-            ident = getattr(child, "ident", None)
-            if ident:
-                seen_by_ident[ident] = child
+        for child in roo._tree.collect_descendants(self):
+            seen_by_ident[child.py_ident] = child
         return seen_by_ident
 
     def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:

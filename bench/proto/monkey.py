@@ -167,6 +167,8 @@ class _PatchedMessage(BetterprotoMessage):
             prop = struct_cls.__properties_by_id__.get(int(key))
             if prop is None or value is None:
                 continue
+            if prop.reference_wired_ptr:
+                prop = prop.reference_wired_ptr
             try:
                 meta = cls._betterproto.meta_by_field_name[prop.name]
             except KeyError:

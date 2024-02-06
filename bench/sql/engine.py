@@ -453,20 +453,14 @@ def compile_pg_conditional(
     raise QueryEngineIncapableError(QueryEngine.LOCAL_POSTGRES, cond, "unsupported conditional")
 
 
-def compile_pg_sort(
-    database: Block,
-    sort: Expression,
-) -> SqlNode:
+def compile_pg_sort(database: Block, sort: Expression) -> SqlNode:
     field_ref = _compile_expression_ref(database, sort)
     return sql.SQL("{} {}").format(
         sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
     )
 
 
-def compile_pg_sorts(
-    database: Block,
-    sorts: list[Expression],
-) -> SqlNode:
+def compile_pg_sorts(database: Block, sorts: Collection[Expression]) -> SqlNode:
     return sql.SQL(", ").join(compile_pg_sort(database, sort) for sort in sorts)
 
 
@@ -984,6 +978,7 @@ DEFAULT_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
 
 
 def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    """Packs the value of a struct property for storage in Postgres."""
     if value is None:
         return None
     elif prop.is_array and not ignore_array:
@@ -1002,6 +997,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
 
 
 def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    """Unpacks the value of a struct property from Postgres."""
     if value is None:
         return None
     elif prop.is_array and not ignore_array:
@@ -1030,26 +1026,51 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
     try:
         row: dict[str, any] = {}
-        for prop in node_cls.__stored_properties__.values():
-            if prop.reference_source is None:  # regular non-ref property
-                value = getattr(node, prop.name)
+        for name, prop in node_cls.__stored_properties__.items():
+            if prop.reference_source is None:
+                # regular non-ref property
+                value = getattr(node, name)
                 value = _pack_struct_data_prop(prop, value, ignore_array=False)
-                row[prop.name] = value
-            else:  # unravel reference into per-type columns
-                assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
-                ptr: NodeReferenceData | None = getattr(
+                row[name] = value
+
+            else:
+                # unravel reference into per-type columns :RavelReferences
+                value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
                     node, prop.reference_source.reference_wired_ptr.name
                 )
-                if ptr is not None and prop.reference_types[0].id == ptr.type:
-                    if prop.name.endswith("_ck"):
-                        row[prop.name] = ptr.ck
-                    else:
-                        row[prop.name] = ptr.id
-                else:
-                    row[prop.name] = None
+                _pg_pack_node_reference_column_into_row(name, prop, row, value)
         return row
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
+
+
+def _pg_pack_node_reference_column_into_row(
+    name: str,
+    prop: Property,
+    row: dict,
+    value: NodeReferenceData | Collection[NodeReferenceData] | None,
+) -> None:
+    """'Unravels' a reference into per-reference-type stored columns."""
+
+    assert prop.reference_source is not None, f"no reference source for {prop!r}"
+    is_ck = name.endswith("_ck")
+    if prop.is_array:
+        reference_type_id = prop.reference_type.id
+        row[name] = []
+        for ptr in value:
+            if reference_type_id == ptr.type:
+                if is_ck:
+                    row[name].append(ptr.ck)
+                else:
+                    row[name].append(ptr.id)
+    else:
+        if value is not None and value.type == prop.reference_type.id:
+            if is_ck:
+                row[name] = value.ck
+            else:
+                row[name] = value.id
+        else:
+            row[name] = None
 
 
 def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNodeData:
@@ -1057,29 +1078,53 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
         data = proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
-        for prop in node_cls.__stored_properties__.values():
-            value = row.get(prop.name)
+        for name, prop in node_cls.__stored_properties__.items():
+            value = row.get(name)
             if value is None:
                 continue
-            elif prop.reference_source is None:  # regular non-ref property
+
+            elif prop.reference_source is None:
+                # regular non-ref property
                 value = _unpack_struct_data_prop(prop, value, ignore_array=False)
-                setattr(data, prop.name, value)
-            else:  # ravel reference from per-type columns
-                assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
-                if prop.name.endswith("_ck"):
-                    ptr = NodeReferenceData(
-                        metatype=wire.StructType.NODE_REFERENCE,
-                        type=prop.reference_types[0],
-                        ck=str(value),
-                    )
-                else:
-                    ptr = NodeReferenceData(
-                        metatype=wire.StructType.NODE_REFERENCE,
-                        type=prop.reference_types[0],
-                        id=str(value),
-                    )
+                setattr(data, name, value)
+
+            else:
+                # ravel reference from per-type columns :RavelReferences
                 assert prop.reference_source is not None, f"no reference source for {prop!r}"
-                setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
+                is_ck = name.endswith("_ck")
+                if prop.is_array:
+                    ptrs = getattr(data, prop.reference_source.reference_wired_ptr.name)
+                    if ptrs is None:
+                        ptrs: list[NodeReferenceData] = []
+                        setattr(data, prop.reference_source.reference_wired_ptr.name, ptrs)
+                    for id_or_ck in value:
+                        if is_ck:
+                            ptr = NodeReferenceData(
+                                metatype=wire.StructType.NODE_REFERENCE,
+                                type=prop.reference_type,
+                                ck=str(id_or_ck),
+                            )
+                        else:
+                            ptr = NodeReferenceData(
+                                metatype=wire.StructType.NODE_REFERENCE,
+                                type=prop.reference_type,
+                                id=str(id_or_ck),
+                            )
+                        ptrs.append(ptr)
+                else:
+                    if is_ck:
+                        ptr = NodeReferenceData(
+                            metatype=wire.StructType.NODE_REFERENCE,
+                            type=prop.reference_type,
+                            ck=str(value),
+                        )
+                    else:
+                        ptr = NodeReferenceData(
+                            metatype=wire.StructType.NODE_REFERENCE,
+                            type=prop.reference_type,
+                            id=str(value),
+                        )
+                    setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         row_str = repr(row) if IS_DEBUG else describe_type(row)
@@ -1088,7 +1133,11 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
 
 PgSelectNodesDataResult = NamedTuple(
     "PgSelectNodesDataResult",
-    [("nodes", list[wire.AnyNodeData]), ("cursors", list[str]), ("start_cursor", str | None)],
+    [
+        ("nodes", tuple[wire.AnyNodeData, ...]),
+        ("cursors", tuple[str, ...]),
+        ("start_cursor", str | None),
+    ],
 )
 
 
@@ -1119,8 +1168,8 @@ async def pg_select_nodes_data(
         first=first,
         skip=skip,
     )
-    nodes_data = [pg_unpack_node_data_row(node_cls, row) for row in rows]
-    cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(nodes_data))]
+    nodes_data = tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+    cursors = tuple(encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(nodes_data)))
     assert len(nodes_data) == len(cursors), f"unexpected cursors: {cursors} for {nodes_data}"
     return PgSelectNodesDataResult(nodes_data, cursors, after)
 
@@ -1448,18 +1497,32 @@ async def _pg_write_regular_edit_batch(
     elif edit_kind in (EditType.UPDATE, EditType.MOVE):
         assert updated_properties, f"no updated properties for {edit_kind} {node_type} ({batch!r})"
         now = utcnow_with_tz()
-        dynamic_values = []
+        dynamic_values: list[RowIn] = []
+        dynamic_columns: list[Column] = [table._primary_key]  # always 'dynamic', never updated
+        for prop_id in updated_properties:
+            prop = node_cls.__properties_by_id__[prop_id]
+            if prop.reference_stored_ptrs:
+                dynamic_columns.extend(p.column for p in prop.reference_stored_ptrs)
+            else:
+                dynamic_columns.append(prop.column)
         for edit in batch:
             node = wiring.unwrap_some_node(edit.node)
             row = {"id": node.id}
             for prop_id in updated_properties:
                 prop = node_cls.__properties_by_id__[prop_id]
                 if prop_id in edit.properties:  # this is pretty inefficient
-                    value = getattr(node, prop.name)
-                    value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                    if prop.reference_stored_ptrs:
+                        value = getattr(node, prop.reference_wired_ptr.name)
+                        # unravel set reference properties (into stored columns) :RavelReferences
+                        for p in prop.reference_stored_ptrs:
+                            _pg_pack_node_reference_column_into_row(prop.name, p, row, value)
+                    else:
+                        value = getattr(node, prop.name)
+                        value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                        row[prop.name] = value
                 else:
                     value = sql.Identifier(prop.column.name)  # keep old value
-                row[prop.name] = value
+                    row[prop.name] = value
             dynamic_values.append(row)
         # and update cru
         static_values = {
@@ -1471,7 +1534,7 @@ async def _pg_write_regular_edit_batch(
             cur=cur,
             table=table,
             static_values=static_values,
-            dynamic_columns=tuple(prop.column for prop in node_cls.__stored_properties__.values()),
+            dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
             returning=selected_columns if return_nodes else None,
         )

@@ -395,6 +395,12 @@ class IdEnum(enum.IntEnum):
 
         return obj
 
+    @functools.cached_property
+    def bench_name(self):
+        from bench.utils.casing import to_casing, Casing
+
+        return to_casing(self.name, Casing.CAMEL)
+
     @classmethod
     def get_min_id(cls) -> int:
         """Get the minimum id."""

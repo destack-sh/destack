@@ -267,10 +267,7 @@ def unpack_nodes_inline(
     exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
     source_roots = source_tree.find_roots()
-    if roots is not None and len(roots) != len(source_roots):
-        raise ValueError(f"wanted {len(roots)} roots, got {len(source_roots)} in {source_tree!r}")
-
-    for i, root_data in enumerate(source_roots):
+    for root_data in source_roots:
         unpacked_tree = NodeTree()
         # unpack all nodes top down (breadth first)
         for node_data in chain((root_data,), source_tree.iter_descendants(root_data)):
@@ -291,7 +288,7 @@ def unpack_nodes_inline(
             # keep parent instance if it was passed (update in place)
             if parent is not None and node.id == parent.id:
                 for prop in parent.__properties__.values():
-                    if not prop.is_runtime_only and not prop.is_tree_relation:
+                    if not prop.is_runtime_only and not prop.is_tree_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = parent
 
@@ -304,9 +301,8 @@ def unpack_nodes_inline(
         if isinstance(root, ScopeNode):
             root._root_tree.set(unpacked_tree.nodes)
         for node in unpacked_tree.nodes_by_id.values():
-            node._status = (
-                NodeStatus.SOURCE
-            )  # status is auto-set to interpreted if a session is active
+            # status is auto-set to interpreted if a session is active, but that's wrong here
+            node._status = NodeStatus.SOURCE
         unpacked_roots.append(root)
 
     if roots:
@@ -318,8 +314,6 @@ def unpack_nodes_inline(
                 if recovered is not None:
                     recovered_roots.append(recovered)
                     break
-            else:
-                raise ValueError(f"root {root} not found in {unpacked_roots!r}")
         return recovered_roots
     else:
         return unpacked_roots

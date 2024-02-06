@@ -1,8 +1,12 @@
 import asyncio
 import os
+from typing import TYPE_CHECKING
 
 import psycopg
 import pytest
+
+if TYPE_CHECKING:
+    from bench.language.test.fabricator import Fabricator
 
 
 def pytest_configure(config):
@@ -66,3 +70,10 @@ async def test_cur() -> psycopg.AsyncCursor:
 
     async with async_pg_cursor("test") as cur:
         yield cur
+
+
+@pytest.fixture(scope="function")
+async def fabricator() -> "Fabricator":
+    from bench.language.test.fabricator import Fabricator
+
+    yield Fabricator(seed=42)

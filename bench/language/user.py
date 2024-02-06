@@ -45,7 +45,7 @@ class User(ScopeNode):
 
 @node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
 class Organization(ScopeNode):
-    """A Bench organization."""
+    """A Bench organization with Users as members."""
 
     handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
