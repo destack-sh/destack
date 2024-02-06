@@ -11,7 +11,6 @@ from psycopg import sql
 
 from bench.language.const import UNSET, ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
-from bench.language.notice import NoticeHandler
 from bench.language.node import (
     _NC,
     NS,
@@ -23,13 +22,13 @@ from bench.language.node import (
     ScopeNode,
     _Passthrough,
     node,
-    p_child,
     node_component,
-    p_parent,
+    p_child,
     p_internal,
-    p_regular,
+    p_parent,
     p_runtime,
 )
+from bench.language.notice import NoticeHandler
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
@@ -62,7 +61,7 @@ class Record(HasValue, Node):
         default_factory=dict,
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
-        ignore_conflicts_with=(HasValue,),
+        ignore_conflicts=True,
     )
 
     # could also have Record.secret_value_packed as in Block (no materialization needed?)

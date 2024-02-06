@@ -6,10 +6,12 @@ from uuid import UUID
 from bitarray import bitarray
 
 from bench.language.const import (
+    ACTION_CLASSES,
     ACTION_KINDS,
     IN_BENCH_NODE_TYPES,
     NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
+    UNSET,
     ActionKind,
     ActionType,
     BadgeType,
@@ -18,15 +20,14 @@ from bench.language.const import (
     EditType,
     NodeType,
     PolicyEffect,
+    ReadType,
     RunType,
     StructType,
-    ReadType,
-    UNSET,
-    ACTION_CLASSES,
 )
 from bench.language.link import on_notice_raise
 from bench.language.node import (
     ANCESTOR_NODE_TYPES,
+    CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     Node,
     Package,
@@ -36,11 +37,10 @@ from bench.language.node import (
     node,
     p_internal,
     p_parent,
-    p_runtime,
     p_regular,
-    struct,
-    CHILD_NODE_TYPES,
+    p_runtime,
     p_system,
+    struct,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -48,7 +48,7 @@ from bench.language.tree import NodeDataTree, NodeTree
 from bench.language.user import Membership, User
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.casing import IdentifierType
-from bench.utils.func import to_uuid, IdEnum, bytetuple
+from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Expression, Property, ScopeNode
@@ -335,9 +335,7 @@ class PolicyRule(Struct):
         object_prop_str = "&".join(object_prop_str_parts) if object_prop_str_parts else "*"
         object_str = f"{object_type_str}.[{object_prop_str}]"
 
-        return (
-            f"{self.name or '<unnamed>'} {self.effect.name} {subject_str} {verb_str} {object_str}"
-        )
+        return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self._verb_mask = None
@@ -578,7 +576,7 @@ class Request(Struct):
             object_str = f"{self.object_type.bench_name} [{', '.join(object_str_parts)}]"
         else:
             object_str = self.object_type.bench_name
-        return f"{self.decision.name} {self.verb.bench_name} {object_str}"
+        return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
 
 
 @struct(StructType.ACTION)
@@ -599,7 +597,7 @@ class Action(Struct):
     # bench, package, space, user, ...
 
     def __content_str__(self) -> str:
-        return f"{self.decision.name} {self.subject} ({', '.join(str(r) for r in self.requests)})"
+        return f"{self.decision.bench_name} {self.subject} ({', '.join(str(r) for r in self.requests)})"
 
 
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:

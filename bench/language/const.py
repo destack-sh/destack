@@ -6,7 +6,7 @@ import typing
 from typing import Optional
 from uuid import UUID
 
-from bench.utils.func import cyrb53a, IdEnum, bytetuple
+from bench.utils.func import IdEnum, bytetuple, cyrb53a
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.06.0"
+VERSION = "2024.02.06.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()

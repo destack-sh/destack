@@ -23,13 +23,13 @@ from bench.language.node import (
     Struct,
     _TypeExpressionBase,
     node,
-    p_child,
     node_component,
-    p_parent,
-    struct,
+    p_child,
     p_internal,
+    p_parent,
     p_regular,
     p_runtime,
+    struct,
 )
 from bench.language.validation import validate_name
 from bench.language.value import HasValue
@@ -140,17 +140,13 @@ class TypeInfo(Struct):
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:
-            raise ValueError(f"no type identity in {self!r}")
+            info_str = "<no type>"
         if self.format_hint:
             info_str += f" as {self.format_hint}"
         if self.condition:
             info_str += f" [{self.condition}]"
 
-        flags = tuple(
-            f
-            for f in ("is_array", "is_optional", "is_output", "is_secret", "is_literal")
-            if getattr(self, f)
-        )
+        flags = tuple(f for f in ("is_array", "is_required", "is_secret") if getattr(self, f))
         if flags:
             info_str += f" ({', '.join(flags)})"
         return info_str
@@ -259,6 +255,29 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     # is_unique: bool = struct_internal(64, default=False)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
+
+    def __content_str__(self) -> str:
+        if self.base_type is not None:
+            info_str = self.base_type.path
+        elif self.bench_type is not None:
+            info_str = self.bench_type.bench_name
+        elif self.primitive_type is not None:
+            info_str = self.primitive_type.name
+        else:
+            info_str = "<no type>"
+        if self.format_hint:
+            info_str += f" as {self.format_hint}"
+        if self.condition:
+            info_str += f" [{self.condition}]"
+
+        flags = tuple(
+            f
+            for f in ("is_array", "is_required", "is_secret", "is_input", "is_output", "is_option")
+            if getattr(self, f)
+        )
+        if flags:
+            info_str += f" ({', '.join(flags)})"
+        return info_str
 
     def _as_type(self) -> "TypeInfo":
         return self._resolved_type

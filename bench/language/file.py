@@ -8,17 +8,18 @@ import aiohttp
 import requests
 import structlog
 
-from bench.language.const import FileStatus, NodeType, StructType, active_session, PrimitiveType
+from bench.language.const import FileStatus, NodeType, PrimitiveType, StructType, active_session
 from bench.language.node import (
     Bench,
     Node,
+    Property,
     Struct,
     node,
-    p_parent,
-    struct,
     p_internal,
+    p_parent,
     p_regular,
     p_runtime,
+    struct,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import _auto_async_to_sync
@@ -62,7 +63,9 @@ class File(Struct):
     def __content_str__(self):
         return f"{self.name} {self.status}, {self.content_type}, {self.content_length} bytes"
 
-    def _validate_inner(self, properties: Collection[str], on_invalid: ValidationHandler) -> None:
+    def _validate_inner(
+        self, properties: Collection[Property], on_invalid: ValidationHandler
+    ) -> None:
         if len(self.name) > FILE_MAX_NAME_LENGTH:
             on_invalid(
                 self,

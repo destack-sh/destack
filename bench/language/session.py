@@ -18,9 +18,9 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from bitarray import bitarray
 import psycopg
 import structlog
+from bitarray import bitarray
 
 from bench.language.const import (
     NTL,
@@ -38,20 +38,20 @@ from bench.language.node import (
     UNSET,
     Node,
     Package,
+    Property,
     ScopeNode,
     Struct,
     get_node_id,
     node,
-    p_parent,
-    struct,
     p_internal,
+    p_parent,
     p_runtime,
-    Property,
+    struct,
 )
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import CommitEditsRequest, EditData, BenchHostStub
+from bench.proto.wire import BenchHostStub, CommitEditsRequest, EditData
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -60,7 +60,7 @@ from bench.utils.utils import IS_DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Record, Trigger, Server
+    from bench.language import Block, Record, Server, Trigger
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -82,11 +82,7 @@ class LogEntry(Struct):
     run: Optional["Run"] = p_internal(38, require=False, array=False, references=NodeType.RUN)
     message: Optional[str] = p_internal(39, default=None)
     value: dict[str, Any] | None = p_internal(
-        40,
-        require=False,
-        default=None,
-        primitive_type=PrimitiveType.JSON,
-        ignore_conflicts_with=(HasValue,),
+        40, require=False, default=None, primitive_type=PrimitiveType.JSON, ignore_conflicts=True
     )
 
     def __content_str__(self):
@@ -861,7 +857,7 @@ class Session(ScopeNode):
         return run
 
 
-# TODO @Performance: improve performance of contextual stdout/stderr capture
+# TODO @Performance!: revamp contextual stdout/stderr capture
 
 stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
 stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
