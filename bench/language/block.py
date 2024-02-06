@@ -134,14 +134,14 @@ class Block(ScopeNode, HasTags):
     children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
-    visibility: NodeVisibility = p_regular(20, default=NodeVisibility.PUBLIC)
-    policies: list["Policy"] | None = p_regular(24, default_factory=list, struct=StructType.POLICY)
     type: BlockType = p_internal(30, default=BlockType.BLANK)
+    visibility: NodeVisibility = p_regular(31, default=NodeVisibility.PUBLIC)
+    policies: list["Policy"] | None = p_regular(32, default=None, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(
-        31, default=None, require=False, array=True, references=NodeType.BLOCK
+        33, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = p_regular(32, default=None, struct=StructType.TYPE_INFO)
-    is_page: bool = p_regular(33, default=False)
+    builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
+    is_page: bool = p_regular(35, default=False)
 
     # shared
     name: str | None = p_regular(40, default=None, validate=validate_name)
@@ -160,14 +160,14 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    code: str | None = p_regular(50, default=None)
+    code: str | None = p_regular(46, default=None)
 
     # specific
     reference: Optional["Block"] = p_regular(
-        51, require=False, array=False, references=NodeType.BLOCK
+        50, require=False, array=False, references=NodeType.BLOCK
     )
     delegated_policies: list["Policy"] | None = p_regular(
-        52, default_factory=list, struct=StructType.POLICY
+        51, default_factory=list, struct=StructType.POLICY
     )
 
     @staticmethod

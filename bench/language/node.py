@@ -59,7 +59,7 @@ from bench.language.link import (
     _NC,
     NodeList,
     NodeListBase,
-    _InterpChange,
+    _InterpEffect,
     _NodeExpressionBase,
     _TypeExpressionBase,
     on_notice_raise,
@@ -1407,7 +1407,11 @@ class Struct(abc.ABC):
 
     @final
     def __repr__(self):
-        return f"<{self.__class__.__name__} {str(self)}>"
+        content_str = str(self)
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}>"
+        else:
+            return f"<{self.__class__.__name__} @ {id(self)}>"
 
     @classmethod
     def _get_property(cls, ptr: "PropertyReference") -> Property | None:
@@ -1637,14 +1641,14 @@ class Node(Struct, _NodeExpressionBase):
     deleted_at: Optional[datetime] = p_system(13, default=None)
     archived_at: Optional[datetime] = p_system(14, default=None)
     last_edited_at: Optional[datetime] = p_system(15, default=None, require=True)
-    # only some nodes have some of these properties:
-    # last_changed_at: datetime = struct_internal(16, default=None)
-    # created_by: ... = struct_internal(17, default=None)
-    # last_edited_by: ... = struct_internal(18, default=None)
-    # last_changed_by: ... = struct_internal(19, default=None)
-    # visibility: ... = struct_internal(23, default=None)
-    # policies: ... = struct_internal(24, default=None, struct_t=StructType.POLICY)
-    # icon: ... = struct_internal(25, default=None)
+    # (only some nodes have some of these properties)
+    # last_changed_at: datetime = p_system(16)
+    # created_by: ... = p_system(17)
+    # last_edited_by: ... = p_system(18)
+    # last_changed_by: ... = p_system(19)
+    # computed_values: dict[int, ValueReference] | None = p_regular(20)
+    # for instantiated templates
+    # set_values: list[int] | None = p_regular(21)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -2032,7 +2036,7 @@ class Node(Struct, _NodeExpressionBase):
                     getattr(self, name).extend(*existing, _trigger=detach_trigger)
                     changed_nodes.extend(existing)
             if changed_nodes and was_interp:
-                _InterpChange._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
+                _InterpEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
         if (
@@ -2141,7 +2145,7 @@ class ScopeNode(Node):
 
     def _updated_inner(self, properties: Collection[Property]) -> None:
         if any(p.name == "name" for p in properties):
-            _InterpChange._collect(self.parent, self.parent, (self,), _NC.Full)._effect(_NC.Full)
+            _InterpEffect._collect(self.parent, self.parent, (self,), _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
         _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
@@ -2454,9 +2458,6 @@ class Bench(ScopeNode):
     """
 
     parent: None = p_parent(4)
-    policies: list["Policy"] | None = p_regular(
-        24, default_factory=list, struct=StructType.POLICY, array=True
-    )
     slug: str = p_system(30, unique=True)
     name: str = p_regular(31)
     description: Optional[str] = p_regular(32, default=None)
@@ -2465,6 +2466,9 @@ class Bench(ScopeNode):
     )
     user: Optional["User"] = p_system(34, require=False, array=False, references=NodeType.USER)
     # status: BenchStatus = struct_internal(35)
+    policies: list["Policy"] | None = p_regular(
+        36, default_factory=list, struct=StructType.POLICY, array=True
+    )
 
     # *per* universe/environment/??? stuff (will be moved there later)
     head = p_system(40, require=False, array=False, references=NodeType.PACKAGE)

@@ -44,6 +44,8 @@ def validate_bench_data(
     in_package: UUID | str | None = None,
 ) -> None:
     """Check that BenchData structs have valid data. Raises gRPC errors."""
+    if data.metatype is None:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing metatype")
     in_package = uuid_to_str(in_package)
     if in_package is not None and hasattr(data, "package_id") and data.package_id != in_package:
         raise GRPCError(

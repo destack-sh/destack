@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.06.1"
+VERSION = "2024.02.06.5"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -232,9 +232,10 @@ class NodeSource(IdEnum):
 
 
 class NodeVisibility(IdEnum):
-    PRIVATE = 1
-    INTERNAL = 2
-    PUBLIC = 3
+    # ...?
+    INTERNAL = 4
+    # ...?
+    PUBLIC = 7
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8
@@ -242,18 +243,19 @@ DYNAMIC_NODE_KEY_LENGTH = 8
 
 def new_dynamic_node_key(ck_or_id: UUID) -> str:
     """
-    Gets a 'random' alphabetic key as a persistent key for a node.
-    Also used for dynamic database identities (versioned/un-versioned).
+    Gets a 'random' alphabetic key as a persistent but self-directed identity key for a node.
+    Used for storing dynamic field values, dynamic database identities (versioned/un-versioned).
     (short key length alphabetic characters)
     """
     hash_value = cyrb53a(str(ck_or_id))
-    key = ""
-    while len(key) < DYNAMIC_NODE_KEY_LENGTH:
+    key_parts = []
+    for _ in range(DYNAMIC_NODE_KEY_LENGTH):
         hash_value, remainder = divmod(hash_value, 52)
         if remainder < 26:
-            key += chr(ord("a") + remainder)
+            key_parts.append(chr(ord("a") + remainder))
         else:
-            key += chr(ord("A") + remainder - 26)
+            key_parts.append(chr(ord("A") + remainder - 26))
+    key = "".join(key_parts)
     return key
 
 

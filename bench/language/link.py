@@ -6,7 +6,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
-    Any,
     Collection,
     Generic,
     Iterator,
@@ -14,6 +13,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    Any,
 )
 from uuid import UUID
 
@@ -53,8 +53,8 @@ if TYPE_CHECKING:
 NodeT = TypeVar("NodeT", bound="Node")
 
 
-class _NodeChange(enum.IntFlag):
-    """The kind of reactive change effect to trigger in a node."""
+class _NodeEffect(enum.IntFlag):
+    """The kind of reactive effect effect to trigger in a node."""
 
     Ignore = 0
     Detach = 2**1
@@ -62,7 +62,7 @@ class _NodeChange(enum.IntFlag):
     Full = Detach | Attach
 
 
-_NC = _NodeChange
+_NC = _NodeEffect
 
 
 def on_notice_raise(
@@ -81,10 +81,10 @@ def on_notice_raise(
 
 
 @dataclass(slots=True)
-class _InterpChange:
+class _InterpEffect:
     """
-    The effect of a change in nodes.
-    TODO @Performance: optimize change effects (batch, lazy/mark dirty?, reduce impact radius)
+    The effect of  in nodes.
+    TODO @Performance: optimize interp effects (batch, lazy/mark dirty?, reduce impact radius)
     """
 
     prev_session: Optional["Session"]
@@ -96,20 +96,20 @@ class _InterpChange:
     def _collect(
         from_parent: Optional["Node"],
         to_parent: Optional["Node"],
-        changed: tuple["Node", ...],
+        affected: Collection["Node"],
         level: _NC,
-    ) -> "_InterpChange":
-        """Collects nodes affected by a change in the given children."""
-        assert changed, f"cannot create update on {to_parent!r} without changed nodes"
-        assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
+    ) -> "_InterpEffect":
+        """Collects nodes affected by a effect in the given children."""
+        assert affected, f"cannot create update on {to_parent!r} without effectd nodes"
+        assert from_parent or to_parent, f"cannot create update on {affected!r} without parent"
 
         # collect nodes to reinterp following attach/detach
         if level & (_NC.Detach | _NC.Attach):
-            affected_nodes = changed
+            affected_nodes = affected
         else:
             affected_nodes = None
 
-        return _InterpChange(
+        return _InterpEffect(
             prev_session=to_parent._session if to_parent else None,
             prev_status=to_parent._status if to_parent else None,
             affected=affected_nodes,
@@ -305,8 +305,8 @@ class NodeList(NodeListBase[NodeT]):
             for n in _node._walk_rec():
                 if n.id is None:
                     n._assign_id(package_id)
-        change = _InterpChange._collect(None, self._parent, (_node,), _trigger)
-        # update parent after updating ids (the above walks tree, which is changed here)
+        effect = _InterpEffect._collect(None, self._parent, (_node,), _trigger)
+        # update parent after updating ids (the above walks tree, which is effectd here)
         _node.parent = self._parent
         # validate node now that it has a parent (while in session)
         if self._parent._session is not None:
@@ -316,7 +316,7 @@ class NodeList(NodeListBase[NodeT]):
         if _node.__has_scope__ and _node._local_tree is not None:
             # subsume if previously detached (ignores out of line nodes)
             added = _node._local_tree.collect_descendants(_node, recursive=True)
-            _node._local_tree.update(_node)  # parent changed
+            _node._local_tree.update(_node)  # parent effectd
             self._parent._root_tree.add_tree(_node._local_tree)
             _node._local_tree = None
         else:
@@ -328,7 +328,7 @@ class NodeList(NodeListBase[NodeT]):
             _node.order_key = generate_key_between(*self._ok_bounds(after, before))
         if _trigger:
             # and update every affected node (to list/interp as needed)
-            change._effect(_trigger)
+            effect._effect(_trigger)
 
         # 'create' node in session if it's attached
         if _create and self._parent._session and self._parent.attached:
@@ -355,31 +355,31 @@ class NodeList(NodeListBase[NodeT]):
 
         # as in append but batched: append, trigger, create
         #  (can we merge them somehow to simplify)?
-        change = _InterpChange._collect(None, self._parent, nodes, _trigger)
-        change._effect(_trigger & ~_NC.Attach)
+        effect = _InterpEffect._collect(None, self._parent, nodes, _trigger)
+        effect._effect(_trigger & ~_NC.Attach)
         added = []
         for node in nodes:
             added.extend(self.append(node, _create=False, _trigger=_NC.Ignore))
-        change._effect(_trigger & ~_NC.Detach)
+        effect._effect(_trigger & ~_NC.Detach)
         if _create and self._parent._session and self._parent.attached:
             self._parent._session.create_many(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
-        change = _InterpChange._collect(self._parent, None, [_node], _trigger)
+        effect = _InterpEffect._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
             self._parent.session.delete(_node)
         self._parent._root_tree.remove(_node)
         _node.parent = None
-        change._effect(_trigger)
+        effect._effect(_trigger)
 
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
         if not self._nodes:
             return
         removed = tuple(self._nodes)
-        change = _InterpChange._collect(self._parent, None, removed, _trigger)
+        effect = _InterpEffect._collect(self._parent, None, removed, _trigger)
         for _node in removed:
             self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
-        change._effect(_trigger)
+        effect._effect(_trigger)
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.KEYED) and not (self._flags & NRel.NAMED):
@@ -491,34 +491,34 @@ class _TypeExpressionBase:
     # comparison
 
     @_require_expression_op(ConditionalOp.EQUALS)
-    def equals(self, value: Any) -> "Expression":
+    def equals(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         if value is None:
             return self.not_exists()
         return _to_conditional(ConditionalOp.EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.NOT_EQUALS)
-    def not_equal(self, value: Any) -> "Expression":
+    def not_equal(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.NOT_EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.GREATER_THAN)
-    def greater_than(self, value: Any) -> "Expression":
+    def greater_than(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.GREATER_THAN, self, value=value)
 
     @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
-    def greater_than_or_equals(self, value: Any) -> "Expression":
+    def greater_than_or_equals(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.LESS_THAN)
-    def less_than(self, value: Any) -> "Expression":
+    def less_than(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.LESS_THAN, self, value=value)
 
     @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
-    def less_than_or_equals(self, value: Any) -> "Expression":
+    def less_than_or_equals(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
 
@@ -546,15 +546,15 @@ class _TypeExpressionBase:
     # string comparison
 
     @_require_expression_op(ConditionalOp.MATCHES)
-    def matches(self, value: str) -> "Expression":
+    def matches(self: Any, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.MATCHES, self, value=value)
 
     @_require_expression_op(ConditionalOp.STARTS_WITH)
-    def starts_with(self, value: str) -> "Expression":
+    def starts_with(self: Any, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
 
     @_require_expression_op(ConditionalOp.REGEX)
-    def regex(self, value: str | re.Pattern) -> "Expression":
+    def regex(self: Any, value: str | re.Pattern) -> "Expression":
         if isinstance(value, re.Pattern):
             value = value.pattern
         return _to_conditional(ConditionalOp.REGEX, self, value=value)
@@ -562,51 +562,51 @@ class _TypeExpressionBase:
     # containment
 
     @_require_expression_op(ConditionalOp.IN)
-    def in_(self, *values: list[Any]) -> "Expression":
+    def in_(self: Any, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
         return _to_conditional(ConditionalOp.IN, self, value=values)
 
     @_require_expression_op(ConditionalOp.NOT_IN)
-    def not_in(self, *values: list[Any]) -> "Expression":
+    def not_in(self: Any, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
         return _to_conditional(ConditionalOp.NOT_IN, self, value=values)
 
     @_require_expression_op(ConditionalOp.CONTAINS)
-    def contains(self, value: Any) -> "Expression":
+    def contains(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.CONTAINS, self, value=value)
 
     @_require_expression_op(ConditionalOp.NOT_CONTAINS)
-    def not_contains(self, value: Any) -> "Expression":
+    def not_contains(self: Any, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.NOT_CONTAINS, self, value=value)
 
     # existence
 
     @_require_expression_op(ConditionalOp.EXISTS)
-    def exists(self) -> "Expression":
+    def exists(self: Any) -> "Expression":
         return _to_conditional(ConditionalOp.EXISTS, self)
 
     @_require_expression_op(ConditionalOp.NOT_EXISTS)
-    def not_exists(self) -> "Expression":
+    def not_exists(self: Any) -> "Expression":
         return _to_conditional(ConditionalOp.NOT_EXISTS, self)
 
     # knn
 
     @_require_expression_op(ConditionalOp.NEAR)
-    def near(self, value: list[float]) -> "Expression":
+    def near(self: Any, value: list[float]) -> "Expression":
         return _to_conditional(ConditionalOp.NEAR, self, value=value)
 
     # sort
 
     @_require_expression_op(SortOp.ASCENDING)
-    def asc(self) -> "Expression":
+    def asc(self: Any) -> "Expression":
         return _to_sort(SortOp.ASCENDING, self)
 
     ascending = asc
 
     @_require_expression_op(SortOp.DESCENDING)
-    def desc(self) -> "Expression":
+    def desc(self: Any) -> "Expression":
         return _to_sort(SortOp.DESCENDING, self)
 
     descending = desc
@@ -628,7 +628,7 @@ _NodeFetchResult = NamedTuple(
 
 class QueryError(BenchError, ValueError):
     def __init__(self, query: "NodeQuery", cause: Exception | None = None):
-        super().__init__(f"{query!r}: {query.filter!r}")
+        super().__init__(repr(query))
         self.query = query
         self.cause = cause
 
@@ -669,13 +669,17 @@ class NodeQuery(Generic[NodeT]):
 
     def __str__(self):
         args_strs = []
-        for k in ("filter", "sort", "first", "skip"):
+        for k in ("filter", "sort", "first", "skip", "engine"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
             if v is not None:
                 args_strs.append(f"{k}={v}")
-        return f"{self._node_type} {', '.join(args_strs)}"
+        if args_strs:
+            args_str = ", ".join(args_strs)
+        else:
+            args_str = "[*]"
+        return f"{self._node_type.bench_name} {args_str}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -752,10 +756,12 @@ class NodeQuery(Generic[NodeT]):
         results = await self.filter(filter).tolist()
         if len(results) == 1:
             return results[0]
-        elif len(results) == 0:
-            raise NoNodeFoundError(self)
         else:
-            raise MultipleNodesFoundError(self)
+            combined_query = self.filter(filter)
+            if len(results) == 0:
+                raise NoNodeFoundError(combined_query)
+            else:
+                raise MultipleNodesFoundError(combined_query)
 
     def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
         """Adds a filter clause to the query."""
@@ -773,7 +779,7 @@ class NodeQuery(Generic[NodeT]):
         from bench.language.expression import coerce_sort
 
         copy = self.copy()
-        sort = coerce_sort(self._node_cls, sort, args)
+        sort = coerce_sort(self._node_cls, sort, *args)
         copy._sort = sort
         return copy
 
@@ -854,7 +860,6 @@ class NodeQuery(Generic[NodeT]):
         from bench.sql.engine import pg_search_nodes, ReadOptions
 
         session = active_session()
-
         engine = self._get_target_engine()
         if engine == QueryEngine.LOCAL_POSTGRES or (
             engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor

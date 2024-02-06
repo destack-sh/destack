@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.06.0"
+VERSION = "2024.02.06.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -24,7 +24,6 @@ BENCH_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_unique=True),
         Column("name", PrimitiveType.STRING),
         Column("description", PrimitiveType.STRING, is_nullable=True),
@@ -42,6 +41,7 @@ BENCH_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column(
             "head_package_id",
             PrimitiveType.UUID,
@@ -135,9 +135,9 @@ BLOCK_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("visibility", PrimitiveType.STRING, default="3"),
-        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("type", PrimitiveType.STRING, default="2"),
+        Column("visibility", PrimitiveType.STRING, default="7"),
+        Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("bases_block_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
@@ -927,6 +927,7 @@ IDENTITY_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
@@ -1253,6 +1254,7 @@ MEMBERSHIP_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
+        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "user_id",
             PrimitiveType.UUID,

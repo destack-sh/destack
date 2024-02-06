@@ -371,9 +371,8 @@ class NodeType(betterproto.Enum):
 
 class NodeVisibility(betterproto.Enum):
     UNSPECIFIED = 0
-    PRIVATE = 1
-    INTERNAL = 2
-    PUBLIC = 3
+    INTERNAL = 4
+    PUBLIC = 7
 
 
 class NoticeKind(betterproto.Enum):
@@ -804,8 +803,8 @@ class PolicyData(betterproto.Message):
     means you can read a sub block but not its parent.)      4. Every
     identity/role/... applicable to a subject is evaluated separately and *any*
     allow wins.       * Conceptually, we do 'ray trace' up the tree for every
-    node, but actually doing it for every request         is prohibitively
-    expensive. Instead, we 'rasterize' an 'access matrix' and use that as a
+    node, but actually doing that for every request         is prohibitively
+    expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a
     shortcut.
     """
 
@@ -897,18 +896,21 @@ class RequestData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RequestSubjectData(betterproto.Message):
     """
-    The <whoever/whatever> issuing a request. Unknown attributes are
-    uninitialized.
+    The <whoever/whatever> issuing a request. Unknown/ignored attributes are
+    unset.     (We unset various combinations of attributes to evaluate the
+    access of acting subjects independently.)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    is_authenticated: bool = betterproto.bool_field(30)
-    is_staff: bool = betterproto.bool_field(31)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    is_authenticated: Optional[bool] = betterproto.bool_field(30, optional=True)
+    is_staff: Optional[bool] = betterproto.bool_field(31, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
     badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    ownerships_ptr: List["NodeReferenceData"] = betterproto.message_field(37)
+    owned_ptr: List["NodeReferenceData"] = betterproto.message_field(37)
+    memberships_ptr: List["NodeReferenceData"] = betterproto.message_field(38)
+    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(39)
 
 
 @dataclass(eq=False, repr=False)
@@ -1158,12 +1160,12 @@ class BenchData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(24)
     slug: str = betterproto.string_field(30)
     name: str = betterproto.string_field(31)
     description: Optional[str] = betterproto.string_field(32, optional=True)
     organization_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(36)
     head_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     server_allocation: Optional["ServerAllocationData"] = betterproto.message_field(
         50, optional=True
@@ -1195,12 +1197,12 @@ class BlockData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(20)
-    policies: List["PolicyData"] = betterproto.message_field(24)
     type: "BlockType" = betterproto.enum_field(30)
-    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
-    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(32, optional=True)
-    is_page: bool = betterproto.bool_field(33)
+    visibility: "NodeVisibility" = betterproto.enum_field(31)
+    policies: List["PolicyData"] = betterproto.message_field(32)
+    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
+    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(34, optional=True)
+    is_page: bool = betterproto.bool_field(35)
     name: Optional[str] = betterproto.string_field(40, optional=True)
     order_key: Optional[str] = betterproto.string_field(41, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(42, optional=True)
@@ -1211,9 +1213,9 @@ class BlockData(betterproto.Message):
     secret_value_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(45, optional=True)
-    code: Optional[str] = betterproto.string_field(50, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    delegated_policies: List["PolicyData"] = betterproto.message_field(52)
+    code: Optional[str] = betterproto.string_field(46, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -1333,6 +1335,7 @@ class IdentityData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     type_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
@@ -1371,6 +1374,7 @@ class MembershipData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     user_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
@@ -1453,7 +1457,7 @@ class NotificationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OrganizationData(betterproto.Message):
-    """A Bench organization."""
+    """A Bench organization with Users as members."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1964,6 +1968,17 @@ class SignupUserResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChangeUserPasswordRequest(betterproto.Message):
+    old_password: str = betterproto.string_field(1)
+    new_password: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class ChangeUserPasswordResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class LoginUserRequest(betterproto.Message):
     id: str = betterproto.string_field(1, group="user")
     slug: str = betterproto.string_field(2, group="user")
@@ -1986,6 +2001,8 @@ class LogoutUserRequest(betterproto.Message):
     If specified, log out only the specified clients (instead of the current
     client).
     """
+
+    logout_all: Optional[bool] = betterproto.bool_field(2, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2273,6 +2290,23 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
             "/symbolx.bench.GlobalSupervisor/SignupUser",
             signup_user_request,
             SignupUserResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def change_user_password(
+        self,
+        change_user_password_request: "ChangeUserPasswordRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ChangeUserPasswordResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GlobalSupervisor/ChangeUserPassword",
+            change_user_password_request,
+            ChangeUserPasswordResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2819,6 +2853,11 @@ class GlobalSupervisorBase(ServiceBase):
     async def signup_user(self, signup_user_request: "SignupUserRequest") -> "SignupUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def change_user_password(
+        self, change_user_password_request: "ChangeUserPasswordRequest"
+    ) -> "ChangeUserPasswordResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -2859,6 +2898,14 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.signup_user(request)
+        await stream.send_message(response)
+
+    async def __rpc_change_user_password(
+        self,
+        stream: "grpclib.server.Stream[ChangeUserPasswordRequest, ChangeUserPasswordResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.change_user_password(request)
         await stream.send_message(response)
 
     async def __rpc_login_user(
@@ -2928,6 +2975,12 @@ class GlobalSupervisorBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SignupUserRequest,
                 SignupUserResponse,
+            ),
+            "/symbolx.bench.GlobalSupervisor/ChangeUserPassword": grpclib.const.Handler(
+                self.__rpc_change_user_password,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ChangeUserPasswordRequest,
+                ChangeUserPasswordResponse,
             ),
             "/symbolx.bench.GlobalSupervisor/LoginUser": grpclib.const.Handler(
                 self.__rpc_login_user,
@@ -3406,69 +3459,69 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    RunData,
-    IdentityData,
-    SpaceData,
-    SessionData,
-    NoticeData,
-    HandleData,
-    TriggerData,
+    MembershipData,
+    RecordData,
     FieldData,
-    LinkData,
-    ViewData,
     ServerData,
+    ClientData,
+    BlockData,
+    UserData,
+    NoticeData,
+    LinkData,
+    SpaceData,
+    RunData,
+    QueryData,
+    RoleData,
+    IdentityData,
+    FileContentData,
+    OrganizationData,
     PackageData,
     SkipData,
-    NotificationData,
-    SignalData,
-    BadgeData,
-    TagData,
-    BenchData,
-    MembershipData,
-    OrganizationData,
-    QueryData,
-    FileContentData,
-    RecordData,
-    BlockData,
     PauseData,
-    ClientData,
-    RoleData,
-    UserData,
+    NotificationData,
+    SessionData,
+    BenchData,
+    TriggerData,
+    ViewData,
+    HandleData,
+    TagData,
+    BadgeData,
+    SignalData,
 ]
 AnyStructData = Union[
-    PropertyPathData,
-    ActionData,
     TypeInfoData,
-    ServerAllocationData,
-    RunErrorData,
-    SpaceDockData,
-    AccessMatrixData,
-    FieldPathSegmentData,
-    SpaceDockItemData,
-    ServerImageDependencyData,
-    ServerImageData,
+    LogEntryData,
+    RichTextSpanData,
     ValueSelectionData,
-    RunCodeFrameData,
     PropertyReferenceData,
-    ExpressionData,
-    AggregationBucketData,
-    RequestSubjectData,
-    FieldPathData,
-    ScheduleData,
-    PolicyData,
-    NodeReferenceData,
-    IconData,
-    ValueReferenceData,
-    FileData,
     PolicyRuleData,
     RequestData,
-    RichTextSpanData,
+    ServerAllocationData,
+    ExpressionData,
+    ServerImageData,
+    AggregationBucketData,
+    RunErrorData,
+    FieldPathData,
     AccessZoneData,
-    RichTextData,
+    IconData,
     ReadOptionsData,
+    SpaceDockData,
+    NodeReferenceData,
+    ValueReferenceData,
+    RunCodeFrameData,
+    AccessMatrixData,
+    FileData,
+    SpaceDockItemData,
+    RequestSubjectData,
+    ScheduleData,
     BenchPathData,
-    LogEntryData,
+    PolicyData,
     AggregationData,
+    PropertyPathData,
+    ActionData,
+    RichTextData,
+    ServerImageDependencyData,
+    FieldPathSegmentData,
 ]
 
-VERSION = "2024.02.06.0"
+VERSION = "2024.02.06.5"

@@ -83,6 +83,28 @@ export interface SignupUserResponse {
     accessToken: string;
 }
 /**
+ * @generated from protobuf message symbolx.bench.ChangeUserPasswordRequest
+ */
+export interface ChangeUserPasswordRequest {
+    /**
+     * @generated from protobuf field: string old_password = 1;
+     */
+    oldPassword: string;
+    /**
+     * @generated from protobuf field: string new_password = 2;
+     */
+    newPassword: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.ChangeUserPasswordResponse
+ */
+export interface ChangeUserPasswordResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.UserData user = 1;
+     */
+    user?: UserData;
+}
+/**
  * @generated from protobuf message symbolx.bench.LoginUserRequest
  */
 export interface LoginUserRequest {
@@ -146,6 +168,10 @@ export interface LogoutUserRequest {
      * @generated from protobuf field: repeated string client_ids = 1;
      */
     clientIds: string[];
+    /**
+     * @generated from protobuf field: optional bool logout_all = 2;
+     */
+    logoutAll?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.LogoutUserResponse
@@ -909,6 +935,107 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
  */
 export const SignupUserResponse = new SignupUserResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ChangeUserPasswordRequest$Type extends MessageType<ChangeUserPasswordRequest> {
+    constructor() {
+        super("symbolx.bench.ChangeUserPasswordRequest", [
+            { no: 1, name: "old_password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "new_password", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeUserPasswordRequest>): ChangeUserPasswordRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.oldPassword = "";
+        message.newPassword = "";
+        if (value !== undefined)
+            reflectionMergePartial<ChangeUserPasswordRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordRequest): ChangeUserPasswordRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string old_password */ 1:
+                    message.oldPassword = reader.string();
+                    break;
+                case /* string new_password */ 2:
+                    message.newPassword = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeUserPasswordRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string old_password = 1; */
+        if (message.oldPassword !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.oldPassword);
+        /* string new_password = 2; */
+        if (message.newPassword !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.newPassword);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordRequest
+ */
+export const ChangeUserPasswordRequest = new ChangeUserPasswordRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResponse> {
+    constructor() {
+        super("symbolx.bench.ChangeUserPasswordResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeUserPasswordResponse>): ChangeUserPasswordResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ChangeUserPasswordResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordResponse): ChangeUserPasswordResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeUserPasswordResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordResponse
+ */
+export const ChangeUserPasswordResponse = new ChangeUserPasswordResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
     constructor() {
         super("symbolx.bench.LoginUserRequest", [
@@ -1058,7 +1185,8 @@ export const LoginUserResponse = new LoginUserResponse$Type();
 class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
     constructor() {
         super("symbolx.bench.LogoutUserRequest", [
-            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "logout_all", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
@@ -1076,6 +1204,9 @@ class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
                 case /* repeated string client_ids */ 1:
                     message.clientIds.push(reader.string());
                     break;
+                case /* optional bool logout_all */ 2:
+                    message.logoutAll = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1091,6 +1222,9 @@ class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
         /* repeated string client_ids = 1; */
         for (let i = 0; i < message.clientIds.length; i++)
             writer.tag(1, WireType.LengthDelimited).string(message.clientIds[i]);
+        /* optional bool logout_all = 2; */
+        if (message.logoutAll !== undefined)
+            writer.tag(2, WireType.Varint).bool(message.logoutAll);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3457,6 +3591,7 @@ export const KillRunResponse = new KillRunResponse$Type();
  */
 export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor", [
     { name: "SignupUser", options: {}, I: SignupUserRequest, O: SignupUserResponse },
+    { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
     { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
     { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
