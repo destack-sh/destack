@@ -23,6 +23,7 @@ from bench.language.const import (
     ReadType,
     RunType,
     StructType,
+    PUBLIC_NODE_TYPES,
 )
 from bench.language.link import on_notice_raise, NodeList
 from bench.language.node import (
@@ -712,14 +713,11 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         )
     ),
     Policy("AuthenticatedAccess").append(
-        PolicyRule("AuthenticatedCanReadUserInfo")
+        # post-launch everyone will be able to read users/orgs/etc.
+        PolicyRule("AuthenticatedCanReadPublic")
         .subject(is_authenticated=True)
         .allow(ActionKind.READ)
-        .object(node_types=(NodeType.USER,), properties_is_sensitive=False),
-        PolicyRule("AuthenticatedCanReadOrganizationInfo")
-        .subject(is_authenticated=True)
-        .allow(ActionKind.READ)
-        .object(node_types=(NodeType.ORGANIZATION,), properties_is_sensitive=False),
+        .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
     ),
     Policy("AnonymousAccess").append(
         PolicyRule("AnonCanReadHandle")

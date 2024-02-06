@@ -1,5 +1,8 @@
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import replace, dataclass
+import random
+import string
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import grpclib
@@ -7,8 +10,9 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, ReadOptions, User
-from bench.language.const import NodeType
-from bench.proto import wire
+from bench.language.const import NodeType, ABOVE_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES, EDIT_TYPES
+from bench.language.expression import A
+from bench.proto import wire, wiring
 from bench.proto.wire import (
     GlobalSupervisorStub,
     LoginUserRequest,
@@ -16,9 +20,17 @@ from bench.proto.wire import (
     ReadNodesRequest,
     RpcMetadata,
     SignupUserRequest,
+    EditData,
+    ClientOrigin,
+    CommitEditsRequest,
+    SearchNodesRequest,
+    AggregationOp,
 )
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
+
+if TYPE_CHECKING:
+    from bench.language.test.fabricator import Fabricator
 
 
 @pytest.fixture(scope="module")
@@ -123,8 +135,8 @@ async def test_cross_user_protection(supervisor: GlobalSupervisorStub):
     for user in all_users:
         client = Client(
             parent=user,
-            name=f"{user.name}'s device",
-            device_name="pytest",
+            name=f"{user.name}'s MacBook Pro",
+            device_name="macbook",
             last_seen_at=utcnow_with_tz(),
         )
         signup_req = SignupUserRequest(
@@ -168,41 +180,109 @@ async def test_cross_user_protection(supervisor: GlobalSupervisorStub):
                 assert not read_target.password_salt
                 assert not read_target.password_hash
 
+            # create new client
+            new_client = Client(
+                parent=actor,
+                name=f"{actor.name}'s Toaster",
+                device_name="toaster",
+                last_seen_at=utcnow_with_tz(),
+            )
 
-async def test_global_crud_protection(supervisor: GlobalSupervisorStub):
-    """Create, read, update and search global nodes directly. Shouldn't be possible for most nodes."""
 
-    pass
-    # read user with owned data, unauthorized -> success but empty (except public data)
-    # read_user_req = ReadNodesRequest(
-    #     roots=[user.to_ref()._to_data()],
-    #     options=ReadOptions(descendant_types=[NodeType.CLIENT])._to_data(),
-    # )
-    # read_user_rep = await supervisor.read_nodes(read_user_req)
-    # assert not len(read_user_rep.nodes) == 1
-    # assert not read_user_rep.nodes[0].email
-    # create User -> fail
-    # upsert User -> fail
+@dataclass
+class UserHandle:
+    user: User
+    client: Client
+    origin: ClientOrigin
+    metadata: RpcMetadata
 
-    # update User.name, authorized -> success
-    # user.name = "Testificate"
-    # edit = wire.EditData(
-    #     type=wire.EditType.UPDATE,
-    #     node_type=wire.NodeType.USER,
-    #     node=wiring.wrap_some_node(user._to_data()),
-    #     properties=[User.name.id],
-    # )
-    # edit_req = CommitEditsRequest(edits=[edit])
-    # await supervisor.commit_edits(edit_req, access_metadata.to_headers())
-    #
-    # # update User.password_hash, authorized -> fail (system property)
-    # user.password_hash = b"bad"
-    # edit = wire.EditData(
-    #     type=wire.EditType.UPDATE,
-    #     node_type=wire.NodeType.USER,
-    #     node=wiring.wrap_some_node(user._to_data()),
-    #     properties=[User.password_hash.id],
-    # )
-    # edit_req = CommitEditsRequest(edits=[edit])
-    # with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
-    #     _ = await supervisor.commit_edits(edit_req, access_metadata.to_headers())
+
+async def make_user_handle(supervisor: GlobalSupervisorStub, user: User) -> UserHandle:
+    client = Client(
+        parent=user, name=user.name + "'s iPad", device_name="pytest", last_seen_at=utcnow_with_tz()
+    )
+    signup_req = SignupUserRequest(
+        id=str(user.id),
+        slug=user.slug,
+        name=user.name,
+        email=user.email,
+        password="Password123!",
+        client=client._to_data(),
+    )
+    signup_rep = await supervisor.signup_user(signup_req)
+    origin = ClientOrigin(
+        client_id=str(client.id),
+        client_kind=wire.ClientKind.USER,
+        client_access_token=signup_rep.access_token,
+    )
+    metadata = RpcMetadata(
+        client_id=str(client.id),
+        client_kind=wire.ClientKind.USER,
+        client_access_token=signup_rep.access_token,
+    )
+    return UserHandle(user=user, client=client, origin=origin, metadata=metadata)
+
+
+async def make_random_user_handle(supervisor: GlobalSupervisorStub) -> UserHandle:
+    random_slug = "".join(random.choices(string.ascii_letters, k=10))
+    random_email = f"{random_slug}@whatever.com"
+    user = User(slug=random_slug, name=random_slug, email=random_email)
+    return await make_user_handle(supervisor, user)
+
+
+@pytest.fixture(scope="module")
+async def some_user(supervisor: GlobalSupervisorStub) -> UserHandle:
+    return await make_random_user_handle(supervisor)
+
+
+@pytest.mark.parametrize("node_type", PUBLIC_NODE_TYPES, ids=lambda t: t.name)
+async def test_public_node_read(
+    node_type: NodeType, some_user: UserHandle, supervisor: GlobalSupervisorStub
+):
+    """Public nodes should be readable, but not directly editable in any way."""
+
+    # search (and count)
+    search_req = SearchNodesRequest(node_type=node_type, count=True)
+    _ = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
+    # can we assert anything here?
+
+    # aggregate: exists
+    aggregate_req = ReadNodesRequest(node_type=node_type, aggregation=A(op=AggregationOp.EXISTS))
+    aggregate_rep = await supervisor.read_nodes(
+        aggregate_req, metadata=some_user.metadata.to_headers()
+    )
+    assert isinstance(aggregate_rep.aggregation.exists, bool)
+
+    # aggregate: count
+    aggregate_req = ReadNodesRequest(node_type=node_type, aggregation=A(op=AggregationOp.COUNT))
+    aggregate_rep = await supervisor.read_nodes(
+        aggregate_req, metadata=some_user.metadata.to_headers()
+    )
+    assert isinstance(aggregate_rep.aggregation.count, int)
+
+
+@pytest.mark.parametrize(
+    "node_type",
+    (nt for nt in ABOVE_PACKAGE_NODE_TYPES if nt not in PUBLIC_NODE_TYPES),
+    ids=lambda t: t.name,
+)
+async def test_global_node_edit(
+    node_type: NodeType,
+    some_user: UserHandle,
+    supervisor: GlobalSupervisorStub,
+    fabricator: "Fabricator",
+):
+    """'Global' nodes should not be directly editable by regular users."""
+
+    node = fabricator.fabricate(node_type)
+    node_data = wiring.pack_node(node)
+    for edit_type in EDIT_TYPES:
+        edit = EditData(
+            type=edit_type,
+            node_type=node_data.node_type,
+            node=wiring.wrap_some_node(node_data),
+            origin=some_user.origin,
+        )
+        commit_req = CommitEditsRequest(edits=[edit])
+        with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+            _ = await supervisor.commit_edits(commit_req, metadata=some_user.metadata.to_headers())

@@ -96,6 +96,12 @@ IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
+PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.MEMBERSHIP)
+)
+ABOVE_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if nt.id >= 200) + (NodeType.BENCH,)
+)
 
 
 class StructType(IdEnum):
