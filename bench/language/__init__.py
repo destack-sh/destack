@@ -3,20 +3,20 @@ from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
 from .access import (
     AccessError,
-    Action,
+    Request,
     Badge,
     Identity,
     Policy,
     PolicyRule,
     ReadOptions,
-    Request,
+    Access,
     Role,
     Subject,
 )
 from .block import Block
 from .const import (
     VERSION,
-    ActionType,
+    AccessType,
     BenchError,
     BlockType,
     ConditionalOp,
@@ -72,8 +72,8 @@ from .compute import ServerImageDependency, Server, ServerImage, ServerAllocatio
 __all__ = [
     "A",
     "AccessError",
-    "Action",
-    "ActionType",
+    "Request",
+    "AccessType",
     "Badge",
     "Bench",
     "BenchError",
@@ -115,7 +115,7 @@ __all__ = [
     "ReadOptions",
     "Record",
     "render",
-    "Request",
+    "Access",
     "Subject",
     "RichText",
     "RichTextSpan",

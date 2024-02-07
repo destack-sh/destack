@@ -236,10 +236,10 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         access = generate_access_matrix(subject, tree)
-        action, adapted_nodes = evaluate_and_adapt_read(
+        access, adapted_nodes = evaluate_and_adapt_read(
             access, tree, required_nodes=request.roots, adapt_nodes_in_place=True
         )
-        await self._log_and_check_action(action)
+        await self._log_and_check_access(access)
 
         return ReadNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -283,10 +283,10 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             else:
                 count = None
         access = generate_access_matrix(subject, tree)
-        action, adapted_nodes = evaluate_and_adapt_read(
+        access, adapted_nodes = evaluate_and_adapt_read(
             access, tree, adapt_nodes_in_place=True, required_nodes=request.bases
         )
-        await self._log_and_check_action(action)
+        await self._log_and_check_access(access)
 
         return SearchNodesResponse(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
@@ -359,23 +359,23 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             for root_node_type, root_node_references in roots_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
                 # TODO @Performance: select only require properties for edit eval (id/policies/...?)
-                options = ReadOptions
+                adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
                 _ = await pg_read_node_data_tree(
                     cur=cur,
                     root_type=node_type,
                     root_ids=tuple(r.id for r in root_node_references),
-                    options=ReadOptions.default(),
+                    options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, tree)
-            action = evaluate_edit(matrix, tree, request.edits)
-            await self._log_and_check_action(action)
+            access = evaluate_edit(matrix, tree, request.edits, trace=True)
+            await self._log_and_check_access(access)
 
             # apply the edits
             changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
-                cur=cur, tree=tree, edits=request.edits, return_nodes=True
+                cur=cur, edits=request.edits, return_nodes=True
             )
             await cur.connection.commit()
 

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.07.4"
+VERSION = "2024.02.07.5"
 
 if TYPE_CHECKING:
     from bench.language import RequestSubject
@@ -33,14 +33,20 @@ if TYPE_CHECKING:
     from grpclib.metadata import Deadline
 
 
-class ActionKind(betterproto.Enum):
+class AccessKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
     EDIT = 10
     RUN = 25
 
 
-class ActionType(betterproto.Enum):
+class AccessMode(betterproto.Enum):
+    UNSPECIFIED = 0
+    ADAPTIVE = 1
+    ATOMIC = 2
+
+
+class AccessType(betterproto.Enum):
     UNSPECIFIED = 0
     GET = 1
     AGGREGATE_SCALAR = 2
@@ -133,8 +139,9 @@ class BenchType(betterproto.Enum):
     SUBJECT = 532
     ACCESS_ZONE = 534
     ACCESS_MATRIX = 535
+    ACCESS = 537
+    ACCESS_TRACE = 538
     REQUEST = 536
-    ACTION = 537
     READ_OPTIONS = 550
     EXPRESSION = 560
     AGGREGATION = 561
@@ -208,7 +215,7 @@ class ConditionalOp(betterproto.Enum):
 
 
 class EditType(betterproto.Enum):
-    """A type of Edit action on nodes."""
+    """A type of Edit access on nodes."""
 
     UNSPECIFIED = 0
     BUMP_CHANGED = 10
@@ -441,7 +448,7 @@ class QueryEngine(betterproto.Enum):
 
 
 class ReadType(betterproto.Enum):
-    """A type of Read action on nodes."""
+    """A type of Read access on nodes."""
 
     UNSPECIFIED = 0
     GET = 1
@@ -473,7 +480,7 @@ class RunStatus(betterproto.Enum):
 
 
 class RunType(betterproto.Enum):
-    """A type of Run action on nodes."""
+    """A type of Run access on nodes."""
 
     UNSPECIFIED = 0
     START = 25
@@ -541,8 +548,9 @@ class StructType(betterproto.Enum):
     SUBJECT = 532
     ACCESS_ZONE = 534
     ACCESS_MATRIX = 535
+    ACCESS = 537
+    ACCESS_TRACE = 538
     REQUEST = 536
-    ACTION = 537
     READ_OPTIONS = 550
     EXPRESSION = 560
     AGGREGATION = 561
@@ -598,6 +606,24 @@ class StartRunResponseErrorType(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class AccessData(betterproto.Message):
+    """
+    An evaluated access on some objects as part of a larger Request (by the
+    same subject). As in PolicyRule, if the decision is Deny, the
+    object_properties are the denied ones. (And if object_properties is unset,
+    it applies to all properties.)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    mode: "AccessMode" = betterproto.enum_field(30)
+    decision: "PolicyEffect" = betterproto.enum_field(31)
+    verb: "AccessType" = betterproto.enum_field(32)
+    object_type: "BenchType" = betterproto.enum_field(33)
+    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(34)
+    trace: Optional["AccessTraceData"] = betterproto.message_field(35, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class AccessMatrixData(betterproto.Message):
     """
     The materialized access matrix generated for a specific subject to quickly
@@ -609,6 +635,14 @@ class AccessMatrixData(betterproto.Message):
     identities: List["SubjectData"] = betterproto.message_field(32)
     scope_zones: List["AccessZoneData"] = betterproto.message_field(33)
     base_zones: List["AccessZoneData"] = betterproto.message_field(34)
+
+
+@dataclass(eq=False, repr=False)
+class AccessTraceData(betterproto.Message):
+    """The trace of evaluating Access."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    matched_rules: List["PolicyRuleData"] = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -624,19 +658,6 @@ class AccessZoneData(betterproto.Message):
     scope_id: str = betterproto.string_field(30)
     identity_id: int = betterproto.int32_field(31)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
-
-
-@dataclass(eq=False, repr=False)
-class ActionData(betterproto.Message):
-    """
-    The result of evaluating an action (multiple requests). TODO @Feature
-    @Security: store, query and watch action log
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    subject: "SubjectData" = betterproto.message_field(30)
-    decision: "PolicyEffect" = betterproto.enum_field(31)
-    requests: List["RequestData"] = betterproto.message_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -798,7 +819,7 @@ class PolicyData(betterproto.Message):
     """
     A policy regulating access to nodes within its scope. The scope is
     determined by where its attached, but may be further restricted using
-    'scopes'.  The basics of access control: 1. An action is DENYed implicitly
+    'scopes'.  The basics of access control: 1. An access is DENYed implicitly
     unless explicitly and completely ALLOWed. 2. Policies are attached directly
     to nodes or via delegates (badges, roles, identities, ...). a. Policies are
     scoped to the node their definition or b. Delegate is attached to (or less
@@ -835,8 +856,8 @@ class PolicyRuleData(betterproto.Message):
     subject_is_member: Optional[bool] = betterproto.bool_field(43, optional=True)
     subject_is_owner: Optional[bool] = betterproto.bool_field(44, optional=True)
     effect: "PolicyEffect" = betterproto.enum_field(60)
-    verbs: List["ActionType"] = betterproto.enum_field(61)
-    verb_kinds: List["ActionKind"] = betterproto.enum_field(62)
+    verbs: List["AccessType"] = betterproto.enum_field(61)
+    verb_kinds: List["AccessKind"] = betterproto.enum_field(62)
     object_node_types: List["NodeType"] = betterproto.enum_field(80)
     object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(81)
     object_properties_is_system: Optional[bool] = betterproto.bool_field(82, optional=True)
@@ -885,15 +906,14 @@ class ReadOptionsData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RequestData(betterproto.Message):
     """
-    A sub-action on some objects as part of a larger Action (by the same
-    subject).
+    A request with multiple accesses. TODO @Feature @Security: store, query and
+    watch access log
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
+    subject: "SubjectData" = betterproto.message_field(30)
     decision: "PolicyEffect" = betterproto.enum_field(31)
-    verb: "ActionType" = betterproto.enum_field(32)
-    object_type: "BenchType" = betterproto.enum_field(33)
-    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(34)
+    accesses: List["AccessData"] = betterproto.message_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -1321,7 +1341,7 @@ class IdentityData(betterproto.Message):
     """
     Attach an identity to a block or member. Identity policies are delegated to
     the parent and its descendants. The delegated policies apply to all
-    descendant's actions.
+    descendant's accesses.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1565,7 +1585,7 @@ class RoleData(betterproto.Message):
     """
     Attach a role to a block or member. Role policies are delegated to the
     parent and its descendants. The delegated policies apply to all
-    descendant's actions.
+    descendant's accesses.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -3433,66 +3453,67 @@ from typing import Union  # noqa
 
 AnyNodeData = Union[
     SpaceData,
-    SkipData,
-    BenchData,
-    IdentityData,
-    TagData,
-    NoticeData,
-    ClientData,
-    FieldData,
-    SessionData,
-    NotificationData,
-    QueryData,
-    LinkData,
-    TriggerData,
-    OrganizationData,
-    SignalData,
-    ViewData,
-    UserData,
-    MembershipData,
+    BlockData,
     RunData,
     ServerData,
-    BlockData,
-    BadgeData,
-    PauseData,
-    FileContentData,
     PackageData,
+    TriggerData,
+    IdentityData,
+    PauseData,
+    SkipData,
     RecordData,
-    HandleData,
+    BenchData,
+    ViewData,
+    SessionData,
+    SignalData,
+    ClientData,
+    LinkData,
     RoleData,
+    UserData,
+    FileContentData,
+    BadgeData,
+    MembershipData,
+    TagData,
+    FieldData,
+    NotificationData,
+    QueryData,
+    OrganizationData,
+    NoticeData,
+    HandleData,
 ]
 AnyStructData = Union[
-    ServerAllocationData,
     FileData,
-    TypeInfoData,
-    PropertyReferenceData,
-    FieldPathSegmentData,
-    ValueReferenceData,
-    AccessZoneData,
-    ExpressionData,
-    BenchPathData,
-    AggregationBucketData,
-    IconData,
-    RequestData,
     SubjectData,
-    RichTextData,
-    FieldPathData,
-    ServerImageDependencyData,
-    RichTextSpanData,
-    NodeReferenceData,
-    PolicyRuleData,
     RunErrorData,
+    BenchPathData,
+    RequestData,
+    ScheduleData,
     AggregationData,
+    PolicyRuleData,
+    FieldPathData,
+    ValueSelectionData,
+    NodeReferenceData,
+    RunCodeFrameData,
+    SpaceDockItemData,
     ReadOptionsData,
     AccessMatrixData,
+    ExpressionData,
+    TypeInfoData,
+    AccessTraceData,
+    RichTextData,
+    RichTextSpanData,
+    ServerImageDependencyData,
     PropertyPathData,
-    ValueSelectionData,
-    SpaceDockData,
-    ScheduleData,
-    RunCodeFrameData,
+    AggregationBucketData,
     ServerImageData,
-    ActionData,
-    LogEntryData,
-    SpaceDockItemData,
     PolicyData,
+    IconData,
+    SpaceDockData,
+    AccessData,
+    ServerAllocationData,
+    AccessZoneData,
+    FieldPathSegmentData,
+    LogEntryData,
+    PropertyReferenceData,
+    ValueReferenceData,
 ]

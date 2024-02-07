@@ -5,34 +5,40 @@ package symbolx.bench;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
-enum ActionKind {
-  ACTION_KIND_UNSPECIFIED = 0;
-  ACTION_KIND_READ = 1;
-  ACTION_KIND_EDIT = 10;
-  ACTION_KIND_RUN = 25;
+enum AccessKind {
+  ACCESS_KIND_UNSPECIFIED = 0;
+  ACCESS_KIND_READ = 1;
+  ACCESS_KIND_EDIT = 10;
+  ACCESS_KIND_RUN = 25;
 }
 
-enum ActionType {
-  ACTION_TYPE_UNSPECIFIED = 0;
-  ACTION_TYPE_GET = 1;
-  ACTION_TYPE_AGGREGATE_SCALAR = 2;
-  ACTION_TYPE_AGGREGATE_BUCKET = 3;
-  ACTION_TYPE_LIST = 4;
-  ACTION_TYPE_BUMP_CHANGED = 10;
-  ACTION_TYPE_BUMP_ACTIVE = 11;
-  ACTION_TYPE_CREATE = 12;
-  ACTION_TYPE_UPSERT = 13;
-  ACTION_TYPE_UPDATE = 14;
-  ACTION_TYPE_MOVE = 15;
-  ACTION_TYPE_ARCHIVE = 16;
-  ACTION_TYPE_UNARCHIVE = 17;
-  ACTION_TYPE_SOFT_DELETE = 18;
-  ACTION_TYPE_RESTORE = 19;
-  ACTION_TYPE_DELETE = 20;
-  ACTION_TYPE_START = 25;
-  ACTION_TYPE_PAUSE = 26;
-  ACTION_TYPE_RESUME = 37;
-  ACTION_TYPE_KILL = 28;
+enum AccessMode {
+  ACCESS_MODE_UNSPECIFIED = 0;
+  ACCESS_MODE_ADAPTIVE = 1;
+  ACCESS_MODE_ATOMIC = 2;
+}
+
+enum AccessType {
+  ACCESS_TYPE_UNSPECIFIED = 0;
+  ACCESS_TYPE_GET = 1;
+  ACCESS_TYPE_AGGREGATE_SCALAR = 2;
+  ACCESS_TYPE_AGGREGATE_BUCKET = 3;
+  ACCESS_TYPE_LIST = 4;
+  ACCESS_TYPE_BUMP_CHANGED = 10;
+  ACCESS_TYPE_BUMP_ACTIVE = 11;
+  ACCESS_TYPE_CREATE = 12;
+  ACCESS_TYPE_UPSERT = 13;
+  ACCESS_TYPE_UPDATE = 14;
+  ACCESS_TYPE_MOVE = 15;
+  ACCESS_TYPE_ARCHIVE = 16;
+  ACCESS_TYPE_UNARCHIVE = 17;
+  ACCESS_TYPE_SOFT_DELETE = 18;
+  ACCESS_TYPE_RESTORE = 19;
+  ACCESS_TYPE_DELETE = 20;
+  ACCESS_TYPE_START = 25;
+  ACCESS_TYPE_PAUSE = 26;
+  ACCESS_TYPE_RESUME = 37;
+  ACCESS_TYPE_KILL = 28;
 }
 
 enum AggregationOp {
@@ -105,8 +111,9 @@ enum BenchType {
   BENCH_TYPE_SUBJECT = 532;
   BENCH_TYPE_ACCESS_ZONE = 534;
   BENCH_TYPE_ACCESS_MATRIX = 535;
+  BENCH_TYPE_ACCESS = 537;
+  BENCH_TYPE_ACCESS_TRACE = 538;
   BENCH_TYPE_REQUEST = 536;
-  BENCH_TYPE_ACTION = 537;
   BENCH_TYPE_READ_OPTIONS = 550;
   BENCH_TYPE_EXPRESSION = 560;
   BENCH_TYPE_AGGREGATION = 561;
@@ -179,7 +186,7 @@ enum ConditionalOp {
   CONDITIONAL_OP_NEAR = 50;
 }
 
-// A type of Edit action on nodes.
+// A type of Edit access on nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
   EDIT_TYPE_BUMP_CHANGED = 10;
@@ -403,7 +410,7 @@ enum QueryEngine {
   QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
 }
 
-// A type of Read action on nodes.
+// A type of Read access on nodes.
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
   READ_TYPE_GET = 1;
@@ -434,7 +441,7 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 9;
 }
 
-// A type of Run action on nodes.
+// A type of Run access on nodes.
 enum RunType {
   RUN_TYPE_UNSPECIFIED = 0;
   RUN_TYPE_START = 25;
@@ -501,8 +508,9 @@ enum StructType {
   STRUCT_TYPE_SUBJECT = 532;
   STRUCT_TYPE_ACCESS_ZONE = 534;
   STRUCT_TYPE_ACCESS_MATRIX = 535;
+  STRUCT_TYPE_ACCESS = 537;
+  STRUCT_TYPE_ACCESS_TRACE = 538;
   STRUCT_TYPE_REQUEST = 536;
-  STRUCT_TYPE_ACTION = 537;
   STRUCT_TYPE_READ_OPTIONS = 550;
   STRUCT_TYPE_EXPRESSION = 560;
   STRUCT_TYPE_AGGREGATION = 561;
@@ -546,6 +554,19 @@ enum ViewType {
   VIEW_TYPE_DIVIDER = 61;
 }
 
+// An evaluated access on some objects as part of a larger Request (by the same subject).
+// As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
+// (And if object_properties is unset, it applies to all properties.)
+message AccessData {
+  BenchType metatype = 1;
+  AccessMode mode = 30;
+  PolicyEffect decision = 31;
+  AccessType verb = 32;
+  BenchType object_type = 33;
+  repeated PropertyReferenceData object_properties_ptr = 34;
+  optional AccessTraceData trace = 35;
+}
+
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
 message AccessMatrixData {
   BenchType metatype = 1;
@@ -553,6 +574,12 @@ message AccessMatrixData {
   repeated SubjectData identities = 32;
   repeated AccessZoneData scope_zones = 33;
   repeated AccessZoneData base_zones = 34;
+}
+
+// The trace of evaluating Access.
+message AccessTraceData {
+  BenchType metatype = 1;
+  repeated PolicyRuleData matched_rules = 30;
 }
 
 // The pre-filtered access rules for a given identity.
@@ -564,15 +591,6 @@ message AccessZoneData {
   string scope_id = 30;
   int32 identity_id = 31;
   repeated PolicyRuleData rules = 32;
-}
-
-// The result of evaluating an action (multiple requests).
-// TODO @Feature @Security: store, query and watch action log
-message ActionData {
-  BenchType metatype = 1;
-  SubjectData subject = 30;
-  PolicyEffect decision = 31;
-  repeated RequestData requests = 32;
 }
 
 // The result of an aggregation expression.
@@ -724,7 +742,7 @@ message NodeReferenceData {
 // The scope is determined by where its attached, but may be further restricted using 'scopes'.
 // 
 // The basics of access control:
-// 1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+// 1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
 // 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
 // a. Policies are scoped to the node their definition or
 // b. Delegate is attached to (or less as specified).
@@ -755,8 +773,8 @@ message PolicyRuleData {
   optional bool subject_is_member = 43;
   optional bool subject_is_owner = 44;
   PolicyEffect effect = 60;
-  repeated ActionType verbs = 61;
-  repeated ActionKind verb_kinds = 62;
+  repeated AccessType verbs = 61;
+  repeated AccessKind verb_kinds = 62;
   repeated NodeType object_node_types = 80;
   repeated PropertyReferenceData object_properties_ptr = 81;
   optional bool object_properties_is_system = 82;
@@ -790,13 +808,13 @@ message ReadOptionsData {
   optional ExpressionData global_filter = 50;
 }
 
-// A sub-action on some objects as part of a larger Action (by the same subject).
+// A request with multiple accesses.
+// TODO @Feature @Security: store, query and watch access log
 message RequestData {
   BenchType metatype = 1;
+  SubjectData subject = 30;
   PolicyEffect decision = 31;
-  ActionType verb = 32;
-  BenchType object_type = 33;
-  repeated PropertyReferenceData object_properties_ptr = 34;
+  repeated AccessData accesses = 32;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -1118,7 +1136,7 @@ message HandleData {
 
 // Attach an identity to a block or member.
 // Identity policies are delegated to the parent and its descendants.
-// The delegated policies apply to all descendant's actions.
+// The delegated policies apply to all descendant's accesses.
 message IdentityData {
   BenchType metatype = 1;
   string id = 2;
@@ -1308,7 +1326,7 @@ message RecordData {
 
 // Attach a role to a block or member.
 // Role policies are delegated to the parent and its descendants.
-// The delegated policies apply to all descendant's actions.
+// The delegated policies apply to all descendant's accesses.
 message RoleData {
   BenchType metatype = 1;
   string id = 2;
