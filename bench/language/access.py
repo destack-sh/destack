@@ -6,14 +6,14 @@ from uuid import UUID
 from bitarray import bitarray
 
 from bench.language.const import (
-    ACTION_CLASSES,
-    ACTION_KINDS,
+    ACCESS_CLASSES,
+    ACCESS_KINDS,
     IN_BENCH_NODE_TYPES,
     NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
-    ActionKind,
-    ActionType,
+    AccessKind,
+    AccessType,
     BadgeType,
     BenchError,
     BenchType,
@@ -24,6 +24,7 @@ from bench.language.const import (
     RunType,
     StructType,
     PUBLIC_NODE_TYPES,
+    AccessMode,
 )
 from bench.language.link import on_notice_raise, NodeList
 from bench.language.node import (
@@ -114,7 +115,7 @@ class Role(Node):
     """
     Attach a role to a block or member.
     Role policies are delegated to the parent and its descendants.
-    The delegated policies apply to all descendant's actions.
+    The delegated policies apply to all descendant's accesses.
     """
 
     parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
@@ -126,7 +127,7 @@ class Identity(ScopeNode):
     """
     Attach an identity to a block or member.
     Identity policies are delegated to the parent and its descendants.
-    The delegated policies apply to all descendant's actions.
+    The delegated policies apply to all descendant's accesses.
     """
 
     parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
@@ -248,7 +249,7 @@ class Policy(Struct):
     The scope is determined by where its attached, but may be further restricted using 'scopes'.
 
     The basics of access control:
-     1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+     1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
        a. Policies are scoped to the node their definition or
        b. Delegate is attached to (or less as specified).
@@ -304,8 +305,8 @@ class PolicyRule(Struct):
 
     # verb
     effect: PolicyEffect = p_regular(60, default=PolicyEffect.DENY)
-    verbs: list[ActionType] | None = p_regular(61, default=None)
-    verb_kinds: list[ActionKind] | None = p_regular(62, default=None)
+    verbs: list[AccessType] | None = p_regular(61, default=None)
+    verb_kinds: list[AccessKind] | None = p_regular(62, default=None)
     _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard, except for _properties_is_<...>)
@@ -407,9 +408,9 @@ class PolicyRule(Struct):
                 self._object_properties_masks[prop.type][prop.id] = True
 
     def _update_verb_mask(self):
-        self._verb_mask = bitarray(ActionType.get_max_id())
+        self._verb_mask = bitarray(AccessType.get_max_id())
         if not self.verbs and not self.verb_kinds:
-            self._verb_mask[ActionType.get_min_id() : ActionType.get_max_id()] = True
+            self._verb_mask[AccessType.get_min_id() : AccessType.get_max_id()] = True
         else:
             for verb in self.verbs or ():
                 self._verb_mask[verb.id] = True
@@ -436,25 +437,25 @@ class PolicyRule(Struct):
                 return False
         return True  # no mismatch -> match
 
-    def matches_verb(self, verb: ActionType) -> bool:
+    def matches_verb(self, verb: AccessType) -> bool:
         return self._verb_mask[verb.id]
 
     #
     # Builder-style methods
     #
 
-    def allow(self, *verbs: ActionType | ActionKind) -> "Self":
+    def allow(self, *verbs: AccessType | AccessKind) -> "Self":
         self.effect = PolicyEffect.ALLOW
-        self.verbs = [verb for verb in verbs if isinstance(verb, ACTION_CLASSES)]
-        self.verb_kinds = [verb for verb in verbs if isinstance(verb, ActionKind)]
+        self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
+        self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
         self._update_verb_mask()
         return self
 
-    def deny(self, *verbs: ActionType | ActionKind) -> "Self":
+    def deny(self, *verbs: AccessType | AccessKind) -> "Self":
         self.effect = PolicyEffect.DENY
-        self.verbs = [verb for verb in verbs if isinstance(verb, ACTION_CLASSES)]
-        self.verb_kinds = [verb for verb in verbs if isinstance(verb, ActionKind)]
+        self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
+        self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
         self._update_verb_mask()
         return self
@@ -587,13 +588,13 @@ class AccessZone(Struct):
     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
-    id: int = p_internal(2, require=True)
-    parent_id: int | None = p_internal(4)
-    scope_id: str = p_internal(30)
+    id: int = p_system(2, require=True)
+    parent_id: int | None = p_system(4)
+    scope_id: str = p_system(30)
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
-    identity_id: int = p_internal(31)
+    identity_id: int = p_system(31)
     _identity: Optional[Identity] = p_runtime(default=None)
-    rules: list[PolicyRule] = p_internal(32, array=True, struct=StructType.POLICY_RULE)
+    rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
 
     def __content_str__(self) -> str:
         return f"{self.id} for {self._identity or self.identity_id} in {self.scope_id} ({len(self.rules)} rules)"
@@ -603,10 +604,10 @@ class AccessZone(Struct):
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    subject: Subject = p_internal(30, require=True, struct=StructType.SUBJECT)
-    identities: list[Subject] = p_internal(32, array=True, struct=StructType.SUBJECT)
-    scope_zones: list[AccessZone] = p_internal(33, array=True, struct=StructType.ACCESS_ZONE)
-    base_zones: list[AccessZone] = p_internal(34, array=True, struct=StructType.ACCESS_ZONE)
+    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
+    identities: list[Subject] = p_system(32, array=True, struct=StructType.SUBJECT)
+    scope_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
+    base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
 
     # quick access to the zone (id = index)
     _lowest_zone_by_scope: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
@@ -616,16 +617,27 @@ class AccessMatrix(Struct):
         return f"for {self.subject} ({len(self.identities)} identities, {len(self.scope_zones)} node zones, {len(self.base_zones)} base zones)"
 
 
-@struct(StructType.REQUEST)
-class Request(Struct):
-    """A sub-action on some objects as part of a larger Action (by the same subject)."""
+@struct(StructType.ACCESS)
+class Access(Struct):
+    """
+    An evaluated access on some objects as part of a larger Request (by the same subject).
+    As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
+    (And if object_properties is unset, it applies to all properties.)
+    """
 
-    decision: PolicyEffect = p_internal(31, require=True)
-    verb: ActionType = p_internal(32, require=True)
-    object_type: BenchType = p_internal(33, require=True)
-    object_properties: list[Property] | None = p_internal(
+    mode: AccessMode = p_system(30, require=True)
+    decision: PolicyEffect = p_system(31, require=True)
+    verb: AccessType = p_system(32, require=True)
+    object_type: BenchType = p_system(33, require=True)
+    object_properties: list[Property] | None = p_system(
         34, require=False, array=True, default=None, struct=StructType.PROPERTY_REFERENCE
     )
+    trace: Optional["AccessTrace"] = p_system(
+        35, require=False, array=False, struct=StructType.ACCESS_TRACE
+    )
+
+    # arguments
+    # roots, read_options, ...
 
     def __content_str__(self) -> str:
         if self.object_properties:
@@ -636,25 +648,29 @@ class Request(Struct):
         return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
 
 
-@struct(StructType.ACTION)
-class Action(Struct):
+@struct(StructType.ACCESS_TRACE)
+class AccessTrace(Struct):
+    """The trace of evaluating Access."""
+
+    matched_rules: list[PolicyRule] = p_system(30, array=True, struct=StructType.POLICY_RULE)
+
+
+@struct(StructType.REQUEST)
+class Request(Struct):
     """
-    The result of evaluating an action (multiple requests).
-    TODO @Feature @Security: store, query and watch action log
+    A request with multiple accesses.
+    TODO @Feature @Security: store, query and watch access log
     """
 
-    subject: Subject = p_internal(30, require=True, struct=StructType.SUBJECT)
-    decision: PolicyEffect = p_internal(31, require=True)
-    requests: list[Request] = p_internal(32, array=True, require=True, struct=StructType.REQUEST)
+    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
+    decision: PolicyEffect = p_system(31, require=True)
+    accesses: list[Access] = p_system(32, array=True, require=True, struct=StructType.REQUEST)
 
-    # arguments
-    # roots, read_options, ...
-
-    # context
+    # scope
     # bench, package, space, user, ...
 
     def __content_str__(self) -> str:
-        return f"{self.decision.bench_name} [{self.subject}]: ({', '.join(str(r) for r in self.requests)})"
+        return f"{self.decision.bench_name} [{self.subject}]: ({', '.join(str(r) for r in self.accesses)})"
 
 
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
@@ -680,8 +696,10 @@ def _properties_to_mask(values: list[Property], node_type: NodeType) -> bitarray
 
 
 def _mask_to_properties(mask: bitarray, node_type: NodeType) -> tuple[Property, ...]:
-    """Convert a mask to a list of properties."""
+    """Convert a mask to a list of properties. Empty mask == all properties == wildcard!"""
     node_cls = NODE_CLASS_BY_TYPE[node_type]
+    if mask == node_cls.__properties_mask__:
+        return ()
     properties = tuple(node_cls.__properties_by_id__[prop_id] for prop_id in mask.search(True))
     return properties
 
@@ -699,10 +717,10 @@ def _ints_to_mask(values: list[int], length: int) -> bitarray:
 class AccessError(BenchError, ValueError):
     def __init__(
         self,
-        evaluation: Request | Action,
+        evaluation: Access | Request,
         cause: Exception | None = None,
     ):
-        super().__init__(f"denied: {evaluation}", cause)
+        super().__init__(repr(evaluation), cause)
         self.evaluation = evaluation
         self.cause = cause
 
@@ -713,7 +731,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         PolicyRule(
             "CannotUpdateSystemProperties",
             text=RichText.plain(
-                "System properties are not directly editable, only through special methods or relevant actions."
+                "System properties are not directly editable, only through special methods or relevant accesses."
             ),
         )
         .deny(EditType.UPDATE)
@@ -736,7 +754,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             ),
         )
         .subject(is_owner=True)
-        .allow(*ACTION_KINDS),
+        .allow(*ACCESS_KINDS),
     ),
     Policy("StaffAccess").append(
         PolicyRule(
@@ -744,7 +762,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             text=RichText.plain("During the beta, staff users can access anything."),
         )
         .subject(is_staff=True)
-        .allow(ActionKind.READ),
+        .allow(AccessKind.READ),
     ),
     Policy("MemberAccess").append(
         PolicyRule(
@@ -754,7 +772,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             ),
         )
         .subject(is_member=True)
-        .allow(ActionKind.READ)
+        .allow(AccessKind.READ)
         .object(
             node_types=tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in SUB_PACKAGE_NODE_TYPES),
             properties_is_sensitive=False,
@@ -768,7 +786,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             ),
         )
         .subject(is_authenticated=True)
-        .allow(ActionKind.READ)
+        .allow(AccessKind.READ)
         .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
     ),
     Policy("AnonymousAccess").append(
@@ -779,7 +797,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             ),
         )
         .subject(is_authenticated=False)
-        .allow(ActionKind.READ)
+        .allow(AccessKind.READ)
         .object((NodeType.HANDLE,))
     ),
 )
@@ -795,7 +813,7 @@ def adapt_read_options(
     subject: Subject, root_node_type: NodeType, options: ReadOptions
 ) -> ReadOptions:
     """
-    Adapt read options based on the action to pre-filter as feasible while enabling the complete post-read check.
+    Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
     """
 
@@ -941,18 +959,26 @@ def generate_access_matrix(
     return matrix
 
 
-def _evaluate_request_object(
+def evaluate_access(
     *,
+    mode: AccessMode,
     matrix: AccessMatrix,
-    verb: ActionType,
+    verb: AccessType,
     object_node_type: NodeType,
     object_properties: bitarray,
     root_id: str,
     scope_id: str,
-) -> bitarray:
+    trace: bool = False,
+) -> tuple[bitarray, Access]:
+    """
+    Evaluates Access for the given object type and properties in that scope.
+    Returns the *allowed* properties and the Access.
+    """
+
     # the granted 'allow' mask for properties across identities
     composite_allowed_properties = bitarray(len(object_properties))
     object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
+    matched_rules: list[PolicyRule] = [] if trace else None
 
     # check the zones for each identity (separately)
     for identity_id in range(len(matrix.identities)):
@@ -966,6 +992,8 @@ def _evaluate_request_object(
         while unset_properties.any():
             for rule in current_zone.rules:
                 if rule.matches_verb(verb) and rule._object_node_types_mask[object_node_type]:
+                    if trace:
+                        matched_rules.append(rule)
                     rule_properties_mask = rule._object_properties_masks.get(
                         object_node_type, object_node_cls.__properties_mask__
                     )
@@ -991,74 +1019,31 @@ def _evaluate_request_object(
         if composite_allowed_properties == object_properties:
             break  # all requested properties are allowed already
 
-    return composite_allowed_properties
-
-
-def evaluate_adaptive_request(
-    *,
-    matrix: AccessMatrix,
-    verb: ActionType,
-    object_node_type: NodeType,
-    object_properties: bitarray,
-    root_id: str,
-    scope_id: str,
-) -> tuple[bitarray, Request]:
-    """
-    Evaluates the action against the granted access, masking rejected properties if possible.
-    Technically, the requests are for (verb, node_type, property), so we use the first match for each.
-    """
-    allowed_properties = _evaluate_request_object(
-        matrix=matrix,
-        verb=verb,
-        object_node_type=object_node_type,
-        object_properties=object_properties,
-        root_id=root_id,
-        scope_id=scope_id,
-    )
-    # adaptive -> any allowed properties means it was allowed
-    if allowed_properties.any():
-        decision = PolicyEffect.ALLOW
+    if mode == AccessMode.ADAPTIVE:  # if any property was allowed -> access is allowed
+        if composite_allowed_properties.any():
+            decision = PolicyEffect.ALLOW
+        else:
+            decision = PolicyEffect.DENY
+    elif mode == AccessMode.ATOMIC:  # if any property was rejected -> access is denied
+        if composite_allowed_properties == object_properties:
+            decision = PolicyEffect.ALLOW
+        else:
+            decision = PolicyEffect.DENY
     else:
-        decision = PolicyEffect.DENY
-    request = Request(
+        raise ValueError(f"unexpected mode {mode!r}")
+    if decision == PolicyEffect.ALLOW:
+        access_properties = composite_allowed_properties
+    else:
+        access_properties = ~composite_allowed_properties & object_properties
+    access = Access(
+        mode=mode,
         decision=decision,
         verb=verb,
         object_type=object_node_type,
-        object_properties=_mask_to_properties(allowed_properties, object_node_type),
+        object_properties=_mask_to_properties(access_properties, object_node_type),
+        trace=AccessTrace(matched_rules=matched_rules) if trace else None,
     )
-    return allowed_properties, request
-
-
-def evaluate_atomic_request(
-    *,
-    matrix: AccessMatrix,
-    verb: ActionType,
-    object_node_type: NodeType,
-    object_properties: bitarray,
-    root_id: str,
-    scope_id: str,
-) -> Request:
-    """
-    Evaluates a single 'atomic' request (atomic because if any property is rejected, all are).
-    """
-    allowed_properties = _evaluate_request_object(
-        matrix=matrix,
-        verb=verb,
-        object_node_type=object_node_type,
-        object_properties=object_properties,
-        root_id=root_id,
-        scope_id=scope_id,
-    )
-    if allowed_properties == object_properties:
-        decision = PolicyEffect.ALLOW
-    else:
-        decision = PolicyEffect.DENY
-    return Request(
-        decision=decision,
-        verb=verb,
-        object_type=object_node_type,
-        object_properties=_mask_to_properties(allowed_properties, object_node_type),
-    )
+    return composite_allowed_properties, access
 
 
 def evaluate_and_adapt_read(
@@ -1067,10 +1052,11 @@ def evaluate_and_adapt_read(
     *,
     adapt_nodes_in_place: bool,
     required_nodes: Collection[NodeReferenceData] | None = None,
-) -> tuple[Action, Collection[AnyNodeData]]:
+    trace: bool = False,
+) -> tuple[Request, Collection[AnyNodeData]]:
     """
     Evaluate *and* adapt access to all nodes in the given tree, pruning nodes & properties as needed.
-     -> unlike for other actions, we don't outright reject GET reads, you just get less (or zero) data.
+     -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
     In case a node was completely denied but its children weren't, we include a Skip node in the result.
     If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
     Assumes that all policies are valid.
@@ -1078,7 +1064,7 @@ def evaluate_and_adapt_read(
     from bench.proto import wire, wiring
 
     visible_nodes: list[AnyNodeData] = []
-    requests: list[Request] = []
+    accesses: list[Access] = []
     skips: dict[str, wire.SkipData | UNSET] = {}
 
     # adapt & filter nodes
@@ -1089,17 +1075,19 @@ def evaluate_and_adapt_read(
         object_properties: bitarray = object_node_cls.__properties_mask__
 
         root = tree.get_root(node)  # a bit inefficient?
-        # nocheckin: cache this request per zone!
-        adapted_properties, request = evaluate_adaptive_request(
+        # nocheckin: cache this access per zone!
+        adapted_properties, access = evaluate_access(
             matrix=matrix,
             verb=verb,
             object_node_type=object_node_type,
             object_properties=object_properties,
             root_id=root.id,
             scope_id=node.id,
+            mode=AccessMode.ADAPTIVE,
+            trace=trace,
         )
-        requests.append(request)
-        if request.decision == PolicyEffect.DENY:
+        accesses.append(access)
+        if access.decision == PolicyEffect.DENY:
             skips[node.id] = UNSET  # mark as skipped
         elif adapted_properties == object_properties:
             visible_nodes.append(node)
@@ -1134,23 +1122,25 @@ def evaluate_and_adapt_read(
         decision = PolicyEffect.DENY
     else:
         decision = PolicyEffect.ALLOW
-    action = Action(subject=matrix.subject, requests=requests, decision=decision)
-    return action, visible_nodes
+    access = Request(subject=matrix.subject, accesses=accesses, decision=decision)
+    return access, visible_nodes
 
 
-def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData]) -> Action:
+def evaluate_edit(
+    matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData], *, trace: bool = False
+) -> Request:
     """
     Evaluates whether the given policies (base and in tree) allow the given edits.
     Assumes that all policies are valid.
     """
     from bench.proto import wiring
 
-    requests: list[Request] = []
-    # when creating nested nodes in one transaction, the tree only knows about their 'root',
+    accesses: list[Access] = []
+    # when creating nested nodes in one transaccess, the tree only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] | None = None
     for edit in edits:
-        action_type: ActionType = wiring.unpack_enum(EditType, edit.type)
+        access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node = wiring.unwrap_some_node(edit.node)
@@ -1168,55 +1158,50 @@ def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[Ed
         root = tree.get_root(tree.get(scope_id))
 
         # and evaluate it
-        object_properties = _ints_to_mask(edit.properties, node_cls.__max_property_id__ + 1)
-        request = evaluate_atomic_request(
+        object_properties = (
+            _ints_to_mask(edit.properties, node_cls.__max_property_id__ + 1)
+            & node_cls.__properties_mask__
+        )
+        _, access = evaluate_access(
             matrix=matrix,
-            verb=action_type,
+            verb=access_type,
             object_node_type=node_type,
             object_properties=object_properties,
             root_id=root.id,
             scope_id=scope_id,
+            mode=AccessMode.ATOMIC,
+            trace=trace,
         )
-        requests.append(request)
-        if request.decision == PolicyEffect.DENY:
+        accesses.append(access)
+        if access.decision == PolicyEffect.DENY:
             # implicit or explicit deny -> complete deny
-            return Action(decision=request.decision, subject=matrix.subject, requests=requests)
+            return Request(decision=access.decision, subject=matrix.subject, accesses=accesses)
 
     # at this point no implicit or explicit denies have happened -> allow
-    return Action(decision=PolicyEffect.ALLOW, subject=matrix.subject, requests=requests)
-
-
-def check_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData]) -> Action:
-    evaluation = evaluate_edit(matrix, tree, edits)
-    if evaluation.decision == PolicyEffect.DENY:
-        raise AccessError(evaluation)
-    return evaluation
+    return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
 
 
 def evaluate_run(
-    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, node: "Block"
-) -> Action:
+    matrix: AccessMatrix,
+    tree: NodeDataTree,
+    run_type: RunType,
+    node: "Block",
+    *,
+    trace: bool = False,
+) -> Request:
     """
-    Evaluates whether the given policies (base and in tree) allow the given run action.
+    Evaluates whether the given policies (base and in tree) allow the given run access.
     Assumes that all policies are valid.
     """
     node_cls = NODE_CLASS_BY_TYPE[node.metatype]
-    request = evaluate_atomic_request(
+    _, access = evaluate_access(
         matrix=matrix,
         verb=run_type,
         object_node_type=node.metatype,
         object_properties=node_cls.__properties_mask__,
         scope_id=str(node.id),
         root_id=str(node.bench.id),
+        mode=AccessMode.ATOMIC,
+        trace=trace,
     )
-    action = Action(decision=request.decision, subject=matrix.subject, requests=[request])
-    return action
-
-
-def check_run(
-    matrix: AccessMatrix, tree: NodeDataTree, run_type: RunType, block: "Block"
-) -> Action:
-    action = evaluate_run(matrix, tree, run_type, block)
-    if action.decision == PolicyEffect.DENY:
-        raise AccessError(action)
-    return action
+    return Request(decision=access.decision, subject=matrix.subject, accesses=[access])

@@ -14,6 +14,43 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { Struct } from "../../google/protobuf/struct";
 /**
+ * An evaluated access on some objects as part of a larger Request (by the same subject).
+ * As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
+ * (And if object_properties is unset, it applies to all properties.)
+ *
+ * @generated from protobuf message symbolx.bench.AccessData
+ */
+export interface AccessData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: symbolx.bench.AccessMode mode = 30;
+     */
+    mode: AccessMode;
+    /**
+     * @generated from protobuf field: symbolx.bench.PolicyEffect decision = 31;
+     */
+    decision: PolicyEffect;
+    /**
+     * @generated from protobuf field: symbolx.bench.AccessType verb = 32;
+     */
+    verb: AccessType;
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType object_type = 33;
+     */
+    objectType: BenchType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34;
+     */
+    objectPropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.AccessTraceData trace = 35;
+     */
+    trace?: AccessTraceData;
+}
+/**
  * The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
  *
  * @generated from protobuf message symbolx.bench.AccessMatrixData
@@ -39,6 +76,21 @@ export interface AccessMatrixData {
      * @generated from protobuf field: repeated symbolx.bench.AccessZoneData base_zones = 34;
      */
     baseZones: AccessZoneData[];
+}
+/**
+ * The trace of evaluating Access.
+ *
+ * @generated from protobuf message symbolx.bench.AccessTraceData
+ */
+export interface AccessTraceData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData matched_rules = 30;
+     */
+    matchedRules: PolicyRuleData[];
 }
 /**
  * The pre-filtered access rules for a given identity.
@@ -71,30 +123,6 @@ export interface AccessZoneData {
      * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData rules = 32;
      */
     rules: PolicyRuleData[];
-}
-/**
- * The result of evaluating an action (multiple requests).
- * TODO @Feature @Security: store, query and watch action log
- *
- * @generated from protobuf message symbolx.bench.ActionData
- */
-export interface ActionData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
-     */
-    subject?: SubjectData;
-    /**
-     * @generated from protobuf field: symbolx.bench.PolicyEffect decision = 31;
-     */
-    decision: PolicyEffect;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.RequestData requests = 32;
-     */
-    requests: RequestData[];
 }
 /**
  * The result of an aggregation expression.
@@ -444,7 +472,7 @@ export interface NodeReferenceData {
  * The scope is determined by where its attached, but may be further restricted using 'scopes'.
  *
  * The basics of access control:
- * 1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+ * 1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
  * 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
  * a. Policies are scoped to the node their definition or
  * b. Delegate is attached to (or less as specified).
@@ -524,13 +552,13 @@ export interface PolicyRuleData {
      */
     effect: PolicyEffect;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ActionType verbs = 61;
+     * @generated from protobuf field: repeated symbolx.bench.AccessType verbs = 61;
      */
-    verbs: ActionType[];
+    verbs: AccessType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ActionKind verb_kinds = 62;
+     * @generated from protobuf field: repeated symbolx.bench.AccessKind verb_kinds = 62;
      */
-    verbKinds: ActionKind[];
+    verbKinds: AccessKind[];
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeType object_node_types = 80;
      */
@@ -627,7 +655,8 @@ export interface ReadOptionsData {
     globalFilter?: ExpressionData;
 }
 /**
- * A sub-action on some objects as part of a larger Action (by the same subject).
+ * A request with multiple accesses.
+ * TODO @Feature @Security: store, query and watch access log
  *
  * @generated from protobuf message symbolx.bench.RequestData
  */
@@ -637,21 +666,17 @@ export interface RequestData {
      */
     metatype: BenchType;
     /**
+     * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
+     */
+    subject?: SubjectData;
+    /**
      * @generated from protobuf field: symbolx.bench.PolicyEffect decision = 31;
      */
     decision: PolicyEffect;
     /**
-     * @generated from protobuf field: symbolx.bench.ActionType verb = 32;
+     * @generated from protobuf field: repeated symbolx.bench.AccessData accesses = 32;
      */
-    verb: ActionType;
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType object_type = 33;
-     */
-    objectType: BenchType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34;
-     */
-    objectPropertiesPtr: PropertyReferenceData[];
+    accesses: AccessData[];
 }
 /**
  * RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -1663,7 +1688,7 @@ export interface HandleData {
 /**
  * Attach an identity to a block or member.
  * Identity policies are delegated to the parent and its descendants.
- * The delegated policies apply to all descendant's actions.
+ * The delegated policies apply to all descendant's accesses.
  *
  * @generated from protobuf message symbolx.bench.IdentityData
  */
@@ -2312,7 +2337,7 @@ export interface RecordData {
 /**
  * Attach a role to a block or member.
  * Role policies are delegated to the parent and its descendants.
- * The delegated policies apply to all descendant's actions.
+ * The delegated policies apply to all descendant's accesses.
  *
  * @generated from protobuf message symbolx.bench.RoleData
  */
@@ -3321,108 +3346,125 @@ export interface PackageTreeData {
     nodes: SomeNodeData[];
 }
 /**
- * @generated from protobuf enum symbolx.bench.ActionKind
+ * @generated from protobuf enum symbolx.bench.AccessKind
  */
-export enum ActionKind {
+export enum AccessKind {
     /**
-     * @generated from protobuf enum value: ACTION_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ACCESS_KIND_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_KIND_READ = 1;
+     * @generated from protobuf enum value: ACCESS_KIND_READ = 1;
      */
     READ = 1,
     /**
-     * @generated from protobuf enum value: ACTION_KIND_EDIT = 10;
+     * @generated from protobuf enum value: ACCESS_KIND_EDIT = 10;
      */
     EDIT = 10,
     /**
-     * @generated from protobuf enum value: ACTION_KIND_RUN = 25;
+     * @generated from protobuf enum value: ACCESS_KIND_RUN = 25;
      */
     RUN = 25
 }
 /**
- * @generated from protobuf enum symbolx.bench.ActionType
+ * @generated from protobuf enum symbolx.bench.AccessMode
  */
-export enum ActionType {
+export enum AccessMode {
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ACCESS_MODE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GET = 1;
+     * @generated from protobuf enum value: ACCESS_MODE_ADAPTIVE = 1;
+     */
+    ADAPTIVE = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_ATOMIC = 2;
+     */
+    ATOMIC = 2
+}
+/**
+ * @generated from protobuf enum symbolx.bench.AccessType
+ */
+export enum AccessType {
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_GET = 1;
      */
     GET = 1,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_AGGREGATE_SCALAR = 2;
+     * @generated from protobuf enum value: ACCESS_TYPE_AGGREGATE_SCALAR = 2;
      */
     AGGREGATE_SCALAR = 2,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_AGGREGATE_BUCKET = 3;
+     * @generated from protobuf enum value: ACCESS_TYPE_AGGREGATE_BUCKET = 3;
      */
     AGGREGATE_BUCKET = 3,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_LIST = 4;
+     * @generated from protobuf enum value: ACCESS_TYPE_LIST = 4;
      */
     LIST = 4,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_BUMP_CHANGED = 10;
+     * @generated from protobuf enum value: ACCESS_TYPE_BUMP_CHANGED = 10;
      */
     BUMP_CHANGED = 10,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_BUMP_ACTIVE = 11;
+     * @generated from protobuf enum value: ACCESS_TYPE_BUMP_ACTIVE = 11;
      */
     BUMP_ACTIVE = 11,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CREATE = 12;
+     * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 12;
      */
     CREATE = 12,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UPSERT = 13;
+     * @generated from protobuf enum value: ACCESS_TYPE_UPSERT = 13;
      */
     UPSERT = 13,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UPDATE = 14;
+     * @generated from protobuf enum value: ACCESS_TYPE_UPDATE = 14;
      */
     UPDATE = 14,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_MOVE = 15;
+     * @generated from protobuf enum value: ACCESS_TYPE_MOVE = 15;
      */
     MOVE = 15,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_ARCHIVE = 16;
+     * @generated from protobuf enum value: ACCESS_TYPE_ARCHIVE = 16;
      */
     ARCHIVE = 16,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UNARCHIVE = 17;
+     * @generated from protobuf enum value: ACCESS_TYPE_UNARCHIVE = 17;
      */
     UNARCHIVE = 17,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_SOFT_DELETE = 18;
+     * @generated from protobuf enum value: ACCESS_TYPE_SOFT_DELETE = 18;
      */
     SOFT_DELETE = 18,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_RESTORE = 19;
+     * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 19;
      */
     RESTORE = 19,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_DELETE = 20;
+     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 20;
      */
     DELETE = 20,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_START = 25;
+     * @generated from protobuf enum value: ACCESS_TYPE_START = 25;
      */
     START = 25,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_PAUSE = 26;
+     * @generated from protobuf enum value: ACCESS_TYPE_PAUSE = 26;
      */
     PAUSE = 26,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_RESUME = 37;
+     * @generated from protobuf enum value: ACCESS_TYPE_RESUME = 37;
      */
     RESUME = 37,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_KILL = 28;
+     * @generated from protobuf enum value: ACCESS_TYPE_KILL = 28;
      */
     KILL = 28
 }
@@ -3686,13 +3728,17 @@ export enum BenchType {
      */
     ACCESS_MATRIX = 535,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 537;
+     */
+    ACCESS = 537,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TRACE = 538;
+     */
+    ACCESS_TRACE = 538,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_REQUEST = 536;
      */
     REQUEST = 536,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 537;
-     */
-    ACTION = 537,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 550;
      */
@@ -3954,7 +4000,7 @@ export enum ConditionalOp {
     NEAR = 50
 }
 /**
- * A type of Edit action on nodes.
+ * A type of Edit access on nodes.
  *
  * @generated from protobuf enum symbolx.bench.EditType
  */
@@ -4695,7 +4741,7 @@ export enum QueryEngine {
     LOCAL_OPENSEARCH = 5
 }
 /**
- * A type of Read action on nodes.
+ * A type of Read access on nodes.
  *
  * @generated from protobuf enum symbolx.bench.ReadType
  */
@@ -4796,7 +4842,7 @@ export enum RunStatus {
     COMPLETED = 9
 }
 /**
- * A type of Run action on nodes.
+ * A type of Run access on nodes.
  *
  * @generated from protobuf enum symbolx.bench.RunType
  */
@@ -5018,13 +5064,17 @@ export enum StructType {
      */
     ACCESS_MATRIX = 535,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 537;
+     */
+    ACCESS = 537,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_TRACE = 538;
+     */
+    ACCESS_TRACE = 538,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_REQUEST = 536;
      */
     REQUEST = 536,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACTION = 537;
-     */
-    ACTION = 537,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 550;
      */
@@ -5175,6 +5225,100 @@ export enum ViewType {
     DIVIDER = 61
 }
 // @generated message type with reflection information, may provide speed optimized methods
+class AccessData$Type extends MessageType<AccessData> {
+    constructor() {
+        super("symbolx.bench.AccessData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "mode", kind: "enum", T: () => ["symbolx.bench.AccessMode", AccessMode, "ACCESS_MODE_"] },
+            { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
+            { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
+            { no: 33, name: "object_type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 34, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 35, name: "trace", kind: "message", T: () => AccessTraceData }
+        ]);
+    }
+    create(value?: PartialMessage<AccessData>): AccessData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.mode = 0;
+        message.decision = 0;
+        message.verb = 0;
+        message.objectType = 0;
+        message.objectPropertiesPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<AccessData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AccessData): AccessData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.AccessMode mode */ 30:
+                    message.mode = reader.int32();
+                    break;
+                case /* symbolx.bench.PolicyEffect decision */ 31:
+                    message.decision = reader.int32();
+                    break;
+                case /* symbolx.bench.AccessType verb */ 32:
+                    message.verb = reader.int32();
+                    break;
+                case /* symbolx.bench.BenchType object_type */ 33:
+                    message.objectType = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr */ 34:
+                    message.objectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.AccessTraceData trace */ 35:
+                    message.trace = AccessTraceData.internalBinaryRead(reader, reader.uint32(), options, message.trace);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: AccessData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.AccessMode mode = 30; */
+        if (message.mode !== 0)
+            writer.tag(30, WireType.Varint).int32(message.mode);
+        /* symbolx.bench.PolicyEffect decision = 31; */
+        if (message.decision !== 0)
+            writer.tag(31, WireType.Varint).int32(message.decision);
+        /* symbolx.bench.AccessType verb = 32; */
+        if (message.verb !== 0)
+            writer.tag(32, WireType.Varint).int32(message.verb);
+        /* symbolx.bench.BenchType object_type = 33; */
+        if (message.objectType !== 0)
+            writer.tag(33, WireType.Varint).int32(message.objectType);
+        /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34; */
+        for (let i = 0; i < message.objectPropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.objectPropertiesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.AccessTraceData trace = 35; */
+        if (message.trace)
+            AccessTraceData.internalBinaryWrite(message.trace, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.AccessData
+ */
+export const AccessData = new AccessData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
@@ -5252,6 +5396,61 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
  * @generated MessageType for protobuf message symbolx.bench.AccessMatrixData
  */
 export const AccessMatrixData = new AccessMatrixData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AccessTraceData$Type extends MessageType<AccessTraceData> {
+    constructor() {
+        super("symbolx.bench.AccessTraceData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "matched_rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData }
+        ]);
+    }
+    create(value?: PartialMessage<AccessTraceData>): AccessTraceData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.matchedRules = [];
+        if (value !== undefined)
+            reflectionMergePartial<AccessTraceData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AccessTraceData): AccessTraceData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.PolicyRuleData matched_rules */ 30:
+                    message.matchedRules.push(PolicyRuleData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: AccessTraceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.PolicyRuleData matched_rules = 30; */
+        for (let i = 0; i < message.matchedRules.length; i++)
+            PolicyRuleData.internalBinaryWrite(message.matchedRules[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.AccessTraceData
+ */
+export const AccessTraceData = new AccessTraceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessZoneData$Type extends MessageType<AccessZoneData> {
     constructor() {
@@ -5338,76 +5537,6 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
  * @generated MessageType for protobuf message symbolx.bench.AccessZoneData
  */
 export const AccessZoneData = new AccessZoneData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ActionData$Type extends MessageType<ActionData> {
-    constructor() {
-        super("symbolx.bench.ActionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "subject", kind: "message", T: () => SubjectData },
-            { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
-            { no: 32, name: "requests", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestData }
-        ]);
-    }
-    create(value?: PartialMessage<ActionData>): ActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.decision = 0;
-        message.requests = [];
-        if (value !== undefined)
-            reflectionMergePartial<ActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ActionData): ActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.SubjectData subject */ 30:
-                    message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
-                    break;
-                case /* symbolx.bench.PolicyEffect decision */ 31:
-                    message.decision = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.RequestData requests */ 32:
-                    message.requests.push(RequestData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.SubjectData subject = 30; */
-        if (message.subject)
-            SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PolicyEffect decision = 31; */
-        if (message.decision !== 0)
-            writer.tag(31, WireType.Varint).int32(message.decision);
-        /* repeated symbolx.bench.RequestData requests = 32; */
-        for (let i = 0; i < message.requests.length; i++)
-            RequestData.internalBinaryWrite(message.requests[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ActionData
- */
-export const ActionData = new ActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AggregationData$Type extends MessageType<AggregationData> {
     constructor() {
@@ -6306,8 +6435,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 43, name: "subject_is_member", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 44, name: "subject_is_owner", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "effect", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
-            { no: 61, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
-            { no: 62, name: "verb_kinds", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionKind", ActionKind, "ACTION_KIND_"] },
+            { no: 61, name: "verbs", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
+            { no: 62, name: "verb_kinds", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.AccessKind", AccessKind, "ACCESS_KIND_"] },
             { no: 80, name: "object_node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 81, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 82, name: "object_properties_is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -6358,14 +6487,14 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* symbolx.bench.PolicyEffect effect */ 60:
                     message.effect = reader.int32();
                     break;
-                case /* repeated symbolx.bench.ActionType verbs */ 61:
+                case /* repeated symbolx.bench.AccessType verbs */ 61:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.verbs.push(reader.int32());
                     else
                         message.verbs.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.ActionKind verb_kinds */ 62:
+                case /* repeated symbolx.bench.AccessKind verb_kinds */ 62:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.verbKinds.push(reader.int32());
@@ -6427,14 +6556,14 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* symbolx.bench.PolicyEffect effect = 60; */
         if (message.effect !== 0)
             writer.tag(60, WireType.Varint).int32(message.effect);
-        /* repeated symbolx.bench.ActionType verbs = 61; */
+        /* repeated symbolx.bench.AccessType verbs = 61; */
         if (message.verbs.length) {
             writer.tag(61, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.verbs.length; i++)
                 writer.int32(message.verbs[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.ActionKind verb_kinds = 62; */
+        /* repeated symbolx.bench.AccessKind verb_kinds = 62; */
         if (message.verbKinds.length) {
             writer.tag(62, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.verbKinds.length; i++)
@@ -6715,19 +6844,16 @@ class RequestData$Type extends MessageType<RequestData> {
     constructor() {
         super("symbolx.bench.RequestData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "subject", kind: "message", T: () => SubjectData },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
-            { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
-            { no: 33, name: "object_type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 34, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 32, name: "accesses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessData }
         ]);
     }
     create(value?: PartialMessage<RequestData>): RequestData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.decision = 0;
-        message.verb = 0;
-        message.objectType = 0;
-        message.objectPropertiesPtr = [];
+        message.accesses = [];
         if (value !== undefined)
             reflectionMergePartial<RequestData>(this, message, value);
         return message;
@@ -6740,17 +6866,14 @@ class RequestData$Type extends MessageType<RequestData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
+                case /* symbolx.bench.SubjectData subject */ 30:
+                    message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
+                    break;
                 case /* symbolx.bench.PolicyEffect decision */ 31:
                     message.decision = reader.int32();
                     break;
-                case /* symbolx.bench.ActionType verb */ 32:
-                    message.verb = reader.int32();
-                    break;
-                case /* symbolx.bench.BenchType object_type */ 33:
-                    message.objectType = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr */ 34:
-                    message.objectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.AccessData accesses */ 32:
+                    message.accesses.push(AccessData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -6767,18 +6890,15 @@ class RequestData$Type extends MessageType<RequestData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.SubjectData subject = 30; */
+        if (message.subject)
+            SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.PolicyEffect decision = 31; */
         if (message.decision !== 0)
             writer.tag(31, WireType.Varint).int32(message.decision);
-        /* symbolx.bench.ActionType verb = 32; */
-        if (message.verb !== 0)
-            writer.tag(32, WireType.Varint).int32(message.verb);
-        /* symbolx.bench.BenchType object_type = 33; */
-        if (message.objectType !== 0)
-            writer.tag(33, WireType.Varint).int32(message.objectType);
-        /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34; */
-        for (let i = 0; i < message.objectPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.objectPropertiesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.AccessData accesses = 32; */
+        for (let i = 0; i < message.accesses.length; i++)
+            AccessData.internalBinaryWrite(message.accesses[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

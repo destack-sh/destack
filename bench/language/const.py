@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.07.4"
+VERSION = "2024.02.07.5"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -47,7 +47,7 @@ class NodeType(IdEnum):
     LINK = 30
     SKIP = 31
     # COMMENT = ...
-    # REACTION = ...
+    # REACCESS = ...
     SPACE = 40
     # DEPENDENCY = ...
     # UPGRADE = ...
@@ -125,8 +125,9 @@ class StructType(IdEnum):
     SUBJECT = 532
     ACCESS_ZONE = 534
     ACCESS_MATRIX = 535
+    ACCESS = 537
+    ACCESS_TRACE = 538
     REQUEST = 536
-    ACTION = 537
     ...
     READ_OPTIONS = 550
 
@@ -301,26 +302,26 @@ NS = NodeStatus
 
 
 #
-# Actions
-# Action types are loosely ranked by access/destructiveness across and within types.
+# Access
+# Access types are loosely ranked by access/destructiveness across and within types.
 #
 
 
 class ReadType(IdEnum):
-    """A type of Read action on nodes."""
+    """A type of Read access on nodes."""
 
-    GET = 1  # any direct read action
+    GET = 1  # any direct read access
     AGGREGATE_SCALAR = 2  # count, sum, min, etc.
     AGGREGATE_BUCKET = 3  # histogram, etc.
     LIST = 4  # list, search, filter, etc.
 
     @property
-    def kind(self) -> ActionKind:
-        return ActionKind.READ
+    def kind(self) -> AccessKind:
+        return AccessKind.READ
 
 
 class EditType(IdEnum):
-    """A type of Edit action on nodes."""
+    """A type of Edit access on nodes."""
 
     BUMP_CHANGED = 10
     BUMP_ACTIVE = 11
@@ -335,12 +336,12 @@ class EditType(IdEnum):
     DELETE = 20
 
     @property
-    def kind(self) -> ActionKind:
-        return ActionKind.EDIT
+    def kind(self) -> AccessKind:
+        return AccessKind.EDIT
 
 
 class RunType(IdEnum):
-    """A type of Run action on nodes."""
+    """A type of Run access on nodes."""
 
     START = 25
     PAUSE = 26
@@ -350,50 +351,55 @@ class RunType(IdEnum):
     # ideally <32 so we can bitpack into a single int
 
     @property
-    def kind(self) -> ActionKind:
-        return ActionKind.RUN
+    def kind(self) -> AccessKind:
+        return AccessKind.RUN
 
 
-class ActionKind(IdEnum):
-    # NOTE: ActionType ids and their overlap with ActionKind is important for our masks.
+class AccessKind(IdEnum):
+    # NOTE: AccessType ids and their overlap with AccessKind is important for our masks.
     READ = 1
     EDIT = 10
     RUN = 25
 
     @property
     def from_id(self):
-        return ACTION_CLASS_BY_KIND[self].get_min_id()
+        return ACCESS_CLASS_BY_KIND[self].get_min_id()
 
     @property
     def to_id(self):
-        return ACTION_CLASS_BY_KIND[self].get_max_id()
+        return ACCESS_CLASS_BY_KIND[self].get_max_id()
 
 
 if typing.TYPE_CHECKING:
-    ActionType = ReadType | EditType | RunType
+    AccessType = ReadType | EditType | RunType
 else:
-    ActionType = IdEnum.combine("ActionType", ReadType, EditType, RunType)
-    ActionType.kind = property(lambda self: KIND_BY_ACTION[self])
+    AccessType = IdEnum.combine("AccessType", ReadType, EditType, RunType)
+    AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
 
 READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
 EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
 RUN_TYPES: bytetuple[RunType] = bytetuple(tuple(RunType))
-ACTION_TYPES: bytetuple[ActionType] = bytetuple(tuple(ActionType))
-ACTION_CLASSES: tuple[type[ActionType], ...] = (ReadType, EditType, RunType, ActionType)
-ACTION_KINDS = bytetuple(tuple(ActionKind))
-ACTIONS_BY_KIND: dict[ActionKind, bytetuple[ActionType]] = {
-    ActionKind.READ: bytetuple(READ_TYPES),
-    ActionKind.EDIT: bytetuple(EDIT_TYPES),
-    ActionKind.RUN: bytetuple(RUN_TYPES),
+ACCESS_TYPES: bytetuple[AccessType] = bytetuple(tuple(AccessType))
+ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, RunType, AccessType)
+ACCESS_KINDS = bytetuple(tuple(AccessKind))
+ACCESS_TYPES_BY_KIND: dict[AccessKind, bytetuple[AccessType]] = {
+    AccessKind.READ: bytetuple(READ_TYPES),
+    AccessKind.EDIT: bytetuple(EDIT_TYPES),
+    AccessKind.RUN: bytetuple(RUN_TYPES),
 }
-ACTION_CLASS_BY_KIND: dict[ActionKind, type[ActionType]] = {
-    ActionKind.READ: ReadType,
-    ActionKind.EDIT: EditType,
-    ActionKind.RUN: RunType,
+ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
+    AccessKind.READ: ReadType,
+    AccessKind.EDIT: EditType,
+    AccessKind.RUN: RunType,
 }
-KIND_BY_ACTION: dict[ActionType, ActionKind] = {
-    action: kind for kind, actions in ACTIONS_BY_KIND.items() for action in actions
+ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
+    access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
 }
+
+
+class AccessMode(IdEnum):
+    ADAPTIVE = 1
+    ATOMIC = 2
 
 
 #

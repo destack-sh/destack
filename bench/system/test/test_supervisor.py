@@ -201,7 +201,7 @@ async def test_public_node_read(
 
     # aggregate: exists
     aggregate_req = AggregateNodesRequest(
-        node_type=packed_node_type, aggregation=A(op=AggregationOp.EXISTS)._to_data()
+        node_type=packed_node_type, aggregation=A(AggregationOp.EXISTS)._to_data()
     )
     aggregate_rep = await supervisor.aggregate_nodes(
         aggregate_req, metadata=some_user.metadata.to_headers()
@@ -210,7 +210,7 @@ async def test_public_node_read(
 
     # aggregate: count
     aggregate_req = AggregateNodesRequest(
-        node_type=packed_node_type, aggregation=A(op=AggregationOp.COUNT)._to_data()
+        node_type=packed_node_type, aggregation=A(AggregationOp.COUNT)._to_data()
     )
     aggregate_rep = await supervisor.aggregate_nodes(
         aggregate_req, metadata=some_user.metadata.to_headers()

@@ -21,7 +21,7 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 from grpclib.testing import ChannelFor
 
-from bench.language.access import AccessError, Action, Subject
+from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
@@ -60,12 +60,12 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         else:
             raise RuntimeError(f"loopback stub not ready for {self!r}")
 
-    async def _log_and_check_action(self, action: Action):
-        """Logs an action for the audit log (soon). Raises if the action is denied."""
+    async def _log_and_check_access(self, action: Request):
+        """Logs accesses for the audit log (soon). Raises if access was denied."""
         if action.decision == PolicyEffect.ALLOW:
-            logger.debug("action.allow", action=action)
+            logger.debug("access.allow", action=action)
         else:
-            logger.warning("action.deny", action=action)
+            logger.warning("access.deny", action=action)
             raise AccessError(action)
 
     async def start_quick(self) -> None:
