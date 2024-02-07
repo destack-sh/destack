@@ -31,8 +31,8 @@ if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
 
 
-@pytest.fixture(scope="module")
-async def supervisor(event_loop) -> SupervisorStub:
+@pytest.fixture(scope="function")
+async def supervisor() -> SupervisorStub:
     service = Supervisor()
     await service.start_quick()
     try:
@@ -228,6 +228,7 @@ async def test_global_node_edit(
     """'Global' nodes should not be directly editable by regular users."""
 
     node = fabricator.fabricate(node_type)
+    node.parent = None  # we don't care about lookup errors
     node_data = wiring.pack_node(node)
     for edit_type in EDIT_TYPES:
         edit = EditData(

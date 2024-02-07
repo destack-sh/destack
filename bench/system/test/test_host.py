@@ -5,8 +5,8 @@ from bench.proto.wire import BenchHostStub
 from bench.system.host import BenchHost
 
 
-@pytest.fixture(scope="module")
-async def host(event_loop) -> BenchHostStub:
+@pytest.fixture(scope="function")
+async def host() -> BenchHostStub:
     service = BenchHost()
     await service.start_quick()
     try:

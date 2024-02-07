@@ -1155,7 +1155,8 @@ def evaluate_edit(
             new_node_scopes_by_child_id[node.id] = scope_id
         else:
             scope_id = node.id
-        root = tree.get_root(tree.get(scope_id))
+        root = tree.get(scope_id)
+        root = tree.get_root(root)
 
         # and evaluate it
         object_properties = (
