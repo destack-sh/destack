@@ -23,13 +23,20 @@ if TYPE_CHECKING:
 class Handle(Node):
     """A Bench handle."""
 
-    slug: str = p_internal(30, unique=True)
+    slug: str = p_system(30, unique=True)
+    owner: Optional[Union["User", "Organization", "Bench"]] = p_system(
+        31,
+        require=False,
+        array=False,
+        references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
+    )
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
     """A Bench user."""
 
+    # (can create user without handle)
     handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: Optional[str] = p_regular(32, default=None)
@@ -59,7 +66,7 @@ class User(ScopeNode):
 class Organization(ScopeNode):
     """A Bench organization with Users as members."""
 
-    handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
+    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
@@ -77,6 +84,7 @@ class Membership(ScopeNode):
 
     parent: Union["Bench", "Organization"] = p_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
+    is_owner: bool = p_regular(31, default=False)
 
     # roles are defined (and resolved) in the main bench
     roles: NodeList["Role"] = p_child(NodeType.ROLE)

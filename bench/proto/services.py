@@ -48,20 +48,8 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     def __init__(self, loopback_stub_to: type[StubT] | None = None):
-        self._stream: ContextVar[grpclib.server.Stream] = ContextVar("stream")
-        self._metadata: ContextVar[RpcMetadata] = ContextVar("metadata")
         self._loopback_stub: type[StubT] | None = None
         self._needs_loopback_stub = loopback_stub_to
-
-    @property
-    def stream(self) -> grpclib.server.Stream:
-        """The current gRPC request stream."""
-        return self._stream.get()
-
-    @property
-    def metadata(self) -> RpcMetadata:
-        """The received metadata in the current gRPC request stream."""
-        return self._metadata.get()
 
     @property
     def loopback(self) -> StubT:
@@ -72,12 +60,13 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         else:
             raise RuntimeError(f"loopback stub not ready for {self!r}")
 
-    async def log_action(self, action: Action):
-        """Logs an action for the audit log (soon)."""
+    async def _log_and_check_action(self, action: Action):
+        """Logs an action for the audit log (soon). Raises if the action is denied."""
         if action.decision == PolicyEffect.ALLOW:
             logger.debug("action.allow", action=action)
         else:
             logger.warning("action.deny", action=action)
+            raise AccessError(action)
 
     async def start_quick(self) -> None:
         """Start the service. Should be ready for service when returning."""
@@ -135,8 +124,6 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             try:
                 # prepare
                 metadata = RpcMetadata().from_headers(stream.metadata)
-                self._stream.set(stream)
-                self._metadata.set(metadata)
                 subject = await get_subject_from_metadata(metadata)
                 log = log.bind(subject=subject)
 

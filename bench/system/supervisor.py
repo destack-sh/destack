@@ -1,4 +1,5 @@
 from typing import AsyncIterator
+from uuid import UUID
 
 import betterproto
 import structlog
@@ -12,12 +13,13 @@ from bench.language.access import (
     evaluate_and_adapt_read,
     generate_access_matrix,
     Subject,
+    evaluate_edit,
 )
 from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp
 from bench.language.expression import Aggregation
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
-from bench.proto import wiring
+from bench.proto import wiring, wire
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -32,11 +34,8 @@ from bench.proto.wire import (
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
-    PingServerRequest,
-    PingServerResponse,
     ReadNodesRequest,
     ReadNodesResponse,
-    RestartServerRequest,
     SearchNodesRequest,
     SearchNodesResponse,
     SignupUserRequest,
@@ -45,6 +44,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
+    AnyNodeData,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.utils import detached_session
@@ -55,6 +55,7 @@ from bench.sql.engine import (
     pg_search_nodes_data_tree,
     compile_pg_conditional,
     pg_exists,
+    pg_write_regular_edits,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import group_by, to_uuid
@@ -68,9 +69,10 @@ SERVER_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     def __init__(self):
         super().__init__(loopback_stub_to=SupervisorStub)
+        self._epoch: int = 0
 
     def __str__(self):
-        return "shards=*"
+        return "<global>"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -85,7 +87,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         pass
 
     #
-    # Users
+    # User management
     #
 
     async def signup_user(
@@ -101,7 +103,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 name=request.name,
                 email=request.email,
                 is_activated=True,
-                _is_new=True,  # create, despite already having an id in init
+                _is_new=True,  # force create (despite already having an id)
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
@@ -110,7 +112,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             client.access_token = generate_access_token()
             session.create_many(user.handle, user, client)
             await session.commit()
-        return SignupUserResponse(user=user._to_data(), access_token=client.access_token)
+        return SignupUserResponse(
+            user=user._to_data(), access_token=client.access_token, epoch=self._epoch
+        )
 
     async def change_user_password(
         self, subject: Subject, request: "ChangeUserPasswordRequest"
@@ -129,7 +133,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             user.password_hash = hash_password(request.password, user.password_salt)
             session.track(user)
             await session.commit()
-        return ChangeUserPasswordResponse(user=user._to_data())
+        return ChangeUserPasswordResponse(user=user._to_data(), epoch=self._epoch)
 
     async def login_user(
         self, subject: Subject, request: "LoginUserRequest"
@@ -153,7 +157,10 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             session.upsert(client)
             await session.commit()
         return LoginUserResponse(
-            user=user._to_data(), client=client._to_data(), access_token=client.access_token
+            user=user._to_data(),
+            client=client._to_data(),
+            access_token=client.access_token,
+            epoch=self._epoch,
         )
 
     async def logout_user(
@@ -224,7 +231,6 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
-        # check all the roots were found
         if any(root.id not in tree for root in request.roots):
             missing_roots = tuple(root for root in roots if str(root.id) not in tree)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
@@ -233,9 +239,12 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         action, adapted_nodes = evaluate_and_adapt_read(
             access, tree, required_nodes=request.roots, adapt_nodes_in_place=True
         )
+        await self._log_and_check_action(action)
 
         return ReadNodesResponse(
-            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes], access=access._to_data()
+            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
+            access=access._to_data(),
+            epoch=self._epoch,
         )
 
     async def search_nodes(
@@ -277,7 +286,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         action, adapted_nodes = evaluate_and_adapt_read(
             access, tree, adapt_nodes_in_place=True, required_nodes=request.bases
         )
-        await self.log_action(action)
+        await self._log_and_check_action(action)
 
         return SearchNodesResponse(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
@@ -286,6 +295,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             start_cursor=roots.start_cursor,
             total=count,
             access=access._to_data(),
+            epoch=self._epoch,
         )
 
     async def aggregate_nodes(
@@ -320,28 +330,62 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             else:
                 raise GRPCError(GRPCStatus.UNIMPLEMENTED, f"can't {aggregation.op.name} yet")
 
-        return AggregateNodesResponse(aggregation=result._to_data())
+        return AggregateNodesResponse(aggregation=result._to_data(), epoch=self._epoch)
 
     async def commit_edits(
         self, subject: Subject, request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        # figure out the node (scopes) we need to evaluate the edit
+        edited_scopes_ptr: dict[UUID, NodeReference] = {}
+        for edit in request.edits:
+            node = wiring.unwrap_some_node(edit.node)
+            if edit.type == wire.EditType.CREATE or edit.type == wire.EditType.UPSERT:
+                # scope is parent since we don't know this node yet
+                if node.parent_ptr is not None and node.parent_ptr.id not in edited_scopes_ptr:
+                    ptr: NodeReference = wiring.unpack_struct(node.parent_ptr)
+                    edited_scopes_ptr[ptr.id] = ptr
+            else:
+                # scope is the edited node itself
+                if node.id not in edited_scopes_ptr:
+                    ptr: NodeReference = wiring.unpack_struct(NodeReference.from_node_data(node))
+                    edited_scopes_ptr[ptr.id] = ptr
+
+        roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
+            edited_scopes_ptr.values(), lambda r: r.type
+        )
+        async with async_pg_cursor() as cur:
+            # read the required nodes into a single tree
+            tree = NodeDataTree()
+            for root_node_type, root_node_references in roots_by_type.items():
+                node_type = wiring.unpack_enum(NodeType, root_node_type)
+                # TODO @Performance: select only require properties for edit eval (id/policies/...?)
+                options = ReadOptions
+                _ = await pg_read_node_data_tree(
+                    cur=cur,
+                    root_type=node_type,
+                    root_ids=tuple(r.id for r in root_node_references),
+                    options=ReadOptions.default(),
+                    _tree=tree,  # accumulate into tree
+                )
+
+            # evaluate the edits
+            matrix = generate_access_matrix(subject, tree)
+            action = evaluate_edit(matrix, tree, request.edits)
+            await self._log_and_check_action(action)
+
+            # apply the edits
+            changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
+                cur=cur, tree=tree, edits=request.edits, return_nodes=True
+            )
+            await cur.connection.commit()
+
+        return CommitEditsResponse(
+            changed_nodes=[wiring.wrap_some_node(n) for n in changed_nodes],
+            epoch=self._epoch,
+        )
 
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    #
-    # Server stuff
-    #
-
-    async def restart_server(
-        self, subject: Subject, request: "RestartServerRequest"
-    ) -> "PingServerResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def ping_server(
-        self, subject: Subject, request: "PingServerRequest"
-    ) -> "PingServerResponse":
+        # nocheckin: track and buffer edits for recent epochs
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

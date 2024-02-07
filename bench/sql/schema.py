@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.07.0"
+VERSION = "2024.02.07.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -24,20 +24,27 @@ BENCH_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column(
+            "handle_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_handle",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
         Column("slug", PrimitiveType.STRING, is_unique=True),
         Column("name", PrimitiveType.STRING),
-        Column("description", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column(
-            "organization_id",
+            "owner_user_id",
             PrimitiveType.UUID,
-            is_foreign_key_to="bench_organization",
+            is_foreign_key_to="bench_user",
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
         Column(
-            "user_id",
+            "owner_organization_id",
             PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
+            is_foreign_key_to="bench_organization",
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
@@ -143,7 +150,7 @@ BLOCK_TABLE = Table(
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.STRING, is_nullable=True),
@@ -280,7 +287,7 @@ FIELD_TABLE = Table(
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("primitive_type", PrimitiveType.STRING, is_nullable=True),
         Column("bench_type", PrimitiveType.STRING, is_nullable=True),
@@ -1040,6 +1047,27 @@ HANDLE_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("slug", PrimitiveType.STRING, is_unique=True),
+        Column(
+            "owner_user_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column(
+            "owner_organization_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_organization",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column(
+            "owner_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
@@ -1120,7 +1148,6 @@ ORGANIZATION_TABLE = Table(
             PrimitiveType.UUID,
             is_foreign_key_to="bench_handle",
             on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
         ),
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
@@ -1260,6 +1287,7 @@ MEMBERSHIP_TABLE = Table(
             is_foreign_key_to="bench_user",
             on_delete=CascadeAction.SET_NULL,
         ),
+        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),

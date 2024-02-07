@@ -172,7 +172,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         self._property = property
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self._parent.path}.{self._property.name}: {self}>"
+        return f"<{self.__class__.__name__} {self._parent.absolute_path}.{self._property.name}: {self}>"
 
     def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""

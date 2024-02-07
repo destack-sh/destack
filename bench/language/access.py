@@ -45,6 +45,7 @@ from bench.language.node import (
     p_system,
     struct,
     p_child,
+    _on_completing_setup,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -57,12 +58,25 @@ from bench.utils.func import IdEnum, bytetuple, to_uuid
 if TYPE_CHECKING:
     from bench.language import Block, Expression, Organization, Client
 
-Owner = Union["User", "Organization", "Bench"]
+# the node types that can have 'policies' applied to them
+#  (not delegated node types, which delegate via subject)
+LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
+)
+
+
+@_on_completing_setup
+def _check_legislative_types():
+    actual_legislative_node_types: bytetuple[NodeType] = bytetuple(
+        tuple(nt for nt in NODE_TYPES if "policies" in NODE_CLASS_BY_TYPE[nt].__properties__)
+    )
+    assert actual_legislative_node_types.bits == LEGISLATIVE_NODE_TYPES.bits
 
 
 # 'owner' refers to both the root node and any user with root-level access to that root node.
 # This is effectively the 'root user' who can do anything with descendants of the root node*.
 #  (unless a system policy says otherwise)
+Owner = Union["User", "Organization", "Bench"]
 
 
 @node(NodeType.BADGE)
@@ -135,12 +149,15 @@ class ReadOptions(Struct):
         32, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
-    # properties (include/exclude relative to default)
+    # properties (include/exclude relative to default OR select specific properties)
     include_properties: list[Property] = p_regular(
         40, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     exclude_properties: list[Property] = p_regular(
         41, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+    select_properties: list[Property] = p_regular(
+        42, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # filters (global + per type)
@@ -178,7 +195,12 @@ class ReadOptions(Struct):
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         from bench.sql.engine import DEFAULT_SELECTED_PROPERTIES
 
-        # a bit ugly but the tuples are very small
+        if self.select_properties:
+            # select specific properties
+            return tuple(p for p in self.select_properties if p.type == node_type)
+
+        # select default properties +/- include/exclude
+        # (a bit ugly but the tuples are very small)
         properties = DEFAULT_SELECTED_PROPERTIES.get(node_type, ())
         if self.include_properties is not None and any(
             p.type == node_type for p in self.include_properties
@@ -261,9 +283,9 @@ class Policy(Struct):
 @struct(StructType.POLICY_RULE)
 class PolicyRule(Struct):
     """
-    A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
-    The 3 groups (subject/verb/object) are ORed together, but inner-group conditions are ANDed.
-    (where None/empty -> wildcard, any value -> filter)
+    A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+    Subject, verb and object are ORed, in-group conditions are ANDed.
+     (where None/empty -> wildcard, any value -> filter)
     """
 
     name: Optional[str] = p_regular(30, default=None)
@@ -688,19 +710,49 @@ class AccessError(BenchError, ValueError):
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these) and their rules are evaluated in order
     Policy("SystemProtection").append(
-        PolicyRule("CannotEditSystemProperties")
+        PolicyRule(
+            "CannotUpdateSystemProperties",
+            text=RichText.plain(
+                "System properties are not directly editable, only through special methods or relevant actions."
+            ),
+        )
         .deny(EditType.UPDATE)
-        .object(properties_is_system=True)
+        .object(properties_is_system=True),
+        PolicyRule(
+            "CannotUpsertLegislativeNodes",
+            text=RichText.plain(
+                "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
+                # (we could do it, but it would be confusing and tedious)
+            ),
+        )
+        .deny(EditType.UPSERT)
+        .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
     ),
     Policy("OwnerAccess").append(
-        PolicyRule("OwnerCanDoAnything").subject(is_owner=True).allow(*ACTION_KINDS),
+        PolicyRule(
+            "OwnerCanDoAnything",
+            text=RichText.plain(
+                "Subjects identified as the owner of a node can always do anything with it."
+            ),
+        )
+        .subject(is_owner=True)
+        .allow(*ACTION_KINDS),
     ),
     Policy("StaffAccess").append(
-        PolicyRule("StaffCanReadAnything").subject(is_staff=True).allow(ActionKind.READ),
+        PolicyRule(
+            "StaffCanReadAnything",
+            text=RichText.plain("During the beta, staff users can access anything."),
+        )
+        .subject(is_staff=True)
+        .allow(ActionKind.READ),
     ),
     Policy("MemberAccess").append(
-        # meta = nodes belonging to the bench, outside  package
-        PolicyRule("MemberCanReadBenchMeta")
+        PolicyRule(
+            "MemberCanReadBench",
+            text=RichText.plain(
+                "Every member of your Bench/Organization can read its non-sensitive properties."
+            ),
+        )
         .subject(is_member=True)
         .allow(ActionKind.READ)
         .object(
@@ -709,21 +761,34 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         )
     ),
     Policy("AuthenticatedAccess").append(
-        # post-launch everyone will be able to read users/orgs/etc.
-        PolicyRule("AuthenticatedCanReadPublic")
+        PolicyRule(
+            "AuthenticatedCanReadPublic",
+            text=RichText.plain(
+                "Authenticated users can read public nodes like User, Organization, Bench, etc.."
+            ),
+        )
         .subject(is_authenticated=True)
         .allow(ActionKind.READ)
         .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
     ),
     Policy("AnonymousAccess").append(
-        PolicyRule("AnonCanReadHandle")
+        PolicyRule(
+            "AnonCanReadHandle",
+            text=RichText.plain(
+                "Everyone (incl. anonymous users) can read Handles (to create an account)."
+            ),
+        )
         .subject(is_authenticated=False)
         .allow(ActionKind.READ)
         .object((NodeType.HANDLE,))
     ),
 )
-for policy in SYSTEM_POLICIES:
-    policy._interp_rec(None, on_notice_raise)
+
+
+@_on_completing_setup
+def _interp_system_policies():
+    for policy in SYSTEM_POLICIES:
+        policy._interp_rec(None, on_notice_raise)
 
 
 def adapt_read_options(
@@ -744,18 +809,11 @@ def adapt_read_options(
     # if root >: Bench, also load related actual owner (User/Organization)
     root_node_cls = NODE_CLASS_BY_TYPE[root_node_type]
     if NodeType.BENCH in root_node_cls.__roots__:
-        options.related_properties.append((Bench.user, Bench.organization))
+        options.related_properties.append((Bench.owner,))
 
     # TODO @Performance @Security: also pre-filter read options for owner?
 
     return options
-
-
-# the node types that can have 'policies' applied to them
-#  (not delegated node types, which delegate via subject)
-LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
-)
 
 
 def generate_access_matrix(
@@ -903,7 +961,7 @@ def _evaluate_request_object(
 
         # first check the base zones, then walk the zones starting from the lowest
         base_zone: AccessZone = matrix._base_zone_by_root[(identity_id, root_id)]
-        start_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
+        start_scope_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
         current_zone = base_zone
         while unset_properties.any():
             for rule in current_zone.rules:
@@ -919,12 +977,12 @@ def _evaluate_request_object(
                     if not unset_properties.any():
                         break  # nothing can change anymore
 
-            # to next zone
+            # advance to the next zone
             if current_zone.id == base_zone.id:
-                if start_zone is None:
+                if start_scope_zone is None:
                     break  # no scope zones
-                current_zone = start_zone
-            elif start_zone.id is not None:
+                current_zone = start_scope_zone
+            elif current_zone.parent_id is not None:
                 current_zone = matrix.scope_zones[current_zone.parent_id]
             else:
                 break  # reached the top
@@ -999,7 +1057,7 @@ def evaluate_atomic_request(
         decision=decision,
         verb=verb,
         object_type=object_node_type,
-        object_properties=allowed_properties,
+        object_properties=_mask_to_properties(allowed_properties, object_node_type),
     )
 
 
@@ -1088,15 +1146,16 @@ def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[Ed
     from bench.proto import wiring
 
     requests: list[Request] = []
+    # when creating nested nodes in one transaction, the tree only knows about their 'root',
+    #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] | None = None
     for edit in edits:
-        action_type: ActionType = wiring.unpack_enum(EditType, edit.action)
+        action_type: ActionType = wiring.unpack_enum(EditType, edit.type)
         node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node = wiring.unwrap_some_node(edit.node)
 
-        # when creating nested nodes in one transaction, the tree only knows about the 'root',
-        #  so we remember the actual scopes for the new nodes to know which zone to use
+        # figure out the scope to evaluate the edit in
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             if new_node_scopes_by_child_id is None:
                 new_node_scopes_by_child_id = {}
@@ -1108,7 +1167,8 @@ def evaluate_edit(matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[Ed
             scope_id = node.id
         root = tree.get_root(tree.get(scope_id))
 
-        object_properties = _ints_to_mask(edit.properties, node_cls.__max_property_id__)
+        # and evaluate it
+        object_properties = _ints_to_mask(edit.properties, node_cls.__max_property_id__ + 1)
         request = evaluate_atomic_request(
             matrix=matrix,
             verb=action_type,

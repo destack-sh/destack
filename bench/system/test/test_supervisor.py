@@ -1,9 +1,6 @@
 from contextlib import contextmanager
-from dataclasses import replace, dataclass
-import random
-import string
+from dataclasses import replace
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import grpclib
 import pytest
@@ -21,13 +18,13 @@ from bench.proto.wire import (
     RpcMetadata,
     SignupUserRequest,
     EditData,
-    ClientOrigin,
     CommitEditsRequest,
     SearchNodesRequest,
     AggregationOp,
     AggregateNodesRequest,
 )
 from bench.system.supervisor import Supervisor
+from bench.system.test.conftest import make_user_handle, UserHandle
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -124,41 +121,21 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
 
 
 async def test_cross_user_protection(supervisor: SupervisorStub):
-    """Users can only make some actions on their own behalf."""
+    """Users can only take certain actions on themselves."""
 
     user_a = User(slug="alice", name="Alice", email="alice@bench.app")
     user_b = User(slug="bob", name="Bob", email="bob@bench.app")
     user_c = User(slug="carol", name="Carol", email="carol@bench.app")
-    all_users = (user_a, user_b, user_c)
-
-    # signup users
-    metadata_by_user: dict[UUID, RpcMetadata] = {}
-    for user in all_users:
-        client = Client(
-            parent=user,
-            name=f"{user.name}'s MacBook Pro",
-            device_name="macbook",
-            last_seen_at=utcnow_with_tz(),
-        )
-        signup_req = SignupUserRequest(
-            id=str(user.id),
-            slug=user.slug,
-            name=user.name,
-            email=user.email,
-            password=f"Password{user.slug}123!",
-            client=client._to_data(),
-        )
-        signup_rep = await supervisor.signup_user(signup_req)
-        assert signup_rep.user.slug == user.slug
-        metadata_by_user[user.id] = RpcMetadata(
-            client_id=str(client.id),
-            client_kind=wire.ClientKind.USER,
-            client_access_token=signup_rep.access_token,
-        )
+    handle_a = await make_user_handle(supervisor, user_a)
+    handle_b = await make_user_handle(supervisor, user_b)
+    handle_c = await make_user_handle(supervisor, user_c)
+    all_handles = (handle_a, handle_b, handle_c)
 
     # cross-test user access/actions
-    for actor in all_users:
-        for target in all_users:
+    for actor_handle in all_handles:
+        for target_handle in all_handles:
+            actor = actor_handle.user
+            target = target_handle.user
             is_self = actor == target
 
             # request our own and everyone else's data
@@ -168,7 +145,7 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
                 options=ReadOptions(include_properties=sensitive_properties)._to_data(),
             )
             read_user_rep = await supervisor.read_nodes(
-                read_user_req, metadata=metadata_by_user[actor.id].to_headers()
+                read_user_req, metadata=actor_handle.headers
             )
             read_target = read_user_rep.nodes[0].user
             assert read_target.slug == target.slug
@@ -183,55 +160,25 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
 
             # create new client
             new_client = Client(
-                parent=actor,
+                parent=target,
                 name=f"{actor.name}'s Toaster",
                 device_name="toaster",
                 last_seen_at=utcnow_with_tz(),
             )
-
-
-@dataclass
-class UserHandle:
-    user: User
-    client: Client
-    origin: ClientOrigin
-    metadata: RpcMetadata
-
-
-async def make_user_handle(supervisor: SupervisorStub, user: User) -> UserHandle:
-    client = Client(
-        parent=user, name=user.name + "'s iPad", device_name="pytest", last_seen_at=utcnow_with_tz()
-    )
-    signup_req = SignupUserRequest(
-        id=str(user.id),
-        slug=user.slug,
-        name=user.name,
-        email=user.email,
-        password="Password123!",
-        client=client._to_data(),
-    )
-    signup_rep = await supervisor.signup_user(signup_req)
-    origin = ClientOrigin(
-        id=str(client.id), kind=wire.ClientKind.USER, nonce=str(random.randint(0, 2**32))
-    )
-    metadata = RpcMetadata(
-        client_id=str(client.id),
-        client_kind=wire.ClientKind.USER,
-        client_access_token=signup_rep.access_token,
-    )
-    return UserHandle(user=user, client=client, origin=origin, metadata=metadata)
-
-
-async def make_random_user_handle(supervisor: SupervisorStub) -> UserHandle:
-    random_slug = "".join(random.choices(string.ascii_letters, k=10))
-    random_email = f"{random_slug}@whatever.com"
-    user = User(slug=random_slug, name=random_slug, email=random_email)
-    return await make_user_handle(supervisor, user)
-
-
-@pytest.fixture(scope="module")
-async def some_user(supervisor: SupervisorStub) -> UserHandle:
-    return await make_random_user_handle(supervisor)
+            create_client_edit = EditData(
+                type=wire.EditType.CREATE,
+                node_type=wire.NodeType.CLIENT,
+                node=wiring.wrap_some_node(new_client._to_data()),
+                origin=actor_handle.origin,
+            )
+            create_client_req = CommitEditsRequest(edits=[create_client_edit])
+            if is_self:
+                _ = await supervisor.commit_edits(create_client_req, metadata=actor_handle.headers)
+            else:
+                with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+                    _ = await supervisor.commit_edits(
+                        create_client_req, metadata=actor_handle.headers
+                    )
 
 
 @pytest.mark.parametrize("node_type", PUBLIC_NODE_TYPES, ids=lambda t: t.name)
@@ -285,7 +232,7 @@ async def test_global_node_edit(
     for edit_type in EDIT_TYPES:
         edit = EditData(
             type=edit_type,
-            node_type=node_data.node_type,
+            node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
             origin=some_user.origin,
         )

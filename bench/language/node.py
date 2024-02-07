@@ -4,7 +4,6 @@ import enum
 import functools
 import inspect
 import math
-import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -37,7 +36,6 @@ from bench.language.const import (
     EMPTY_DICT,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
-    INTERP_NODE_TYPES,
     NODE_TYPES,
     NS,
     STRUCT_TYPES,
@@ -97,6 +95,7 @@ from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
     from bench.language import (
+        BenchPath,
         Block,
         NodeReference,
         NodeVisitor,
@@ -110,6 +109,8 @@ if TYPE_CHECKING:
         Space,
         TypeInfo,
         User,
+        RichText,
+        Handle,
     )
     from bench.language.notice import NoticeHandler
 
@@ -147,7 +148,7 @@ class Property(_TypeExpressionBase):
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
-    component: type["Struct"] | None = None  # source component class
+    component: type["Struct"] | type["Node"] | None = None  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     alias: str | None = None  # for node list relations
@@ -1593,9 +1594,9 @@ class Struct(abc.ABC):
 @node_component
 class Node(Struct, _NodeExpressionBase):
     """
-    A node in a Bench package tree - basically struct + identity, so it can relate nodes.
-    A node has a per-version unique id (id) and a constant identifier key (ck).
-    The id is derived from the package id, so it's only assigned when the node is attached.
+    A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+    All nodes have a globally unique id (id).
+    Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
     """
 
     metatype: ClassVar[NodeType]
@@ -1740,7 +1741,7 @@ class Node(Struct, _NodeExpressionBase):
         if self.__parent_property__ is None:
             return f"'{ident_str}'{content_str}"
         else:
-            return f"'{self.path}'{content_str}"
+            return f"'{self.absolute_path}'{content_str}"
 
     @final
     def __repr__(self):  # noqa: override the default __repr__ for nodes
@@ -1807,7 +1808,7 @@ class Node(Struct, _NodeExpressionBase):
         return to_casing(name, PYTHON_CASING[identifier_type])
 
     @property
-    def path(self) -> str:
+    def absolute_path(self) -> str:
         """"""
         if self.__parent_property__ is None or not self.__parent_property__.reference_types:
             return self.bench_ident
@@ -2244,183 +2245,6 @@ class ScopeNode(Node):
         notice.subject.notices.append(notice, _trigger=_NC.Ignore)
 
 
-class InvalidBenchPath(ValueError):
-    pass
-
-
-BENCH_SLUG_PATTERN = re.compile(r"^[a-z0-9-]+")
-IDENTIFIER_PATTERN = re.compile(r"[\w ]+")
-RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
-
-
-@struct(StructType.BENCH_PATH)
-class BenchPath(Struct):
-    """
-    A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
-    Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
-    Sub-nodes inside a block are prefixed by a ':'; any node's fields are accessed with '.'.
-
-    flotothemoon/Mirror/Notion/Databases/Landscape
-    ^ bench      ^ blocks
-    flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-    ^ bench      ^ blocks                      ^ sub-nodes                ^ field
-    flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
-    ^ bench      ^ blocks                                              ^ field
-
-    flotothemoon
-    ^ bench
-    flotothemoon.name
-    ^ bench      ^ field
-    flotothemoon-tests/Tests/Databases/TestPopulate.code
-    ^ bench            ^ blocks                     ^ field
-
-    .
-    ^ current (ambiguous, default to block level)
-    ..
-    ^ parent (ambiguous)
-    ../../Header Screen:Header/Title.theme.primary.color
-    ^ blocks           ^ sub-nodes  ^ field
-    ../../../../Graphs
-    ^ parents (ambiguous)
-
-
-    symbolx@2024-01-01/Library/Common/Utils/DateUtils
-    ^ bench ^ package  ^ blocks
-    symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
-    ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
-
-    ''
-    ERROR (invalid, empty path)
-    '../'
-    ERROR (invalid, trailing slash)
-    ../../Something/../SomethingElse
-    ERROR (invalid, cannot go up and down in the same path)
-
-    The general syntax is:
-    [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
-    For absolute paths, the bench name is required.
-    """
-
-    bench_slug: Optional[str] = p_regular(30, default=None)
-    block_path: tuple[str, ...] | None = p_regular(31, default=None)
-    sub_node_path: tuple[str, ...] | None = p_regular(32, default=None)
-    field_path: tuple[str, ...] | None = p_regular(33, default=None)
-
-    branch_slug: Optional[str] = p_regular(34, default=None)  # (not yet supported)
-    package_slug: Optional[str] = p_regular(35, default=None)  # (not yet supported)
-
-    def __content_str__(self) -> str:
-        path_str = self.bench_slug or ""
-        if self.block_path:
-            path_str += "/" + "/".join(self.block_path)
-        if self.sub_node_path:
-            path_str += ":" + "/".join(self.sub_node_path)
-        if self.field_path:
-            path_str += "." + ".".join(self.field_path)
-        return path_str
-
-    @property
-    def is_absolute(self) -> bool:
-        return self.bench_slug is not None
-
-    @property
-    def is_relative(self) -> bool:
-        return self.bench_slug is None
-
-    @staticmethod
-    def parse(path: str, root_type: NodeType = None) -> "BenchPath":
-        """
-        Parses a path string into a BenchPath. Uses root type to disambiguate some relative paths.
-        TODO @Performance: revisit BenchPath.parse
-        """
-
-        if not path:
-            raise InvalidBenchPath("empty path")
-
-        # optionally strip 'bench://' prefix
-        if path.startswith("bench://"):
-            path = path[8:]
-
-        # I tried to use a single regex here, but it's too convoluted to be worth it
-        cur_pos = 0
-        bench_slug = BENCH_SLUG_PATTERN.match(path)
-        if bench_slug is not None:
-            cur_pos = bench_slug.end() + 1  # eat '/'
-            bench_slug = bench_slug.group(0)
-
-        block_path: list[str] = []
-        sub_node_path: list[str] | None = None
-        field_path: list[str] | None = None
-        is_all_relative = False
-
-        # relative paths
-        if bench_slug is None:
-            # parse relative segments
-            while cur_pos < len(path):
-                match = RELATIVE_PATTERN.match(path, cur_pos)
-                if match is None:
-                    break
-                cur_pos = match.end() + 1  # eat '/'
-                if cur_pos < len(path) and path[cur_pos - 1] != "/":
-                    raise InvalidBenchPath(
-                        f"bad relative path at {cur_pos}: {path[cur_pos]} in {path}"
-                    )
-                block_path.append(match.group(0))
-                is_all_relative = True
-            if ":" not in path and root_type is not None:
-                # skip straight into sub node mode if ambiguous and given root can't be above block
-                if root_type not in (NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK):
-                    sub_node_path = []
-
-        # skip straight into field parsing mode
-        cur_char = path[cur_pos - 1] if cur_pos < len(path) else None
-        if not is_all_relative and cur_char is not None and cur_char == ".":
-            field_path = []
-
-        # parse block path, sub block, and field
-        # we use the None-ness of the arrays as our 'state machine'
-        while cur_pos < len(path):
-            match = IDENTIFIER_PATTERN.match(path, cur_pos)
-            if match is None:
-                raise InvalidBenchPath(f"bad path after {cur_pos}: {path[cur_pos:]} in {path}")
-            cur_pos = match.end() + 1
-            cur_char = path[cur_pos - 1] if cur_pos < len(path) else None
-
-            if field_path is not None:
-                if cur_char is not None and cur_char != ".":
-                    raise InvalidBenchPath(f"bad field path at {cur_pos}: {cur_char} in {path}")
-                field_path.append(match.group(0))
-            elif sub_node_path is not None:
-                if cur_char is not None:
-                    if cur_char == ".":
-                        field_path = []
-                    elif cur_char != "/":
-                        raise InvalidBenchPath(f"bad node path at {cur_pos}: {cur_char} in {path}")
-                sub_node_path.append(match.group(0))
-            else:
-                if cur_char is not None:
-                    if cur_char == ".":
-                        field_path = []
-                    elif cur_char == ":":
-                        sub_node_path = []
-                    elif cur_char != "/":
-                        raise InvalidBenchPath(f"bad block path at {cur_pos}: {cur_char} in {path}")
-                block_path.append(match.group(0))
-            is_all_relative = False
-
-        # is_all_relative is a hacky flag since we're not properly eating
-        last_char = path[-1:]
-        if not (re.match(r"\w", last_char) or last_char == "." and is_all_relative):
-            raise InvalidBenchPath(f"cannot end in trailing: {last_char} in {path}")
-
-        return BenchPath(
-            bench_slug=bench_slug,
-            block_path=tuple(block_path) if block_path else None,
-            sub_node_path=tuple(sub_node_path) if sub_node_path else None,
-            field_path=tuple(field_path) if field_path else None,
-        )
-
-
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
     for nt in NODE_TYPES
@@ -2458,14 +2282,16 @@ class Bench(ScopeNode):
     """
 
     parent: None = p_parent(4)
-    slug: str = p_system(30, unique=True)
-    name: str = p_regular(31)
-    description: Optional[str] = p_regular(32, default=None)
-    organization: Optional["Organization"] = p_system(
-        33, require=False, array=False, references=NodeType.ORGANIZATION
+    handle: "Handle" = p_system(30, require=False, array=False, references=NodeType.HANDLE)
+    slug: str = p_system(31, unique=True)
+    name: str = p_regular(32)
+    text: Optional["RichText"] = p_regular(
+        33, require=False, array=False, struct=StructType.RICH_TEXT
     )
-    user: Optional["User"] = p_system(34, require=False, array=False, references=NodeType.USER)
-    # status: BenchStatus = struct_internal(35)
+    owner: Union["User", "Organization"] = p_system(
+        34, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
+    )
+    # status: ...?
     policies: list["Policy"] | None = p_regular(
         36, default_factory=list, struct=StructType.POLICY, array=True
     )
@@ -2487,10 +2313,6 @@ class Bench(ScopeNode):
     os_password: Optional[str] = p_system(
         56, default=None, defer=True, encrypt=True, sensitive=True
     )
-
-    @property
-    def owner(self) -> Union["Organization", "User", None]:
-        return self.organization or self.user
 
 
 @dataclass
@@ -2636,31 +2458,6 @@ class Package(ScopeNode):
         """Computes the change between the old and new package state."""
         raise NotImplementedError("nocheckin: _compute_change")
 
-    @staticmethod
-    def make(source: list["SomeNodeData"]) -> "Package":
-        """Create an interpreted Package from a source package node tree."""
-        from bench.language.builtin import symbolx_package
-        from bench.proto import wiring
-
-        source = [wiring.unwrap_some_node(s) for s in source]
-        source = NodeTree(source)
-        root: Bench = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
-        package: Package = root.resolve()  # ???
-        assert isinstance(package, Package), f"unexpected package: {package!r}"
-        package._source = source
-        old_source = package._source.copy()
-
-        package.add_dependency(symbolx_package)
-        package.add_builtin(symbolx_package.files.get("builtins"))
-        package._interp_rec()
-
-        # update source with interp edits (doesn't have them)
-        change = package._compute_change([], old_source)
-        if change.interp_edits:
-            package._apply_edits_to_source(change.interp_edits)
-
-        return package
-
 
 # quick access to all the classes
 _FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
@@ -2677,6 +2474,16 @@ FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+
+_custom_completion_hooks: list[Callable] = []
+
+
+def _on_completing_setup(func: Callable = None):
+    """Decorator to register finalization functions."""
+    if func is None:
+        return functools.partial(_on_completing_setup)
+    _custom_completion_hooks.append(func)
+    return func
 
 
 def _complete_bench_setup():
@@ -2826,3 +2633,7 @@ def _complete_bench_setup():
                 prop.py_type_stripped, (IdEnum, enum.IntEnum, enum.IntFlag)
             ):
                 raise ValueError(f"{prop!r} is not a valid proto enum")
+
+    # run completion hooks
+    for hook in _custom_completion_hooks:
+        hook()

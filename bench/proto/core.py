@@ -44,7 +44,7 @@ class ProtoSchema(ProtoObject):
 
 def _to_multi_line_comment(comment: str) -> str:
     """Convert a single line comment to a multi line comment."""
-    return "\n".join(f"// {line}" for line in comment.splitlines())
+    return "\n".join(f"// {line.strip()}" for line in comment.splitlines())
 
 
 @dataclass

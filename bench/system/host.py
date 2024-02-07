@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import AsyncIterator, Callable
 from uuid import UUID
 
+import betterproto
 import grpclib
 import grpclib.server
 import structlog
@@ -17,7 +18,7 @@ from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, SUB_BENCH_NODE
 from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
-from bench.proto.services import BenchServiceBase
+from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
@@ -29,8 +30,6 @@ from bench.proto.wire import (
     KillRunResponse,
     BenchHostBase,
     BenchHostStub,
-    PasteNodesRequest,
-    PasteNodesResponse,
     PushEditsRequest,
     PushEditsResponse,
     PushServerLogsRequest,
@@ -42,8 +41,6 @@ from bench.proto.wire import (
     SearchLogsResponse,
     SearchNodesRequest,
     SearchNodesResponse,
-    SnapshotPackageRequest,
-    SnapshotPackageResponse,
     StartRunRequest,
     StartRunResponse,
     UploadFilesRequest,
@@ -102,13 +99,16 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         return host
 
     def _wrap_rpc_func(
-        self, func: Callable, method_name: str, handler: grpclib.const.Handler
+        self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
         @functools.wraps(func)
-        async def proxied_method(stream: grpclib.server.Stream) -> None:
-            bench_id = to_uuid(self.metadata.bench_id)
+        async def _multiplexed_rpc(subject: Subject, request: betterproto.Message) -> None:
+            bench_id = getattr(request, "bench_id")
+            if bench_id is None:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench scope")
+            bench_id = to_uuid(bench_id)
 
-            # get package host
+            # get bench host
             host = self._bench_hosts.get(bench_id)
             if host is None:
                 async with self._bench_hosts_lock:
@@ -119,11 +119,9 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
                         self._bench_hosts[bench_id] = host
 
             # forward to host
-            host._stream.set(stream)
-            host._metadata.set(self.metadata)
-            await getattr(host, method_name)(stream)
+            await getattr(host, method_name)(subject, request)
 
-        return proxied_method
+        return _multiplexed_rpc
 
 
 class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
@@ -167,9 +165,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
-                options=ReadOptions(
-                    related_properties=(Bench.user, Bench.organization, Bench.head)
-                ),
+                options=ReadOptions(related_properties=(Bench.owner, Bench.head)),
             )
             self._owner = self._bench.owner
             # self._package: Package = await pg_read_node(
@@ -253,16 +249,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     async def push_edits(
         self, subject: Subject, request: "PushEditsRequest"
     ) -> "PushEditsResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def paste_nodes(
-        self, subject: Subject, request: "PasteNodesRequest"
-    ) -> "PasteNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def snapshot(
-        self, subject: Subject, request: "SnapshotPackageRequest"
-    ) -> "SnapshotPackageResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #

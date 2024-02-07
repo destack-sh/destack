@@ -68,11 +68,11 @@ class HasTask(Node):
         inputs = self._inputs_from_args(args, kwargs)
 
         # shortcut for built-in tasks with fixed implementations
-        if self.path == "symbolx.lib.builtins.embed":
+        if self.absolute_path == "symbolx.lib.builtins.embed":
             builtin_model: "Block" = self.session.package.resolve(
                 "huggingface.lib.text.llm-embedder"
             )
-        elif self.path == "symbolx.lib.builtins.transcribe":
+        elif self.absolute_path == "symbolx.lib.builtins.transcribe":
             builtin_model: "Block" = self.session.package.resolve("deepgram.lib.audio.nova-2")
         else:
             builtin_model = None

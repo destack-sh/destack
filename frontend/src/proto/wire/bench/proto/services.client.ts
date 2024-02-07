@@ -29,10 +29,6 @@ import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
 import type { UploadFilesResponse } from "./services";
 import type { UploadFilesRequest } from "./services";
-import type { SnapshotPackageResponse } from "./services";
-import type { SnapshotPackageRequest } from "./services";
-import type { PasteNodesResponse } from "./services";
-import type { PasteNodesRequest } from "./services";
 import type { PushEditsResponse } from "./services";
 import type { PushEditsRequest } from "./services";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
@@ -109,7 +105,7 @@ export interface ISupervisorClient {
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     // 
-    // General IO for > package & global nodes only :BenchIO
+    // General IO for non-source nodes :BenchIO
     // 
 
     /**
@@ -210,7 +206,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // General IO for > package & global nodes only :BenchIO
+    // General IO for non-source nodes :BenchIO
     // 
 
     /**
@@ -265,7 +261,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
  * Frontend connects to this directly.
  *
  *
- * General Bench IO for this package only :BenchIO
+ * General IO for nodes in this Bench only :BenchIO
  *
  *
  * @generated from protobuf service symbolx.bench.BenchHost
@@ -290,39 +286,29 @@ export interface IBenchHostClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * Commits a set of edits to the package. Optionally forward locally bypassed edits.
+     * Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
     /**
-     * Receive any relevant edits to this package.
+     * Receive any relevant edits to this Bench.
      *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
-    // 
-    // Special Package IO
-    // 
-
     /**
      * Pushes locally bypassed edits to the package subscribers.
      *
      * @generated from protobuf rpc: PushEdits(symbolx.bench.PushEditsRequest) returns (symbolx.bench.PushEditsResponse);
      */
     pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, PushEditsResponse>;
-    /**
-     * Paste specific inline nodes (and only those nodes) from this or another package.
-     *
-     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
-    /**
-     * Create a full snapshot of this Bench package (copy to a new Bench package as specified).
-     *
-     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
-     */
-    snapshot(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse>;
+    // 
+    // Special Bench IO
+    // 
+
+    // ...
+
     // 
     // Files
     // 
@@ -402,7 +388,7 @@ export interface IBenchHostClient {
  * Frontend connects to this directly.
  *
  *
- * General Bench IO for this package only :BenchIO
+ * General IO for nodes in this Bench only :BenchIO
  *
  *
  * @generated from protobuf service symbolx.bench.BenchHost
@@ -441,7 +427,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits a set of edits to the package. Optionally forward locally bypassed edits.
+     * Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
@@ -450,7 +436,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Receive any relevant edits to this package.
+     * Receive any relevant edits to this Bench.
      *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
@@ -458,10 +444,6 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
-    // 
-    // Special Package IO
-    // 
-
     /**
      * Pushes locally bypassed edits to the package subscribers.
      *
@@ -471,24 +453,12 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushEditsRequest, PushEditsResponse>("unary", this._transport, method, opt, input);
     }
-    /**
-     * Paste specific inline nodes (and only those nodes) from this or another package.
-     *
-     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Create a full snapshot of this Bench package (copy to a new Bench package as specified).
-     *
-     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
-     */
-    snapshot(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SnapshotPackageRequest, SnapshotPackageResponse>("unary", this._transport, method, opt, input);
-    }
+    // 
+    // Special Bench IO
+    // 
+
+    // ...
+
     // 
     // Files
     // 
@@ -499,7 +469,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
     uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -508,7 +478,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
     downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -521,7 +491,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: SearchLogs(symbolx.bench.SearchLogsRequest) returns (symbolx.bench.SearchLogsResponse);
      */
     searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<SearchLogsRequest, SearchLogsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -530,7 +500,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: WatchLogs(symbolx.bench.WatchLogsRequest) returns (stream symbolx.bench.WatchLogsResponse);
      */
     watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
@@ -539,7 +509,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: PushServerLogs(symbolx.bench.PushServerLogsRequest) returns (google.protobuf.Empty);
      */
     pushServerLogs(input: PushServerLogsRequest, options?: RpcOptions): UnaryCall<PushServerLogsRequest, Empty> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushServerLogsRequest, Empty>("unary", this._transport, method, opt, input);
     }
     // 
@@ -552,7 +522,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        const method = this.methods[11], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -561,7 +531,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -570,7 +540,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[15], opt = this._transport.mergeOptions(options);
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -579,7 +549,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[16], opt = this._transport.mergeOptions(options);
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
         return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -588,7 +558,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse> {
-        const method = this.methods[17], opt = this._transport.mergeOptions(options);
+        const method = this.methods[15], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }

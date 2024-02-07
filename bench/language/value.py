@@ -15,7 +15,6 @@ from bench.language.node import (
     p_runtime,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType
 from bench.utils.proxy import proxy_value, unproxy_value
@@ -62,10 +61,6 @@ class HasValue(Node):
             for n in walk_value(self.value, self._type):  # :VisitValue
                 if isinstance(n, Node):
                     visitor.visit_reference(n)
-                elif isinstance(n, Text):
-                    for mention in n.mentions:
-                        if isinstance(mention.reference, Node):
-                            visitor.visit_reference(mention.reference)
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self.value = None

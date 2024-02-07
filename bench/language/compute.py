@@ -5,7 +5,6 @@ from bench.language.const import NodeType, StructType, ServerProfile, ServerStat
 from bench.language.node import (
     Bench,
     Node,
-    ScopeNode,
     Struct,
     node,
     p_parent,
@@ -19,8 +18,8 @@ from bench.utils.dt import utcnow_with_tz
 
 @struct(StructType.SERVER_ALLOCATION)
 class ServerAllocation(Struct):
-    default_profile: ServerProfile = p_regular(30)
-    default_image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
+    base_profile: ServerProfile = p_regular(30)
+    base_image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
 
 
 @node(NodeType.SERVER)
@@ -33,7 +32,6 @@ class Server(Node):
     current_profile: Optional[ServerProfile] = p_system(33)
     current_image: Optional["ServerImage"] = p_system(34, struct=StructType.SERVER_IMAGE)
     current_version: Optional[str] = p_system(35, index_in_pg=True)
-
     sleep: bool = p_system(36, default=True)
     status: ServerStatus = p_system(37)
     last_active_at: Optional[datetime] = p_internal(38, default_factory=utcnow_with_tz)
