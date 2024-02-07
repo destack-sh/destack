@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import psycopg
 import pytest
+from pytest_asyncio import is_async_test
 
 if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
@@ -24,12 +25,11 @@ def pytest_configure(config):
     _complete_bench_setup()
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    # ensure we have one global event loop, lest our async fixtures are fucked
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+def pytest_collection_modifyitems(items):
+    pytest_asyncio_tests = (item for item in items if is_async_test(item))
+    session_scope_marker = pytest.mark.asyncio(scope="session")
+    for async_test in pytest_asyncio_tests:
+        async_test.add_marker(session_scope_marker)
 
 
 @pytest.fixture(autouse=True, scope="session")

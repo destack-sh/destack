@@ -101,22 +101,32 @@ class NodeReference(Struct):
 
     @staticmethod
     def from_node_data(node_data: Optional[AnyNodeData]) -> Optional["NodeReferenceData"]:
+        from bench.proto import wire
+
         if node_data is None:
             return None
         node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
         if "ck" in node_cls.__properties__:
             if node_data.metatype == NodeType.RECORD:
                 return NodeReferenceData(
+                    metatype=wire.StructType.NODE_REFERENCE,
                     type=node_data.metatype,
                     id=node_data.id,
                     ck=node_data.ck,
                     base_ck=node_data.parent_ptr.ck,
                 )
             else:
-                return NodeReferenceData(type=node_data.metatype, id=node_data.id, ck=node_data.ck)
+                return NodeReferenceData(
+                    metatype=wire.StructType.NODE_REFERENCE,
+                    type=node_data.metatype,
+                    id=node_data.id,
+                    ck=node_data.ck,
+                )
         else:
             assert node_data.id is not None, f"cannot reference node without id: {node_data!r}"
-            return NodeReferenceData(type=node_data.metatype, id=node_data.id)
+            return NodeReferenceData(
+                metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
+            )
 
 
 @struct(StructType.PROPERTY_REFERENCE)

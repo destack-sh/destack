@@ -64,6 +64,6 @@ async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
     return await make_user_handle(supervisor, user)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 async def some_user(supervisor: "SupervisorStub") -> UserHandle:
     return await make_random_user_handle(supervisor)
