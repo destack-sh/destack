@@ -1487,7 +1487,7 @@ class Struct(abc.ABC):
 
         # resolve node references :NodeReferences
         for prop in self.__reference_properties__.values():
-            if prop.is_wired or prop.is_stored or getattr(self, prop.name, None) is not None:
+            if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
                 continue  # already resolved
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:

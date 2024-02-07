@@ -2,7 +2,7 @@ from grpclib.testing import ChannelFor
 import pytest
 
 from bench.proto.wire import BenchHostStub
-from bench.server.host import BenchHost
+from bench.system.host import BenchHost
 
 
 @pytest.fixture(scope="module")

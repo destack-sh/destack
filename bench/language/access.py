@@ -129,18 +129,18 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] | None = p_regular(30, default=None)
-    descendant_types: list[NodeType] | None = p_regular(31, default=None)
-    related_properties: list[Property] | None = p_regular(
-        32, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    ancestor_types: list[NodeType] = p_regular(30, default_factory=list)
+    descendant_types: list[NodeType] = p_regular(31, default_factory=list)
+    related_properties: list[Property] = p_regular(
+        32, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # properties (include/exclude relative to default)
-    include_properties: list[Property] | None = p_regular(
-        40, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    include_properties: list[Property] = p_regular(
+        40, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    exclude_properties: list[Property] | None = p_regular(
-        41, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+    exclude_properties: list[Property] = p_regular(
+        41, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # filters (global + per type)
@@ -162,20 +162,18 @@ class ReadOptions(Struct):
             return "<default>"
 
     def copy(self) -> "ReadOptions":
-        _copy_list_maybe = lambda x: list(x) if x is not None else None
-
         return ReadOptions(
-            ancestor_types=_copy_list_maybe(self.ancestor_types),
-            descendant_types=_copy_list_maybe(self.descendant_types),
-            related_properties=_copy_list_maybe(self.related_properties),
-            include_properties=_copy_list_maybe(self.include_properties),
-            exclude_properties=_copy_list_maybe(self.exclude_properties),
+            ancestor_types=list(self.ancestor_types),
+            descendant_types=list(self.descendant_types),
+            related_properties=list(self.related_properties),
+            include_properties=list(self.include_properties),
+            exclude_properties=list(self.exclude_properties),
             global_filter=self.global_filter,
             _filter_by_type=self._filter_by_type,
         )
 
     def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        return tuple(p.resolved_property for p in self.related_properties if p.type == node_type)
+        return tuple(p for p in self.related_properties if p.type == node_type)
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         from bench.sql.engine import DEFAULT_SELECTED_PROPERTIES
@@ -218,7 +216,7 @@ class ReadOptions(Struct):
 
     @staticmethod
     def default():
-        return ReadOptions(ancestor_types=None, descendant_types=None, global_filter=None)
+        return ReadOptions()
 
 
 @struct(StructType.POLICY, identifier=IdentifierType.VARIABLE)
@@ -396,7 +394,7 @@ class PolicyRule(Struct):
             for verb_kind in self.verb_kinds or ():
                 self._verb_mask[verb_kind.from_id : verb_kind.to_id + 1] = True
 
-    def matches_subject(self, subject: "RequestSubject", object_owner: Owner) -> bool:
+    def matches_subject(self, subject: "Subject", object_owner: Owner) -> bool:
         if not self.subject_is_delegated:
             # subject always matches (by definition) if the policy is delegated
             if (
@@ -475,8 +473,8 @@ class PolicyRule(Struct):
         return self
 
 
-@struct(StructType.REQUEST_SUBJECT)
-class RequestSubject(Struct):
+@struct(StructType.SUBJECT)
+class Subject(Struct):
     """
     The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
@@ -508,39 +506,37 @@ class RequestSubject(Struct):
     )
     roles: list["Role"] = p_system(39, require=False, array=True, references=NodeType.ROLE)
 
-    def split_into_acting_subjects(self, tree: NodeDataTree) -> tuple["RequestSubject", ...]:
+    def split_into_acting_subjects(self, tree: NodeDataTree) -> tuple["Subject", ...]:
         """
         Split into different subjects that may have different access and are relevant in the given tree.
          (The tree is assumed to contain all relevant owners!).
         Basically, acting subject X in "subject is acting as X" (where X may have different access).
         """
 
-        applicable_principals: list[RequestSubject] = [
-            RequestSubject(is_authenticated=False)  # anonymous
-        ]
+        applicable_principals: list[Subject] = [Subject(is_authenticated=False)]  # anonymous
         if self.is_authenticated:
-            applicable_principals.append(RequestSubject(is_authenticated=True))
+            applicable_principals.append(Subject(is_authenticated=True))
         if self.is_staff:
-            applicable_principals.append(RequestSubject(is_staff=True))
+            applicable_principals.append(Subject(is_staff=True))
         if self.user:
-            applicable_principals.append(RequestSubject(user=self.user))
+            applicable_principals.append(Subject(user=self.user))
         if self.identity:
-            applicable_principals.append(RequestSubject(identity=self.identity))
+            applicable_principals.append(Subject(identity=self.identity))
         if self.badge:
-            applicable_principals.append(RequestSubject(badge=self.badge))
+            applicable_principals.append(Subject(badge=self.badge))
         for owner in self.owned or ():
             if str(owner.id) in tree:
-                applicable_principals.append(RequestSubject(owned=[owner]))
+                applicable_principals.append(Subject(owned=[owner]))
         for membership in self.memberships or ():
             if str(membership.parent_id) in tree:
-                applicable_principals.append(RequestSubject(memberships=[membership]))
+                applicable_principals.append(Subject(memberships=[membership]))
         for role in self.roles or ():
             if role.parent_type == NodeType.BLOCK:
                 if str(role.parent_id) in tree:
-                    applicable_principals.append(RequestSubject(roles=[role]))
+                    applicable_principals.append(Subject(roles=[role]))
             elif role.parent_type == NodeType.MEMBERSHIP:
                 if str(role.parent.parent_id) in tree:
-                    applicable_principals.append(RequestSubject(roles=[role]))
+                    applicable_principals.append(Subject(roles=[role]))
             else:
                 raise BenchError(f"unexpected parent to {role!r}")
 
@@ -549,7 +545,7 @@ class RequestSubject(Struct):
 
     def __content_str__(self):
         str_parts = []
-        for prop in RequestSubject.__declared_properties__.values():
+        for prop in Subject.__declared_properties__.values():
             value = getattr(self, prop.name)
             if value:
                 if isinstance(value, bool):
@@ -585,8 +581,8 @@ class AccessZone(Struct):
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    subject: RequestSubject = p_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
-    identities: list[RequestSubject] = p_internal(32, array=True, struct=StructType.REQUEST_SUBJECT)
+    subject: Subject = p_internal(30, require=True, struct=StructType.SUBJECT)
+    identities: list[Subject] = p_internal(32, array=True, struct=StructType.SUBJECT)
     scope_zones: list[AccessZone] = p_internal(33, array=True, struct=StructType.ACCESS_ZONE)
     base_zones: list[AccessZone] = p_internal(34, array=True, struct=StructType.ACCESS_ZONE)
 
@@ -625,7 +621,7 @@ class Action(Struct):
     TODO @Feature @Security: store, query and watch action log
     """
 
-    subject: RequestSubject = p_internal(30, require=True, struct=StructType.REQUEST_SUBJECT)
+    subject: Subject = p_internal(30, require=True, struct=StructType.SUBJECT)
     decision: PolicyEffect = p_internal(31, require=True)
     requests: list[Request] = p_internal(32, array=True, require=True, struct=StructType.REQUEST)
 
@@ -731,7 +727,7 @@ for policy in SYSTEM_POLICIES:
 
 
 def adapt_read_options(
-    subject: RequestSubject, root_node_type: NodeType, options: ReadOptions
+    subject: Subject, root_node_type: NodeType, options: ReadOptions
 ) -> ReadOptions:
     """
     Adapt read options based on the action to pre-filter as feasible while enabling the complete post-read check.
@@ -748,7 +744,7 @@ def adapt_read_options(
     # if root >: Bench, also load related actual owner (User/Organization)
     root_node_cls = NODE_CLASS_BY_TYPE[root_node_type]
     if NodeType.BENCH in root_node_cls.__roots__:
-        options.related_properties.append(Bench.user, Bench.organization)
+        options.related_properties.append((Bench.user, Bench.organization))
 
     # TODO @Performance @Security: also pre-filter read options for owner?
 
@@ -763,7 +759,7 @@ LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 
 
 def generate_access_matrix(
-    subject: RequestSubject,
+    subject: Subject,
     tree: NodeDataTree,
     base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
     root_owner: Owner | None = None,

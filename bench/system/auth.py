@@ -6,11 +6,11 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Badge, Client, User
-from bench.language.access import RequestSubject
+from bench.language.access import Subject
 from bench.language.const import NodeType
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
-from bench.server.utils import detached_session
+from bench.system.utils import detached_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -109,7 +109,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
         return None
 
 
-async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
+async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
     async with detached_session(read_only=True):
         try:
             client = await _get_client_from_metadata(metadata)
@@ -117,11 +117,11 @@ async def get_request_subject(metadata: RpcMetadata) -> RequestSubject:
         except NoNodeFoundError as e:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client or badge") from e
         if client is None:
-            return RequestSubject(is_authenticated=False, badge=badge)
+            return Subject(is_authenticated=False, badge=badge)
         elif client.parent_type == NodeType.USER:
             # TODO @Broken: fetch subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
-            return RequestSubject(
+            return Subject(
                 is_authenticated=True,
                 is_staff=client.user.is_staff,
                 client=client,

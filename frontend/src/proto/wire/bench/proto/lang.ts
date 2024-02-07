@@ -24,13 +24,13 @@ export interface AccessMatrixData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: symbolx.bench.RequestSubjectData subject = 30;
+     * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
      */
-    subject?: RequestSubjectData;
+    subject?: SubjectData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.RequestSubjectData identities = 32;
+     * @generated from protobuf field: repeated symbolx.bench.SubjectData identities = 32;
      */
-    identities: RequestSubjectData[];
+    identities: SubjectData[];
     /**
      * @generated from protobuf field: repeated symbolx.bench.AccessZoneData scope_zones = 33;
      */
@@ -84,9 +84,9 @@ export interface ActionData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: symbolx.bench.RequestSubjectData subject = 30;
+     * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
      */
-    subject?: RequestSubjectData;
+    subject?: SubjectData;
     /**
      * @generated from protobuf field: symbolx.bench.PolicyEffect decision = 31;
      */
@@ -115,11 +115,15 @@ export interface AggregationData {
      */
     exists?: boolean;
     /**
-     * @generated from protobuf field: optional float scalar = 32;
+     * @generated from protobuf field: optional int32 count = 32;
+     */
+    count?: number;
+    /**
+     * @generated from protobuf field: optional float scalar = 33;
      */
     scalar?: number;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.AggregationBucketData buckets = 33;
+     * @generated from protobuf field: repeated symbolx.bench.AggregationBucketData buckets = 34;
      */
     buckets: AggregationBucketData[];
 }
@@ -639,54 +643,6 @@ export interface RequestData {
     objectPropertiesPtr: PropertyReferenceData[];
 }
 /**
- * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
- *     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
- *
- * @generated from protobuf message symbolx.bench.RequestSubjectData
- */
-export interface RequestSubjectData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: optional bool is_authenticated = 30;
-     */
-    isAuthenticated?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_staff = 31;
-     */
-    isStaff?: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 32;
-     */
-    clientPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 34;
-     */
-    userPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 35;
-     */
-    identityPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData badge_ptr = 36;
-     */
-    badgePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData owned_ptr = 37;
-     */
-    ownedPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData memberships_ptr = 38;
-     */
-    membershipsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 39;
-     */
-    rolesPtr: NodeReferenceData[];
-}
-/**
  * RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
  *
  * @generated from protobuf message symbolx.bench.RichTextData
@@ -931,6 +887,54 @@ export interface SpaceDockItemData {
      * @generated from protobuf field: bool hidden = 31;
      */
     hidden: boolean;
+}
+/**
+ * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
+ *     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
+ *
+ * @generated from protobuf message symbolx.bench.SubjectData
+ */
+export interface SubjectData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: optional bool is_authenticated = 30;
+     */
+    isAuthenticated?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_staff = 31;
+     */
+    isStaff?: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 32;
+     */
+    clientPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 34;
+     */
+    userPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 35;
+     */
+    identityPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData badge_ptr = 36;
+     */
+    badgePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData owned_ptr = 37;
+     */
+    ownedPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData memberships_ptr = 38;
+     */
+    membershipsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 39;
+     */
+    rolesPtr: NodeReferenceData[];
 }
 /**
  * A type is a kind of value that can go somewhere, typically a field.
@@ -1288,10 +1292,6 @@ export interface BlockData {
      * @generated from protobuf field: symbolx.bench.BlockType type = 30;
      */
     type: BlockType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 31;
-     */
-    visibility: NodeVisibility;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 32;
      */
@@ -3680,9 +3680,9 @@ export enum BenchType {
      */
     POLICY_RULE = 531,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REQUEST_SUBJECT = 532;
+     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 532;
      */
-    REQUEST_SUBJECT = 532,
+    SUBJECT = 532,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 534;
      */
@@ -4511,13 +4511,17 @@ export enum NodeVisibility {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_INTERNAL = 4;
+     * @generated from protobuf enum value: NODE_VISIBILITY_PAGE = 4;
      */
-    INTERNAL = 4,
+    PAGE = 4,
     /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_PUBLIC = 7;
+     * @generated from protobuf enum value: NODE_VISIBILITY_BENCH = 8;
      */
-    PUBLIC = 7
+    BENCH = 8,
+    /**
+     * @generated from protobuf enum value: NODE_VISIBILITY_ALL = 10;
+     */
+    ALL = 10
 }
 /**
  * Type of diagnostic in increasing severity.
@@ -5008,9 +5012,9 @@ export enum StructType {
      */
     POLICY_RULE = 531,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST_SUBJECT = 532;
+     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 532;
      */
-    REQUEST_SUBJECT = 532,
+    SUBJECT = 532,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 534;
      */
@@ -5181,8 +5185,8 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
-            { no: 32, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestSubjectData },
+            { no: 30, name: "subject", kind: "message", T: () => SubjectData },
+            { no: 32, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SubjectData },
             { no: 33, name: "scope_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
             { no: 34, name: "base_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData }
         ]);
@@ -5205,11 +5209,11 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.RequestSubjectData subject */ 30:
-                    message.subject = RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
+                case /* symbolx.bench.SubjectData subject */ 30:
+                    message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
                     break;
-                case /* repeated symbolx.bench.RequestSubjectData identities */ 32:
-                    message.identities.push(RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.SubjectData identities */ 32:
+                    message.identities.push(SubjectData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbolx.bench.AccessZoneData scope_zones */ 33:
                     message.scopeZones.push(AccessZoneData.internalBinaryRead(reader, reader.uint32(), options));
@@ -5232,12 +5236,12 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.RequestSubjectData subject = 30; */
+        /* symbolx.bench.SubjectData subject = 30; */
         if (message.subject)
-            RequestSubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.RequestSubjectData identities = 32; */
+            SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.SubjectData identities = 32; */
         for (let i = 0; i < message.identities.length; i++)
-            RequestSubjectData.internalBinaryWrite(message.identities[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+            SubjectData.internalBinaryWrite(message.identities[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.AccessZoneData scope_zones = 33; */
         for (let i = 0; i < message.scopeZones.length; i++)
             AccessZoneData.internalBinaryWrite(message.scopeZones[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
@@ -5345,7 +5349,7 @@ class ActionData$Type extends MessageType<ActionData> {
     constructor() {
         super("symbolx.bench.ActionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "subject", kind: "message", T: () => RequestSubjectData },
+            { no: 30, name: "subject", kind: "message", T: () => SubjectData },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "requests", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RequestData }
         ]);
@@ -5367,8 +5371,8 @@ class ActionData$Type extends MessageType<ActionData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.RequestSubjectData subject */ 30:
-                    message.subject = RequestSubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
+                case /* symbolx.bench.SubjectData subject */ 30:
+                    message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
                     break;
                 case /* symbolx.bench.PolicyEffect decision */ 31:
                     message.decision = reader.int32();
@@ -5391,9 +5395,9 @@ class ActionData$Type extends MessageType<ActionData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.RequestSubjectData subject = 30; */
+        /* symbolx.bench.SubjectData subject = 30; */
         if (message.subject)
-            RequestSubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+            SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.PolicyEffect decision = 31; */
         if (message.decision !== 0)
             writer.tag(31, WireType.Varint).int32(message.decision);
@@ -5417,8 +5421,9 @@ class AggregationData$Type extends MessageType<AggregationData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.AggregationOp", AggregationOp, "AGGREGATION_OP_"] },
             { no: 31, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 32, name: "scalar", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 33, name: "buckets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AggregationBucketData }
+            { no: 32, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 33, name: "scalar", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 34, name: "buckets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AggregationBucketData }
         ]);
     }
     create(value?: PartialMessage<AggregationData>): AggregationData {
@@ -5444,10 +5449,13 @@ class AggregationData$Type extends MessageType<AggregationData> {
                 case /* optional bool exists */ 31:
                     message.exists = reader.bool();
                     break;
-                case /* optional float scalar */ 32:
+                case /* optional int32 count */ 32:
+                    message.count = reader.int32();
+                    break;
+                case /* optional float scalar */ 33:
                     message.scalar = reader.float();
                     break;
-                case /* repeated symbolx.bench.AggregationBucketData buckets */ 33:
+                case /* repeated symbolx.bench.AggregationBucketData buckets */ 34:
                     message.buckets.push(AggregationBucketData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -5471,12 +5479,15 @@ class AggregationData$Type extends MessageType<AggregationData> {
         /* optional bool exists = 31; */
         if (message.exists !== undefined)
             writer.tag(31, WireType.Varint).bool(message.exists);
-        /* optional float scalar = 32; */
+        /* optional int32 count = 32; */
+        if (message.count !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.count);
+        /* optional float scalar = 33; */
         if (message.scalar !== undefined)
-            writer.tag(32, WireType.Bit32).float(message.scalar);
-        /* repeated symbolx.bench.AggregationBucketData buckets = 33; */
+            writer.tag(33, WireType.Bit32).float(message.scalar);
+        /* repeated symbolx.bench.AggregationBucketData buckets = 34; */
         for (let i = 0; i < message.buckets.length; i++)
-            AggregationBucketData.internalBinaryWrite(message.buckets[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+            AggregationBucketData.internalBinaryWrite(message.buckets[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -6777,119 +6788,6 @@ class RequestData$Type extends MessageType<RequestData> {
  */
 export const RequestData = new RequestData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RequestSubjectData$Type extends MessageType<RequestSubjectData> {
-    constructor() {
-        super("symbolx.bench.RequestSubjectData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 31, name: "is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 32, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "badge_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 38, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 39, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<RequestSubjectData>): RequestSubjectData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.ownedPtr = [];
-        message.membershipsPtr = [];
-        message.rolesPtr = [];
-        if (value !== undefined)
-            reflectionMergePartial<RequestSubjectData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestSubjectData): RequestSubjectData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional bool is_authenticated */ 30:
-                    message.isAuthenticated = reader.bool();
-                    break;
-                case /* optional bool is_staff */ 31:
-                    message.isStaff = reader.bool();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 32:
-                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 34:
-                    message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 35:
-                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData badge_ptr */ 36:
-                    message.badgePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.badgePtr);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData owned_ptr */ 37:
-                    message.ownedPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData memberships_ptr */ 38:
-                    message.membershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 39:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RequestSubjectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional bool is_authenticated = 30; */
-        if (message.isAuthenticated !== undefined)
-            writer.tag(30, WireType.Varint).bool(message.isAuthenticated);
-        /* optional bool is_staff = 31; */
-        if (message.isStaff !== undefined)
-            writer.tag(31, WireType.Varint).bool(message.isStaff);
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 32; */
-        if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 34; */
-        if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 35; */
-        if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData badge_ptr = 36; */
-        if (message.badgePtr)
-            NodeReferenceData.internalBinaryWrite(message.badgePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData owned_ptr = 37; */
-        for (let i = 0; i < message.ownedPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.ownedPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData memberships_ptr = 38; */
-        for (let i = 0; i < message.membershipsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.membershipsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 39; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RequestSubjectData
- */
-export const RequestSubjectData = new RequestSubjectData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class RichTextData$Type extends MessageType<RichTextData> {
     constructor() {
         super("symbolx.bench.RichTextData", [
@@ -7620,6 +7518,119 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
  */
 export const SpaceDockItemData = new SpaceDockItemData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class SubjectData$Type extends MessageType<SubjectData> {
+    constructor() {
+        super("symbolx.bench.SubjectData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 31, name: "is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "badge_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 38, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 39, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<SubjectData>): SubjectData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.ownedPtr = [];
+        message.membershipsPtr = [];
+        message.rolesPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<SubjectData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubjectData): SubjectData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional bool is_authenticated */ 30:
+                    message.isAuthenticated = reader.bool();
+                    break;
+                case /* optional bool is_staff */ 31:
+                    message.isStaff = reader.bool();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 32:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 34:
+                    message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 35:
+                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData badge_ptr */ 36:
+                    message.badgePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.badgePtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData owned_ptr */ 37:
+                    message.ownedPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData memberships_ptr */ 38:
+                    message.membershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 39:
+                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SubjectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional bool is_authenticated = 30; */
+        if (message.isAuthenticated !== undefined)
+            writer.tag(30, WireType.Varint).bool(message.isAuthenticated);
+        /* optional bool is_staff = 31; */
+        if (message.isStaff !== undefined)
+            writer.tag(31, WireType.Varint).bool(message.isStaff);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 32; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 34; */
+        if (message.userPtr)
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 35; */
+        if (message.identityPtr)
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData badge_ptr = 36; */
+        if (message.badgePtr)
+            NodeReferenceData.internalBinaryWrite(message.badgePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData owned_ptr = 37; */
+        for (let i = 0; i < message.ownedPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.ownedPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData memberships_ptr = 38; */
+        for (let i = 0; i < message.membershipsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.membershipsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 39; */
+        for (let i = 0; i < message.rolesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SubjectData
+ */
+export const SubjectData = new SubjectData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TypeInfoData$Type extends MessageType<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
@@ -8269,7 +8280,6 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
-            { no: 31, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 32, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 33, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 34, name: "builtin_base", kind: "message", T: () => TypeInfoData },
@@ -8292,7 +8302,6 @@ class BlockData$Type extends MessageType<BlockData> {
         message.ck = "";
         message.revision = "0";
         message.type = 0;
-        message.visibility = 0;
         message.policies = [];
         message.basesPtr = [];
         message.isPage = false;
@@ -8344,9 +8353,6 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* symbolx.bench.BlockType type */ 30:
                     message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeVisibility visibility */ 31:
-                    message.visibility = reader.int32();
                     break;
                 case /* repeated symbolx.bench.PolicyData policies */ 32:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
@@ -8438,9 +8444,6 @@ class BlockData$Type extends MessageType<BlockData> {
         /* symbolx.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeVisibility visibility = 31; */
-        if (message.visibility !== 0)
-            writer.tag(31, WireType.Varint).int32(message.visibility);
         /* repeated symbolx.bench.PolicyData policies = 32; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();

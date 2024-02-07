@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.06.5"
+VERSION = "2024.02.07.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -29,10 +29,10 @@ EMPTY_DICT: typing.Mapping = frozendict()
 class NodeType(IdEnum):
     # root
     BENCH = 1
+    # source containers
     # UNIVERSE = 2
     # PLACE = 3
     # BRANCH = 4
-
     # source
     PACKAGE = 20
     BLOCK = 21
@@ -99,7 +99,7 @@ SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.MEMBERSHIP)
 )
-ABOVE_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if nt.id >= 200) + (NodeType.BENCH,)
 )
 
@@ -122,7 +122,7 @@ class StructType(IdEnum):
 
     POLICY = 530
     POLICY_RULE = 531
-    REQUEST_SUBJECT = 532
+    SUBJECT = 532
     ACCESS_ZONE = 534
     ACCESS_MATRIX = 535
     REQUEST = 536
@@ -177,7 +177,7 @@ class BlockType(IdEnum):
     PAGE = 1  # group of blocks
     BLANK = 2  # placeholder/spacer
     TEXT = 3  # define a 'paragraph' of text/comment/instruction/etc.
-    ALIAS = 4  # refer to / extend an existing block or builtin (like a 'newtype')
+    ALIAS = 4  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields
@@ -239,9 +239,11 @@ class NodeSource(IdEnum):
 
 class NodeVisibility(IdEnum):
     # ...?
-    INTERNAL = 4
-    # ...?
-    PUBLIC = 7
+    # BLOCK = 2
+    PAGE = 4
+    # MODULE = 6
+    BENCH = 8
+    ALL = 10
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8

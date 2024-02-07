@@ -76,9 +76,12 @@ message CreateBenchResponse {
 }
 
 message ReadNodesRequest {
-  repeated NodeReferenceData roots = 1;
-  optional ReadOptionsData options = 2;
-  optional string package_id = 3;
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 2;
+  // request
+  repeated NodeReferenceData roots = 5;
+  optional ReadOptionsData options = 6;
 }
 message ReadNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -86,15 +89,18 @@ message ReadNodesResponse {
 }
 
 message SearchNodesRequest {
-  NodeType node_type = 1;
-  repeated NodeReferenceData bases = 2;
-  optional ExpressionData filter = 3;
-  repeated ExpressionData sort = 4;
-  optional int32 limit = 5;
-  optional string after = 6;
-  optional ReadOptionsData options = 7;
-  optional bool count = 8;
-  optional string package_id = 9;
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 2;
+  // request
+  NodeType node_type = 5;
+  repeated NodeReferenceData bases = 6;
+  optional ExpressionData filter = 7;
+  repeated ExpressionData sort = 8;
+  optional int32 limit = 9;
+  optional string after = 10;
+  optional ReadOptionsData options = 11;
+  optional bool count = 12;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -106,19 +112,26 @@ message SearchNodesResponse {
 }
 
 message AggregateNodesRequest {
-  NodeType node_type = 1;
-  repeated NodeReferenceData bases = 2;
-  optional ExpressionData filter = 3;
-  repeated ExpressionData sort = 4;
-  ExpressionData aggregation = 5;
-  optional string package_id = 6;
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 2;
+  // request
+  NodeType node_type = 5;
+  repeated NodeReferenceData bases = 6;
+  optional ExpressionData filter = 7;
+  repeated ExpressionData sort = 8;
+  ExpressionData aggregation = 9;
+  optional ExpressionData global_filter = 10;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
 }
 
 message CommitEditsRequest {
-  repeated EditData edits = 1;
+  // scope
+  optional string bench_id = 1;
+  // request
+  repeated EditData edits = 5;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;
@@ -131,7 +144,11 @@ message PushEditsResponse {
 }
 
 message WatchEditsRequest {
-  repeated NodeType node_types = 1;
+  // scope
+  optional string bench_id = 1;
+  repeated string package_ids = 2;
+  // request
+  repeated NodeType node_types = 5;
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
@@ -154,7 +171,7 @@ message PingServerResponse {
 // Global control plane: all the global stuff like Benches, Users, etc..
 // Will probably shard this  at some point.
 // Frontend connects to this directly.
-service GlobalSupervisor {
+service Supervisor {
   //
   // User management
   //
@@ -189,7 +206,6 @@ service GlobalSupervisor {
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-
 }
 
 //
@@ -222,7 +238,6 @@ message SnapshotPackageRequest {
 message SnapshotPackageResponse {
   string snapshot_project_version_id = 1;
 }
-
 
 message UploadFilesRequest {
   repeated FileData files = 1;

@@ -47,6 +47,8 @@ class User(ScopeNode):
         42, default=None, defer=True, encrypt=True, sensitive=True
     )
     last_logged_in_at: Optional[datetime] = p_system(43, default=None)
+    # last_active_at: Optional[datetime] = ...
+    # last_seen_at: Optional[datetime] = ...
 
     # flags
     is_staff: bool = p_system(60, default=False)

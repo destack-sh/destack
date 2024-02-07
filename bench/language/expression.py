@@ -24,6 +24,7 @@ from bench.language.node import (
     p_regular,
     BENCH_CLASS_BY_TYPE,
 )
+from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
@@ -97,6 +98,25 @@ class NodeReference(Struct):
         else:
             assert node.id is not None, f"cannot reference node without id: {node!r}"
             return NodeReference(type=node.metatype, id=node.id)
+
+    @staticmethod
+    def from_node_data(node_data: Optional[AnyNodeData]) -> Optional["NodeReferenceData"]:
+        if node_data is None:
+            return None
+        node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
+        if "ck" in node_cls.__properties__:
+            if node_data.metatype == NodeType.RECORD:
+                return NodeReferenceData(
+                    type=node_data.metatype,
+                    id=node_data.id,
+                    ck=node_data.ck,
+                    base_ck=node_data.parent_ptr.ck,
+                )
+            else:
+                return NodeReferenceData(type=node_data.metatype, id=node_data.id, ck=node_data.ck)
+        else:
+            assert node_data.id is not None, f"cannot reference node without id: {node_data!r}"
+            return NodeReferenceData(type=node_data.metatype, id=node_data.id)
 
 
 @struct(StructType.PROPERTY_REFERENCE)
@@ -356,10 +376,11 @@ class Aggregation(Struct):
     """The result of an aggregation expression."""
 
     op: AggregationOp = p_regular(30, require=True)
-    exists: Optional[bool] = p_regular(31, default=False)
-    scalar: Optional[float] = p_regular(32, default=None)
+    exists: Optional[bool] = p_regular(31, default=None)
+    count: Optional[int] = p_regular(32, default=None)
+    scalar: Optional[float] = p_regular(33, default=None)
     buckets: list["AggregationBucket"] | None = p_regular(
-        33, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
+        34, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
     )
 
 

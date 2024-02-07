@@ -135,13 +135,14 @@ class Block(ScopeNode, HasTags):
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
     type: BlockType = p_internal(30, default=BlockType.BLANK)
-    visibility: NodeVisibility = p_regular(31, default=NodeVisibility.PUBLIC)
+    # visibility: NodeVisibility = p_regular(31, default=NodeVisibility.PACKAGE)
     policies: list["Policy"] | None = p_regular(32, default=None, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(
         33, default=None, require=False, array=True, references=NodeType.BLOCK
     )
     builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
     is_page: bool = p_regular(35, default=False)
+    # is_module: bool = ...?
 
     # shared
     name: str | None = p_regular(40, default=None, validate=validate_name)

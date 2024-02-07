@@ -109,7 +109,7 @@ enum BenchType {
   BENCH_TYPE_ICON = 521;
   BENCH_TYPE_POLICY = 530;
   BENCH_TYPE_POLICY_RULE = 531;
-  BENCH_TYPE_REQUEST_SUBJECT = 532;
+  BENCH_TYPE_SUBJECT = 532;
   BENCH_TYPE_ACCESS_ZONE = 534;
   BENCH_TYPE_ACCESS_MATRIX = 535;
   BENCH_TYPE_REQUEST = 536;
@@ -348,8 +348,9 @@ enum NodeType {
 
 enum NodeVisibility {
   NODE_VISIBILITY_UNSPECIFIED = 0;
-  NODE_VISIBILITY_INTERNAL = 4;
-  NODE_VISIBILITY_PUBLIC = 7;
+  NODE_VISIBILITY_PAGE = 4;
+  NODE_VISIBILITY_BENCH = 8;
+  NODE_VISIBILITY_ALL = 10;
 }
 
 // Type of diagnostic in increasing severity.
@@ -504,7 +505,7 @@ enum StructType {
   STRUCT_TYPE_ICON = 521;
   STRUCT_TYPE_POLICY = 530;
   STRUCT_TYPE_POLICY_RULE = 531;
-  STRUCT_TYPE_REQUEST_SUBJECT = 532;
+  STRUCT_TYPE_SUBJECT = 532;
   STRUCT_TYPE_ACCESS_ZONE = 534;
   STRUCT_TYPE_ACCESS_MATRIX = 535;
   STRUCT_TYPE_REQUEST = 536;
@@ -555,8 +556,8 @@ enum ViewType {
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
 message AccessMatrixData {
   BenchType metatype = 1;
-  RequestSubjectData subject = 30;
-  repeated RequestSubjectData identities = 32;
+  SubjectData subject = 30;
+  repeated SubjectData identities = 32;
   repeated AccessZoneData scope_zones = 33;
   repeated AccessZoneData base_zones = 34;
 }
@@ -576,7 +577,7 @@ message AccessZoneData {
 //     TODO @Feature @Security: store, query and watch action log
 message ActionData {
   BenchType metatype = 1;
-  RequestSubjectData subject = 30;
+  SubjectData subject = 30;
   PolicyEffect decision = 31;
   repeated RequestData requests = 32;
 }
@@ -586,8 +587,9 @@ message AggregationData {
   BenchType metatype = 1;
   AggregationOp op = 30;
   optional bool exists = 31;
-  optional float scalar = 32;
-  repeated AggregationBucketData buckets = 33;
+  optional int32 count = 32;
+  optional float scalar = 33;
+  repeated AggregationBucketData buckets = 34;
 }
 
 // One bucket of an aggregation histogram.
@@ -796,21 +798,6 @@ message RequestData {
   repeated PropertyReferenceData object_properties_ptr = 34;
 }
 
-// The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
-//     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
-message RequestSubjectData {
-  BenchType metatype = 1;
-  optional bool is_authenticated = 30;
-  optional bool is_staff = 31;
-  optional NodeReferenceData client_ptr = 32;
-  optional NodeReferenceData user_ptr = 34;
-  optional NodeReferenceData identity_ptr = 35;
-  optional NodeReferenceData badge_ptr = 36;
-  repeated NodeReferenceData owned_ptr = 37;
-  repeated NodeReferenceData memberships_ptr = 38;
-  repeated NodeReferenceData roles_ptr = 39;
-}
-
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
 message RichTextData {
   BenchType metatype = 1;
@@ -893,6 +880,21 @@ message SpaceDockData {
 message SpaceDockItemData {
   BenchType metatype = 1;
   bool hidden = 31;
+}
+
+// The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
+//     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
+message SubjectData {
+  BenchType metatype = 1;
+  optional bool is_authenticated = 30;
+  optional bool is_staff = 31;
+  optional NodeReferenceData client_ptr = 32;
+  optional NodeReferenceData user_ptr = 34;
+  optional NodeReferenceData identity_ptr = 35;
+  optional NodeReferenceData badge_ptr = 36;
+  repeated NodeReferenceData owned_ptr = 37;
+  repeated NodeReferenceData memberships_ptr = 38;
+  repeated NodeReferenceData roles_ptr = 39;
 }
 
 // A type is a kind of value that can go somewhere, typically a field.
@@ -1013,7 +1015,6 @@ message BlockData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   BlockType type = 30;
-  NodeVisibility visibility = 31;
   repeated PolicyData policies = 32;
   repeated NodeReferenceData bases_ptr = 33;
   optional TypeInfoData builtin_base = 34;

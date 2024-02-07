@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from bench.language.node import NODE_CLASSES, Bench
-from bench.server.utils import detached_session
+from bench.system.utils import detached_session
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
 
 if TYPE_CHECKING:

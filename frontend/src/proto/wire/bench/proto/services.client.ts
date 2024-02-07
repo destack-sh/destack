@@ -37,7 +37,7 @@ import type { PushEditsResponse } from "./services";
 import type { PushEditsRequest } from "./services";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
-import { GlobalSupervisor } from "./services";
+import { Supervisor } from "./services";
 import type { WatchEditsResponse } from "./services";
 import type { WatchEditsRequest } from "./services";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
@@ -71,9 +71,9 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * User management
  *
  *
- * @generated from protobuf service symbolx.bench.GlobalSupervisor
+ * @generated from protobuf service symbolx.bench.Supervisor
  */
-export interface IGlobalSupervisorClient {
+export interface ISupervisorClient {
     /**
      * Create user account.
      *
@@ -152,12 +152,12 @@ export interface IGlobalSupervisorClient {
  * User management
  *
  *
- * @generated from protobuf service symbolx.bench.GlobalSupervisor
+ * @generated from protobuf service symbolx.bench.Supervisor
  */
-export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceInfo {
-    typeName = GlobalSupervisor.typeName;
-    methods = GlobalSupervisor.methods;
-    options = GlobalSupervisor.options;
+export class SupervisorClient implements ISupervisorClient, ServiceInfo {
+    typeName = Supervisor.typeName;
+    methods = Supervisor.methods;
+    options = Supervisor.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
