@@ -12,9 +12,9 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Expression, NodeReference, Organization, User
-from bench.language.access import ReadOptions, adapt_read_options
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Package
+from bench.language.access import ReadOptions, adapt_read_options, Subject
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, SUB_BENCH_NODE_TYPES
+from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -53,7 +53,7 @@ from bench.proto.wire import (
     WatchLogsRequest,
     WatchLogsResponse,
 )
-from bench.server.utils import detached_session, get_s3_client, validate_bench_data_many
+from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
@@ -184,17 +184,25 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     # General Bench IO for this package :BenchIO
     #
 
-    async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, subject: Subject, request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
+        if any(root.node_type not in SUB_BENCH_NODE_TYPES for root in roots):
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options, self._package)
             or ReadOptions.default()
         )
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
+    async def search_nodes(
+        self, subject: Subject, request: "SearchNodesRequest"
+    ) -> "SearchNodesResponse":
         node_type = wiring.unpack_enum(NodeType, request.node_type)
-        adapted_options = adapt_read_options(self.subject, ReadOptions.default())
+        if node_type not in SUB_BENCH_NODE_TYPES:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
+        adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort
@@ -208,9 +216,12 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             # we don't support generic server-side 'node search' yet
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot search {request.node_type}")
 
-    async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
+    async def aggregate_nodes(
+        self, subject: Subject, request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
         node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        if node_type not in SUB_BENCH_NODE_TYPES:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort
@@ -225,11 +236,13 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             # we don't support generic server-side 'node search' yet
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot aggregate {request.node_type}")
 
-    async def commit_edits(self, request: "CommitEditsRequest") -> "CommitEditsResponse":
+    async def commit_edits(
+        self, subject: Subject, request: "CommitEditsRequest"
+    ) -> "CommitEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
-        self, request: "WatchEditsRequest"
+        self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
@@ -237,20 +250,28 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     # Package-specific stuff
     #
 
-    async def push_edits(self, request: "PushEditsRequest") -> "PushEditsResponse":
+    async def push_edits(
+        self, subject: Subject, request: "PushEditsRequest"
+    ) -> "PushEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def paste_nodes(self, request: "PasteNodesRequest") -> "PasteNodesResponse":
+    async def paste_nodes(
+        self, subject: Subject, request: "PasteNodesRequest"
+    ) -> "PasteNodesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def snapshot(self, request: "SnapshotPackageRequest") -> "SnapshotPackageResponse":
+    async def snapshot(
+        self, subject: Subject, request: "SnapshotPackageRequest"
+    ) -> "SnapshotPackageResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Files
     #
 
-    async def upload_files(self, request: "UploadFilesRequest") -> "UploadFilesResponse":
+    async def upload_files(
+        self, subject: Subject, request: "UploadFilesRequest"
+    ) -> "UploadFilesResponse":
         validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
@@ -270,7 +291,9 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
         return UploadFilesResponse(post_urls=presigned_urls, expires_at=expires_at)
 
-    async def download_files(self, request: "DownloadFilesRequest") -> "DownloadFilesResponse":
+    async def download_files(
+        self, subject: Subject, request: "DownloadFilesRequest"
+    ) -> "DownloadFilesResponse":
         validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
@@ -291,24 +314,32 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     # Logs
     #
 
-    async def search_logs(self, request: "SearchLogsRequest") -> "SearchLogsResponse":
+    async def search_logs(
+        self, subject: Subject, request: "SearchLogsRequest"
+    ) -> "SearchLogsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def watch_logs(self, request: "WatchLogsRequest") -> AsyncIterator["WatchLogsResponse"]:
+    async def watch_logs(
+        self, subject: Subject, request: "WatchLogsRequest"
+    ) -> AsyncIterator["WatchLogsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def push_server_logs(self, request: "PushServerLogsRequest") -> "PushServerLogsRequest":
+    async def push_server_logs(
+        self, subject: Subject, request: "PushServerLogsRequest"
+    ) -> "PushServerLogsRequest":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Runs
     #
 
-    async def start_run(self, request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(self, subject: Subject, request: "StartRunRequest") -> "StartRunResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def kill_run(self, request: "KillRunRequest") -> "KillRunResponse":
+    async def kill_run(self, subject: Subject, request: "KillRunRequest") -> "KillRunResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def run_proxy_block(self, request: "RunProxyBlockRequest") -> "RunProxyBlockResponse":
+    async def run_proxy_block(
+        self, subject: Subject, request: "RunProxyBlockRequest"
+    ) -> "RunProxyBlockResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

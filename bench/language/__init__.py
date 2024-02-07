@@ -10,6 +10,7 @@ from .access import (
     ReadOptions,
     Request,
     Role,
+    Subject,
 )
 from .block import Block
 from .const import (
@@ -113,6 +114,7 @@ __all__ = [
     "Record",
     "render",
     "Request",
+    "Subject",
     "RichText",
     "RichTextSpan",
     "Role",

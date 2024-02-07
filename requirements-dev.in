@@ -16,3 +16,4 @@ pyright==1.1.344
 ruff==0.0.284
 types-Pygments==2.13.1.1
 watchdog==3.0.0
+py-spy==0.3.14

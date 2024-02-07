@@ -10,11 +10,11 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, ReadOptions, User
-from bench.language.const import NodeType, ABOVE_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES, EDIT_TYPES
+from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, PUBLIC_NODE_TYPES, EDIT_TYPES
 from bench.language.expression import A
 from bench.proto import wire, wiring
 from bench.proto.wire import (
-    GlobalSupervisorStub,
+    SupervisorStub,
     LoginUserRequest,
     LogoutUserRequest,
     ReadNodesRequest,
@@ -25,8 +25,9 @@ from bench.proto.wire import (
     CommitEditsRequest,
     SearchNodesRequest,
     AggregationOp,
+    AggregateNodesRequest,
 )
-from bench.server.supervisor import GlobalSupervisor
+from bench.system.supervisor import Supervisor
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -34,12 +35,12 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="module")
-async def supervisor(event_loop) -> GlobalSupervisorStub:
-    service = GlobalSupervisor()
+async def supervisor(event_loop) -> SupervisorStub:
+    service = Supervisor()
     await service.start_quick()
     try:
         async with ChannelFor([service]) as channel:
-            stub = GlobalSupervisorStub(channel)
+            stub = SupervisorStub(channel)
             yield stub
     finally:
         service.close()
@@ -53,7 +54,7 @@ def raises_grpc_error(status: grpclib.const.Status):
     assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
 
 
-async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
+async def test_user_auth_flow(supervisor: SupervisorStub):
     """Create a User, login and logout. Read back user data at various points."""
 
     user = User(slug="test", name="Test", email="test@symbolx.com")
@@ -122,7 +123,7 @@ async def test_user_auth_flow(supervisor: GlobalSupervisorStub):
         _ = await supervisor.read_nodes(read_user_req, metadata=access_metadata.to_headers())
 
 
-async def test_cross_user_protection(supervisor: GlobalSupervisorStub):
+async def test_cross_user_protection(supervisor: SupervisorStub):
     """Users can only make some actions on their own behalf."""
 
     user_a = User(slug="alice", name="Alice", email="alice@bench.app")
@@ -197,7 +198,7 @@ class UserHandle:
     metadata: RpcMetadata
 
 
-async def make_user_handle(supervisor: GlobalSupervisorStub, user: User) -> UserHandle:
+async def make_user_handle(supervisor: SupervisorStub, user: User) -> UserHandle:
     client = Client(
         parent=user, name=user.name + "'s iPad", device_name="pytest", last_seen_at=utcnow_with_tz()
     )
@@ -211,9 +212,7 @@ async def make_user_handle(supervisor: GlobalSupervisorStub, user: User) -> User
     )
     signup_rep = await supervisor.signup_user(signup_req)
     origin = ClientOrigin(
-        client_id=str(client.id),
-        client_kind=wire.ClientKind.USER,
-        client_access_token=signup_rep.access_token,
+        id=str(client.id), kind=wire.ClientKind.USER, nonce=str(random.randint(0, 2**32))
     )
     metadata = RpcMetadata(
         client_id=str(client.id),
@@ -223,7 +222,7 @@ async def make_user_handle(supervisor: GlobalSupervisorStub, user: User) -> User
     return UserHandle(user=user, client=client, origin=origin, metadata=metadata)
 
 
-async def make_random_user_handle(supervisor: GlobalSupervisorStub) -> UserHandle:
+async def make_random_user_handle(supervisor: SupervisorStub) -> UserHandle:
     random_slug = "".join(random.choices(string.ascii_letters, k=10))
     random_email = f"{random_slug}@whatever.com"
     user = User(slug=random_slug, name=random_slug, email=random_email)
@@ -231,45 +230,52 @@ async def make_random_user_handle(supervisor: GlobalSupervisorStub) -> UserHandl
 
 
 @pytest.fixture(scope="module")
-async def some_user(supervisor: GlobalSupervisorStub) -> UserHandle:
+async def some_user(supervisor: SupervisorStub) -> UserHandle:
     return await make_random_user_handle(supervisor)
 
 
 @pytest.mark.parametrize("node_type", PUBLIC_NODE_TYPES, ids=lambda t: t.name)
 async def test_public_node_read(
-    node_type: NodeType, some_user: UserHandle, supervisor: GlobalSupervisorStub
+    node_type: NodeType, some_user: UserHandle, supervisor: SupervisorStub
 ):
     """Public nodes should be readable, but not directly editable in any way."""
 
+    packed_node_type = wiring.pack_enum(NodeType, node_type)
+
     # search (and count)
-    search_req = SearchNodesRequest(node_type=node_type, count=True)
-    _ = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
+    search_req = SearchNodesRequest(node_type=packed_node_type, count=True)
+    search_rep = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
     # can we assert anything here?
 
+    # search with filter (and count)
+    search_req = SearchNodesRequest(node_type=packed_node_type)
+    search_rep = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
+    # ...?
+
     # aggregate: exists
-    aggregate_req = ReadNodesRequest(node_type=node_type, aggregation=A(op=AggregationOp.EXISTS))
-    aggregate_rep = await supervisor.read_nodes(
+    aggregate_req = AggregateNodesRequest(
+        node_type=packed_node_type, aggregation=A(op=AggregationOp.EXISTS)._to_data()
+    )
+    aggregate_rep = await supervisor.aggregate_nodes(
         aggregate_req, metadata=some_user.metadata.to_headers()
     )
     assert isinstance(aggregate_rep.aggregation.exists, bool)
 
     # aggregate: count
-    aggregate_req = ReadNodesRequest(node_type=node_type, aggregation=A(op=AggregationOp.COUNT))
-    aggregate_rep = await supervisor.read_nodes(
+    aggregate_req = AggregateNodesRequest(
+        node_type=packed_node_type, aggregation=A(op=AggregationOp.COUNT)._to_data()
+    )
+    aggregate_rep = await supervisor.aggregate_nodes(
         aggregate_req, metadata=some_user.metadata.to_headers()
     )
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-@pytest.mark.parametrize(
-    "node_type",
-    (nt for nt in ABOVE_PACKAGE_NODE_TYPES if nt not in PUBLIC_NODE_TYPES),
-    ids=lambda t: t.name,
-)
+@pytest.mark.parametrize("node_type", (nt for nt in ABOVE_SOURCE_NODE_TYPES), ids=lambda t: t.name)
 async def test_global_node_edit(
     node_type: NodeType,
     some_user: UserHandle,
-    supervisor: GlobalSupervisorStub,
+    supervisor: SupervisorStub,
     fabricator: "Fabricator",
 ):
     """'Global' nodes should not be directly editable by regular users."""

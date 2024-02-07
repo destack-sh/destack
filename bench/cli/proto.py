@@ -1,3 +1,4 @@
+import re
 import shutil
 import time
 from pathlib import Path
@@ -67,16 +68,28 @@ def _regen_proto_artifacts(schema_str: str) -> None:
 
         # add/patch our extra stuff
         betterproto_code = Path(TARGET_PY_FILE).read_text()
+        # rename all request parameters to 'request', add subject parameter
+        betterproto_code = re.sub(
+            r"self, [a-z_]+_request", 'self, subject: "RequestSubject", request', betterproto_code
+        )
+        patch_prefix_code = f"""
+from typing import TYPE_CHECKING
+
+VERSION = '{VERSION}'
+
+if TYPE_CHECKING:
+    from bench.language import RequestSubject
+"""
         patch_postfix_code = f"""
 import bench.proto.monkey # noqa
 
 from typing import Union # noqa
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
-
-VERSION = '{VERSION}'
         """
-        Path(TARGET_PY_FILE).write_text(betterproto_code + "\n\n" + patch_postfix_code)
+        Path(TARGET_PY_FILE).write_text(
+            patch_prefix_code + "\n\n" + betterproto_code + "\n\n" + patch_postfix_code
+        )
 
         # and fix it up
         shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)

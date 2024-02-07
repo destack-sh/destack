@@ -798,28 +798,19 @@ class NodeQuery(Generic[NodeT]):
     def include(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
         copy._options = self._copy_options()
-        if copy._options.include_properties is None:
-            copy._options.include_properties = list(properties)
-        else:
-            copy._options.include_properties.extend(*properties)
+        copy._options.include_properties.extend(properties)
         return copy
 
     def exclude(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
         copy._options = self._copy_options()
-        if copy._options.exclude_properties is None:
-            copy._options.exclude_properties = list(properties)
-        else:
-            copy._options.exclude_properties.extend(*properties)
+        copy._options.exclude_properties.extend(*properties)
         return copy
 
     def related(self, *properties: FieldOrProperty) -> "NodeQuery":
         copy = self.copy()
         copy._options = self._copy_options()
-        if copy._options.related_properties is None:
-            copy._options.related_properties = list(properties)
-        else:
-            copy._options.related_properties.extend(*properties)
+        copy._options.related_properties.extend(*properties)
         return copy
 
     def ancestors(self, *node_types: NodeType) -> "NodeQuery":

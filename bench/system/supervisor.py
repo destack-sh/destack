@@ -1,7 +1,6 @@
 from typing import AsyncIterator
 
 import betterproto
-import grpclib
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -12,8 +11,10 @@ from bench.language.access import (
     adapt_read_options,
     evaluate_and_adapt_read,
     generate_access_matrix,
+    Subject,
 )
-from bench.language.const import NodeType
+from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp
+from bench.language.expression import Aggregation
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
@@ -25,8 +26,8 @@ from bench.proto.wire import (
     CommitEditsResponse,
     CreateBenchRequest,
     CreateBenchResponse,
-    GlobalSupervisorBase,
-    GlobalSupervisorStub,
+    SupervisorBase,
+    SupervisorStub,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
@@ -45,10 +46,16 @@ from bench.proto.wire import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
 )
-from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
-from bench.server.utils import detached_session, validate_bench_data_many
+from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
+from bench.system.utils import detached_session
 from bench.sql.client import async_pg_cursor
-from bench.sql.engine import pg_count, pg_read_node_data_tree, pg_search_nodes_data_tree
+from bench.sql.engine import (
+    pg_count,
+    pg_read_node_data_tree,
+    pg_search_nodes_data_tree,
+    compile_pg_conditional,
+    pg_exists,
+)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import group_by, to_uuid
 
@@ -58,9 +65,9 @@ SERVER_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 SERVER_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorBase):
+class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     def __init__(self):
-        super().__init__(loopback_stub_to=GlobalSupervisorStub)
+        super().__init__(loopback_stub_to=SupervisorStub)
 
     def __str__(self):
         return "shards=*"
@@ -81,11 +88,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
     # Users
     #
 
-    async def signup_user(self, request: "SignupUserRequest") -> "SignupUserResponse":
-        if self.subject.is_authenticated:
+    async def signup_user(
+        self, subject: Subject, request: "SignupUserRequest"
+    ) -> "SignupUserResponse":
+        if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        validate_bench_data_many(request.client)
         async with detached_session() as session:
             user = User(
                 id=to_uuid(request.id),
@@ -93,7 +101,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 name=request.name,
                 email=request.email,
                 is_activated=True,
-                _is_new=True,  # despite already having an id
+                _is_new=True,  # create, despite already having an id in init
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
@@ -105,12 +113,12 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         return SignupUserResponse(user=user._to_data(), access_token=client.access_token)
 
     async def change_user_password(
-        self, request: "ChangeUserPasswordRequest"
+        self, subject: Subject, request: "ChangeUserPasswordRequest"
     ) -> "ChangeUserPasswordResponse":
-        if not self.subject.is_authenticated:
+        if not subject.is_authenticated:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         async with detached_session() as session:
-            user = self.subject.user
+            user = subject.user
             if not await check_password(
                 request.old_password, user.password_salt, user.password_hash
             ):
@@ -123,8 +131,10 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             await session.commit()
         return ChangeUserPasswordResponse(user=user._to_data())
 
-    async def login_user(self, request: "LoginUserRequest") -> "LoginUserResponse":
-        if self.subject.is_authenticated:
+    async def login_user(
+        self, subject: Subject, request: "LoginUserRequest"
+    ) -> "LoginUserResponse":
+        if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
         async with detached_session() as session:
@@ -146,20 +156,22 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             user=user._to_data(), client=client._to_data(), access_token=client.access_token
         )
 
-    async def logout_user(self, request: "LogoutUserRequest") -> "LogoutUserResponse":
-        if self.subject.client is None:
+    async def logout_user(
+        self, subject: Subject, request: "LogoutUserRequest"
+    ) -> "LogoutUserResponse":
+        if subject.client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         async with detached_session() as session:
             # log out the current or the specified clients
             if request.client_ids:
                 clients = await Client.filter(
-                    parent=self.subject.user, id__in=request.client_ids
+                    parent=subject.user, id__in=request.client_ids
                 ).tolist()
             elif request.logout_all:
-                clients = await Client.filter(parent=self.subject.user).tolist()
+                clients = await Client.filter(parent=subject.user).tolist()
             else:
-                clients = (self.subject.client,)
-                session.track(self.subject.client)
+                clients = (subject.client,)
+                session.track(subject.client)
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None
@@ -171,24 +183,30 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
     # Bench management
     #
 
-    async def create_bench(self, request: "CreateBenchRequest") -> "CreateBenchResponse":
-        user: User | None = self.subject.user
+    async def create_bench(
+        self, subject: Subject, request: "CreateBenchRequest"
+    ) -> "CreateBenchResponse":
+        user: User | None = subject.user
         if not user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         async with detached_session() as session:
             session.track(user)
             if user.bench:  # can't create secondary benches yet
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "bench already exists")
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # General Bench IO for > package & global nodes only :BenchIO
     #
 
-    async def read_nodes(self, request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, subject: Subject, request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
+        if any(root.type not in ABOVE_SOURCE_NODE_TYPES for root in roots):
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
@@ -197,7 +215,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
         tree = NodeDataTree()
         async with async_pg_cursor() as cur:
             for root_node_type, root_node_references in roots_by_type.items():
-                adapted_options = adapt_read_options(self.subject, root_node_type, options)
+                adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
                 _ = await pg_read_node_data_tree(
                     cur=cur,
@@ -211,25 +229,30 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             missing_roots = tuple(root for root in roots if str(root.id) not in tree)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
-        access = generate_access_matrix(self.subject, tree)
+        access = generate_access_matrix(subject, tree)
         action, adapted_nodes = evaluate_and_adapt_read(
             access, tree, required_nodes=request.roots, adapt_nodes_in_place=True
         )
 
-        return ReadNodesResponse(nodes=[wiring.wrap_some_node(n) for n in adapted_nodes])
+        return ReadNodesResponse(
+            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes], access=access._to_data()
+        )
 
-    async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
+    async def search_nodes(
+        self, subject: Subject, request: "SearchNodesRequest"
+    ) -> "SearchNodesResponse":
         if request.bases:
-            raise grpclib.GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
-
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
+        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+        if node_type not in ABOVE_SOURCE_NODE_TYPES:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_read_options(self.subject, options)
+        adapted_options = adapt_read_options(subject, node_type, options)
 
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.filter(node_type, filter)
@@ -243,48 +266,82 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
                 options=adapted_options,
             )
             if request.count:
-                count = await pg_count(cur, node_cls.__table__, combined_filter)
+                count = await pg_count(
+                    cur=cur,
+                    table=node_cls.__table__,
+                    where=compile_pg_conditional(node_cls, combined_filter),
+                )
             else:
                 count = None
-        access = generate_access_matrix(self.subject, tree)
+        access = generate_access_matrix(subject, tree)
         action, adapted_nodes = evaluate_and_adapt_read(
             access, tree, adapt_nodes_in_place=True, required_nodes=request.bases
         )
         await self.log_action(action)
 
         return SearchNodesResponse(
-            roots_ids=[r.id for r in roots.nodes],
+            roots=[NodeReference.from_node_data(r) for r in roots.nodes],
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
-            cursors=roots.cursors,
+            cursors=list(roots.cursors),
             start_cursor=roots.start_cursor,
             total=count,
+            access=access._to_data(),
         )
 
-    async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
+    async def aggregate_nodes(
+        self, subject: Subject, request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
         if request.bases:
-            raise grpclib.GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
-
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
+        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+        if node_type not in ABOVE_SOURCE_NODE_TYPES:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
-        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+        adapted_options = adapt_read_options(subject, node_type, ReadOptions())
 
-    async def commit_edits(self, request: "CommitEditsRequest") -> "CommitEditsResponse":
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+        async with async_pg_cursor() as cur:
+            combined_filter = adapted_options.filter(node_type, filter)
+            if aggregation.op == AggregationOp.EXISTS:
+                exists = await pg_exists(
+                    cur=cur,
+                    table=node_cls.__table__,
+                    where=compile_pg_conditional(node_cls, combined_filter),
+                )
+                result = Aggregation(op=aggregation.op, exists=exists)
+            elif aggregation.op == AggregationOp.COUNT:
+                count = await pg_count(
+                    cur=cur,
+                    table=node_cls.__table__,
+                    where=compile_pg_conditional(node_cls, combined_filter),
+                )
+                result = Aggregation(op=aggregation.op, count=count)
+            else:
+                raise GRPCError(GRPCStatus.UNIMPLEMENTED, f"can't {aggregation.op.name} yet")
+
+        return AggregateNodesResponse(aggregation=result._to_data())
+
+    async def commit_edits(
+        self, subject: Subject, request: "CommitEditsRequest"
+    ) -> "CommitEditsResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
-        self, request: "WatchEditsRequest"
+        self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Server stuff
     #
 
-    async def restart_server(self, request: "RestartServerRequest") -> "PingServerResponse":
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+    async def restart_server(
+        self, subject: Subject, request: "RestartServerRequest"
+    ) -> "PingServerResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def ping_server(self, request: "PingServerRequest") -> "PingServerResponse":
-        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+    async def ping_server(
+        self, subject: Subject, request: "PingServerRequest"
+    ) -> "PingServerResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

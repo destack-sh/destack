@@ -6,8 +6,8 @@ import typer
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.proto.services import BenchServer
-from bench.server.host import BenchHostMultiplexer
-from bench.server.supervisor import GlobalSupervisor
+from bench.system.host import BenchHostMultiplexer
+from bench.system.supervisor import Supervisor
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env, IS_DEBUG
 
@@ -17,10 +17,10 @@ logger = structlog.get_logger(__name__)
 
 @app.command()
 @_async_to_sync_blocking
-async def control(host: str, port: int, watch: bool = False):
+async def system(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
-    logger.info("serve.control", host=host, port=port)
-    services = [GlobalSupervisor(), BenchHostMultiplexer()]
+    logger.info("serve.system", host=host, port=port)
+    services = [Supervisor(), BenchHostMultiplexer()]
     server = BenchServer(services)
     if IS_DEBUG and watch:
         asyncio.create_task(restart_on_file_changes())
@@ -31,9 +31,9 @@ async def control(host: str, port: int, watch: bool = False):
 
 @app.command()
 @_async_to_sync_blocking
-async def user(host: str, port: int, watch: bool = False):
+async def runtime(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
-    logger.info("serve.user", host=host, port=port)
+    logger.info("serve.runtime", host=host, port=port)
     server = Server(
         server_id=get_from_env("SERVER_ID", default=None),
         bench_id=get_from_env("BENCH_ID", default=None),

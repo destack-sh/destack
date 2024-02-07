@@ -131,10 +131,10 @@ _RecordFetchResult = typing.NamedTuple(
 
 
 class RecordQuery:
-    # TODO @Cleanup: merge RecordQuery into NodeQuery
+    # TODO @Cleanup: merge RecordQuery into NodeQuery? SignalQuery? Query? ...
     def __init__(
         self,
-        database: "HasDatabase",
+        database: "Block",
         filter: Expression | None = None,
         sort: list[Expression] = None,
         first: int = None,
