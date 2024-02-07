@@ -7,7 +7,6 @@ import textwrap
 import types
 import typing
 from dataclasses import dataclass
-from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
 
@@ -15,10 +14,8 @@ import more_itertools
 import structlog
 from more_itertools import first, last
 
-from bench.language.builtin import symbolx_package
 from bench.language.field import TypedDict
 from bench.language.node import Node, ScopeNode, node_component, p_runtime
-from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
@@ -91,25 +88,13 @@ class HasCode(Node):
         self._callable_wrapped = None  # locals are bound to session
 
     @property
-    def _cache(self) -> bool:
-        return symbolx_package.resolve(".builtins.cache") in self.tags
-
-    @property
-    def _export(self) -> bool:
-        return symbolx_package.resolve(".builtins.export") in self.tags
-
-    @property
-    def _test(self) -> bool:
-        return symbolx_package.resolve(".builtins.test") in self.tags
-
-    @property
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 
     def _prep_locals(self) -> dict[str, Any]:
         """Gets the context ('locals') required for the code to run."""
 
-        dynamic_context = {
+        context = {
             "self": self,
             "package": self.package,
             "session": self.session,
@@ -117,7 +102,6 @@ class HasCode(Node):
             "random": Random(self.id.hex.encode()),
             "install": _install_package,
             **self._block_references,
-            **{s.py_ident: s for s in symbolx_package.files.builtins.blocks},
         }
 
         import bench.language
@@ -132,7 +116,7 @@ class HasCode(Node):
 
             imports["pytest"] = pytest
 
-        locals = {**imports, **STATIC_BUILTINS, **dynamic_context}
+        locals = {**imports, **STATIC_BUILTINS, **context}
         return locals
 
     def _prep_func_body(self) -> tuple[str, int, int]:
@@ -216,71 +200,6 @@ class HasCode(Node):
                 raise
 
         return _proxied_async  # is auto wrapped for sync because of _is_async
-
-    def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
-        """Wraps a callable with caching for #cache tag."""
-        from bench.language.value import check_type, pack_value, unpack_value
-        from bench.language.run import CachedRun, get_run_cache_subkey
-
-        def _get_cached_output(inputs: dict, cached_run: bytes) -> Optional[dict]:
-            try:
-                from .run import CachedRun
-
-                run = CachedRun.from_json_bytes(cached_run)
-                outputs = unpack_value(run.outputs_packed, self, ignore_outer=True, is_output=True)
-                check_type(outputs, self, is_output=True)
-                self.session._run_cached(
-                    block=self,
-                    inputs=inputs,
-                    outputs=outputs,
-                    generated_at=run.generated_at,
-                    generated_in=run.generated_in,
-                    duration=run.duration,
-                )
-                return TypedDict(outputs, self)
-            except (ValueError, KeyError, TypeError, JSONDecodeError) as e:
-                logger.exception("code.cache.error", e=e, excinfo=e)
-                # ignore, will be overwritten on success
-                return None
-
-        def _cached_sync(*args, **kwargs):
-            inputs = self._inputs_from_args(args, kwargs)
-            inputs_raw = pack_value(inputs, self, is_output=False)
-
-            cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
-            cached_run = self.cache.get(cache_subkey)
-            cached_output = _get_cached_output(inputs, cached_run) if cached_run else None
-            if cached_output is not None:
-                return cached_output
-            started_at = utcnow_with_tz()
-
-            result = callable(*args, **kwargs)
-            outputs_raw = pack_value(result, self, is_output=True)
-            run_id = self.session.current_run.id
-            run_bytes = CachedRun.bytes_from_run(run_id, inputs_raw, outputs_raw, started_at)
-            self.cache.set(cache_subkey, run_bytes)
-            return result
-
-        async def _cached_async(*args, **kwargs):
-            # yes this is annoyingly duplicated...
-            inputs = self._inputs_from_args(args, kwargs)
-            inputs_raw = pack_value(inputs, self, is_output=False)
-
-            cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
-            cached_run = await self.cache.get(cache_subkey)
-            cached_output = _get_cached_output(inputs, cached_run) if cached_run else None
-            if cached_output is not None:
-                return cached_output
-            started_at = utcnow_with_tz()
-
-            result = await callable(*args, **kwargs)
-            outputs_raw = pack_value(result, self, is_output=True)
-            run_id = self.session.current_run.id
-            run_bytes = CachedRun.bytes_from_run(run_id, inputs_raw, outputs_raw, started_at)
-            await self.cache.set(cache_subkey, run_bytes)
-            return result
-
-        return _cached_async if self._parse.is_async else _cached_sync
 
     def _wrap_exported(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         """'Exports' definitions of a callable for #export tag."""

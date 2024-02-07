@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.07.0"
+VERSION = "2024.02.07.4"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -30,8 +30,8 @@ class NodeType(IdEnum):
     # root
     BENCH = 1
     # source containers
-    # UNIVERSE = 2
-    # PLACE = 3
+    # PLACE = 2
+    # ENVIRONMENT = 3
     # BRANCH = 4
     # source
     PACKAGE = 20
@@ -399,12 +399,6 @@ KIND_BY_ACTION: dict[ActionType, ActionKind] = {
 #
 # Other stuff
 #
-
-
-class BenchStatus(IdEnum):
-    PREPARING = 1
-    MIGRATING = 2
-    AVAILABLE = 3
 
 
 class BadgeType(IdEnum):

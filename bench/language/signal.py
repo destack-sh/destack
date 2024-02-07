@@ -28,7 +28,7 @@ class Signal(HasValue):
     value_packed: Any | None = p_internal(
         31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
-    # sender_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
-    # sender_block: Optional["Block"] = struct_internal(
+    # sender_run: Optional["Run"] = p_system(32, require=False, array=False, references=NodeType.RUN)
+    # sender_block: Optional["Block"] = p_system(
     #     33, require=False, array=False, references=NodeType.BLOCK
     # )

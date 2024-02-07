@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 import sys
 import threading
 from collections import defaultdict, deque
@@ -11,10 +12,10 @@ from typing import (
     Any,
     Callable,
     Collection,
-    NamedTuple,
     Optional,
     Union,
     cast,
+    Iterable,
 )
 from uuid import UUID, uuid4
 
@@ -49,7 +50,6 @@ from bench.language.node import (
     struct,
 )
 from bench.language.run import Run, RunError
-from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
 from bench.proto.wire import BenchHostStub, CommitEditsRequest, EditData
 from bench.sql.client import get_pg_connection_pool
@@ -89,22 +89,28 @@ class LogEntry(Struct):
         return f"'{self.message}' ({self.created_at})"
 
 
-_Edit = NamedTuple(
-    "_Edit",
-    [
-        ("kind", EditType),
-        ("node", Node),
-        ("properties", bitarray | None),
-    ],
-)
-_CombinedEdits = NamedTuple(
-    "_Edits",
-    [
-        ("global_edits", list[EditData] | None),
-        ("session_edits", list[EditData] | None),
-        ("local_edits", list[EditData] | None),
-    ],
-)
+@dataclass(slots=True)
+class MiniEdit:
+    kind: EditType
+    node: Node
+    properties: bitarray | None
+
+
+@dataclass(slots=True)
+class ConsumedEdits:
+    global_edits: list[EditData] | tuple[EditData, ...]
+    local_edits: list[EditData] | tuple[EditData, ...]
+    session_edits: list[EditData] | tuple[EditData, ...]
+
+    def all(self) -> Iterable[EditData]:
+        return chain(self.global_edits, self.local_edits, self.session_edits)
+
+    def global_only(self) -> Iterable[EditData]:
+        return self.global_edits
+
+    def local_only(self) -> Iterable[EditData]:
+        return chain(self.local_edits, self.session_edits)
+
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 
@@ -141,9 +147,9 @@ class Session(ScopeNode):
 
     _created_nodes_ck: set[UUID] = p_runtime(default_factory=set)
     _updated_nodes_event_by_ck: dict[UUID, int] = p_runtime(default_factory=dict)
-    _local_edits: list[_Edit] = p_runtime(default_factory=list)
-    _global_edits: list[_Edit] = p_runtime(default_factory=list)
-    _changed_record_ids_by_db_id: dict[UUID, set[UUID]] = p_runtime(
+    _local_edits: list[MiniEdit] = p_runtime(default_factory=list)
+    _global_edits: list[MiniEdit] = p_runtime(default_factory=list)
+    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = p_runtime(
         default_factory=lambda: defaultdict(set)
     )
     _touched_databases_by_id: dict[UUID, "Block"] = p_runtime(default_factory=dict)
@@ -290,7 +296,7 @@ class Session(ScopeNode):
         return (
             len(self._local_edits) > 0
             or len(self._global_edits) > 0
-            or len(self._changed_record_ids_by_db_id) > 0
+            or len(self._changed_record_ids_by_base_id) > 0
         )
 
     @_auto_async_to_sync
@@ -340,7 +346,7 @@ class Session(ScopeNode):
         self._log.debug("session.write_logs.done", logs=len(logs))
 
     @_auto_async_to_sync
-    async def commit(self):
+    async def commit(self) -> ConsumedEdits:
         """Commits package edits and syncs committed local edits to OS."""
         from bench.os.engine import sync_pg_databases_to_os
         from bench.sql.engine import pg_write_record_edits, pg_write_regular_edits
@@ -391,20 +397,22 @@ class Session(ScopeNode):
             ) from e
 
         # sync to os & push edits to already applied local records
-        if self._changed_record_ids_by_db_id:
+        if self._changed_record_ids_by_base_id:
             # TODO @Robustness: repair index in case of local PG/OS sync failures
             # sync local edits to index
             log.debug("session.commit.index")
             changed_records: list[tuple["Block", set[UUID]]] = [
-                (self._touched_databases_by_id[db_id], record_ids)
-                for db_id, record_ids in self._changed_record_ids_by_db_id.items()
+                (self._touched_databases_by_id[block_id], record_ids)
+                for block_id, record_ids in self._changed_record_ids_by_base_id.items()
             ]
             await sync_pg_databases_to_os(self.package, self.local_pg_cursor, changed_records)
-            self._changed_record_ids_by_db_id.clear()
+            self._changed_record_ids_by_base_id.clear()
             self._touched_databases_by_id.clear()
 
             # publish local edits
             await self._host.notify_databases_changed(touched_databases_by_id.values())
+
+        return edits
 
     @_auto_async_to_sync
     async def rollback(self):
@@ -526,7 +534,7 @@ class Session(ScopeNode):
 
     def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
         self._touched_databases_by_id[database.id] = database
-        self._changed_record_ids_by_db_id[database.id].update(record_ids)
+        self._changed_record_ids_by_base_id[database.id].update(record_ids)
 
     def _edit(self, kind: EditType, n: Node, properties: list[Property] = None):
         """Register a non-session edit event to a node (local or global)."""
@@ -558,12 +566,12 @@ class Session(ScopeNode):
                 properties_mask[prop.id] = True
         else:
             properties_mask = None
-        edit = _Edit(kind=kind, node=n, properties=properties_mask)
+        edit = MiniEdit(kind=kind, node=n, properties=properties_mask)
         edits.append(edit)
 
         if n.metatype == NodeType.RECORD:
             n: "Record"
-            self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
+            self._changed_record_ids_by_base_id[edit.node.parent_id].add(edit.node.id)
             self._touched_databases_by_id[edit.node.parent_id] = n.parent
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
@@ -575,7 +583,7 @@ class Session(ScopeNode):
         session: bool = False,
         global_: bool = False,
         kill_pending_runs: bool = False,
-    ) -> _CombinedEdits:
+    ) -> ConsumedEdits:
         """
         Converts all edit into proper edits.
         Global edits = any package edits that aren't local.
@@ -653,7 +661,7 @@ class Session(ScopeNode):
             else:
                 session_edits = None
 
-        return _CombinedEdits(
+        return ConsumedEdits(
             global_edits=global_edits,
             session_edits=session_edits,
             local_edits=local_edits,

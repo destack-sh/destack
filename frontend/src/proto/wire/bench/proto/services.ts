@@ -31,8 +31,8 @@ import { NodeType } from "./lang";
 import { AccessMatrixData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
-import { NodeReferenceData } from "./lang";
 import { BenchData } from "./lang";
+import { NodeReferenceData } from "./lang";
 import { OrganizationData } from "./lang";
 import { UserData } from "./lang";
 import { ClientData } from "./lang";
@@ -81,6 +81,10 @@ export interface SignupUserResponse {
      * @generated from protobuf field: string access_token = 2;
      */
     accessToken: string;
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.ChangeUserPasswordRequest
@@ -103,6 +107,10 @@ export interface ChangeUserPasswordResponse {
      * @generated from protobuf field: symbolx.bench.UserData user = 1;
      */
     user?: UserData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.LoginUserRequest
@@ -157,6 +165,10 @@ export interface LoginUserResponse {
      * @generated from protobuf field: string access_token = 3;
      */
     accessToken: string;
+    /**
+     * @generated from protobuf field: uint64 epoch = 4;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.LogoutUserRequest
@@ -169,6 +181,8 @@ export interface LogoutUserRequest {
      */
     clientIds: string[];
     /**
+     * If specified, log out all clients (incl. current).
+     *
      * @generated from protobuf field: optional bool logout_all = 2;
      */
     logoutAll?: boolean;
@@ -195,15 +209,27 @@ export interface CreateOrganizationResponse {
      * @generated from protobuf field: symbolx.bench.OrganizationData organization = 1;
      */
     organization?: OrganizationData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.CreateBenchRequest
  */
 export interface CreateBenchRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchData bench = 1;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData owner = 1;
      */
-    bench?: BenchData;
+    owner?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string slug = 2;
+     */
+    slug: string;
+    /**
+     * @generated from protobuf field: bool is_main = 3;
+     */
+    isMain: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.CreateBenchResponse
@@ -213,6 +239,10 @@ export interface CreateBenchResponse {
      * @generated from protobuf field: symbolx.bench.BenchData bench = 1;
      */
     bench?: BenchData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.ReadNodesRequest
@@ -225,7 +255,7 @@ export interface ReadNodesRequest {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string package_id = 2;
+     * @generated from protobuf field: optional string package_id = 4;
      */
     packageId?: string;
     /**
@@ -251,6 +281,10 @@ export interface ReadNodesResponse {
      * @generated from protobuf field: optional symbolx.bench.AccessMatrixData access = 2;
      */
     access?: AccessMatrixData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesRequest
@@ -263,7 +297,7 @@ export interface SearchNodesRequest {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string package_id = 2;
+     * @generated from protobuf field: optional string package_id = 4;
      */
     packageId?: string;
     /**
@@ -329,6 +363,10 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: optional symbolx.bench.AccessMatrixData access = 6;
      */
     access?: AccessMatrixData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 7;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesRequest
@@ -341,7 +379,7 @@ export interface AggregateNodesRequest {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string package_id = 2;
+     * @generated from protobuf field: optional string package_id = 4;
      */
     packageId?: string;
     /**
@@ -379,6 +417,10 @@ export interface AggregateNodesResponse {
      * @generated from protobuf field: symbolx.bench.AggregationData aggregation = 1;
      */
     aggregation?: AggregationData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitEditsRequest
@@ -405,6 +447,10 @@ export interface CommitEditsResponse {
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
      */
     changedNodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.PushEditsRequest
@@ -431,7 +477,7 @@ export interface WatchEditsRequest {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: repeated string package_ids = 2;
+     * @generated from protobuf field: repeated string package_ids = 4;
      */
     packageIds: string[];
     /**
@@ -440,6 +486,10 @@ export interface WatchEditsRequest {
      * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 5;
      */
     nodeTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional uint64 since_epoch = 6;
+     */
+    sinceEpoch?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsResponse
@@ -449,6 +499,10 @@ export interface WatchEditsResponse {
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 1;
      */
     edits: EditData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.RestartServerRequest
@@ -503,78 +557,6 @@ export interface GetLogsResponse {
      * @generated from protobuf field: repeated symbolx.bench.LogEntryData logs = 1;
      */
     logs: LogEntryData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.PasteNodesRequest
- */
-export interface PasteNodesRequest {
-    /**
-     * @generated from protobuf field: string source_package_id = 1;
-     */
-    sourcePackageId: string;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData source_nodes = 2;
-     */
-    sourceNodes: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: map<string, string> target_ids = 3;
-     */
-    targetIds: {
-        [key: string]: string;
-    };
-    /**
-     * @generated from protobuf field: map<string, string> target_cks = 4;
-     */
-    targetCks: {
-        [key: string]: string;
-    };
-    /**
-     * @generated from protobuf field: map<string, string> target_parent_ids = 5;
-     */
-    targetParentIds: {
-        [key: string]: string;
-    };
-    /**
-     * @generated from protobuf field: map<string, string> target_order_keys = 6;
-     */
-    targetOrderKeys: {
-        [key: string]: string;
-    };
-}
-/**
- * @generated from protobuf message symbolx.bench.PasteNodesResponse
- */
-export interface PasteNodesResponse {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData pasted_nodes = 1;
-     */
-    pastedNodes: SomeNodeData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.SnapshotPackageRequest
- */
-export interface SnapshotPackageRequest {
-    /**
-     * @generated from protobuf field: string name = 1;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: string tag = 2;
-     */
-    tag: string;
-    /**
-     * @generated from protobuf field: string description = 3;
-     */
-    description: string;
-}
-/**
- * @generated from protobuf message symbolx.bench.SnapshotPackageResponse
- */
-export interface SnapshotPackageResponse {
-    /**
-     * @generated from protobuf field: string snapshot_project_version_id = 1;
-     */
-    snapshotProjectVersionId: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesRequest
@@ -747,33 +729,33 @@ export interface RunProxyBlockResponse {
  */
 export interface StartRunRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 1;
+     * scope
+     *
+     * @generated from protobuf field: optional string bench_id = 1;
+     */
+    benchId?: string;
+    /**
+     * request
+     *
+     * @generated from protobuf field: symbolx.bench.RunData run = 5;
      */
     run?: RunData;
     /**
-     * @generated from protobuf field: bool block = 2;
+     * @generated from protobuf field: bool block = 6;
      */
     block: boolean;
     /**
-     * @generated from protobuf field: bool keyed_inputs = 3;
+     * @generated from protobuf field: bool keyed_inputs = 7;
      */
     keyedInputs: boolean;
     /**
-     * @generated from protobuf field: bool keyed_outputs = 4;
+     * @generated from protobuf field: bool keyed_outputs = 8;
      */
     keyedOutputs: boolean;
     /**
-     * @generated from protobuf field: repeated string tags = 5;
+     * @generated from protobuf field: repeated string tags = 9;
      */
     tags: string[];
-    /**
-     * @generated from protobuf field: google.protobuf.Struct root_value = 6;
-     */
-    rootValue?: Struct;
-    /**
-     * @generated from protobuf field: google.protobuf.Struct init_value = 7;
-     */
-    initValue?: Struct;
 }
 /**
  * @generated from protobuf message symbolx.bench.StartRunResponse
@@ -830,7 +812,15 @@ export enum StartRunResponse_ErrorType {
  */
 export interface KillRunRequest {
     /**
-     * @generated from protobuf field: string run_id = 1;
+     * scope
+     *
+     * @generated from protobuf field: optional string bench_id = 1;
+     */
+    benchId?: string;
+    /**
+     * request
+     *
+     * @generated from protobuf field: string run_id = 5;
      */
     runId: string;
 }
@@ -933,12 +923,14 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
     constructor() {
         super("symbolx.bench.SignupUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<SignupUserResponse>): SignupUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.accessToken = "";
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<SignupUserResponse>(this, message, value);
         return message;
@@ -953,6 +945,9 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
                     break;
                 case /* string access_token */ 2:
                     message.accessToken = reader.string();
+                    break;
+                case /* uint64 epoch */ 3:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -972,6 +967,9 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         /* string access_token = 2; */
         if (message.accessToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
+        /* uint64 epoch = 3; */
+        if (message.epoch !== "0")
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1041,11 +1039,13 @@ export const ChangeUserPasswordRequest = new ChangeUserPasswordRequest$Type();
 class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResponse> {
     constructor() {
         super("symbolx.bench.ChangeUserPasswordResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData }
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<ChangeUserPasswordResponse>): ChangeUserPasswordResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<ChangeUserPasswordResponse>(this, message, value);
         return message;
@@ -1057,6 +1057,9 @@ class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResp
             switch (fieldNo) {
                 case /* symbolx.bench.UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1073,6 +1076,9 @@ class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResp
         /* symbolx.bench.UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1174,12 +1180,14 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         super("symbolx.bench.LoginUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
             { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.accessToken = "";
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<LoginUserResponse>(this, message, value);
         return message;
@@ -1197,6 +1205,9 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
                     break;
                 case /* string access_token */ 3:
                     message.accessToken = reader.string();
+                    break;
+                case /* uint64 epoch */ 4:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1219,6 +1230,9 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         /* string access_token = 3; */
         if (message.accessToken !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
+        /* uint64 epoch = 4; */
+        if (message.epoch !== "0")
+            writer.tag(4, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1358,11 +1372,13 @@ export const CreateOrganizationRequest = new CreateOrganizationRequest$Type();
 class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResponse> {
     constructor() {
         super("symbolx.bench.CreateOrganizationResponse", [
-            { no: 1, name: "organization", kind: "message", T: () => OrganizationData }
+            { no: 1, name: "organization", kind: "message", T: () => OrganizationData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<CreateOrganizationResponse>): CreateOrganizationResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<CreateOrganizationResponse>(this, message, value);
         return message;
@@ -1374,6 +1390,9 @@ class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResp
             switch (fieldNo) {
                 case /* symbolx.bench.OrganizationData organization */ 1:
                     message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1390,6 +1409,9 @@ class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResp
         /* symbolx.bench.OrganizationData organization = 1; */
         if (message.organization)
             OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1404,11 +1426,15 @@ export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
 class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
     constructor() {
         super("symbolx.bench.CreateBenchRequest", [
-            { no: 1, name: "bench", kind: "message", T: () => BenchData }
+            { no: 1, name: "owner", kind: "message", T: () => NodeReferenceData },
+            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.slug = "";
+        message.isMain = false;
         if (value !== undefined)
             reflectionMergePartial<CreateBenchRequest>(this, message, value);
         return message;
@@ -1418,8 +1444,14 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchData bench */ 1:
-                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                case /* symbolx.bench.NodeReferenceData owner */ 1:
+                    message.owner = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.owner);
+                    break;
+                case /* string slug */ 2:
+                    message.slug = reader.string();
+                    break;
+                case /* bool is_main */ 3:
+                    message.isMain = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1433,9 +1465,15 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
         return message;
     }
     internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchData bench = 1; */
-        if (message.bench)
-            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData owner = 1; */
+        if (message.owner)
+            NodeReferenceData.internalBinaryWrite(message.owner, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string slug = 2; */
+        if (message.slug !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.slug);
+        /* bool is_main = 3; */
+        if (message.isMain !== false)
+            writer.tag(3, WireType.Varint).bool(message.isMain);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1450,11 +1488,13 @@ export const CreateBenchRequest = new CreateBenchRequest$Type();
 class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
     constructor() {
         super("symbolx.bench.CreateBenchResponse", [
-            { no: 1, name: "bench", kind: "message", T: () => BenchData }
+            { no: 1, name: "bench", kind: "message", T: () => BenchData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<CreateBenchResponse>(this, message, value);
         return message;
@@ -1466,6 +1506,9 @@ class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
             switch (fieldNo) {
                 case /* symbolx.bench.BenchData bench */ 1:
                     message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1482,6 +1525,9 @@ class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
         /* symbolx.bench.BenchData bench = 1; */
         if (message.bench)
             BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1497,7 +1543,7 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     constructor() {
         super("symbolx.bench.ReadNodesRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 6, name: "options", kind: "message", T: () => ReadOptionsData }
         ]);
@@ -1517,7 +1563,7 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
                     break;
-                case /* optional string package_id */ 2:
+                case /* optional string package_id */ 4:
                     message.packageId = reader.string();
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData roots */ 5:
@@ -1541,9 +1587,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 2; */
+        /* optional string package_id = 4; */
         if (message.packageId !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.packageId);
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
         /* repeated symbolx.bench.NodeReferenceData roots = 5; */
         for (let i = 0; i < message.roots.length; i++)
             NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
@@ -1565,12 +1611,14 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
     constructor() {
         super("symbolx.bench.ReadNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 2, name: "access", kind: "message", T: () => AccessMatrixData }
+            { no: 2, name: "access", kind: "message", T: () => AccessMatrixData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<ReadNodesResponse>(this, message, value);
         return message;
@@ -1585,6 +1633,9 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
                     break;
                 case /* optional symbolx.bench.AccessMatrixData access */ 2:
                     message.access = AccessMatrixData.internalBinaryRead(reader, reader.uint32(), options, message.access);
+                    break;
+                case /* uint64 epoch */ 3:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1604,6 +1655,9 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
         /* optional symbolx.bench.AccessMatrixData access = 2; */
         if (message.access)
             AccessMatrixData.internalBinaryWrite(message.access, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
+        if (message.epoch !== "0")
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1619,7 +1673,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 6, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 7, name: "filter", kind: "message", T: () => ExpressionData },
@@ -1647,7 +1701,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
                     break;
-                case /* optional string package_id */ 2:
+                case /* optional string package_id */ 4:
                     message.packageId = reader.string();
                     break;
                 case /* symbolx.bench.NodeType node_type */ 5:
@@ -1689,9 +1743,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 2; */
+        /* optional string package_id = 4; */
         if (message.packageId !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.packageId);
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
         /* symbolx.bench.NodeType node_type = 5; */
         if (message.nodeType !== 0)
             writer.tag(5, WireType.Varint).int32(message.nodeType);
@@ -1735,7 +1789,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
             { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 6, name: "access", kind: "message", T: () => AccessMatrixData }
+            { no: 6, name: "access", kind: "message", T: () => AccessMatrixData },
+            { no: 7, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
@@ -1745,6 +1800,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.cursors = [];
         message.startCursor = "";
         message.total = 0;
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
         return message;
@@ -1771,6 +1827,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                     break;
                 case /* optional symbolx.bench.AccessMatrixData access */ 6:
                     message.access = AccessMatrixData.internalBinaryRead(reader, reader.uint32(), options, message.access);
+                    break;
+                case /* uint64 epoch */ 7:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1802,6 +1861,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* optional symbolx.bench.AccessMatrixData access = 6; */
         if (message.access)
             AccessMatrixData.internalBinaryWrite(message.access, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 7; */
+        if (message.epoch !== "0")
+            writer.tag(7, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1817,7 +1879,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 6, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 7, name: "filter", kind: "message", T: () => ExpressionData },
@@ -1843,7 +1905,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
                     break;
-                case /* optional string package_id */ 2:
+                case /* optional string package_id */ 4:
                     message.packageId = reader.string();
                     break;
                 case /* symbolx.bench.NodeType node_type */ 5:
@@ -1879,9 +1941,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 2; */
+        /* optional string package_id = 4; */
         if (message.packageId !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.packageId);
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
         /* symbolx.bench.NodeType node_type = 5; */
         if (message.nodeType !== 0)
             writer.tag(5, WireType.Varint).int32(message.nodeType);
@@ -1914,11 +1976,13 @@ export const AggregateNodesRequest = new AggregateNodesRequest$Type();
 class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
     constructor() {
         super("symbolx.bench.AggregateNodesResponse", [
-            { no: 1, name: "aggregation", kind: "message", T: () => AggregationData }
+            { no: 1, name: "aggregation", kind: "message", T: () => AggregationData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesResponse>): AggregateNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<AggregateNodesResponse>(this, message, value);
         return message;
@@ -1930,6 +1994,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
             switch (fieldNo) {
                 case /* symbolx.bench.AggregationData aggregation */ 1:
                     message.aggregation = AggregationData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1946,6 +2013,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         /* symbolx.bench.AggregationData aggregation = 1; */
         if (message.aggregation)
             AggregationData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2014,12 +2084,14 @@ export const CommitEditsRequest = new CommitEditsRequest$Type();
 class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
     constructor() {
         super("symbolx.bench.CommitEditsResponse", [
-            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<CommitEditsResponse>): CommitEditsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.changedNodes = [];
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<CommitEditsResponse>(this, message, value);
         return message;
@@ -2031,6 +2103,9 @@ class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
             switch (fieldNo) {
                 case /* repeated symbolx.bench.SomeNodeData changed_nodes */ 1:
                     message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2047,6 +2122,9 @@ class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
         /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
         for (let i = 0; i < message.changedNodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2134,8 +2212,9 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
     constructor() {
         super("symbolx.bench.WatchEditsRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
+            { no: 4, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 6, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
@@ -2154,7 +2233,7 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
                     break;
-                case /* repeated string package_ids */ 2:
+                case /* repeated string package_ids */ 4:
                     message.packageIds.push(reader.string());
                     break;
                 case /* repeated symbolx.bench.NodeType node_types */ 5:
@@ -2163,6 +2242,9 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                             message.nodeTypes.push(reader.int32());
                     else
                         message.nodeTypes.push(reader.int32());
+                    break;
+                case /* optional uint64 since_epoch */ 6:
+                    message.sinceEpoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2179,9 +2261,9 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* repeated string package_ids = 2; */
+        /* repeated string package_ids = 4; */
         for (let i = 0; i < message.packageIds.length; i++)
-            writer.tag(2, WireType.LengthDelimited).string(message.packageIds[i]);
+            writer.tag(4, WireType.LengthDelimited).string(message.packageIds[i]);
         /* repeated symbolx.bench.NodeType node_types = 5; */
         if (message.nodeTypes.length) {
             writer.tag(5, WireType.LengthDelimited).fork();
@@ -2189,6 +2271,9 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                 writer.int32(message.nodeTypes[i]);
             writer.join();
         }
+        /* optional uint64 since_epoch = 6; */
+        if (message.sinceEpoch !== undefined)
+            writer.tag(6, WireType.Varint).uint64(message.sinceEpoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2203,12 +2288,14 @@ export const WatchEditsRequest = new WatchEditsRequest$Type();
 class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
     constructor() {
         super("symbolx.bench.WatchEditsResponse", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
     create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.edits = [];
+        message.epoch = "0";
         if (value !== undefined)
             reflectionMergePartial<WatchEditsResponse>(this, message, value);
         return message;
@@ -2220,6 +2307,9 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
             switch (fieldNo) {
                 case /* repeated symbolx.bench.EditData edits */ 1:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2236,6 +2326,9 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
         /* repeated symbolx.bench.EditData edits = 1; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2506,314 +2599,6 @@ class GetLogsResponse$Type extends MessageType<GetLogsResponse> {
  * @generated MessageType for protobuf message symbolx.bench.GetLogsResponse
  */
 export const GetLogsResponse = new GetLogsResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
-    constructor() {
-        super("symbolx.bench.PasteNodesRequest", [
-            { no: 1, name: "source_package_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 3, name: "target_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
-            { no: 4, name: "target_cks", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
-            { no: 5, name: "target_parent_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
-            { no: 6, name: "target_order_keys", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } }
-        ]);
-    }
-    create(value?: PartialMessage<PasteNodesRequest>): PasteNodesRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.sourcePackageId = "";
-        message.sourceNodes = [];
-        message.targetIds = {};
-        message.targetCks = {};
-        message.targetParentIds = {};
-        message.targetOrderKeys = {};
-        if (value !== undefined)
-            reflectionMergePartial<PasteNodesRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PasteNodesRequest): PasteNodesRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string source_package_id */ 1:
-                    message.sourcePackageId = reader.string();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData source_nodes */ 2:
-                    message.sourceNodes.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* map<string, string> target_ids */ 3:
-                    this.binaryReadMap3(message.targetIds, reader, options);
-                    break;
-                case /* map<string, string> target_cks */ 4:
-                    this.binaryReadMap4(message.targetCks, reader, options);
-                    break;
-                case /* map<string, string> target_parent_ids */ 5:
-                    this.binaryReadMap5(message.targetParentIds, reader, options);
-                    break;
-                case /* map<string, string> target_order_keys */ 6:
-                    this.binaryReadMap6(message.targetOrderKeys, reader, options);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    private binaryReadMap3(map: PasteNodesRequest["targetIds"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetIds"] | undefined, val: PasteNodesRequest["targetIds"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = reader.string();
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.PasteNodesRequest.target_ids");
-            }
-        }
-        map[key ?? ""] = val ?? "";
-    }
-    private binaryReadMap4(map: PasteNodesRequest["targetCks"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetCks"] | undefined, val: PasteNodesRequest["targetCks"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = reader.string();
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.PasteNodesRequest.target_cks");
-            }
-        }
-        map[key ?? ""] = val ?? "";
-    }
-    private binaryReadMap5(map: PasteNodesRequest["targetParentIds"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetParentIds"] | undefined, val: PasteNodesRequest["targetParentIds"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = reader.string();
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.PasteNodesRequest.target_parent_ids");
-            }
-        }
-        map[key ?? ""] = val ?? "";
-    }
-    private binaryReadMap6(map: PasteNodesRequest["targetOrderKeys"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetOrderKeys"] | undefined, val: PasteNodesRequest["targetOrderKeys"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = reader.string();
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.PasteNodesRequest.target_order_keys");
-            }
-        }
-        map[key ?? ""] = val ?? "";
-    }
-    internalBinaryWrite(message: PasteNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string source_package_id = 1; */
-        if (message.sourcePackageId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.sourcePackageId);
-        /* repeated symbolx.bench.NodeReferenceData source_nodes = 2; */
-        for (let i = 0; i < message.sourceNodes.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, string> target_ids = 3; */
-        for (let k of globalThis.Object.keys(message.targetIds))
-            writer.tag(3, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetIds[k]).join();
-        /* map<string, string> target_cks = 4; */
-        for (let k of globalThis.Object.keys(message.targetCks))
-            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetCks[k]).join();
-        /* map<string, string> target_parent_ids = 5; */
-        for (let k of globalThis.Object.keys(message.targetParentIds))
-            writer.tag(5, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetParentIds[k]).join();
-        /* map<string, string> target_order_keys = 6; */
-        for (let k of globalThis.Object.keys(message.targetOrderKeys))
-            writer.tag(6, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetOrderKeys[k]).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PasteNodesRequest
- */
-export const PasteNodesRequest = new PasteNodesRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PasteNodesResponse$Type extends MessageType<PasteNodesResponse> {
-    constructor() {
-        super("symbolx.bench.PasteNodesResponse", [
-            { no: 1, name: "pasted_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
-        ]);
-    }
-    create(value?: PartialMessage<PasteNodesResponse>): PasteNodesResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.pastedNodes = [];
-        if (value !== undefined)
-            reflectionMergePartial<PasteNodesResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PasteNodesResponse): PasteNodesResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.SomeNodeData pasted_nodes */ 1:
-                    message.pastedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PasteNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.SomeNodeData pasted_nodes = 1; */
-        for (let i = 0; i < message.pastedNodes.length; i++)
-            SomeNodeData.internalBinaryWrite(message.pastedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PasteNodesResponse
- */
-export const PasteNodesResponse = new PasteNodesResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SnapshotPackageRequest$Type extends MessageType<SnapshotPackageRequest> {
-    constructor() {
-        super("symbolx.bench.SnapshotPackageRequest", [
-            { no: 1, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "tag", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "description", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<SnapshotPackageRequest>): SnapshotPackageRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.name = "";
-        message.tag = "";
-        message.description = "";
-        if (value !== undefined)
-            reflectionMergePartial<SnapshotPackageRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageRequest): SnapshotPackageRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string name */ 1:
-                    message.name = reader.string();
-                    break;
-                case /* string tag */ 2:
-                    message.tag = reader.string();
-                    break;
-                case /* string description */ 3:
-                    message.description = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SnapshotPackageRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string name = 1; */
-        if (message.name !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.name);
-        /* string tag = 2; */
-        if (message.tag !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.tag);
-        /* string description = 3; */
-        if (message.description !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.description);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageRequest
- */
-export const SnapshotPackageRequest = new SnapshotPackageRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SnapshotPackageResponse$Type extends MessageType<SnapshotPackageResponse> {
-    constructor() {
-        super("symbolx.bench.SnapshotPackageResponse", [
-            { no: 1, name: "snapshot_project_version_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<SnapshotPackageResponse>): SnapshotPackageResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.snapshotProjectVersionId = "";
-        if (value !== undefined)
-            reflectionMergePartial<SnapshotPackageResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageResponse): SnapshotPackageResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string snapshot_project_version_id */ 1:
-                    message.snapshotProjectVersionId = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SnapshotPackageResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string snapshot_project_version_id = 1; */
-        if (message.snapshotProjectVersionId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.snapshotProjectVersionId);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageResponse
- */
-export const SnapshotPackageResponse = new SnapshotPackageResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
@@ -3441,13 +3226,12 @@ export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
 class StartRunRequest$Type extends MessageType<StartRunRequest> {
     constructor() {
         super("symbolx.bench.StartRunRequest", [
-            { no: 1, name: "run", kind: "message", T: () => RunData },
-            { no: 2, name: "block", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 3, name: "keyed_inputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 4, name: "keyed_outputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 5, name: "tags", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 6, name: "root_value", kind: "message", T: () => Struct },
-            { no: 7, name: "init_value", kind: "message", T: () => Struct }
+            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "run", kind: "message", T: () => RunData },
+            { no: 6, name: "block", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 7, name: "keyed_inputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 8, name: "keyed_outputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 9, name: "tags", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
@@ -3465,26 +3249,23 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.RunData run */ 1:
+                case /* optional string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                case /* symbolx.bench.RunData run */ 5:
                     message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
                     break;
-                case /* bool block */ 2:
+                case /* bool block */ 6:
                     message.block = reader.bool();
                     break;
-                case /* bool keyed_inputs */ 3:
+                case /* bool keyed_inputs */ 7:
                     message.keyedInputs = reader.bool();
                     break;
-                case /* bool keyed_outputs */ 4:
+                case /* bool keyed_outputs */ 8:
                     message.keyedOutputs = reader.bool();
                     break;
-                case /* repeated string tags */ 5:
+                case /* repeated string tags */ 9:
                     message.tags.push(reader.string());
-                    break;
-                case /* google.protobuf.Struct root_value */ 6:
-                    message.rootValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.rootValue);
-                    break;
-                case /* google.protobuf.Struct init_value */ 7:
-                    message.initValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.initValue);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3498,27 +3279,24 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         return message;
     }
     internalBinaryWrite(message: StartRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.RunData run = 1; */
+        /* optional string bench_id = 1; */
+        if (message.benchId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* symbolx.bench.RunData run = 5; */
         if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* bool block = 2; */
+            RunData.internalBinaryWrite(message.run, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* bool block = 6; */
         if (message.block !== false)
-            writer.tag(2, WireType.Varint).bool(message.block);
-        /* bool keyed_inputs = 3; */
+            writer.tag(6, WireType.Varint).bool(message.block);
+        /* bool keyed_inputs = 7; */
         if (message.keyedInputs !== false)
-            writer.tag(3, WireType.Varint).bool(message.keyedInputs);
-        /* bool keyed_outputs = 4; */
+            writer.tag(7, WireType.Varint).bool(message.keyedInputs);
+        /* bool keyed_outputs = 8; */
         if (message.keyedOutputs !== false)
-            writer.tag(4, WireType.Varint).bool(message.keyedOutputs);
-        /* repeated string tags = 5; */
+            writer.tag(8, WireType.Varint).bool(message.keyedOutputs);
+        /* repeated string tags = 9; */
         for (let i = 0; i < message.tags.length; i++)
-            writer.tag(5, WireType.LengthDelimited).string(message.tags[i]);
-        /* google.protobuf.Struct root_value = 6; */
-        if (message.rootValue)
-            Struct.internalBinaryWrite(message.rootValue, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Struct init_value = 7; */
-        if (message.initValue)
-            Struct.internalBinaryWrite(message.initValue, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(9, WireType.LengthDelimited).string(message.tags[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3595,7 +3373,8 @@ export const StartRunResponse = new StartRunResponse$Type();
 class KillRunRequest$Type extends MessageType<KillRunRequest> {
     constructor() {
         super("symbolx.bench.KillRunRequest", [
-            { no: 1, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<KillRunRequest>): KillRunRequest {
@@ -3610,7 +3389,10 @@ class KillRunRequest$Type extends MessageType<KillRunRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string run_id */ 1:
+                case /* optional string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                case /* string run_id */ 5:
                     message.runId = reader.string();
                     break;
                 default:
@@ -3625,9 +3407,12 @@ class KillRunRequest$Type extends MessageType<KillRunRequest> {
         return message;
     }
     internalBinaryWrite(message: KillRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string run_id = 1; */
+        /* optional string bench_id = 1; */
+        if (message.benchId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* string run_id = 5; */
         if (message.runId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.runId);
+            writer.tag(5, WireType.LengthDelimited).string(message.runId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3709,8 +3494,6 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "PushEdits", options: {}, I: PushEditsRequest, O: PushEditsResponse },
-    { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
-    { name: "Snapshot", options: {}, I: SnapshotPackageRequest, O: SnapshotPackageResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },

@@ -180,7 +180,7 @@ class ValueReference(Struct):
 
     def __content_str__(self):
         if self.node is not None:
-            return f"{self.node.path}.{self.path.__content_str__()}"
+            return f"{self.node.absolute_path}.{self.path.__content_str__()}"
         else:
             return f"<detached>:{self.path.__content_str__()}"
 

@@ -59,13 +59,6 @@ enum BenchRegion {
   BENCH_REGION_US_WEST = 10;
 }
 
-enum BenchStatus {
-  BENCH_STATUS_UNSPECIFIED = 0;
-  BENCH_STATUS_PREPARING = 1;
-  BENCH_STATUS_MIGRATING = 2;
-  BENCH_STATUS_AVAILABLE = 3;
-}
-
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
@@ -383,7 +376,7 @@ enum PolicyEffect {
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-//     NOTE: the ids here are used in encode/decode pipelines, take extra care.
+// NOTE: the ids here are used in encode/decode pipelines, take extra care.
 enum PrimitiveType {
   PRIMITIVE_TYPE_UNSPECIFIED = 0;
   PRIMITIVE_TYPE_BOOLEAN = 1;
@@ -563,7 +556,7 @@ message AccessMatrixData {
 }
 
 // The pre-filtered access rules for a given identity.
-//     Clients use this to indicate access rights, but - obviously - only our copy is binding.
+// Clients use this to indicate access rights, but - obviously - only our copy is binding.
 message AccessZoneData {
   BenchType metatype = 1;
   int32 id = 2;
@@ -574,7 +567,7 @@ message AccessZoneData {
 }
 
 // The result of evaluating an action (multiple requests).
-//     TODO @Feature @Security: store, query and watch action log
+// TODO @Feature @Security: store, query and watch action log
 message ActionData {
   BenchType metatype = 1;
   SubjectData subject = 30;
@@ -600,48 +593,55 @@ message AggregationBucketData {
 }
 
 // A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
-//     Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
-//     Sub-nodes inside a block are prefixed by a ':'; any node's fields are accessed with '.'.
+// Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+// Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
 // 
-//     flotothemoon/Mirror/Notion/Databases/Landscape
-//     ^ bench      ^ blocks
-//     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-//     ^ bench      ^ blocks                      ^ sub-nodes                ^ field
-//     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
-//     ^ bench      ^ blocks                                              ^ field
+// flotothemoon/Mirror/Notion/Databases/Landscape
+// ^ bench      ^ blocks
+// flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
+// ^ bench      ^ blocks                      ^ sub-block                ^ field
+// flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
+// ^ bench      ^ blocks                                              ^ field  ^ field
 // 
-//     flotothemoon
-//     ^ bench
-//     flotothemoon.name
-//     ^ bench      ^ field
-//     flotothemoon-tests/Tests/Databases/TestPopulate.code
-//     ^ bench            ^ blocks                     ^ field
+// flotothemoon
+// ^ bench
+// flotothemoon.name
+// ^ bench      ^ field
+// flotothemoon-tests/Tests/Databases/TestPopulate.code
+// ^ bench            ^ blocks                     ^ field
 // 
-//     .
-//     ^ current (ambiguous, default to block level)
-//     ..
-//     ^ parent (ambiguous)
-//     ../../Header Screen:Header/Title.theme.primary.color
-//     ^ blocks           ^ sub-nodes  ^ field
-//     ../../../../Graphs
-//     ^ parents (ambiguous)
+// .
+// ^ current
+// ..
+// ^ parent
+// ../../Header Screen:Header/Title.theme.primary.color
+// ^ blocks           ^ sub-nodes  ^ field
+// ../../../../Graphs
+// ^ parents
+// /
+// ^ package root (not yet supported)
+// $
+// ^ module root (not yet supported)
+// $User
+// ^ module-unique node (not yet supported)
+// ~
+// ^ source module root (not yet supported)
 // 
+// symbolx@2024-01-01/Library/Common/Utils/DateUtils
+// ^ bench ^ package  ^ blocks
+// symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
+// ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 // 
-//     symbolx@2024-01-01/Library/Common/Utils/DateUtils
-//     ^ bench ^ package  ^ blocks
-//     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
-//     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+// ''
+// ERROR (invalid, empty path)
+// '../'
+// ERROR (invalid, trailing slash)
+// ../../Something/../SomethingElse
+// ERROR (invalid, cannot go up and down in the same path)
 // 
-//     ''
-//     ERROR (invalid, empty path)
-//     '../'
-//     ERROR (invalid, trailing slash)
-//     ../../Something/../SomethingElse
-//     ERROR (invalid, cannot go up and down in the same path)
-// 
-//     The general syntax is:
-//     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
-//     For absolute paths, the bench name is required.
+// The general syntax is:
+// [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
+// For absolute paths, the bench name is required.
 message BenchPathData {
   BenchType metatype = 1;
   optional string bench_slug = 30;
@@ -721,19 +721,19 @@ message NodeReferenceData {
 }
 
 // A policy regulating access to nodes within its scope.
-//     The scope is determined by where its attached, but may be further restricted using 'scopes'.
+// The scope is determined by where its attached, but may be further restricted using 'scopes'.
 // 
-//     The basics of access control:
-//      1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
-//      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
-//        a. Policies are scoped to the node their definition or
-//        b. Delegate is attached to (or less as specified).
-//      3. Policies are evaluated in order up the node tree, first match decides*.
-//         (This means you can read a sub block but not its parent.)
-//      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
+// The basics of access control:
+// 1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+// 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
+// a. Policies are scoped to the node their definition or
+// b. Delegate is attached to (or less as specified).
+// 3. Policies are evaluated in order up the node tree, first match decides*.
+// (This means you can read a sub block but not its parent.)
+// 4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 // 
-//      * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
-//         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
+// * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+// is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
   optional string name = 30;
@@ -742,9 +742,9 @@ message PolicyData {
   repeated NodeReferenceData scopes_ptr = 33;
 }
 
-// A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
-//     The 3 groups (subject/verb/object) are ORed together, but inner-group conditions are ANDed.
-//     (where None/empty -> wildcard, any value -> filter)
+// A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+// Subject, verb and object are ORed, in-group conditions are ANDed.
+// (where None/empty -> wildcard, any value -> filter)
 message PolicyRuleData {
   BenchType metatype = 1;
   optional string name = 30;
@@ -778,7 +778,7 @@ message PropertyReferenceData {
 }
 
 // Fine-grained options to a read request.
-//     This is an addition to primary options (like the filter for a search or aggregation).
+// This is an addition to primary options (like the filter for a search or aggregation).
 message ReadOptionsData {
   BenchType metatype = 1;
   repeated NodeType ancestor_types = 30;
@@ -786,6 +786,7 @@ message ReadOptionsData {
   repeated PropertyReferenceData related_properties_ptr = 32;
   repeated PropertyReferenceData include_properties_ptr = 40;
   repeated PropertyReferenceData exclude_properties_ptr = 41;
+  repeated PropertyReferenceData select_properties_ptr = 42;
   optional ExpressionData global_filter = 50;
 }
 
@@ -798,11 +799,10 @@ message RequestData {
   repeated PropertyReferenceData object_properties_ptr = 34;
 }
 
-// RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
+// RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
 message RichTextData {
   BenchType metatype = 1;
   repeated RichTextSpanData spans = 30;
-  optional string plain_text = 31;
 }
 
 // RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
@@ -847,11 +847,11 @@ message ScheduleData {
   optional string cron = 33;
 }
 
-// ServerAllocation(default_profile: bench.language.const.ServerProfile = <factory>, default_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
+// ServerAllocation(base_profile: bench.language.const.ServerProfile = <factory>, base_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
 message ServerAllocationData {
   BenchType metatype = 1;
-  ServerProfile default_profile = 30;
-  optional ServerImageData default_image = 31;
+  ServerProfile base_profile = 30;
+  optional ServerImageData base_image = 31;
 }
 
 // ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['ServerImageDependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -883,7 +883,7 @@ message SpaceDockItemData {
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
-//     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
+// (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message SubjectData {
   BenchType metatype = 1;
   optional bool is_authenticated = 30;
@@ -899,26 +899,26 @@ message SubjectData {
 
 // A type is a kind of value that can go somewhere, typically a field.
 // 
-//     A type is either:
-//        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
-//        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
-//        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-//        4. reference to a block (value is NodeReference that is an 'instance' of the block)
-//            node type is Record and reference ~ Database, values must be Records in that database
-//            node type is Run and reference ~ Block, values must be Runs of that block
-//            node type is Field and reference ~ Block, values must be a Field in that block
-//            node type is Signal and reference ~ Block, values must be Signals of that block type
-//            node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
-//             (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
-//            node type is Block and reference is None, values must be instances of the combined newtype
-//             ...
+// A type is either:
+// 1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+// 2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
+// 3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+// 4. reference to a block (value is NodeReference that is an 'instance' of the block)
+// node type is Record and reference ~ Database, values must be Records in that database
+// node type is Run and reference ~ Block, values must be Runs of that block
+// node type is Field and reference ~ Block, values must be a Field in that block
+// node type is Signal and reference ~ Block, values must be Signals of that block type
+// node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+// (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
+// node type is Block and reference is None, values must be instances of the combined newtype
+// ...
 // 
-//     Types may also specify:
-//        - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
-//        - an additional condition instances must satisfy
-//        - combination flags for arrays, optionals, ...
+// Types may also specify:
+// - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+// - an additional condition instances must satisfy
+// - combination flags for arrays, optionals, ...
 // 
-//     Type checking is done in ./value.py. You'll note that we can only check some things without querying.
+// Type checking is done in ./value.py. You'll note that we can only check some things without querying.
 message TypeInfoData {
   BenchType metatype = 1;
   optional PrimitiveType primitive_type = 40;
@@ -947,8 +947,8 @@ message ValueSelectionData {
 }
 
 // Attach a badge to a node with an inline definition.
-//     A badge's policies are delegated to the 'holder' (any client presenting its secrets).
-//     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
+// A badge's policies are delegated to the 'holder' (any client presenting its secrets).
+// The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
@@ -984,11 +984,11 @@ message BenchData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  string slug = 30;
-  string name = 31;
-  optional string description = 32;
-  optional NodeReferenceData organization_ptr = 33;
-  optional NodeReferenceData user_ptr = 34;
+  optional NodeReferenceData handle_ptr = 30;
+  string slug = 31;
+  string name = 32;
+  optional RichTextData text = 33;
+  optional NodeReferenceData owner_ptr = 34;
   repeated PolicyData policies = 36;
   optional NodeReferenceData head_ptr = 40;
   optional ServerAllocationData server_allocation = 50;
@@ -1022,7 +1022,7 @@ message BlockData {
   optional string name = 40;
   optional string order_key = 41;
   optional string dynamic_key = 42;
-  optional string text = 43;
+  optional RichTextData text = 43;
   optional google.protobuf.Struct value_packed = 44;
   optional google.protobuf.Struct secret_value_packed = 45;
   optional string code = 46;
@@ -1066,7 +1066,7 @@ message FieldData {
   optional string name = 30;
   optional string order_key = 31;
   optional string dynamic_key = 32;
-  optional string text = 33;
+  optional RichTextData text = 33;
   optional google.protobuf.Struct value_packed = 34;
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
@@ -1113,11 +1113,12 @@ message HandleData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string slug = 30;
+  optional NodeReferenceData owner_ptr = 31;
 }
 
 // Attach an identity to a block or member.
-//     Identity policies are delegated to the parent and its descendants.
-//     The delegated policies apply to all descendant's actions.
+// Identity policies are delegated to the parent and its descendants.
+// The delegated policies apply to all descendant's actions.
 message IdentityData {
   BenchType metatype = 1;
   string id = 2;
@@ -1164,11 +1165,12 @@ message MembershipData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData user_ptr = 30;
+  bool is_owner = 31;
 }
 
-// A node in a Bench package tree - basically struct + identity, so it can relate nodes.
-//     A node has a per-version unique id (id) and a constant identifier key (ck).
-//     The id is derived from the package id, so it's only assigned when the node is attached.
+// A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+// All nodes have a globally unique id (id).
+// Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1229,7 +1231,7 @@ message OrganizationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData handle_ptr = 30;
+  NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
   optional RichTextData text = 33;
@@ -1305,8 +1307,8 @@ message RecordData {
 }
 
 // Attach a role to a block or member.
-//     Role policies are delegated to the parent and its descendants.
-//     The delegated policies apply to all descendant's actions.
+// Role policies are delegated to the parent and its descendants.
+// The delegated policies apply to all descendant's actions.
 message RoleData {
   BenchType metatype = 1;
   string id = 2;

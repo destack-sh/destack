@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.code_ import HasCode
-from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
+from bench.language.const import BlockType, NodeType, StructType
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
@@ -32,7 +32,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Badge, Package, Policy, TypeInfo
+    from bench.language import Badge, Package, Policy, TypeInfo, RichText
 
 
 @node_component
@@ -143,12 +143,15 @@ class Block(ScopeNode, HasTags):
     builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
     is_page: bool = p_regular(35, default=False)
     # is_module: bool = ...?
+    # is_unique_name: bool = ...?
 
     # shared
     name: str | None = p_regular(40, default=None, validate=validate_name)
     order_key: str | None = p_internal(41, default=None)
     dynamic_key: str | None = p_internal(42, default=None)
-    text: str | None = p_regular(43, default=None)
+    text: Optional["RichText"] = p_regular(
+        43, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    )
     value_packed: Any | None = p_internal(
         44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
@@ -184,10 +187,6 @@ class Block(ScopeNode, HasTags):
         if not isinstance(type, BlockType):
             type = BlockType(type.lower())
         return Block(type=type, name=name, *args, **kwargs)
-
-    @staticmethod
-    def text_(text: str, *args, **kwargs):
-        return Block.new(type=BlockType.TEXT, text=text, *args, **kwargs)
 
     # the others are defined after the class
 
@@ -259,15 +258,12 @@ class Block(ScopeNode, HasTags):
 
 
 # Block.<type> convenience constructors
-Block.text = Block.text_
-for _type in BlockType:
-    if _type == BlockType.TEXT:
-        continue
+for _t in BlockType:
     method = staticmethod(
-        lambda name=None, _type=_type, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
+        lambda name=None, _type=_t, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
     )
-    method_name = _type.name.lower()
-    if method_name in ("type", "class"):
+    method_name = _t.name.lower()
+    if method_name in Block.__properties__:
         method_name += "_"
     setattr(Block, method_name, method)
 

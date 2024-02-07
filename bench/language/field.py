@@ -38,7 +38,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression
+    from bench.language import Block, Expression, RichText
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -134,7 +134,7 @@ class TypeInfo(Struct):
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
-            info_str = self.base_type.path
+            info_str = self.base_type.absolute_path
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
@@ -239,7 +239,9 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str | None = p_internal(31, default=None)
     dynamic_key: str | None = p_internal(32, default=None)
-    text: str | None = p_regular(33, default=None)
+    text: Optional["RichText"] = p_regular(
+        33, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    )
     value_packed: Any | None = p_internal(
         34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
@@ -248,17 +250,17 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     # ...TypeInfo
 
     # field-only flags
-    is_input: bool = p_internal(60, default=False)
-    is_output: bool = p_internal(61, default=False)
+    is_input: bool = p_regular(60, default=False)
+    is_output: bool = p_regular(61, default=False)
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
-    # is_indexed: bool = struct_internal(63, default=False)
-    # is_unique: bool = struct_internal(64, default=False)
+    # is_indexed: bool = p_regular(63, default=False)
+    # is_unique: bool = p_regular(64, default=False)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
-            info_str = self.base_type.path
+            info_str = self.base_type.absolute_path
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:

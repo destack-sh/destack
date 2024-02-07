@@ -1,3 +1,4 @@
+from .path import BenchPath
 from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
 from .access import (
@@ -76,6 +77,7 @@ __all__ = [
     "Badge",
     "Bench",
     "BenchError",
+    "BenchPath",
     "Block",
     "BlockType",
     "C",

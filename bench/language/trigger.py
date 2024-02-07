@@ -81,7 +81,7 @@ class Trigger(Node):
         if self.type == TriggerType.SCHEDULE:
             content_str = self.schedule.__content_str__()
         elif self.type == TriggerType.SIGNAL:
-            content_str = self.signal.path
+            content_str = self.signal.absolute_path
         else:
             content_str = None
         return f"{self.type} {content_str or '<none>'}"

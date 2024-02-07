@@ -42,7 +42,7 @@ export interface AccessMatrixData {
 }
 /**
  * The pre-filtered access rules for a given identity.
- *     Clients use this to indicate access rights, but - obviously - only our copy is binding.
+ * Clients use this to indicate access rights, but - obviously - only our copy is binding.
  *
  * @generated from protobuf message symbolx.bench.AccessZoneData
  */
@@ -74,7 +74,7 @@ export interface AccessZoneData {
 }
 /**
  * The result of evaluating an action (multiple requests).
- *     TODO @Feature @Security: store, query and watch action log
+ * TODO @Feature @Security: store, query and watch action log
  *
  * @generated from protobuf message symbolx.bench.ActionData
  */
@@ -148,48 +148,55 @@ export interface AggregationBucketData {
 }
 /**
  * A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
- *     Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
- *     Sub-nodes inside a block are prefixed by a ':'; any node's fields are accessed with '.'.
+ * Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+ * Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
  *
- *     flotothemoon/Mirror/Notion/Databases/Landscape
- *     ^ bench      ^ blocks
- *     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
- *     ^ bench      ^ blocks                      ^ sub-nodes                ^ field
- *     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
- *     ^ bench      ^ blocks                                              ^ field
+ * flotothemoon/Mirror/Notion/Databases/Landscape
+ * ^ bench      ^ blocks
+ * flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
+ * ^ bench      ^ blocks                      ^ sub-block                ^ field
+ * flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
+ * ^ bench      ^ blocks                                              ^ field  ^ field
  *
- *     flotothemoon
- *     ^ bench
- *     flotothemoon.name
- *     ^ bench      ^ field
- *     flotothemoon-tests/Tests/Databases/TestPopulate.code
- *     ^ bench            ^ blocks                     ^ field
+ * flotothemoon
+ * ^ bench
+ * flotothemoon.name
+ * ^ bench      ^ field
+ * flotothemoon-tests/Tests/Databases/TestPopulate.code
+ * ^ bench            ^ blocks                     ^ field
  *
- *     .
- *     ^ current (ambiguous, default to block level)
- *     ..
- *     ^ parent (ambiguous)
- *     ../../Header Screen:Header/Title.theme.primary.color
- *     ^ blocks           ^ sub-nodes  ^ field
- *     ../../../../Graphs
- *     ^ parents (ambiguous)
+ * .
+ * ^ current
+ * ..
+ * ^ parent
+ * ../../Header Screen:Header/Title.theme.primary.color
+ * ^ blocks           ^ sub-nodes  ^ field
+ * ../../../../Graphs
+ * ^ parents
+ * /
+ * ^ package root (not yet supported)
+ * $
+ * ^ module root (not yet supported)
+ * $User
+ * ^ module-unique node (not yet supported)
+ * ~
+ * ^ source module root (not yet supported)
  *
+ * symbolx@2024-01-01/Library/Common/Utils/DateUtils
+ * ^ bench ^ package  ^ blocks
+ * symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
+ * ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
  *
- *     symbolx@2024-01-01/Library/Common/Utils/DateUtils
- *     ^ bench ^ package  ^ blocks
- *     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
- *     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+ * ''
+ * ERROR (invalid, empty path)
+ * '../'
+ * ERROR (invalid, trailing slash)
+ * ../../Something/../SomethingElse
+ * ERROR (invalid, cannot go up and down in the same path)
  *
- *     ''
- *     ERROR (invalid, empty path)
- *     '../'
- *     ERROR (invalid, trailing slash)
- *     ../../Something/../SomethingElse
- *     ERROR (invalid, cannot go up and down in the same path)
- *
- *     The general syntax is:
- *     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
- *     For absolute paths, the bench name is required.
+ * The general syntax is:
+ * [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
+ * For absolute paths, the bench name is required.
  *
  * @generated from protobuf message symbolx.bench.BenchPathData
  */
@@ -434,19 +441,19 @@ export interface NodeReferenceData {
 }
 /**
  * A policy regulating access to nodes within its scope.
- *     The scope is determined by where its attached, but may be further restricted using 'scopes'.
+ * The scope is determined by where its attached, but may be further restricted using 'scopes'.
  *
- *     The basics of access control:
- *      1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
- *      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
- *        a. Policies are scoped to the node their definition or
- *        b. Delegate is attached to (or less as specified).
- *      3. Policies are evaluated in order up the node tree, first match decides*.
- *         (This means you can read a sub block but not its parent.)
- *      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
+ * The basics of access control:
+ * 1. An action is DENYed implicitly unless explicitly and completely ALLOWed.
+ * 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
+ * a. Policies are scoped to the node their definition or
+ * b. Delegate is attached to (or less as specified).
+ * 3. Policies are evaluated in order up the node tree, first match decides*.
+ * (This means you can read a sub block but not its parent.)
+ * 4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
  *
- *      * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
- *         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
+ * * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+ * is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
  *
  * @generated from protobuf message symbolx.bench.PolicyData
  */
@@ -473,9 +480,9 @@ export interface PolicyData {
     scopesPtr: NodeReferenceData[];
 }
 /**
- * A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
- *     The 3 groups (subject/verb/object) are ORed together, but inner-group conditions are ANDed.
- *     (where None/empty -> wildcard, any value -> filter)
+ * A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+ * Subject, verb and object are ORed, in-group conditions are ANDed.
+ * (where None/empty -> wildcard, any value -> filter)
  *
  * @generated from protobuf message symbolx.bench.PolicyRuleData
  */
@@ -581,7 +588,7 @@ export interface PropertyReferenceData {
 }
 /**
  * Fine-grained options to a read request.
- *     This is an addition to primary options (like the filter for a search or aggregation).
+ * This is an addition to primary options (like the filter for a search or aggregation).
  *
  * @generated from protobuf message symbolx.bench.ReadOptionsData
  */
@@ -610,6 +617,10 @@ export interface ReadOptionsData {
      * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 41;
      */
     excludePropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42;
+     */
+    selectPropertiesPtr: PropertyReferenceData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 50;
      */
@@ -643,7 +654,7 @@ export interface RequestData {
     objectPropertiesPtr: PropertyReferenceData[];
 }
 /**
- * RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
+ * RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
  *
  * @generated from protobuf message symbolx.bench.RichTextData
  */
@@ -656,10 +667,6 @@ export interface RichTextData {
      * @generated from protobuf field: repeated symbolx.bench.RichTextSpanData spans = 30;
      */
     spans: RichTextSpanData[];
-    /**
-     * @generated from protobuf field: optional string plain_text = 31;
-     */
-    plainText?: string;
 }
 /**
  * RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
@@ -794,7 +801,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * ServerAllocation(default_profile: bench.language.const.ServerProfile = <factory>, default_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
+ * ServerAllocation(base_profile: bench.language.const.ServerProfile = <factory>, base_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
  *
  * @generated from protobuf message symbolx.bench.ServerAllocationData
  */
@@ -804,13 +811,13 @@ export interface ServerAllocationData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: symbolx.bench.ServerProfile default_profile = 30;
+     * @generated from protobuf field: symbolx.bench.ServerProfile base_profile = 30;
      */
-    defaultProfile: ServerProfile;
+    baseProfile: ServerProfile;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ServerImageData default_image = 31;
+     * @generated from protobuf field: optional symbolx.bench.ServerImageData base_image = 31;
      */
-    defaultImage?: ServerImageData;
+    baseImage?: ServerImageData;
 }
 /**
  * ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['ServerImageDependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -890,7 +897,7 @@ export interface SpaceDockItemData {
 }
 /**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
- *     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
+ * (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
  *
  * @generated from protobuf message symbolx.bench.SubjectData
  */
@@ -939,26 +946,26 @@ export interface SubjectData {
 /**
  * A type is a kind of value that can go somewhere, typically a field.
  *
- *     A type is either:
- *        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
- *        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
- *        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
- *        4. reference to a block (value is NodeReference that is an 'instance' of the block)
- *            node type is Record and reference ~ Database, values must be Records in that database
- *            node type is Run and reference ~ Block, values must be Runs of that block
- *            node type is Field and reference ~ Block, values must be a Field in that block
- *            node type is Signal and reference ~ Block, values must be Signals of that block type
- *            node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
- *             (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
- *            node type is Block and reference is None, values must be instances of the combined newtype
- *             ...
+ * A type is either:
+ * 1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+ * 2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
+ * 3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+ * 4. reference to a block (value is NodeReference that is an 'instance' of the block)
+ * node type is Record and reference ~ Database, values must be Records in that database
+ * node type is Run and reference ~ Block, values must be Runs of that block
+ * node type is Field and reference ~ Block, values must be a Field in that block
+ * node type is Signal and reference ~ Block, values must be Signals of that block type
+ * node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+ * (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
+ * node type is Block and reference is None, values must be instances of the combined newtype
+ * ...
  *
- *     Types may also specify:
- *        - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
- *        - an additional condition instances must satisfy
- *        - combination flags for arrays, optionals, ...
+ * Types may also specify:
+ * - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+ * - an additional condition instances must satisfy
+ * - combination flags for arrays, optionals, ...
  *
- *     Type checking is done in ./value.py. You'll note that we can only check some things without querying.
+ * Type checking is done in ./value.py. You'll note that we can only check some things without querying.
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1044,8 +1051,8 @@ export interface ValueSelectionData {
 }
 /**
  * Attach a badge to a node with an inline definition.
- *     A badge's policies are delegated to the 'holder' (any client presenting its secrets).
- *     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
+ * A badge's policies are delegated to the 'holder' (any client presenting its secrets).
+ * The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
  *
  * @generated from protobuf message symbolx.bench.BadgeData
  */
@@ -1178,25 +1185,25 @@ export interface BenchData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: string slug = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
+     */
+    handlePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string slug = 31;
      */
     slug: string;
     /**
-     * @generated from protobuf field: string name = 31;
+     * @generated from protobuf field: string name = 32;
      */
     name: string;
     /**
-     * @generated from protobuf field: optional string description = 32;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
      */
-    description?: string;
+    text?: RichTextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData organization_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owner_ptr = 34;
      */
-    organizationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 34;
-     */
-    userPtr?: NodeReferenceData;
+    ownerPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 36;
      */
@@ -1321,9 +1328,9 @@ export interface BlockData {
      */
     dynamicKey?: string;
     /**
-     * @generated from protobuf field: optional string text = 43;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 43;
      */
-    text?: string;
+    text?: RichTextData;
     /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 44;
      */
@@ -1479,9 +1486,9 @@ export interface FieldData {
      */
     dynamicKey?: string;
     /**
-     * @generated from protobuf field: optional string text = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
      */
-    text?: string;
+    text?: RichTextData;
     /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 34;
      */
@@ -1648,11 +1655,15 @@ export interface HandleData {
      * @generated from protobuf field: string slug = 30;
      */
     slug: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owner_ptr = 31;
+     */
+    ownerPtr?: NodeReferenceData;
 }
 /**
  * Attach an identity to a block or member.
- *     Identity policies are delegated to the parent and its descendants.
- *     The delegated policies apply to all descendant's actions.
+ * Identity policies are delegated to the parent and its descendants.
+ * The delegated policies apply to all descendant's actions.
  *
  * @generated from protobuf message symbolx.bench.IdentityData
  */
@@ -1819,11 +1830,15 @@ export interface MembershipData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData user_ptr = 30;
      */
     userPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: bool is_owner = 31;
+     */
+    isOwner: boolean;
 }
 /**
- * A node in a Bench package tree - basically struct + identity, so it can relate nodes.
- *     A node has a per-version unique id (id) and a constant identifier key (ck).
- *     The id is derived from the package id, so it's only assigned when the node is attached.
+ * A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+ * All nodes have a globally unique id (id).
+ * Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
  */
@@ -2038,7 +2053,7 @@ export interface OrganizationData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData handle_ptr = 30;
      */
     handlePtr?: NodeReferenceData;
     /**
@@ -2296,8 +2311,8 @@ export interface RecordData {
 }
 /**
  * Attach a role to a block or member.
- *     Role policies are delegated to the parent and its descendants.
- *     The delegated policies apply to all descendant's actions.
+ * Role policies are delegated to the parent and its descendants.
+ * The delegated policies apply to all descendant's actions.
  *
  * @generated from protobuf message symbolx.bench.RoleData
  */
@@ -3487,27 +3502,6 @@ export enum BenchRegion {
     US_WEST = 10
 }
 /**
- * @generated from protobuf enum symbolx.bench.BenchStatus
- */
-export enum BenchStatus {
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_PREPARING = 1;
-     */
-    PREPARING = 1,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_MIGRATING = 2;
-     */
-    MIGRATING = 2,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_AVAILABLE = 3;
-     */
-    AVAILABLE = 3
-}
-/**
  * @generated from protobuf enum symbolx.bench.BenchType
  */
 export enum BenchType {
@@ -4609,7 +4603,7 @@ export enum PolicyEffect {
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
- *     NOTE: the ids here are used in encode/decode pipelines, take extra care.
+ * NOTE: the ids here are used in encode/decode pipelines, take extra care.
  *
  * @generated from protobuf enum symbolx.bench.PrimitiveType
  */
@@ -6608,6 +6602,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 32, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 40, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 41, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 42, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 50, name: "global_filter", kind: "message", T: () => ExpressionData }
         ]);
     }
@@ -6619,6 +6614,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         message.relatedPropertiesPtr = [];
         message.includePropertiesPtr = [];
         message.excludePropertiesPtr = [];
+        message.selectPropertiesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<ReadOptionsData>(this, message, value);
         return message;
@@ -6653,6 +6649,9 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr */ 41:
                     message.excludePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 42:
+                    message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.ExpressionData global_filter */ 50:
                     message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
@@ -6695,6 +6694,9 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 41; */
         for (let i = 0; i < message.excludePropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.excludePropertiesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42; */
+        for (let i = 0; i < message.selectPropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData global_filter = 50; */
         if (message.globalFilter)
             ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -6792,8 +6794,7 @@ class RichTextData$Type extends MessageType<RichTextData> {
     constructor() {
         super("symbolx.bench.RichTextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RichTextSpanData },
-            { no: 31, name: "plain_text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 30, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RichTextSpanData }
         ]);
     }
     create(value?: PartialMessage<RichTextData>): RichTextData {
@@ -6815,9 +6816,6 @@ class RichTextData$Type extends MessageType<RichTextData> {
                 case /* repeated symbolx.bench.RichTextSpanData spans */ 30:
                     message.spans.push(RichTextSpanData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional string plain_text */ 31:
-                    message.plainText = reader.string();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -6836,9 +6834,6 @@ class RichTextData$Type extends MessageType<RichTextData> {
         /* repeated symbolx.bench.RichTextSpanData spans = 30; */
         for (let i = 0; i < message.spans.length; i++)
             RichTextSpanData.internalBinaryWrite(message.spans[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional string plain_text = 31; */
-        if (message.plainText !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.plainText);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -7208,14 +7203,14 @@ class ServerAllocationData$Type extends MessageType<ServerAllocationData> {
     constructor() {
         super("symbolx.bench.ServerAllocationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "default_profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
-            { no: 31, name: "default_image", kind: "message", T: () => ServerImageData }
+            { no: 30, name: "base_profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
+            { no: 31, name: "base_image", kind: "message", T: () => ServerImageData }
         ]);
     }
     create(value?: PartialMessage<ServerAllocationData>): ServerAllocationData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.defaultProfile = 0;
+        message.baseProfile = 0;
         if (value !== undefined)
             reflectionMergePartial<ServerAllocationData>(this, message, value);
         return message;
@@ -7228,11 +7223,11 @@ class ServerAllocationData$Type extends MessageType<ServerAllocationData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.ServerProfile default_profile */ 30:
-                    message.defaultProfile = reader.int32();
+                case /* symbolx.bench.ServerProfile base_profile */ 30:
+                    message.baseProfile = reader.int32();
                     break;
-                case /* optional symbolx.bench.ServerImageData default_image */ 31:
-                    message.defaultImage = ServerImageData.internalBinaryRead(reader, reader.uint32(), options, message.defaultImage);
+                case /* optional symbolx.bench.ServerImageData base_image */ 31:
+                    message.baseImage = ServerImageData.internalBinaryRead(reader, reader.uint32(), options, message.baseImage);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -7249,12 +7244,12 @@ class ServerAllocationData$Type extends MessageType<ServerAllocationData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.ServerProfile default_profile = 30; */
-        if (message.defaultProfile !== 0)
-            writer.tag(30, WireType.Varint).int32(message.defaultProfile);
-        /* optional symbolx.bench.ServerImageData default_image = 31; */
-        if (message.defaultImage)
-            ServerImageData.internalBinaryWrite(message.defaultImage, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ServerProfile base_profile = 30; */
+        if (message.baseProfile !== 0)
+            writer.tag(30, WireType.Varint).int32(message.baseProfile);
+        /* optional symbolx.bench.ServerImageData base_image = 31; */
+        if (message.baseImage)
+            ServerImageData.internalBinaryWrite(message.baseImage, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -8064,11 +8059,11 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "organization_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "text", kind: "message", T: () => RichTextData },
+            { no: 34, name: "owner_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 40, name: "head_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "server_allocation", kind: "message", T: () => ServerAllocationData },
@@ -8127,20 +8122,20 @@ class BenchData$Type extends MessageType<BenchData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* string slug */ 30:
+                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
+                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
+                    break;
+                case /* string slug */ 31:
                     message.slug = reader.string();
                     break;
-                case /* string name */ 31:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string description */ 32:
-                    message.description = reader.string();
+                case /* optional symbolx.bench.RichTextData text */ 33:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData organization_ptr */ 33:
-                    message.organizationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.organizationPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 34:
-                    message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
+                case /* optional symbolx.bench.NodeReferenceData owner_ptr */ 34:
+                    message.ownerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownerPtr);
                     break;
                 case /* repeated symbolx.bench.PolicyData policies */ 36:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
@@ -8211,21 +8206,21 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* string slug = 30; */
+        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
+        if (message.handlePtr)
+            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* string slug = 31; */
         if (message.slug !== "")
-            writer.tag(30, WireType.LengthDelimited).string(message.slug);
-        /* string name = 31; */
+            writer.tag(31, WireType.LengthDelimited).string(message.slug);
+        /* string name = 32; */
         if (message.name !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string description = 32; */
-        if (message.description !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.description);
-        /* optional symbolx.bench.NodeReferenceData organization_ptr = 33; */
-        if (message.organizationPtr)
-            NodeReferenceData.internalBinaryWrite(message.organizationPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 34; */
-        if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.RichTextData text = 33; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData owner_ptr = 34; */
+        if (message.ownerPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownerPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PolicyData policies = 36; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
@@ -8287,7 +8282,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 40, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "text", kind: "message", T: () => RichTextData },
             { no: 44, name: "value_packed", kind: "message", T: () => Struct },
             { no: 45, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 46, name: "code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8375,8 +8370,8 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional string dynamic_key */ 42:
                     message.dynamicKey = reader.string();
                     break;
-                case /* optional string text */ 43:
-                    message.text = reader.string();
+                case /* optional symbolx.bench.RichTextData text */ 43:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 44:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
@@ -8465,9 +8460,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional string dynamic_key = 42; */
         if (message.dynamicKey !== undefined)
             writer.tag(42, WireType.LengthDelimited).string(message.dynamicKey);
-        /* optional string text = 43; */
-        if (message.text !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.text);
+        /* optional symbolx.bench.RichTextData text = 43; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 44; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
@@ -8666,7 +8661,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "text", kind: "message", T: () => RichTextData },
             { no: 34, name: "value_packed", kind: "message", T: () => Struct },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
@@ -8747,8 +8742,8 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional string dynamic_key */ 32:
                     message.dynamicKey = reader.string();
                     break;
-                case /* optional string text */ 33:
-                    message.text = reader.string();
+                case /* optional symbolx.bench.RichTextData text */ 33:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 34:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
@@ -8849,9 +8844,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional string dynamic_key = 32; */
         if (message.dynamicKey !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.dynamicKey);
-        /* optional string text = 33; */
-        if (message.text !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.text);
+        /* optional symbolx.bench.RichTextData text = 33; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 34; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -9057,7 +9052,8 @@ class HandleData$Type extends MessageType<HandleData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "owner_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<HandleData>): HandleData {
@@ -9105,6 +9101,9 @@ class HandleData$Type extends MessageType<HandleData> {
                 case /* string slug */ 30:
                     message.slug = reader.string();
                     break;
+                case /* optional symbolx.bench.NodeReferenceData owner_ptr */ 31:
+                    message.ownerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownerPtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -9147,6 +9146,9 @@ class HandleData$Type extends MessageType<HandleData> {
         /* string slug = 30; */
         if (message.slug !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.slug);
+        /* optional symbolx.bench.NodeReferenceData owner_ptr = 31; */
+        if (message.ownerPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownerPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -9439,7 +9441,8 @@ class MembershipData$Type extends MessageType<MembershipData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<MembershipData>): MembershipData {
@@ -9447,6 +9450,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         message.metatype = 0;
         message.id = "";
         message.revision = "0";
+        message.isOwner = false;
         if (value !== undefined)
             reflectionMergePartial<MembershipData>(this, message, value);
         return message;
@@ -9488,6 +9492,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData user_ptr */ 30:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
+                    break;
+                case /* bool is_owner */ 31:
+                    message.isOwner = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -9534,6 +9541,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* symbolx.bench.NodeReferenceData user_ptr = 30; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_owner = 31; */
+        if (message.isOwner !== false)
+            writer.tag(31, WireType.Varint).bool(message.isOwner);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -10001,7 +10011,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
+                case /* symbolx.bench.NodeReferenceData handle_ptr */ 30:
                     message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
                     break;
                 case /* optional string slug */ 31:
@@ -10058,7 +10068,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
+        /* symbolx.bench.NodeReferenceData handle_ptr = 30; */
         if (message.handlePtr)
             NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional string slug = 31; */
