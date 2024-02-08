@@ -1,6 +1,5 @@
 import asyncio
 import functools
-from contextvars import ContextVar
 from typing import (
     TYPE_CHECKING,
     Callable,

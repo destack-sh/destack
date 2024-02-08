@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.08.0"
+VERSION = "2024.02.08.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -22,7 +22,7 @@ EMPTY_DICT: typing.Mapping = frozendict()
 
 
 #
-# Metatypes
+# Metatypes for Nodes/Structs
 #
 
 
@@ -31,8 +31,8 @@ class NodeType(IdEnum):
     BENCH = 1
     # source containers
     # PLACE = 2
-    # ENVIRONMENT = 3
-    # BRANCH = 4
+    ENVIRONMENT = 3
+    BRANCH = 4
     # source
     PACKAGE = 20
     BLOCK = 21
@@ -47,7 +47,7 @@ class NodeType(IdEnum):
     LINK = 30
     SKIP = 31
     # COMMENT = ...
-    # REACCESS = ...
+    # REACTION = ...
     SPACE = 40
     # DEPENDENCY = ...
     # UPGRADE = ...
@@ -57,17 +57,19 @@ class NodeType(IdEnum):
     RUN = 51  # (local)
     PAUSE = 52  # (local)
     SIGNAL = 53  # (local)
-    # CURSOR?, LOCK?, ...
 
     # auth
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
 
-    # resources (compute/storage/etc.)
+    # resources (compute/storage/external/etc.)
     SERVER = 160
-    FILE_CONTENT = 170
-    # DATABASE, DISK, INDEX/SEARCH, DOMAIN, EMAIL, ...?
+    STORE = 161  # 'database' for Postgres/OpenSearch/ClickHouse
+    DRIVE = 162  # 'bucket' for S3/MinIO
+    CACHE = 163  # Redis/Memcached
+    FILE_CONTENT = 170  # in a Drive
+    # DOMAIN, EMAIL, ...
 
     # user
     HANDLE = 220
@@ -76,8 +78,9 @@ class NodeType(IdEnum):
     CLIENT = 223
     NOTIFICATION = 224
 
-    # INVITE = 240
-    MEMBERSHIP = 241
+    MEMBERSHIP = 240
+    # INVITE = ...
+    # FRIENDSHIP/FOLLOW/...?
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
@@ -144,9 +147,8 @@ class StructType(IdEnum):
     # CONTEXT = ...
     # CURSOR?
 
-    SERVER_ALLOCATION = 630
-    SERVER_IMAGE = 631
-    SERVER_IMAGE_DEPENDENCY = 632
+    SERVER_IMAGE = 630
+    SERVER_IMAGE_REQUIREMENT = 631
 
     RICH_TEXT = 660
     RICH_TEXT_SPAN = 661
@@ -408,6 +410,12 @@ class AccessMode(IdEnum):
 #
 
 
+class StoreKind(IdEnum):
+    POSTGRES = 1
+    OPENSEARCH = 2
+    CLICKHOUSE = 3
+
+
 class BadgeType(IdEnum):
     SHARING_LINK = 1
     ACCESS_KEY = 2
@@ -613,7 +621,6 @@ class SortOp(IdEnum):
 class QueryEngine(IdEnum):
     IN_MEMORY = 1
     GLOBAL_POSTGRES = 2
-    GLOBAL_OPENSEARCH = 3
     LOCAL_POSTGRES = 4
     LOCAL_OPENSEARCH = 5
 

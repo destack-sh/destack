@@ -2,17 +2,10 @@ from subprocess import Popen
 from uuid import UUID
 
 import structlog
-from grpclib import GRPCError, Status as GRPCStatus
 
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     ServerBase,
-    RestartServerRequest,
-    RestartServerResponse,
-    StartRunRequest,
-    StartRunResponse,
-    KillRunRequest,
-    KillRunResponse,
 )
 
 logger = structlog.get_logger(__name__)
@@ -51,14 +44,3 @@ class Server(ServerBase, MonitoredServiceBase):
 
     async def wait_closed(self):
         pass
-
-    async def restart_server(
-        self, restart_server_request: "RestartServerRequest"
-    ) -> "RestartServerResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

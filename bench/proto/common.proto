@@ -47,3 +47,9 @@ message EditData {
   // Specify package id for routing (if node is in a Package).
   optional string package_id = 6;
 }
+
+// Transaction of edits to a Node.
+message TransactionData {
+  optional string id = 1;
+  repeated EditData edits = 2;
+}

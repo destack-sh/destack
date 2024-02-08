@@ -64,7 +64,12 @@ if TYPE_CHECKING:
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
 LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
+    NodeType.BENCH,
+    NodeType.ENVIRONMENT,
+    NodeType.BRANCH,
+    NodeType.PACKAGE,
+    NodeType.SPACE,
+    NodeType.BLOCK,
 )
 
 
@@ -728,7 +733,7 @@ class AccessError(BenchError, ValueError):
 
 
 SYSTEM_POLICIES: tuple[Policy, ...] = (
-    # NOTE: all policies (incl. these) and their rules are evaluated in order
+    # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
     Policy("SystemProtection").append(
         PolicyRule(
             "CannotUpdateSystemProperties",

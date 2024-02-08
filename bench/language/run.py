@@ -49,12 +49,6 @@ class HasRun(Node):
         return None
 
     @property
-    def cache(self):
-        from bench.language.cache import Cache
-
-        return Cache(self.package, subkey=self.ck.hex)
-
-    @property
     def current_run(self):
         return self.package.session.current_run
 
@@ -119,10 +113,10 @@ class Run(ScopeNode, HasValue):
     server: Optional["Server"] = p_internal(
         32, index_in_pg=True, require=False, array=False, references=NodeType.SERVER
     )
-    node: Optional["Block"] = p_internal(
+    block: Optional["Block"] = p_internal(
         34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
-    node_path: Optional[str] = p_internal(35, default=None)
+    block_path: Optional[str] = p_internal(35, default=None)
     scheduled_at: Optional[datetime] = p_internal(36, default=None)
     started_at: Optional[datetime] = p_internal(37, default=None)
     terminated_at: Optional[datetime] = p_internal(38, default=None)
@@ -148,7 +142,7 @@ class Run(ScopeNode, HasValue):
 
     def __content_str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.node} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
+        return f"{self.block} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
 
     def _mark_dead_if_active(self):
         if self.active:

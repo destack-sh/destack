@@ -43,14 +43,13 @@ class BenchPath(Struct):
     ^ blocks           ^ sub-nodes  ^ field
     ../../../../Graphs
     ^ parents
-    /
-    ^ package root (not yet supported)
-    $
-    ^ module root (not yet supported)
-    $User
-    ^ module-unique node (not yet supported)
-    ~
-    ^ source module root (not yet supported)
+
+    NOT YET SUPPORTED:
+    / -> package root (=Package)
+    $ -> module root (=Block)
+    $User -> module-unique node (=Block|View)
+    ~ -> source module root ($ but for templated)
+    [<expr like ck=...>] -> dynamic Expression filter
 
     symbolx@2024-01-01/Library/Common/Utils/DateUtils
     ^ bench ^ package  ^ blocks

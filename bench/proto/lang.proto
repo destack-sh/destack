@@ -68,6 +68,8 @@ enum BenchRegion {
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
+  BENCH_TYPE_ENVIRONMENT = 3;
+  BENCH_TYPE_BRANCH = 4;
   BENCH_TYPE_PACKAGE = 20;
   BENCH_TYPE_BLOCK = 21;
   BENCH_TYPE_TRIGGER = 22;
@@ -88,13 +90,16 @@ enum BenchType {
   BENCH_TYPE_ROLE = 61;
   BENCH_TYPE_IDENTITY = 62;
   BENCH_TYPE_SERVER = 160;
+  BENCH_TYPE_STORE = 161;
+  BENCH_TYPE_DRIVE = 162;
+  BENCH_TYPE_CACHE = 163;
   BENCH_TYPE_FILE_CONTENT = 170;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
   BENCH_TYPE_CLIENT = 223;
   BENCH_TYPE_NOTIFICATION = 224;
-  BENCH_TYPE_MEMBERSHIP = 241;
+  BENCH_TYPE_MEMBERSHIP = 240;
   BENCH_TYPE_BENCH_PATH = 500;
   BENCH_TYPE_NODE_REFERENCE = 501;
   BENCH_TYPE_PROPERTY_REFERENCE = 502;
@@ -122,9 +127,8 @@ enum BenchType {
   BENCH_TYPE_LOG_ENTRY = 590;
   BENCH_TYPE_RUN_CODE_FRAME = 591;
   BENCH_TYPE_RUN_ERROR = 592;
-  BENCH_TYPE_SERVER_ALLOCATION = 630;
-  BENCH_TYPE_SERVER_IMAGE = 631;
-  BENCH_TYPE_SERVER_IMAGE_DEPENDENCY = 632;
+  BENCH_TYPE_SERVER_IMAGE = 630;
+  BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   BENCH_TYPE_RICH_TEXT = 660;
   BENCH_TYPE_RICH_TEXT_SPAN = 661;
   BENCH_TYPE_SPACE_DOCK = 700;
@@ -317,6 +321,8 @@ enum NodeTrackingLevel {
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
+  NODE_TYPE_ENVIRONMENT = 3;
+  NODE_TYPE_BRANCH = 4;
   NODE_TYPE_PACKAGE = 20;
   NODE_TYPE_BLOCK = 21;
   NODE_TYPE_TRIGGER = 22;
@@ -337,13 +343,16 @@ enum NodeType {
   NODE_TYPE_ROLE = 61;
   NODE_TYPE_IDENTITY = 62;
   NODE_TYPE_SERVER = 160;
+  NODE_TYPE_STORE = 161;
+  NODE_TYPE_DRIVE = 162;
+  NODE_TYPE_CACHE = 163;
   NODE_TYPE_FILE_CONTENT = 170;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
   NODE_TYPE_CLIENT = 223;
   NODE_TYPE_NOTIFICATION = 224;
-  NODE_TYPE_MEMBERSHIP = 241;
+  NODE_TYPE_MEMBERSHIP = 240;
 }
 
 enum NodeVisibility {
@@ -405,7 +414,6 @@ enum QueryEngine {
   QUERY_ENGINE_UNSPECIFIED = 0;
   QUERY_ENGINE_IN_MEMORY = 1;
   QUERY_ENGINE_GLOBAL_POSTGRES = 2;
-  QUERY_ENGINE_GLOBAL_OPENSEARCH = 3;
   QUERY_ENGINE_LOCAL_POSTGRES = 4;
   QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
 }
@@ -490,6 +498,13 @@ enum SortOp {
   SORT_OP_DESCENDING = 201;
 }
 
+enum StoreKind {
+  STORE_KIND_UNSPECIFIED = 0;
+  STORE_KIND_POSTGRES = 1;
+  STORE_KIND_OPENSEARCH = 2;
+  STORE_KIND_CLICKHOUSE = 3;
+}
+
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_BENCH_PATH = 500;
@@ -519,9 +534,8 @@ enum StructType {
   STRUCT_TYPE_LOG_ENTRY = 590;
   STRUCT_TYPE_RUN_CODE_FRAME = 591;
   STRUCT_TYPE_RUN_ERROR = 592;
-  STRUCT_TYPE_SERVER_ALLOCATION = 630;
-  STRUCT_TYPE_SERVER_IMAGE = 631;
-  STRUCT_TYPE_SERVER_IMAGE_DEPENDENCY = 632;
+  STRUCT_TYPE_SERVER_IMAGE = 630;
+  STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   STRUCT_TYPE_RICH_TEXT = 660;
   STRUCT_TYPE_RICH_TEXT_SPAN = 661;
   STRUCT_TYPE_SPACE_DOCK = 700;
@@ -636,14 +650,13 @@ message AggregationBucketData {
 // ^ blocks           ^ sub-nodes  ^ field
 // ../../../../Graphs
 // ^ parents
-// /
-// ^ package root (not yet supported)
-// $
-// ^ module root (not yet supported)
-// $User
-// ^ module-unique node (not yet supported)
-// ~
-// ^ source module root (not yet supported)
+// 
+// NOT YET SUPPORTED:
+// / -> package root (=Package)
+// $ -> module root (=Block)
+// $User -> module-unique node (=Block|View)
+// ~ -> source module root ($ but for templated)
+// [<expr like ck=...>] -> dynamic Expression filter
 // 
 // symbolx@2024-01-01/Library/Common/Utils/DateUtils
 // ^ bench ^ package  ^ blocks
@@ -865,24 +878,17 @@ message ScheduleData {
   optional string cron = 33;
 }
 
-// ServerAllocation(base_profile: bench.language.const.ServerProfile = <factory>, base_image: Optional[ForwardRef('ServerImage')] = <factory>, _status: bench.language.const.NodeStatus = None)
-message ServerAllocationData {
-  BenchType metatype = 1;
-  ServerProfile base_profile = 30;
-  optional ServerImageData base_image = 31;
-}
-
-// ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['ServerImageDependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
+// ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = <factory>, _status: bench.language.const.NodeStatus = None)
 message ServerImageData {
   BenchType metatype = 1;
   string language = 30;
   string version = 31;
   string platform = 32;
-  repeated ServerImageDependencyData dependencies = 33;
+  repeated ServerImageRequirementData requirements = 33;
 }
 
-// ServerImageDependency(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
-message ServerImageDependencyData {
+// ServerImageRequirement(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
+message ServerImageRequirementData {
   BenchType metatype = 1;
   string name = 30;
   string version = 31;
@@ -1008,14 +1014,9 @@ message BenchData {
   optional RichTextData text = 33;
   optional NodeReferenceData owner_ptr = 34;
   repeated PolicyData policies = 36;
-  optional NodeReferenceData head_ptr = 40;
-  optional ServerAllocationData server_allocation = 50;
-  optional string pg_name = 51;
-  optional string pg_username = 52;
-  optional string pg_password = 53;
-  optional string os_name = 54;
-  optional string os_username = 55;
-  optional string os_password = 56;
+  optional NodeReferenceData main_package_ptr = 40;
+  optional NodeReferenceData main_environment_ptr = 41;
+  optional NodeReferenceData main_branch_ptr = 42;
 }
 
 // A core Bench building block containing logic, types, UI, data, AI, and basically anything source.
@@ -1048,6 +1049,37 @@ message BlockData {
   repeated PolicyData delegated_policies = 51;
 }
 
+// A branch is a Git-like pointer to the head of a lineage of packages.
+message BranchData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
+  optional string name = 32;
+  optional RichTextData text = 34;
+  optional NodeReferenceData main_package_ptr = 35;
+  repeated PolicyData policies = 36;
+}
+
+// Cache for ephemeral data.
+message CacheData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+}
+
 // A client to this Bench.
 message ClientData {
   BenchType metatype = 1;
@@ -1066,6 +1098,44 @@ message ClientData {
   optional google.protobuf.Timestamp logged_in_at = 36;
   optional string access_token = 37;
   optional NodeReferenceData main_space_ptr = 40;
+}
+
+// A drive for file-like storage in a Bench.
+// Virtualizes simple bucket-style access to some S3-like storage.
+message DriveData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string name = 31;
+  optional RichTextData text = 32;
+  optional string handle = 33;
+}
+
+// An environment isolates resources from the rest of a Bench.
+message EnvironmentData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  optional google.protobuf.Timestamp last_changed_at = 16;
+  optional string name = 32;
+  optional RichTextData text = 34;
+  repeated PolicyData policies = 35;
+  NodeReferenceData store_ptr = 40;
+  NodeReferenceData index_ptr = 41;
+  NodeReferenceData drive_ptr = 42;
+  NodeReferenceData cache_ptr = 43;
 }
 
 // A used-defined attribute of some value.
@@ -1255,7 +1325,7 @@ message OrganizationData {
   optional NodeReferenceData main_bench_ptr = 35;
 }
 
-// A package is a semi-isolated version of a Bench, containing the actual blocks and so on.
+// A package is a semi-isolated version of a Bench containing all the source and data.
 message PackageData {
   BenchType metatype = 1;
   string id = 2;
@@ -1267,8 +1337,14 @@ message PackageData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 24;
-  bool is_snapshot = 32;
+  optional string slug = 33;
+  optional RichTextData text = 34;
+  repeated PolicyData policies = 35;
+  bool is_active = 36;
+  bool is_partial = 37;
+  optional NodeReferenceData base_ptr = 38;
+  NodeReferenceData environment_ptr = 39;
+  NodeReferenceData branch_ptr = 40;
 }
 
 // A resumable interruption in the execution (Run) of a block.
@@ -1358,8 +1434,8 @@ message RunData {
   NodeReferenceData session_ptr = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData server_ptr = 32;
-  optional NodeReferenceData node_ptr = 34;
-  optional string node_path = 35;
+  optional NodeReferenceData block_ptr = 34;
+  optional string block_path = 35;
   optional google.protobuf.Timestamp scheduled_at = 36;
   optional google.protobuf.Timestamp started_at = 37;
   optional google.protobuf.Timestamp terminated_at = 38;
@@ -1372,7 +1448,7 @@ message RunData {
   optional google.protobuf.Struct error = 46;
 }
 
-// Server(parent: 'Bench' = None, target_profile: bench.language.const.ServerProfile = <factory>, target_image: Optional[ForwardRef('ServerImage')] = <factory>, target_version: Optional[str] = <factory>, current_profile: Optional[bench.language.const.ServerProfile] = <factory>, current_image: Optional[ForwardRef('ServerImage')] = <factory>, current_version: Optional[str] = <factory>, sleep: bool = True, status: bench.language.const.ServerStatus = <factory>, last_active_at: Optional[datetime.datetime] = <factory>, last_bumped_at: Optional[datetime.datetime] = <factory>, external_id: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// A server providing the compute runtime for a Bench.
 message ServerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1383,18 +1459,18 @@ message ServerData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  ServerProfile target_profile = 30;
-  optional ServerImageData target_image = 31;
-  optional string target_version = 32;
-  optional ServerProfile current_profile = 33;
-  optional ServerImageData current_image = 34;
-  optional string current_version = 35;
-  bool sleep = 36;
-  ServerStatus status = 37;
-  optional google.protobuf.Timestamp last_active_at = 38;
-  optional google.protobuf.Timestamp last_bumped_at = 39;
-  optional string external_id = 50;
-  optional string access_token = 51;
+  ServerProfile profile = 30;
+  optional ServerImageData image = 31;
+  optional string version = 32;
+  bool sleep = 33;
+  ServerStatus status = 40;
+  optional ServerProfile current_profile = 41;
+  optional ServerImageData current_image = 42;
+  optional string current_version = 43;
+  optional google.protobuf.Timestamp last_active_at = 50;
+  optional google.protobuf.Timestamp last_bumped_at = 51;
+  optional string external_id = 52;
+  optional string access_token = 53;
 }
 
 // A managed context for running a Bench package (in a server).
@@ -1467,10 +1543,31 @@ message SpaceData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 24;
   string name = 31;
-  string order_key = 32;
-  SpaceDockData dock = 34;
+  optional RichTextData text = 32;
+  string order_key = 33;
+  repeated PolicyData policies = 34;
+  SpaceDockData dock = 35;
+}
+
+// A store for database-like storage in a Bench.
+// Virtualized on an actual physical database of the requested kind (may be a sub-schema or such).
+message StoreData {
+  BenchType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  StoreKind kind = 30;
+  string name = 31;
+  optional RichTextData text = 32;
+  optional string handle = 33;
+  optional string username = 34;
+  optional string password = 35;
 }
 
 // An association between a tag and a node (with optional value).
@@ -1557,33 +1654,38 @@ message ViewData {
 message SomeNodeData {
   oneof node {
     BenchData bench = 1;
-    PackageData package = 2;
-    BlockData block = 3;
-    TriggerData trigger = 4;
-    TagData tag = 5;
-    FieldData field = 6;
-    RecordData record = 7;
-    QueryData query = 8;
-    ViewData view = 9;
-    NoticeData notice = 10;
-    LinkData link = 11;
-    SkipData skip = 12;
-    SpaceData space = 13;
-    SessionData session = 14;
-    RunData run = 15;
-    PauseData pause = 16;
-    SignalData signal = 17;
-    BadgeData badge = 18;
-    RoleData role = 19;
-    IdentityData identity = 20;
-    ServerData server = 21;
-    FileContentData file_content = 22;
-    HandleData handle = 23;
-    UserData user = 24;
-    OrganizationData organization = 25;
-    ClientData client = 26;
-    NotificationData notification = 27;
-    MembershipData membership = 28;
+    EnvironmentData environment = 2;
+    BranchData branch = 3;
+    PackageData package = 4;
+    BlockData block = 5;
+    TriggerData trigger = 6;
+    TagData tag = 7;
+    FieldData field = 8;
+    RecordData record = 9;
+    QueryData query = 10;
+    ViewData view = 11;
+    NoticeData notice = 12;
+    LinkData link = 13;
+    SkipData skip = 14;
+    SpaceData space = 15;
+    SessionData session = 16;
+    RunData run = 17;
+    PauseData pause = 18;
+    SignalData signal = 19;
+    BadgeData badge = 20;
+    RoleData role = 21;
+    IdentityData identity = 22;
+    ServerData server = 23;
+    StoreData store = 24;
+    DriveData drive = 25;
+    CacheData cache = 26;
+    FileContentData file_content = 27;
+    HandleData handle = 28;
+    UserData user = 29;
+    OrganizationData organization = 30;
+    ClientData client = 31;
+    NotificationData notification = 32;
+    MembershipData membership = 33;
   };
 }
 

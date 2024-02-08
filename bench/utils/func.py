@@ -3,9 +3,6 @@ from __future__ import annotations
 import asyncio
 import enum
 import functools
-import random
-import secrets
-import string
 from sys import intern
 import types
 import typing
@@ -333,31 +330,6 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
-def generate_random_name(length: int = 32, lowercase: bool = False) -> str:
-    """Random alphanumeric name starting with alphabetic character."""
-    if lowercase:
-        pool = string.ascii_lowercase + string.digits
-    else:
-        pool = string.ascii_letters + string.digits
-    name = random.choice(string.ascii_lowercase)
-    name += "".join(random.choice(pool) for _ in range(length - 1))
-    return name
-
-
-generate_random_lowercase_name = functools.partial(generate_random_name, lowercase=True)
-
-
-def generate_secret_password(length: int = 48) -> str:
-    """URL-safe secret password."""
-    password = secrets.token_urlsafe(length - 4)[: length - 4]
-    # ensure at least one lowercase, uppercase, digit, special character
-    password += random.choice(string.ascii_lowercase)
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.digits)
-    password += random.choice("!@#$%^&*()_+-=")
-    return password
-
-
 def get_subclasses(cls, seen=None):
     """Gets all subclasses of a class recursively."""
     seen = seen or set()
@@ -366,14 +338,6 @@ def get_subclasses(cls, seen=None):
         if subclass not in seen:
             yield from get_subclasses(subclass, seen=seen)
             yield subclass
-
-
-def get_leaf_classes(cls, seen=None):
-    """Gets all the subclasses of a class that don't inherit from any other subclass."""
-    subclasses = get_subclasses(cls, seen=seen)
-    return [
-        subclass for subclass in subclasses if not any(subclass in s.__bases__ for s in subclasses)
-    ]
 
 
 _MIN_ID_BY_ENUM: dict[type, int] = {}

@@ -10,7 +10,6 @@ import numpy as np
 import openai
 import structlog
 
-from bench.language.cache import Cache
 from bench.language.field import Field, HasFields, TypedDict
 from bench.language.node import Node, ScopeNode, node_component, p_runtime
 from bench.utils.dt import utcnow_with_tz
@@ -152,7 +151,7 @@ class HasModel(HasFields, Node):
         self,
         inputs: Any,
         cache_subkey: str,
-        cache: Cache | None,
+        cache: None,
         run_id: UUID,
         log: Logger = logger,
     ) -> Any:

@@ -30,10 +30,11 @@ async def detached_session(read_only: bool = False, host: BenchHostStub | None =
         _active_session.set(session)
         try:
             yield session
-            if session.has_regular_edits:
+            if session.has_edits:
                 if read_only:
                     raise RuntimeError(f"read_only session {session!r} has edits")
                 logger.warning("session.discard", session=session)
+                await session.rollback()
         finally:
             session.closed_at = datetime.utcnow()  # pretend close to prevent further use
             _active_session.set(None)

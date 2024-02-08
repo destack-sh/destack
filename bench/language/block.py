@@ -142,8 +142,9 @@ class Block(ScopeNode, HasTags):
     )
     builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
     is_page: bool = p_regular(35, default=False)
-    # is_module: bool = ...?
-    # is_unique_name: bool = ...?
+    # is_module: bool = p_regular(36, default=False)
+    # is_unique: bool = p_regular(37, default=False)
+    # is_protocol?
 
     # shared
     name: str | None = p_regular(40, default=None, validate=validate_name)
@@ -195,8 +196,6 @@ class Block(ScopeNode, HasTags):
         node, props: dict, for_parent: Union["Block", "Package", None] = None
     ) -> tuple[str, dict, dict]:
         init_name = f"{node.type.lower()}Block"
-        if init_name == "Block.class":
-            init_name = "Block.class_"
         if node.type == BlockType.BLANK:
             init_args = {}
         elif node.type == BlockType.TEXT:

@@ -65,14 +65,22 @@ from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
 from .view import Space, SpaceDock, View, ViewType
-from .compute import ServerImageDependency, Server, ServerImage, ServerAllocation
+from .resource import (
+    ServerImageRequirement,
+    Server,
+    ServerImage,
+    Cache,
+    Drive,
+    Store,
+    FileContent,
+)
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 
 __all__ = [
     "A",
+    "Access",
     "AccessError",
-    "Request",
     "AccessType",
     "Badge",
     "Bench",
@@ -81,12 +89,15 @@ __all__ = [
     "Block",
     "BlockType",
     "C",
+    "Cache",
     "Client",
     "ConditionalOp",
+    "Drive",
     "Expression",
     "Field",
     "FieldPath",
     "File",
+    "FileContent",
     "FormatHint",
     "Handle",
     "HasFields",
@@ -115,8 +126,7 @@ __all__ = [
     "ReadOptions",
     "Record",
     "render",
-    "Access",
-    "Subject",
+    "Request",
     "RichText",
     "RichTextSpan",
     "Role",
@@ -126,16 +136,17 @@ __all__ = [
     "ScheduleType",
     "ScopeNode",
     "Server",
-    "ServerAllocation",
     "ServerImage",
-    "ServerImageDependency",
+    "ServerImageRequirement",
     "Session",
     "Signal",
     "SortMode",
     "SortOp",
     "Space",
     "SpaceDock",
+    "Store",
     "Struct",
+    "Subject",
     "Tag",
     "Trigger",
     "TriggerType",
