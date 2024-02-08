@@ -57,7 +57,6 @@ from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync
 from bench.utils.utils import IS_DEBUG
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Record, Server, Trigger
@@ -836,7 +835,7 @@ class Session(ScopeNode):
             # (this will be wrong once we process other triggers within a session)
             trigger_type = self.session.trigger_type
             trigger = self.session.trigger_id
-        run_ck = self._root_run_ck if root is None else UUIDT()
+        run_ck = self._root_run_ck if root is None else uuid4()
         run = Run(
             ck=run_ck,
             id=get_node_id(self.package.id, run_ck),
@@ -922,7 +921,7 @@ class LogCollector:
             run = None
         package = self.session.package
         log_entry = LogEntry(
-            id=UUIDT(),
+            id=uuid4(),
             bench_id=package.bench_id,
             package=package,
             created_at=utcnow_with_tz(),

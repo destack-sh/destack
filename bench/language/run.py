@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-import msgpack
 from asgiref.sync import async_to_sync, sync_to_async
 
 from bench.language.const import (

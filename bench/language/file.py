@@ -23,6 +23,7 @@ from bench.language.node import (
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import _auto_async_to_sync
+from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     pass
@@ -32,6 +33,7 @@ logger = structlog.get_logger(__name__)
 FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 FILE_MAX_NAME_LENGTH = 256
+GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
 
 
 @node(NodeType.FILE_CONTENT)

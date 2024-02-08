@@ -110,7 +110,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             user.password_hash = hash_password(request.password, user.password_salt)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
             client.access_token = generate_access_token()
-            # nocheckin: create handle again (probably need to patch edits.. or flush first..?)
+            # nocheckin: create user's handle (again, ..need to patch edits.. or flush first..?)
             session.create_many(user, client)
             await session.commit()
         return SignupUserResponse(

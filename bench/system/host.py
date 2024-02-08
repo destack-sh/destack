@@ -15,6 +15,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Expression, NodeReference, Organization, User
 from bench.language.access import ReadOptions, adapt_read_options, Subject
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, SUB_BENCH_NODE_TYPES
+from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
 from bench.proto import wiring
@@ -51,7 +52,6 @@ from bench.proto.wire import (
     WatchLogsResponse,
 )
 from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
-from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
 
