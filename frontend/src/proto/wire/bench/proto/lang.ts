@@ -1301,6 +1301,14 @@ export interface BlockData {
      */
     isPage: boolean;
     /**
+     * @generated from protobuf field: bool is_module = 36;
+     */
+    isModule: boolean;
+    /**
+     * @generated from protobuf field: bool is_unique_name = 37;
+     */
+    isUniqueName: boolean;
+    /**
      * @generated from protobuf field: optional string name = 40;
      */
     name?: string;
@@ -1328,6 +1336,10 @@ export interface BlockData {
      * @generated from protobuf field: optional string code = 46;
      */
     code?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 47;
+     */
+    icon?: IconData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 50;
      */
@@ -1879,7 +1891,7 @@ export interface HandleData {
     slug: string;
 }
 /**
- * Attach an identity to a block or member.
+ * Attach an identity to a block,  member or user.
  * Identity policies are delegated to the parent and its descendants.
  * The delegated policies apply to all descendant's accesses.
  *
@@ -2350,9 +2362,9 @@ export interface PackageData {
      */
     policies: PolicyData[];
     /**
-     * @generated from protobuf field: bool is_active = 36;
+     * @generated from protobuf field: bool is_paused = 36;
      */
-    isActive: boolean;
+    isPaused: boolean;
     /**
      * @generated from protobuf field: bool is_partial = 37;
      */
@@ -2679,10 +2691,6 @@ export interface RunData {
      */
     blockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string block_path = 35;
-     */
-    blockPath?: string;
-    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 36;
      */
     scheduledAt?: Timestamp;
@@ -2695,31 +2703,23 @@ export interface RunData {
      */
     terminatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TriggerType trigger_type = 39;
-     */
-    triggerType?: TriggerType;
-    /**
-     * @generated from protobuf field: optional string trigger_id = 40;
-     */
-    triggerId?: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.RunStatus status = 39;
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 43;
+     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 40;
      */
     inputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 44;
+     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 41;
      */
     outputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 45;
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct error = 46;
+     * @generated from protobuf field: optional google.protobuf.Struct error = 53;
      */
     error?: Struct;
 }
@@ -8670,6 +8670,8 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 33, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 34, name: "builtin_base", kind: "message", T: () => TypeInfoData },
             { no: 35, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 36, name: "is_module", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 37, name: "is_unique_name", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8677,6 +8679,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 44, name: "value_packed", kind: "message", T: () => Struct },
             { no: 45, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 46, name: "code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 47, name: "icon", kind: "message", T: () => IconData },
             { no: 50, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData }
         ]);
@@ -8691,6 +8694,8 @@ class BlockData$Type extends MessageType<BlockData> {
         message.policies = [];
         message.basesPtr = [];
         message.isPage = false;
+        message.isModule = false;
+        message.isUniqueName = false;
         message.delegatedPolicies = [];
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
@@ -8752,6 +8757,12 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* bool is_page */ 35:
                     message.isPage = reader.bool();
                     break;
+                case /* bool is_module */ 36:
+                    message.isModule = reader.bool();
+                    break;
+                case /* bool is_unique_name */ 37:
+                    message.isUniqueName = reader.bool();
+                    break;
                 case /* optional string name */ 40:
                     message.name = reader.string();
                     break;
@@ -8772,6 +8783,9 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* optional string code */ 46:
                     message.code = reader.string();
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 47:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 50:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
@@ -8842,6 +8856,12 @@ class BlockData$Type extends MessageType<BlockData> {
         /* bool is_page = 35; */
         if (message.isPage !== false)
             writer.tag(35, WireType.Varint).bool(message.isPage);
+        /* bool is_module = 36; */
+        if (message.isModule !== false)
+            writer.tag(36, WireType.Varint).bool(message.isModule);
+        /* bool is_unique_name = 37; */
+        if (message.isUniqueName !== false)
+            writer.tag(37, WireType.Varint).bool(message.isUniqueName);
         /* optional string name = 40; */
         if (message.name !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.name);
@@ -8863,6 +8883,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional string code = 46; */
         if (message.code !== undefined)
             writer.tag(46, WireType.LengthDelimited).string(message.code);
+        /* optional symbolx.bench.IconData icon = 47; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData reference_ptr = 50; */
         if (message.referencePtr)
             NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -11029,7 +11052,7 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => RichTextData },
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 36, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 36, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 37, name: "is_partial", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 38, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 39, name: "environment_ptr", kind: "message", T: () => NodeReferenceData },
@@ -11042,7 +11065,7 @@ class PackageData$Type extends MessageType<PackageData> {
         message.id = "";
         message.revision = "0";
         message.policies = [];
-        message.isActive = false;
+        message.isPaused = false;
         message.isPartial = false;
         if (value !== undefined)
             reflectionMergePartial<PackageData>(this, message, value);
@@ -11092,8 +11115,8 @@ class PackageData$Type extends MessageType<PackageData> {
                 case /* repeated symbolx.bench.PolicyData policies */ 35:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool is_active */ 36:
-                    message.isActive = reader.bool();
+                case /* bool is_paused */ 36:
+                    message.isPaused = reader.bool();
                     break;
                 case /* bool is_partial */ 37:
                     message.isPartial = reader.bool();
@@ -11158,9 +11181,9 @@ class PackageData$Type extends MessageType<PackageData> {
         /* repeated symbolx.bench.PolicyData policies = 35; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_active = 36; */
-        if (message.isActive !== false)
-            writer.tag(36, WireType.Varint).bool(message.isActive);
+        /* bool is_paused = 36; */
+        if (message.isPaused !== false)
+            writer.tag(36, WireType.Varint).bool(message.isPaused);
         /* bool is_partial = 37; */
         if (message.isPartial !== false)
             writer.tag(37, WireType.Varint).bool(message.isPartial);
@@ -11742,17 +11765,14 @@ class RunData$Type extends MessageType<RunData> {
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "block_path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 37, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 38, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 39, name: "trigger_type", kind: "enum", opt: true, T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
-            { no: 40, name: "trigger_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 43, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 44, name: "outputs_packed", kind: "message", T: () => Struct },
-            { no: 45, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 46, name: "error", kind: "message", T: () => Struct }
+            { no: 39, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 40, name: "inputs_packed", kind: "message", T: () => Struct },
+            { no: 41, name: "outputs_packed", kind: "message", T: () => Struct },
+            { no: 42, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 53, name: "error", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<RunData>): RunData {
@@ -11819,9 +11839,6 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 34:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
-                case /* optional string block_path */ 35:
-                    message.blockPath = reader.string();
-                    break;
                 case /* optional google.protobuf.Timestamp scheduled_at */ 36:
                     message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
                     break;
@@ -11831,25 +11848,19 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional google.protobuf.Timestamp terminated_at */ 38:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
                     break;
-                case /* optional symbolx.bench.TriggerType trigger_type */ 39:
-                    message.triggerType = reader.int32();
-                    break;
-                case /* optional string trigger_id */ 40:
-                    message.triggerId = reader.string();
-                    break;
-                case /* symbolx.bench.RunStatus status */ 42:
+                case /* symbolx.bench.RunStatus status */ 39:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Struct inputs_packed */ 43:
+                case /* optional google.protobuf.Struct inputs_packed */ 40:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
-                case /* optional google.protobuf.Struct outputs_packed */ 44:
+                case /* optional google.protobuf.Struct outputs_packed */ 41:
                     message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 45:
+                case /* optional google.protobuf.Struct value_packed */ 42:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct error */ 46:
+                case /* optional google.protobuf.Struct error */ 53:
                     message.error = Struct.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
                 default:
@@ -11912,9 +11923,6 @@ class RunData$Type extends MessageType<RunData> {
         /* optional symbolx.bench.NodeReferenceData block_ptr = 34; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional string block_path = 35; */
-        if (message.blockPath !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.blockPath);
         /* optional google.protobuf.Timestamp scheduled_at = 36; */
         if (message.scheduledAt)
             Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
@@ -11924,27 +11932,21 @@ class RunData$Type extends MessageType<RunData> {
         /* optional google.protobuf.Timestamp terminated_at = 38; */
         if (message.terminatedAt)
             Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TriggerType trigger_type = 39; */
-        if (message.triggerType !== undefined)
-            writer.tag(39, WireType.Varint).int32(message.triggerType);
-        /* optional string trigger_id = 40; */
-        if (message.triggerId !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.triggerId);
-        /* symbolx.bench.RunStatus status = 42; */
+        /* symbolx.bench.RunStatus status = 39; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Struct inputs_packed = 43; */
+            writer.tag(39, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Struct inputs_packed = 40; */
         if (message.inputsPacked)
-            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_packed = 44; */
+            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct outputs_packed = 41; */
         if (message.outputsPacked)
-            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 45; */
+            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct error = 46; */
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct error = 53; */
         if (message.error)
-            Struct.internalBinaryWrite(message.error, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+            Struct.internalBinaryWrite(message.error, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

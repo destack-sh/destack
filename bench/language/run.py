@@ -116,28 +116,26 @@ class Run(ScopeNode, HasValue):
     block: Optional["Block"] = p_internal(
         34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
-    block_path: Optional[str] = p_internal(35, default=None)
+    # block_path?
     scheduled_at: Optional[datetime] = p_internal(36, default=None)
     started_at: Optional[datetime] = p_internal(37, default=None)
     terminated_at: Optional[datetime] = p_internal(38, default=None)
-    trigger_type: Optional[TriggerType] = p_internal(39, default=None)
-    trigger_id: Optional[UUID] = p_internal(40, default=None)
-    status: RunStatus = p_internal(42, index_in_pg=True)
+    status: RunStatus = p_internal(39, index_in_pg=True)
     # NOTE ideally we should :GeneralizeHasValue for inputs/outputs as well (not needed yet, see note above)
     inputs_packed: Optional[dict[str, Any]] = p_internal(
-        43, default=None, primitive_type=PrimitiveType.JSON
+        40, default=None, primitive_type=PrimitiveType.JSON
     )
     outputs_packed: Optional[dict[str, Any]] = p_internal(
-        44, default=None, primitive_type=PrimitiveType.JSON
+        41, default=None, primitive_type=PrimitiveType.JSON
     )
     value_packed: Any | None = p_internal(
-        45,
+        42,
         default=None,
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
         ignore_conflicts=True,
     )
-    error: Optional["RunError"] = p_internal(46, default=None, primitive_type=PrimitiveType.JSON)
+    error: Optional["RunError"] = p_internal(53, default=None, primitive_type=PrimitiveType.JSON)
     runs: list["Run"] = p_child(NodeType.RUN)
 
     def __content_str__(self):

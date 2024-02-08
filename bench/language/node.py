@@ -2393,7 +2393,7 @@ class Package(ScopeNode):
     policies: list["Policy"] | None = p_regular(
         35, default_factory=list, struct=StructType.POLICY, array=True
     )
-    is_active: bool = p_system(36, default=False)
+    is_paused: bool = p_system(36, default=False)
     is_partial: bool = p_system(37, default=False)
     base: Optional["Package"] = p_system(
         38, require=False, array=False, references=NodeType.PACKAGE

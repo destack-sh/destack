@@ -71,7 +71,7 @@ from bench.sql.core import (
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type, to_uuid
-from bench.utils.utils import IS_DEBUG, IS_LOCAL, IS_TEST
+from bench.utils.env import IS_DEBUG, IS_TEST, IS_LOCAL
 
 logger = structlog.get_logger(__name__)
 

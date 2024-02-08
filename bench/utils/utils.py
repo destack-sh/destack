@@ -1,16 +1,10 @@
 import inspect
 import os
-import sys
 import textwrap
 import typing
-from dataclasses import field
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Optional
 
 import sentry_sdk
-
-
-class UnreachableError(Exception):
-    pass
 
 
 def str_to_bool(value: str) -> bool:
@@ -107,14 +101,3 @@ def format_python(code: str):
         raise RuntimeError("black is required to format code") from None
     except Exception as e:
         raise ValueError(f"got bad code:\n{code}") from e
-
-
-ENVIRONMENT = get_from_env("ENVIRONMENT", default="local")
-IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
-IS_TEST: bool = (
-    "test" in sys.argv
-    or "pytest" in sys.argv[0]
-    or get_from_env("TEST", False, type_cast=str_to_bool)
-)
-IS_LOCAL = ENVIRONMENT == "local"
-SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST

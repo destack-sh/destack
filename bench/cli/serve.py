@@ -9,7 +9,8 @@ from bench.proto.services import BenchServer
 from bench.system.host import BenchHostMultiplexer
 from bench.system.supervisor import Supervisor
 from bench.utils.monitoring import restart_on_file_changes
-from bench.utils.utils import get_from_env, IS_DEBUG
+from bench.utils.utils import get_from_env
+from bench.utils.env import IS_DEBUG
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
