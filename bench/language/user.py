@@ -19,17 +19,18 @@ if TYPE_CHECKING:
     from bench.language import Bench, Space, Server, RichText, Role
 
 
-@node(NodeType.HANDLE, roots=(), identifier=IdentifierType.VARIABLE)
+@node(
+    NodeType.HANDLE,
+    roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
+    identifier=IdentifierType.VARIABLE,
+)
 class Handle(Node):
-    """A Bench handle."""
+    """A Bench @handle. Can only be created/edited by the system."""
 
-    slug: str = p_system(30, unique=True)
-    owner: Optional[Union["User", "Organization", "Bench"]] = p_system(
-        31,
-        require=False,
-        array=False,
-        references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
+    parent: Union["User", "Organization", "Bench"] = p_parent(
+        4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
     )
+    slug: str = p_system(30, unique=True)
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
@@ -37,7 +38,9 @@ class User(ScopeNode):
     """A Bench user."""
 
     # (can create user without handle)
-    handle: Optional[Handle] = p_system(30, require=False, array=False, references=NodeType.HANDLE)
+    main_handle: Optional[Handle] = p_system(
+        30, require=False, array=False, references=NodeType.HANDLE
+    )
     slug: Optional[str] = p_system(31, unique=True)
     name: Optional[str] = p_regular(32, default=None)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
@@ -66,7 +69,9 @@ class User(ScopeNode):
 class Organization(ScopeNode):
     """A Bench organization with Users as members."""
 
-    handle: Handle = p_system(30, require=True, array=False, references=NodeType.HANDLE)
+    main_handle: Optional[Handle] = p_system(
+        30, require=False, array=False, references=NodeType.HANDLE
+    )  # not actually optional but Handle.parent = Organization
     slug: Optional[str] = p_system(31, unique=True)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)

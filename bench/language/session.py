@@ -302,6 +302,7 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
+
         from bench.sql.engine import pg_write_record_edits, update_dynamic_local_pg_schema
 
         # if the schema changed, also flush PG schema

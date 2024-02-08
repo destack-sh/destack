@@ -18,6 +18,7 @@ import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { RunData } from "./lang";
+import { RunErrorData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
 import { BenchPathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
@@ -433,6 +434,10 @@ export interface CommitEditsRequest {
      */
     benchId?: string;
     /**
+     * @generated from protobuf field: optional string package_id = 4;
+     */
+    packageId?: string;
+    /**
      * request
      *
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 5;
@@ -716,9 +721,9 @@ export interface RunProxyBlockResponse {
      */
     outputs?: Struct;
     /**
-     * @generated from protobuf field: google.protobuf.Struct error = 2;
+     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 2;
      */
-    error?: Struct;
+    error?: RunErrorData;
 }
 // 
 // Server node
@@ -840,8 +845,8 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
             { no: 1, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
             { no: 6, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
@@ -923,7 +928,7 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
     constructor() {
         super("symbolx.bench.SignupUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
             { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
@@ -984,8 +989,8 @@ export const SignupUserResponse = new SignupUserResponse$Type();
 class ChangeUserPasswordRequest$Type extends MessageType<ChangeUserPasswordRequest> {
     constructor() {
         super("symbolx.bench.ChangeUserPasswordRequest", [
-            { no: 1, name: "old_password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "new_password", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "old_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 2, name: "new_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } }
         ]);
     }
     create(value?: PartialMessage<ChangeUserPasswordRequest>): ChangeUserPasswordRequest {
@@ -1095,8 +1100,8 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
         super("symbolx.bench.LoginUserRequest", [
             { no: 1, name: "id", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "slug", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
             { no: 5, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
@@ -1180,7 +1185,7 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         super("symbolx.bench.LoginUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
             { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
             { no: 4, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
@@ -2031,6 +2036,7 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
     constructor() {
         super("symbolx.bench.CommitEditsRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
@@ -2048,6 +2054,9 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
             switch (fieldNo) {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
+                    break;
+                case /* optional string package_id */ 4:
+                    message.packageId = reader.string();
                     break;
                 case /* repeated symbolx.bench.EditData edits */ 5:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
@@ -2067,6 +2076,9 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* optional string package_id = 4; */
+        if (message.packageId !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
         /* repeated symbolx.bench.EditData edits = 5; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
@@ -3174,7 +3186,7 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
     constructor() {
         super("symbolx.bench.RunProxyBlockResponse", [
             { no: 1, name: "outputs", kind: "message", T: () => Struct },
-            { no: 2, name: "error", kind: "message", T: () => Struct }
+            { no: 2, name: "error", kind: "message", T: () => RunErrorData }
         ]);
     }
     create(value?: PartialMessage<RunProxyBlockResponse>): RunProxyBlockResponse {
@@ -3191,8 +3203,8 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
                 case /* google.protobuf.Struct outputs */ 1:
                     message.outputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputs);
                     break;
-                case /* google.protobuf.Struct error */ 2:
-                    message.error = Struct.internalBinaryRead(reader, reader.uint32(), options, message.error);
+                case /* optional symbolx.bench.RunErrorData error */ 2:
+                    message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3209,9 +3221,9 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
         /* google.protobuf.Struct outputs = 1; */
         if (message.outputs)
             Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Struct error = 2; */
+        /* optional symbolx.bench.RunErrorData error = 2; */
         if (message.error)
-            Struct.internalBinaryWrite(message.error, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            RunErrorData.internalBinaryWrite(message.error, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

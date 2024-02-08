@@ -990,7 +990,7 @@ message BadgeData {
   optional string key_value_hash = 51;
 }
 
-// A Bench is the AI-native operating system for a new generation of fully integrated apps.
+// A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
@@ -1002,7 +1002,7 @@ message BenchData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData handle_ptr = 30;
+  optional NodeReferenceData main_handle_ptr = 30;
   string slug = 31;
   string name = 32;
   optional RichTextData text = 33;
@@ -1119,7 +1119,7 @@ message FileContentData {
   FileStatus status = 33;
 }
 
-// A Bench handle.
+// A Bench @handle. Can only be created/edited by the system.
 message HandleData {
   BenchType metatype = 1;
   string id = 2;
@@ -1131,7 +1131,6 @@ message HandleData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string slug = 30;
-  optional NodeReferenceData owner_ptr = 31;
 }
 
 // Attach an identity to a block or member.
@@ -1249,7 +1248,7 @@ message OrganizationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  NodeReferenceData handle_ptr = 30;
+  optional NodeReferenceData main_handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
   optional RichTextData text = 33;
@@ -1523,7 +1522,7 @@ message UserData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData handle_ptr = 30;
+  optional NodeReferenceData main_handle_ptr = 30;
   optional string slug = 31;
   optional string name = 32;
   optional RichTextData text = 33;

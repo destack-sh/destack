@@ -6,7 +6,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, Expression, Handle, NodeReference, User
+from bench.language import Client, Expression, NodeReference, User
 from bench.language.access import (
     ReadOptions,
     adapt_read_options,
@@ -14,12 +14,13 @@ from bench.language.access import (
     generate_access_matrix,
     Subject,
     evaluate_edit,
+    get_edited_scopes,
 )
 from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp
 from bench.language.expression import Aggregation
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.tree import NodeDataTree
-from bench.proto import wiring, wire
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
@@ -107,10 +108,10 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            user.handle = Handle(slug=user.slug)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
             client.access_token = generate_access_token()
-            session.create_many(user.handle, user, client)
+            # nocheckin: create handle again (probably need to patch edits.. or flush first..?)
+            session.create_many(user, client)
             await session.commit()
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self._epoch
@@ -336,41 +337,31 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         self, subject: Subject, request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        edited_scopes_ptr: dict[UUID, NodeReference] = {}
-        for edit in request.edits:
-            node = wiring.unwrap_some_node(edit.node)
-            if edit.type == wire.EditType.CREATE or edit.type == wire.EditType.UPSERT:
-                # scope is parent since we don't know this node yet
-                if node.parent_ptr is not None and node.parent_ptr.id not in edited_scopes_ptr:
-                    ptr: NodeReference = wiring.unpack_struct(node.parent_ptr)
-                    edited_scopes_ptr[ptr.id] = ptr
-            else:
-                # scope is the edited node itself
-                if node.id not in edited_scopes_ptr:
-                    ptr: NodeReference = wiring.unpack_struct(NodeReference.from_node_data(node))
-                    edited_scopes_ptr[ptr.id] = ptr
-
-        roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
+        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.edits)
+        edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
             edited_scopes_ptr.values(), lambda r: r.type
         )
         async with async_pg_cursor() as cur:
             # read the required nodes into a single tree
             tree = NodeDataTree()
-            for root_node_type, root_node_references in roots_by_type.items():
-                node_type = wiring.unpack_enum(NodeType, root_node_type)
+            for node_type, node_references in edited_scopes_by_type.items():
+                node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO @Performance: select only require properties for edit eval (id/policies/...?)
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
                 _ = await pg_read_node_data_tree(
                     cur=cur,
                     root_type=node_type,
-                    root_ids=tuple(r.id for r in root_node_references),
+                    root_ids=tuple(r.id for r in node_references),
                     options=adapted_options,
                     _tree=tree,  # accumulate into tree
                 )
+                if any(str(r.id) not in tree for r in node_references):
+                    missing = tuple(r for r in node_references if str(r.id) not in tree)
+                    raise GRPCError(GRPCStatus.NOT_FOUND, f"edit scopes not found: {missing}")
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, tree)
-            access = evaluate_edit(matrix, tree, request.edits, trace=True)
+            access = evaluate_edit(matrix, tree, request.edits)
             await self._log_and_check_access(access)
 
             # apply the edits

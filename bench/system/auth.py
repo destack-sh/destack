@@ -8,7 +8,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Badge, Client, User
 from bench.language.access import Subject
 from bench.language.const import NodeType
-from bench.language.link import NoNodeFoundError
+from bench.language.link import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.utils import detached_session
 from bench.utils.func import to_uuid
@@ -114,7 +114,7 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
         try:
             client = await _get_client_from_metadata(metadata)
             badge = await _get_badge_from_metadata(metadata)
-        except NoNodeFoundError as e:
+        except NodeNotFoundError as e:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client or badge") from e
         if client is None:
             return Subject(is_authenticated=False, badge=badge)

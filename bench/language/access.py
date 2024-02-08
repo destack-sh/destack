@@ -25,6 +25,7 @@ from bench.language.const import (
     StructType,
     PUBLIC_NODE_TYPES,
     AccessMode,
+    ROOT_NODE_TYPES,
 )
 from bench.language.link import on_notice_raise, NodeList
 from bench.language.node import (
@@ -52,12 +53,13 @@ from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
 from bench.language.tree import NodeDataTree, NodeTree
 from bench.language.user import Membership, User
+from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Organization, Client
+    from bench.language import Block, Expression, Organization, Client, NodeReference
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -737,6 +739,23 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .deny(EditType.UPDATE)
         .object(properties_is_system=True),
         PolicyRule(
+            "CannotCreateRootNodesDirectly",
+            text=RichText.plain(
+                "Root nodes (Bench, Organization, User) must be created through special methods."
+            ),
+        )
+        .deny(EditType.CREATE, EditType.UPSERT)
+        .object(node_types=ROOT_NODE_TYPES.tuple),
+        PolicyRule(
+            "CannotEditHandles",
+            text=RichText.plain(
+                "Handles (like usernames) are not directly editable, only through special methods."
+                # (explicitly deny this since handles are owned by the root)
+            ),
+        )
+        .deny(AccessKind.EDIT)
+        .object(node_types=(NodeType.HANDLE,)),
+        PolicyRule(
             "CannotUpsertLegislativeNodes",
             text=RichText.plain(
                 "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
@@ -834,6 +853,30 @@ def adapt_read_options(
     return options
 
 
+def get_edited_scopes(edits: list[EditData]) -> dict[UUID, "NodeReference"]:
+    from bench.proto import wiring, wire
+    from bench.language import NodeReference
+
+    edited_scopes_ptr: dict[UUID, "NodeReference"] = {}
+    for edit in edits:
+        node = wiring.unwrap_some_node(edit.node)
+        node_cls = NODE_CLASS_BY_TYPE[node.metatype]
+        if edit.type == wire.EditType.CREATE or edit.type == wire.EditType.UPSERT:
+            # scope is parent since we don't know this node yet
+            if node.parent_ptr is not None:
+                if node.parent_ptr.id not in edited_scopes_ptr:
+                    ptr: "NodeReference" = wiring.unpack_struct(node.parent_ptr)
+                    edited_scopes_ptr[ptr.id] = ptr
+            elif node_cls.__roots__:
+                raise ValidationError(node, f"can't create orphan")
+        else:
+            # scope is the edited node itself
+            if node.id not in edited_scopes_ptr:
+                ptr: "NodeReference" = wiring.unpack_struct(NodeReference.from_node_data(node))
+                edited_scopes_ptr[ptr.id] = ptr
+    return edited_scopes_ptr
+
+
 def generate_access_matrix(
     subject: Subject,
     tree: NodeDataTree,
@@ -841,7 +884,7 @@ def generate_access_matrix(
     root_owner: Owner | None = None,
     unpacked_tree: NodeTree | None = None,
 ) -> AccessMatrix:
-    """Generates an access matrix for the given subject."""
+    """Generates an access matrix to quickly evaluate access for a specific subject."""
 
     from bench.proto import wiring
 
@@ -967,7 +1010,7 @@ def evaluate_access(
     object_node_type: NodeType,
     object_properties: bitarray,
     root_id: str,
-    scope_id: str,
+    scope_id: str | None,
     trace: bool = False,
 ) -> tuple[bitarray, Access]:
     """
@@ -1131,12 +1174,12 @@ def evaluate_edit(
 ) -> Request:
     """
     Evaluates whether the given policies (base and in tree) allow the given edits.
-    Assumes that all policies are valid.
+    Assumes that all policies are valid, and that all relevant scopes are in the tree.
     """
     from bench.proto import wiring
 
     accesses: list[Access] = []
-    # when creating nested nodes in one transaccess, the tree only knows about their 'root',
+    # when creating nested nodes in one transaction, the tree only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] | None = None
     for edit in edits:
@@ -1146,17 +1189,30 @@ def evaluate_edit(
         node = wiring.unwrap_some_node(edit.node)
 
         # figure out the scope to evaluate the edit in
-        if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            if new_node_scopes_by_child_id is None:
-                new_node_scopes_by_child_id = {}
-            scope_id = node.parent_ptr.id or node.id
-            while scope_id in new_node_scopes_by_child_id:
-                scope_id = new_node_scopes_by_child_id[scope_id]
-            new_node_scopes_by_child_id[node.id] = scope_id
+        if node_cls.__roots__:
+            # regular non-root node: scope = parent if creating, else scope = node
+            if edit.type in (EditType.CREATE, EditType.UPSERT):
+                if new_node_scopes_by_child_id is None:
+                    new_node_scopes_by_child_id = {}
+                scope_id = node.parent_ptr.id
+                while scope_id in new_node_scopes_by_child_id:
+                    scope_id = new_node_scopes_by_child_id[scope_id]
+                new_node_scopes_by_child_id[node.id] = scope_id
+            else:
+                scope_id = node.id
+            scope = tree.get(scope_id)
+            assert scope is not None, f"scope {scope_id} for {edit!r} not in {tree!r}"
+            root = tree.get_root(scope)
         else:
-            scope_id = node.id
-        root = tree.get(scope_id)
-        root = tree.get_root(root)
+            if edit.type in (EditType.CREATE, EditType.UPSERT):
+                # there's a system rule against creating roots, but would need special logic to enforce it
+                #  (because root would be node itself, which isn't in the matrix as we expect)
+                return Request(
+                    decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses
+                )
+            else:
+                scope = node
+                root = node
 
         # and evaluate it
         object_properties = (
@@ -1169,14 +1225,14 @@ def evaluate_edit(
             object_node_type=node_type,
             object_properties=object_properties,
             root_id=root.id,
-            scope_id=scope_id,
+            scope_id=scope.id,
             mode=AccessMode.ATOMIC,
             trace=trace,
         )
         accesses.append(access)
         if access.decision == PolicyEffect.DENY:
-            # implicit or explicit deny -> complete deny
-            return Request(decision=access.decision, subject=matrix.subject, accesses=accesses)
+            # implicit or explicit deny for access -> deny entire request
+            return Request(decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses)
 
     # at this point no implicit or explicit denies have happened -> allow
     return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
@@ -1184,7 +1240,6 @@ def evaluate_edit(
 
 def evaluate_run(
     matrix: AccessMatrix,
-    tree: NodeDataTree,
     run_type: RunType,
     node: "Block",
     *,

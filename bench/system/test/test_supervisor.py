@@ -7,7 +7,13 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, ReadOptions, User
-from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, PUBLIC_NODE_TYPES, EDIT_TYPES
+from bench.language.const import (
+    NodeType,
+    ABOVE_SOURCE_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
+    EditType,
+    ROOT_NODE_TYPES,
+)
 from bench.language.expression import A
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -197,7 +203,7 @@ async def test_public_node_read(
     # search with filter (and count)
     search_req = SearchNodesRequest(node_type=packed_node_type)
     search_rep = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
-    # ...?
+    # here?
 
     # aggregate: exists
     aggregate_req = AggregateNodesRequest(
@@ -218,8 +224,8 @@ async def test_public_node_read(
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-@pytest.mark.parametrize("node_type", (nt for nt in ABOVE_SOURCE_NODE_TYPES), ids=lambda t: t.name)
-async def test_global_node_edit(
+@pytest.mark.parametrize("node_type", (nt for nt in ROOT_NODE_TYPES), ids=lambda t: t.name)
+async def test_root_node_edit(
     node_type: NodeType,
     some_user: UserHandle,
     supervisor: SupervisorStub,
@@ -228,9 +234,11 @@ async def test_global_node_edit(
     """'Global' nodes should not be directly editable by regular users."""
 
     node = fabricator.fabricate(node_type)
-    node.parent = None  # we don't care about lookup errors
     node_data = wiring.pack_node(node)
-    for edit_type in EDIT_TYPES:
+    node_data.parent_ptr = None  # don't need parents for basic permission check
+
+    # try create
+    for edit_type in (EditType.CREATE, EditType.UPSERT):
         edit = EditData(
             type=edit_type,
             node_type=node_data.metatype,

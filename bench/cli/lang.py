@@ -24,4 +24,4 @@ async def shell(bench: str = None):
         async with detached_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
     logger.info("lang.shell", bench=bench)
-    raise NotImplementedError("nocheckin: shell.session")
+    raise NotImplementedError("TODO @Dev: shell.session")
