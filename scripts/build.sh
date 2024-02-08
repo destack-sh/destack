@@ -12,7 +12,7 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 VERSION=$(cat version)
 
 # Image names
-IMAGES=("bench-api" "bench-worker")
+IMAGES=("bench-system" "bench-runtime")
 
 for IMAGE in ${IMAGES[@]}; do
   # Build the Docker image and tag properly (with commit hash)

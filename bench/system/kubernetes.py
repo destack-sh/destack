@@ -15,11 +15,6 @@ from kubernetes_asyncio import client, config, watch
 
 from bench import settings
 from bench.language.const import BenchRegion, ServerProfile, ServerStatus
-from bench.settings.k8 import (
-    KUBERNETES_SERVER_ENV_VARS_STR,
-    KUBERNETES_SERVER_IMAGE,
-    KUBERNETES_SERVER_NAMESPACE,
-)
 from bench.utils.utils import IS_DEBUG, get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +22,17 @@ logger = structlog.get_logger(__name__)
 k8_init = asyncio.Event()
 
 SERVER_APP_LABEL = "user-server"
-K8_AVAILABLE = False
+KUBERNETES_AVAILABLE = False
+KUBERNETES_KUBECONFIG_PATH = get_from_env("KUBERNETES_KUBECONFIG_PATH", optional=True)
+KUBERNETES_KUBECONFIG_CTX = get_from_env("KUBERNETES_KUBECONFIG_CTX", optional=True)
+KUBERNETES_SERVER_IMAGE = get_from_env("KUBERNETES_SERVER_IMAGE", optional=True)
+KUBERNETES_SERVER_NAMESPACE = get_from_env("KUBERNETES_SERVER_NAMESPACE", default="default")
+KUBERNETES_SERVER_ENV_VARS_STR = get_from_env("KUBERNETES_SERVER_ENV_VARS", optional=True)
+KUBERNETES_SERVER_IMAGE_PULL_SECRET_NAME = get_from_env(
+    "KUBERNETES_SERVER_IMAGE_PULL_SECRET_NAME", optional=True
+)
+KUBERNETES_ENABLED = get_from_env("KUBERNETES_ENABLED", default=not IS_DEBUG, type_cast=bool)
+
 
 if KUBERNETES_SERVER_IMAGE is not None and IS_DEBUG:
     image_name, image_version = KUBERNETES_SERVER_IMAGE.split(":")
@@ -42,22 +47,20 @@ if KUBERNETES_SERVER_IMAGE is not None and IS_DEBUG:
 async def init():
     # TODO @Cleanup: somehow kubernetes asyncio sometimes stalls while authenticating
     # so we use the sync kubernetes client, then patch the config into the async client
-    global K8_AVAILABLE
-    if settings.KUBERNETES_KUBECONFIG_PATH is not None:
-        sync_config.load_kube_config(
-            settings.KUBERNETES_KUBECONFIG_PATH, settings.KUBERNETES_KUBECONFIG_CTX
-        )
-        K8_AVAILABLE = True
+    global KUBERNETES_AVAILABLE
+    if KUBERNETES_KUBECONFIG_PATH is not None:
+        sync_config.load_kube_config(KUBERNETES_KUBECONFIG_PATH, KUBERNETES_KUBECONFIG_CTX)
+        KUBERNETES_AVAILABLE = True
     elif not IS_DEBUG:
         sync_config.load_incluster_config()
-        K8_AVAILABLE = True
+        KUBERNETES_AVAILABLE = True
 
-    if K8_AVAILABLE:
+    if KUBERNETES_AVAILABLE:
         config.kube_config.Configuration.set_default(
             sync_config.kube_config.Configuration.get_default_copy()
         )
 
-    logger.info("k8_init", K8_AVAILABLE=K8_AVAILABLE)
+    logger.info("k8_init", K8_AVAILABLE=KUBERNETES_AVAILABLE)
     k8_init.set()
 
 
@@ -300,7 +303,7 @@ class Deployment:
 
 
 def _check_k8_available():
-    if not K8_AVAILABLE:
+    if not KUBERNETES_AVAILABLE:
         raise RuntimeError("Kubernetes API is not available")
 
 

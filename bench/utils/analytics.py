@@ -1,14 +1,16 @@
 import logging
 import os
 
+import posthog
 import sentry_sdk
 import structlog
 from sentry_sdk.integrations.logging import LoggingIntegration
 
+from bench.utils.utils import IS_TEST, IS_DEBUG, SOME_TYPE_CHECKING
+
 logger = structlog.get_logger(__name__)
 
 IGNORED_PATHS = {"/", "/metrics", "/healthz", "/readiness", "/liveness"}
-IGNORED_GRAPHQL_OPS = {"IntrospectionQuery", "systemInfo", "newNotifications"}
 
 
 def traces_sampler(sampling_context: dict):
@@ -16,11 +18,6 @@ def traces_sampler(sampling_context: dict):
         path = sampling_context["asgi_scope"]["path"]
         if path in IGNORED_PATHS:
             return 0.0
-    if "strawberry_context" in sampling_context:
-        operation = sampling_context["strawberry_context"].operation_name
-        if operation in IGNORED_GRAPHQL_OPS:
-            return 0.0
-
     return 1.0  # by default sample everything
 
 
@@ -30,7 +27,7 @@ def init_sentry():
     sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=None)
     environment = os.getenv("SENTRY_ENVIRONMENT", "production")
     dsn = os.environ["SENTRY_DSN"]
-    integrations = [sentry_logging]
+    integrations = (sentry_logging,)
 
     sentry_sdk.init(
         dsn=dsn,
@@ -45,3 +42,16 @@ def init_sentry():
         },
     )
     logger.debug("sentry.initialized", environment=environment, dsn=dsn[:12] + "..." + dsn[-4:])
+
+
+def setup_analytics():
+    # Sentry
+    if not (IS_TEST or IS_DEBUG or SOME_TYPE_CHECKING):
+        init_sentry()
+
+    # Posthog
+    posthog.bench_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
+    posthog.host = "https://eu.posthog.com"
+
+    if IS_TEST or IS_DEBUG or SOME_TYPE_CHECKING:
+        posthog.disabled = True

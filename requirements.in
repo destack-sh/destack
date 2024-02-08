@@ -10,20 +10,12 @@ botocore==1.29.125
 cachetools==5.2.0
 croniter==1.4.1
 deepgram-sdk==2.11.0
-# nocheckin: remove django stuff
-dj-database-url==1.0.0
-daphne==4.0.0
-django==4.2.3
-django_choices_field==2.1
-django-pgcrypto-fields==2.6.0
 googleapis-common-protos==1.62.0
-gunicorn==21.2.0
 huggingface-hub==0.19.4
 json-stream==2.2.1
 kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 more-itertools==9.0.0
-msgpack==1.0.7
 numpy<2,>=1.20.0#
 openai==0.28.1
 opensearch-py[async]==2.3.1

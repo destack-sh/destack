@@ -109,7 +109,7 @@ def format_python(code: str):
         raise ValueError(f"got bad code:\n{code}") from e
 
 
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
+ENVIRONMENT = get_from_env("ENVIRONMENT", default="local")
 IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 IS_TEST: bool = (
     "test" in sys.argv
