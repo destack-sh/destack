@@ -1,11 +1,14 @@
 from pathlib import Path
+import sys
+from typing import TYPE_CHECKING
 
 import dotenv
+
+from bench.utils.utils import get_from_env, str_to_bool
 
 
 def setup_dotenv():
     """Loads .env files according to the local environment at the project root."""
-    from bench.utils.utils import ENVIRONMENT
 
     if ENVIRONMENT == "prod":
         dot_env_files = [".env", ".env.prod"]
@@ -26,3 +29,15 @@ def setup_dotenv():
 
     for dot_env_path in dot_env_paths:
         dotenv.load_dotenv(dot_env_path, verbose=True, override=True)
+
+
+ENVIRONMENT = get_from_env("ENVIRONMENT", default="local")
+IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
+IS_TEST: bool = (
+    "test" in sys.argv
+    or "pytest" in sys.argv[0]
+    or get_from_env("TEST", False, type_cast=str_to_bool)
+)
+IS_LOCAL = ENVIRONMENT == "local"
+SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST
+REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()

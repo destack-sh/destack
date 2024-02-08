@@ -56,7 +56,7 @@ from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync
-from bench.utils.utils import IS_DEBUG
+from bench.utils.env import IS_DEBUG
 
 if TYPE_CHECKING:
     from bench.language import Block, Record, Server, Trigger

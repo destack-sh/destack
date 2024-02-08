@@ -132,12 +132,14 @@ class Role(Node):
 @node(NodeType.IDENTITY)
 class Identity(ScopeNode):
     """
-    Attach an identity to a block or member.
+    Attach an identity to a block,  member or user.
     Identity policies are delegated to the parent and its descendants.
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    parent: Union["Block", "Membership", "User"] = p_parent(
+        4, NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER
+    )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
     roles: NodeList["Role"] = p_child(NodeType.ROLE)

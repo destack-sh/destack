@@ -6,7 +6,7 @@ import sentry_sdk
 import structlog
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from bench.utils.utils import IS_TEST, IS_DEBUG, SOME_TYPE_CHECKING
+from bench.utils.env import IS_DEBUG, IS_TEST, SOME_TYPE_CHECKING
 
 logger = structlog.get_logger(__name__)
 

@@ -1038,6 +1038,8 @@ message BlockData {
   repeated NodeReferenceData bases_ptr = 33;
   optional TypeInfoData builtin_base = 34;
   bool is_page = 35;
+  bool is_module = 36;
+  bool is_unique_name = 37;
   optional string name = 40;
   optional string order_key = 41;
   optional string dynamic_key = 42;
@@ -1045,6 +1047,7 @@ message BlockData {
   optional google.protobuf.Struct value_packed = 44;
   optional google.protobuf.Struct secret_value_packed = 45;
   optional string code = 46;
+  optional IconData icon = 47;
   optional NodeReferenceData reference_ptr = 50;
   repeated PolicyData delegated_policies = 51;
 }
@@ -1203,7 +1206,7 @@ message HandleData {
   string slug = 30;
 }
 
-// Attach an identity to a block or member.
+// Attach an identity to a block,  member or user.
 // Identity policies are delegated to the parent and its descendants.
 // The delegated policies apply to all descendant's accesses.
 message IdentityData {
@@ -1340,7 +1343,7 @@ message PackageData {
   optional string slug = 33;
   optional RichTextData text = 34;
   repeated PolicyData policies = 35;
-  bool is_active = 36;
+  bool is_paused = 36;
   bool is_partial = 37;
   optional NodeReferenceData base_ptr = 38;
   NodeReferenceData environment_ptr = 39;
@@ -1435,17 +1438,14 @@ message RunData {
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData server_ptr = 32;
   optional NodeReferenceData block_ptr = 34;
-  optional string block_path = 35;
   optional google.protobuf.Timestamp scheduled_at = 36;
   optional google.protobuf.Timestamp started_at = 37;
   optional google.protobuf.Timestamp terminated_at = 38;
-  optional TriggerType trigger_type = 39;
-  optional string trigger_id = 40;
-  RunStatus status = 42;
-  optional google.protobuf.Struct inputs_packed = 43;
-  optional google.protobuf.Struct outputs_packed = 44;
-  optional google.protobuf.Struct value_packed = 45;
-  optional google.protobuf.Struct error = 46;
+  RunStatus status = 39;
+  optional google.protobuf.Struct inputs_packed = 40;
+  optional google.protobuf.Struct outputs_packed = 41;
+  optional google.protobuf.Struct value_packed = 42;
+  optional google.protobuf.Struct error = 53;
 }
 
 // A server providing the compute runtime for a Bench.

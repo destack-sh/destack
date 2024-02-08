@@ -12,10 +12,16 @@ from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
+from bench.language.link import NodeNotFoundError
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench
 from bench.system.utils import detached_session
 from bench.sql.client import _get_pg_connection_str, async_pg_cursor
-from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, map_node_class_to_pg_table
+from bench.sql.engine import (
+    GLOBAL_TABLES,
+    LOCAL_TABLES,
+    map_node_class_to_pg_table,
+    SqlUndefinedObjectError,
+)
 from bench.sql.migration import (
     Migration,
     add_migration_to_fs,
@@ -67,7 +73,7 @@ def regen():
 @app.command(help="generate global AND local SQL migrations")
 @_async_to_sync_blocking
 async def makemigrations(
-    bench: str = typer.Option(default="symbolx", help="the bench to use as local reference"),
+    bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     local_pg_name: Optional[str] = typer.Option(
         default=None, help="the bench to use as local reference (bypass lookup via bench)"
     ),
@@ -105,14 +111,20 @@ async def makemigrations(
     # resolve bench into local pg name if needed
     if not local_pg_name:
         async with detached_session(read_only=True):
-            bench = await Bench.get(slug=bench)
-            local_pg_name = bench.pg_name
+            try:
+                bench = await Bench.get(slug=bench)
+                local_pg_name = bench.pg_name
+            except (NodeNotFoundError, SqlUndefinedObjectError):
+                pass  # initial migration
 
     # introspect current/old tables from DB, get new from code
     async with async_pg_cursor() as cur:
         old_global_tables = await introspect_tables_from_pg(cur)
-    async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
-        old_local_tables = await introspect_tables_from_pg(cur)
+    if local_pg_name:
+        async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
+            old_local_tables = await introspect_tables_from_pg(cur)
+    else:
+        old_local_tables = []  # assumes from scratch
 
     # generate migration
     global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)

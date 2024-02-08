@@ -33,9 +33,10 @@ from bench.sql.core import (
 from bench.sql.engine import SqlUndefinedObjectError, pg_delete, pg_select, pg_select_raw, pg_upsert
 from bench.utils.func import partition
 from bench.utils.utils import format_python
+from bench.utils.env import REPOSITORY_PATH
 
-MIGRATIONS_PATH = "bench/sql/migrations"
-MIGRATIONS_TEMPLATE_PATH = "bench/sql/migrations/0000_template.py"
+MIGRATIONS_PATH = REPOSITORY_PATH / "bench/sql/migrations"
+MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/sql/migrations/0000_template.py"
 
 EXTENSIONS = ("pgcrypto",)
 
@@ -54,7 +55,7 @@ class Migration:
     has_global: bool
     has_local: bool
     applied_at: Optional[datetime]
-    path: Optional[str] = None  # not stored
+    path: Optional[Path] = None  # not stored
     file: Optional["MigrationFile"] = None  # not stored
 
     def __str__(self) -> str:
@@ -71,7 +72,7 @@ MigratorFunc = Callable[[psycopg.AsyncConnection], Awaitable[None]]
 
 @dataclass
 class MigrationFile:
-    path: str
+    path: Path
     module: Any
 
 
@@ -141,7 +142,7 @@ def read_migrations_from_fs() -> list[Migration]:
             continue
 
         # parse the file
-        migration_path = MIGRATIONS_PATH + "/" + migration_file
+        migration_path = MIGRATIONS_PATH / migration_file
         migration_code = Path(migration_path).read_text()
         migration_metadata: dict[str, str] = {
             match[0]: match[1] for match in re.findall(r"([A-Z_]+) = (.*)", migration_code)
@@ -174,7 +175,8 @@ def delete_migrations_in_fs(from_id: int, to_id: int) -> None:
 
 def _load_migration_from_path(migration: Migration) -> MigrationFile:
     assert migration.path is not None, "migration path not set"
-    module_path = migration.path.replace("/", ".").replace(".py", "")
+    current_path = Path(__file__).parent.parent.parent
+    module_path = str(migration.path)[len(str(current_path)) + 1 : -3].replace("/", ".")
     migration_module = importlib.import_module(module_path)
     file = MigrationFile(path=migration.path, module=migration_module)
     return file
@@ -194,11 +196,12 @@ async def migrate_to(
     # get target migrations from our source of truth (local file system)
     all_migrations = read_migrations_from_fs()
     if target:
-        target_migration = first(
-            (m for m in all_migrations if str(m.id) == target or m.version == target), None
-        )
-        if target_migration is None:
-            raise ValueError(f"unknown migration '{target}': {all_migrations}")
+        for m in all_migrations:
+            if m.id == target or str(m.id) == target:
+                target_migration = m
+                break
+        else:
+            raise ValueError(f"migration {repr(target)} not found in: {all_migrations}")
     else:
         if len(all_migrations) == 0:
             raise ValueError("no migrations found")
@@ -398,7 +401,7 @@ def generate_migration_ops(
                 continue  # hashing changed
             cru_ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object, diff))
 
-    # fix dependencies in create operations, split ops into two passes as needed:
+    # fix cyclic dependencies between creates & FKs -> split into two passes:
     #  1. create tables without FK columns
     #  2. patch in all the FK columns, create indexes, and constraints
     first_cru_ops: list[MigrationOp] = []

@@ -1219,6 +1219,8 @@ class BlockData(betterproto.Message):
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
     builtin_base: Optional["TypeInfoData"] = betterproto.message_field(34, optional=True)
     is_page: bool = betterproto.bool_field(35)
+    is_module: bool = betterproto.bool_field(36)
+    is_unique_name: bool = betterproto.bool_field(37)
     name: Optional[str] = betterproto.string_field(40, optional=True)
     order_key: Optional[str] = betterproto.string_field(41, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(42, optional=True)
@@ -1230,6 +1232,7 @@ class BlockData(betterproto.Message):
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(45, optional=True)
     code: Optional[str] = betterproto.string_field(46, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(47, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(51)
 
@@ -1414,9 +1417,9 @@ class HandleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IdentityData(betterproto.Message):
     """
-    Attach an identity to a block or member. Identity policies are delegated to
-    the parent and its descendants. The delegated policies apply to all
-    descendant's accesses.
+    Attach an identity to a block,  member or user. Identity policies are
+    delegated to the parent and its descendants. The delegated policies apply
+    to all descendant's accesses.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1591,7 +1594,7 @@ class PackageData(betterproto.Message):
     slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
-    is_active: bool = betterproto.bool_field(36)
+    is_paused: bool = betterproto.bool_field(36)
     is_partial: bool = betterproto.bool_field(37)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
     environment_ptr: "NodeReferenceData" = betterproto.message_field(39)
@@ -1703,24 +1706,21 @@ class RunData(betterproto.Message):
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    block_path: Optional[str] = betterproto.string_field(35, optional=True)
     scheduled_at: Optional[datetime] = betterproto.message_field(36, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(37, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(38, optional=True)
-    trigger_type: Optional["TriggerType"] = betterproto.enum_field(39, optional=True)
-    trigger_id: Optional[str] = betterproto.string_field(40, optional=True)
-    status: "RunStatus" = betterproto.enum_field(42)
+    status: "RunStatus" = betterproto.enum_field(39)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        43, optional=True
+        40, optional=True
     )
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        44, optional=True
+        41, optional=True
     )
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        45, optional=True
+        42, optional=True
     )
     error: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        46, optional=True
+        53, optional=True
     )
 
 
@@ -3805,72 +3805,72 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    CacheData,
-    MembershipData,
+    PackageData,
     TagData,
-    SpaceData,
-    FileContentData,
-    LinkData,
-    PauseData,
+    SkipData,
     SessionData,
-    BlockData,
-    FieldData,
-    IdentityData,
-    RoleData,
+    ViewData,
     UserData,
-    OrganizationData,
+    RoleData,
+    IdentityData,
+    NotificationData,
     DriveData,
-    BranchData,
+    FileContentData,
+    ServerData,
+    OrganizationData,
+    TriggerData,
+    LinkData,
+    HandleData,
+    RunData,
+    ClientData,
+    FieldData,
     SignalData,
     RecordData,
-    ViewData,
-    ClientData,
-    BadgeData,
-    ServerData,
-    EnvironmentData,
     NoticeData,
-    BenchData,
-    PackageData,
+    BranchData,
+    CacheData,
+    BadgeData,
     StoreData,
+    BlockData,
+    EnvironmentData,
+    PauseData,
     QueryData,
-    TriggerData,
-    SkipData,
-    RunData,
-    HandleData,
-    NotificationData,
+    BenchData,
+    SpaceData,
+    MembershipData,
 ]
 AnyStructData = Union[
-    AccessData,
-    ServerImageData,
-    PolicyData,
-    AccessMatrixData,
-    AggregationData,
-    RunCodeFrameData,
-    ServerImageRequirementData,
-    RichTextSpanData,
-    AccessZoneData,
-    PropertyPathData,
-    ValueSelectionData,
-    RequestData,
-    IconData,
-    SpaceDockItemData,
-    SpaceDockData,
-    PolicyRuleData,
-    NodeReferenceData,
-    FieldPathSegmentData,
-    BenchPathData,
     TypeInfoData,
-    RichTextData,
-    FileData,
-    ReadOptionsData,
-    ValueReferenceData,
-    PropertyReferenceData,
     AccessTraceData,
-    ExpressionData,
-    AggregationBucketData,
-    FieldPathData,
+    ReadOptionsData,
     SubjectData,
     LogEntryData,
-    ScheduleData,
+    ServerImageData,
+    AggregationData,
     RunErrorData,
+    ServerImageRequirementData,
+    SpaceDockItemData,
+    PropertyPathData,
+    ValueSelectionData,
+    AccessZoneData,
+    RunCodeFrameData,
+    AccessData,
+    RichTextSpanData,
+    FieldPathSegmentData,
+    RequestData,
+    NodeReferenceData,
+    ValueReferenceData,
+    PropertyReferenceData,
+    ExpressionData,
+    AggregationBucketData,
+    ScheduleData,
+    AccessMatrixData,
+    BenchPathData,
+    RichTextData,
+    FieldPathData,
+    FileData,
+    SpaceDockData,
+    PolicyData,
+    IconData,
+    PolicyRuleData,
 ]

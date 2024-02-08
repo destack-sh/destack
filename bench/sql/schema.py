@@ -205,7 +205,7 @@ PACKAGE_TABLE = Table(
         Column("slug", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("is_active", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
         Column("is_partial", PrimitiveType.BOOLEAN, default="false"),
         Column(
             "base_package_id",
@@ -289,6 +289,8 @@ BLOCK_TABLE = Table(
         Column("bases_block_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_module", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_unique_name", PrimitiveType.BOOLEAN, default="false"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
@@ -296,12 +298,13 @@ BLOCK_TABLE = Table(
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.STRING, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -343,8 +346,8 @@ TRIGGER_TABLE = Table(
         Column("signal_block_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -390,8 +393,8 @@ TAG_TABLE = Table(
         Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -447,8 +450,8 @@ FIELD_TABLE = Table(
         Column("is_option", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -491,8 +494,8 @@ QUERY_TABLE = Table(
         Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -547,8 +550,8 @@ VIEW_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -597,8 +600,8 @@ NOTICE_TABLE = Table(
         Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -653,8 +656,8 @@ LINK_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -709,8 +712,8 @@ SKIP_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -753,8 +756,8 @@ SPACE_TABLE = Table(
         Column("dock", PrimitiveType.JSON),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -787,8 +790,8 @@ SESSION_TABLE = Table(
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -841,12 +844,9 @@ RUN_TABLE = Table(
         ),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("block_path", PrimitiveType.STRING, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("trigger_type", PrimitiveType.STRING, is_nullable=True),
-        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.STRING),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
@@ -859,8 +859,8 @@ RUN_TABLE = Table(
         Index("bench_idx_server_id", IndexType.BTREE, ("server_id",)),
         Index("bench_idx_block_ck", IndexType.BTREE, ("block_ck",)),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -898,8 +898,8 @@ PAUSE_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -926,8 +926,8 @@ SIGNAL_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_type_block_ck", IndexType.BTREE, ("type_block_ck",)),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -981,8 +981,8 @@ BADGE_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_link_token", IndexType.BTREE, ("link_token",), is_unique=True),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -1033,8 +1033,8 @@ ROLE_TABLE = Table(
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
@@ -1065,6 +1065,13 @@ IDENTITY_TABLE = Table(
             is_nullable=True,
         ),
         Column(
+            "parent_user_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
             "package_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_package",
@@ -1080,14 +1087,14 @@ IDENTITY_TABLE = Table(
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("package_id", "deleted_at")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("package_id", "archived_at")),
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL)",
+            condition="(parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL) OR (parent_user_id IS NOT NULL)",
         ),
     ),
 )

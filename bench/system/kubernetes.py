@@ -15,7 +15,8 @@ from kubernetes_asyncio import client, config, watch
 
 from bench import settings
 from bench.language.const import BenchRegion, ServerProfile, ServerStatus
-from bench.utils.utils import IS_DEBUG, get_from_env
+from bench.utils.utils import get_from_env
+from bench.utils.env import IS_DEBUG
 
 logger = structlog.get_logger(__name__)
 

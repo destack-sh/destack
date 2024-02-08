@@ -320,6 +320,8 @@ class Constraint(TableObject):
     _table: Union["Table", None] = None
 
     def __post_init__(self):
+        if self.columns is not None:
+            self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
         if self.condition is not None:
             # must be wrapped in parentheses
             assert self.condition.startswith("(") and self.condition.endswith(

@@ -32,7 +32,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Badge, Package, Policy, TypeInfo, RichText
+    from bench.language import Badge, Package, Policy, TypeInfo, RichText, Icon
 
 
 @node_component
@@ -142,8 +142,8 @@ class Block(ScopeNode, HasTags):
     )
     builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
     is_page: bool = p_regular(35, default=False)
-    # is_module: bool = p_regular(36, default=False)
-    # is_unique: bool = p_regular(37, default=False)
+    is_module: bool = p_regular(36, default=False)
+    is_unique_name: bool = p_regular(37, default=False)
     # is_protocol?
 
     # shared
@@ -166,6 +166,9 @@ class Block(ScopeNode, HasTags):
         primitive_type=PrimitiveType.JSON,
     )
     code: str | None = p_regular(46, default=None)
+    icon: Optional["Icon"] = p_regular(
+        47, default=None, require=False, array=False, struct=StructType.ICON
+    )
 
     # specific
     reference: Optional["Block"] = p_regular(

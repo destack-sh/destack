@@ -28,7 +28,8 @@ from bench.system.auth import get_subject_from_metadata
 from bench.sql.engine import SqlAlreadyExistsError
 from bench.utils.casing import Casing, to_casing
 from bench.utils.monitoring import Monitored
-from bench.utils.utils import IS_DEBUG, IS_TEST, sentry_capture
+from bench.utils.utils import sentry_capture
+from bench.utils.env import IS_DEBUG, IS_TEST
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 

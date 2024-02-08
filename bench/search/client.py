@@ -1,6 +1,7 @@
 from opensearchpy import AsyncOpenSearch
 
-from bench.utils.utils import get_from_env, IS_DEBUG
+from bench.utils.utils import get_from_env
+from bench.utils.env import IS_DEBUG
 
 OS_HOST = get_from_env("LOCAL_OS_HOST", alt="GLOBAL_OS_HOST")
 OS_NAME = get_from_env("LOCAL_OS_NAME", optional=True)
