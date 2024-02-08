@@ -6,7 +6,6 @@ from typing import AsyncIterator, Callable
 from uuid import UUID
 
 import betterproto
-import grpclib
 import grpclib.server
 import structlog
 from grpclib import GRPCError
@@ -23,17 +22,17 @@ from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
-    CommitEditsRequest,
-    CommitEditsResponse,
+    CommitTransactionRequest,
+    CommitTransactionResponse,
     DownloadFilesRequest,
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
     BenchHostBase,
     BenchHostStub,
-    PushEditsRequest,
-    PushEditsResponse,
-    PushServerLogsRequest,
+    NotifyEditsRequest,
+    NotifyEditsResponse,
+    NotifyServerLogsRequest,
     ReadNodesRequest,
     ReadNodesResponse,
     RunProxyBlockRequest,
@@ -50,6 +49,12 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
+    PrepareTransactionRequest,
+    PrepareTransactionResponse,
+    CommitPreparedTransactionRequest,
+    CommitPreparedTransactionResponse,
+    RollbackPreparedTransactionRequest,
+    RollbackPreparedTransactionResponse,
 )
 from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.sql.engine import pg_read_node
@@ -232,9 +237,24 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             # we don't support generic server-side 'node search' yet
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot aggregate {request.node_type}")
 
-    async def commit_edits(
-        self, subject: Subject, request: "CommitEditsRequest"
-    ) -> "CommitEditsResponse":
+    async def commit_transaction(
+        self, subject: Subject, request: "CommitTransactionRequest"
+    ) -> "CommitTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def prepare_transaction(
+        self, subject: Subject, request: "PrepareTransactionRequest"
+    ) -> "PrepareTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def commit_prepared_transaction(
+        self, subject: Subject, request: "CommitPreparedTransactionRequest"
+    ) -> "CommitPreparedTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def rollback_prepared_transaction(
+        self, subject: Subject, request: "RollbackPreparedTransactionRequest"
+    ) -> "RollbackPreparedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -246,9 +266,9 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     # Package-specific stuff
     #
 
-    async def push_edits(
-        self, subject: Subject, request: "PushEditsRequest"
-    ) -> "PushEditsResponse":
+    async def notify_edits(
+        self, subject: Subject, request: "NotifyEditsRequest"
+    ) -> "NotifyEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
@@ -310,9 +330,9 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     ) -> AsyncIterator["WatchLogsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def push_server_logs(
-        self, subject: Subject, request: "PushServerLogsRequest"
-    ) -> "PushServerLogsRequest":
+    async def notify_server_logs(
+        self, subject: Subject, request: "NotifyServerLogsRequest"
+    ) -> "NotifyServerLogsRequest":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #

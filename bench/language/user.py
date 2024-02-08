@@ -41,6 +41,7 @@ class User(ScopeNode):
     main_handle: Optional[Handle] = p_system(
         30, require=False, array=False, references=NodeType.HANDLE
     )
+    handles: NodeList[Handle] = p_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: Optional[str] = p_regular(32, default=None)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
@@ -72,6 +73,7 @@ class Organization(ScopeNode):
     main_handle: Optional[Handle] = p_system(
         30, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Organization
+    handles: NodeList[Handle] = p_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(31, unique=True)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)

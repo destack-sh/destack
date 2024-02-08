@@ -12,7 +12,6 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import PrimitiveType
-from bench.utils.func import IdEnum
 
 
 def stable_hash(*args) -> int:
@@ -386,6 +385,7 @@ class Index(TableObject):
     _table: Union["Table", None] = None
 
     def __post_init__(self):
+        self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
         if self.condition is not None:
             # must be wrapped in parentheses
             assert self.condition.startswith("(") and self.condition.endswith(

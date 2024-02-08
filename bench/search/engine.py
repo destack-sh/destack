@@ -21,8 +21,8 @@ from bench.language.expression import (
     S,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
-from bench.os import core as os
-from bench.os.client import get_os_errors, os_client
+from bench.search import core as os
+from bench.search.client import get_os_errors, os_client
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.sql.core import PrimitiveType

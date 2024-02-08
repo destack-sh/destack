@@ -138,22 +138,54 @@ message AggregateNodesResponse {
   uint64 epoch = 2;
 }
 
-message CommitEditsRequest {
+message CommitTransactionRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
   // request
-  repeated EditData edits = 5;
+  TransactionData transaction = 5;
 }
-message CommitEditsResponse {
+message CommitTransactionResponse {
   repeated SomeNodeData changed_nodes = 1;
   uint64 epoch = 2;
 }
 
-message PushEditsRequest {
+message PrepareTransactionRequest {
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  // request
+  TransactionData transaction = 5;
+}
+message PrepareTransactionResponse {
+  repeated SomeNodeData changed_nodes = 1;
+  uint64 epoch = 2;
+}
+
+message CommitPreparedTransactionRequest {
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  // request
+  string transaction_id = 5;
+}
+message CommitPreparedTransactionResponse {
+}
+
+message RollbackPreparedTransactionRequest {
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  // request
+  string transaction_id = 5;
+}
+message RollbackPreparedTransactionResponse {
+}
+
+message NotifyEditsRequest {
   repeated EditData local_edits = 1;
 }
-message PushEditsResponse {
+message NotifyEditsResponse {
 }
 
 message WatchEditsRequest {
@@ -218,7 +250,13 @@ service Supervisor {
   // Aggregate global nodes.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Commits edits to global nodes.
-  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  // Prepares a transaction to commit to global nodes.
+  rpc PrepareTransaction(PrepareTransactionRequest) returns (PrepareTransactionResponse);
+  // Commits a prepared transaction to global nodes.
+  rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
+  // Rolls back a prepared transaction to global nodes.
+  rpc RollbackPreparedTransaction(RollbackPreparedTransactionRequest) returns (RollbackPreparedTransactionResponse);
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
@@ -267,10 +305,10 @@ message WatchLogsResponse {
   repeated LogEntryData logs = 1;
 }
 
-message PushServerLogsRequest {
+message NotifyServerLogsRequest {
   repeated LogEntryData logs = 1;
 }
-message PushServerLogsResponse {
+message NotifyServerLogsResponse {
 }
 
 message RunProxyBlockRequest {
@@ -305,11 +343,17 @@ service BenchHost {
   // Aggregate nodes into statistics.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
-  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  // Prepares a transaction to commit to this Bench.
+  rpc PrepareTransaction(PrepareTransactionRequest) returns (PrepareTransactionResponse);
+  // Commits a prepared transaction to this Bench.
+  rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
+  // Rolls back a prepared transaction to this Bench.
+  rpc RollbackPreparedTransaction(RollbackPreparedTransactionRequest) returns (RollbackPreparedTransactionResponse);
   // Receive any relevant edits to this Bench.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-  // Pushes locally bypassed edits to the package subscribers.
-  rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
+  // Notifies locally bypassed edits to the package subscribers.
+  rpc NotifyEdits(NotifyEditsRequest) returns (NotifyEditsResponse);
 
   //
   // Special Bench IO
@@ -334,8 +378,8 @@ service BenchHost {
   rpc SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
   // Subscribes to future logs.
   rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-  // Pushes logs from a server *that are already stored* to notify frontend users connected to this host.
-  rpc PushServerLogs(PushServerLogsRequest) returns (google.protobuf.Empty);
+  // Notifies logs from a server *that are already stored* to notify frontend users connected to this host.
+  rpc NotifyServerLogs(NotifyServerLogsRequest) returns (google.protobuf.Empty);
 
   //
   // Runs

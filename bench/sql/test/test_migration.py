@@ -29,7 +29,8 @@ async def blank_test_cur(blank_test_db: str) -> psycopg.AsyncCursor:
     await cur.connection.close()
 
 
-async def test_remigrate_from_scratch(blank_test_cur: psycopg.AsyncCursor):
+async def test_current_migrate_from_scratch(blank_test_cur: psycopg.AsyncCursor):
+    """Applies the currently stored migrations from scratch."""
     pass  # nocheckin implement when we have :FromScratchMigration
 
 

@@ -416,12 +416,12 @@ class BaseTextTaskCompiler(TaskCompiler):
             return self._compile_error_text(run)
         else:
             run_inputs_str = json.dumps(
-                map_value(run.inputs_packed, run.node, map_v=self._render_value_flat), indent=2
+                map_value(run.inputs_packed, run.block, map_v=self._render_value_flat), indent=2
             )
             run_outputs_str = json.dumps(
-                map_value(run.outputs_packed, run.node, map_v=self._render_value_flat), indent=2
+                map_value(run.outputs_packed, run.block, map_v=self._render_value_flat), indent=2
             )
-            return f"Previous result for '{run.node.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
+            return f"Previous result for '{run.block.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
 
     def _compile_error_text(self, error: RunError | TaskError) -> str:
         return f"Avoid previous error: {self._render_error(error)}"

@@ -26,6 +26,7 @@ import { FileData } from "./lang";
 import { LogEntryData } from "./lang";
 import { ServerData } from "./lang";
 import { EditData } from "./common";
+import { TransactionData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
 import { NodeType } from "./lang";
@@ -424,9 +425,9 @@ export interface AggregateNodesResponse {
     epoch: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.CommitEditsRequest
+ * @generated from protobuf message symbolx.bench.CommitTransactionRequest
  */
-export interface CommitEditsRequest {
+export interface CommitTransactionRequest {
     /**
      * scope
      *
@@ -440,14 +441,14 @@ export interface CommitEditsRequest {
     /**
      * request
      *
-     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 5;
+     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 5;
      */
-    edits: EditData[];
+    transaction?: TransactionData;
 }
 /**
- * @generated from protobuf message symbolx.bench.CommitEditsResponse
+ * @generated from protobuf message symbolx.bench.CommitTransactionResponse
  */
-export interface CommitEditsResponse {
+export interface CommitTransactionResponse {
     /**
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
      */
@@ -458,18 +459,104 @@ export interface CommitEditsResponse {
     epoch: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.PushEditsRequest
+ * @generated from protobuf message symbolx.bench.PrepareTransactionRequest
  */
-export interface PushEditsRequest {
+export interface PrepareTransactionRequest {
+    /**
+     * scope
+     *
+     * @generated from protobuf field: optional string bench_id = 1;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string package_id = 4;
+     */
+    packageId?: string;
+    /**
+     * request
+     *
+     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 5;
+     */
+    transaction?: TransactionData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.PrepareTransactionResponse
+ */
+export interface PrepareTransactionResponse {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
+     */
+    changedNodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CommitPreparedTransactionRequest
+ */
+export interface CommitPreparedTransactionRequest {
+    /**
+     * scope
+     *
+     * @generated from protobuf field: optional string bench_id = 1;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string package_id = 4;
+     */
+    packageId?: string;
+    /**
+     * request
+     *
+     * @generated from protobuf field: string transaction_id = 5;
+     */
+    transactionId: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CommitPreparedTransactionResponse
+ */
+export interface CommitPreparedTransactionResponse {
+}
+/**
+ * @generated from protobuf message symbolx.bench.RollbackPreparedTransactionRequest
+ */
+export interface RollbackPreparedTransactionRequest {
+    /**
+     * scope
+     *
+     * @generated from protobuf field: optional string bench_id = 1;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string package_id = 4;
+     */
+    packageId?: string;
+    /**
+     * request
+     *
+     * @generated from protobuf field: string transaction_id = 5;
+     */
+    transactionId: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.RollbackPreparedTransactionResponse
+ */
+export interface RollbackPreparedTransactionResponse {
+}
+/**
+ * @generated from protobuf message symbolx.bench.NotifyEditsRequest
+ */
+export interface NotifyEditsRequest {
     /**
      * @generated from protobuf field: repeated symbolx.bench.EditData local_edits = 1;
      */
     localEdits: EditData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PushEditsResponse
+ * @generated from protobuf message symbolx.bench.NotifyEditsResponse
  */
-export interface PushEditsResponse {
+export interface NotifyEditsResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsRequest
@@ -660,18 +747,18 @@ export interface WatchLogsResponse {
     logs: LogEntryData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PushServerLogsRequest
+ * @generated from protobuf message symbolx.bench.NotifyServerLogsRequest
  */
-export interface PushServerLogsRequest {
+export interface NotifyServerLogsRequest {
     /**
      * @generated from protobuf field: repeated symbolx.bench.LogEntryData logs = 1;
      */
     logs: LogEntryData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PushServerLogsResponse
+ * @generated from protobuf message symbolx.bench.NotifyServerLogsResponse
  */
-export interface PushServerLogsResponse {
+export interface NotifyServerLogsResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.RunProxyBlockRequest
@@ -2032,22 +2119,21 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
  */
 export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
+class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest> {
     constructor() {
-        super("symbolx.bench.CommitEditsRequest", [
+        super("symbolx.bench.CommitTransactionRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 5, name: "transaction", kind: "message", T: () => TransactionData }
         ]);
     }
-    create(value?: PartialMessage<CommitEditsRequest>): CommitEditsRequest {
+    create(value?: PartialMessage<CommitTransactionRequest>): CommitTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.edits = [];
         if (value !== undefined)
-            reflectionMergePartial<CommitEditsRequest>(this, message, value);
+            reflectionMergePartial<CommitTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitEditsRequest): CommitEditsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitTransactionRequest): CommitTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2058,8 +2144,8 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
                 case /* optional string package_id */ 4:
                     message.packageId = reader.string();
                     break;
-                case /* repeated symbolx.bench.EditData edits */ 5:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* symbolx.bench.TransactionData transaction */ 5:
+                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2072,16 +2158,16 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: CommitEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CommitTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
         /* optional string package_id = 4; */
         if (message.packageId !== undefined)
             writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* repeated symbolx.bench.EditData edits = 5; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TransactionData transaction = 5; */
+        if (message.transaction)
+            TransactionData.internalBinaryWrite(message.transaction, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2089,26 +2175,26 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CommitEditsRequest
+ * @generated MessageType for protobuf message symbolx.bench.CommitTransactionRequest
  */
-export const CommitEditsRequest = new CommitEditsRequest$Type();
+export const CommitTransactionRequest = new CommitTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
+class CommitTransactionResponse$Type extends MessageType<CommitTransactionResponse> {
     constructor() {
-        super("symbolx.bench.CommitEditsResponse", [
+        super("symbolx.bench.CommitTransactionResponse", [
             { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
         ]);
     }
-    create(value?: PartialMessage<CommitEditsResponse>): CommitEditsResponse {
+    create(value?: PartialMessage<CommitTransactionResponse>): CommitTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.changedNodes = [];
         message.epoch = "0";
         if (value !== undefined)
-            reflectionMergePartial<CommitEditsResponse>(this, message, value);
+            reflectionMergePartial<CommitTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitEditsResponse): CommitEditsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitTransactionResponse): CommitTransactionResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2130,7 +2216,7 @@ class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: CommitEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CommitTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
         for (let i = 0; i < message.changedNodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2144,24 +2230,311 @@ class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CommitEditsResponse
+ * @generated MessageType for protobuf message symbolx.bench.CommitTransactionResponse
  */
-export const CommitEditsResponse = new CommitEditsResponse$Type();
+export const CommitTransactionResponse = new CommitTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
+class PrepareTransactionRequest$Type extends MessageType<PrepareTransactionRequest> {
     constructor() {
-        super("symbolx.bench.PushEditsRequest", [
+        super("symbolx.bench.PrepareTransactionRequest", [
+            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "transaction", kind: "message", T: () => TransactionData }
+        ]);
+    }
+    create(value?: PartialMessage<PrepareTransactionRequest>): PrepareTransactionRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<PrepareTransactionRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PrepareTransactionRequest): PrepareTransactionRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string package_id */ 4:
+                    message.packageId = reader.string();
+                    break;
+                case /* symbolx.bench.TransactionData transaction */ 5:
+                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PrepareTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string bench_id = 1; */
+        if (message.benchId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* optional string package_id = 4; */
+        if (message.packageId !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
+        /* symbolx.bench.TransactionData transaction = 5; */
+        if (message.transaction)
+            TransactionData.internalBinaryWrite(message.transaction, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PrepareTransactionRequest
+ */
+export const PrepareTransactionRequest = new PrepareTransactionRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PrepareTransactionResponse$Type extends MessageType<PrepareTransactionResponse> {
+    constructor() {
+        super("symbolx.bench.PrepareTransactionResponse", [
+            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PrepareTransactionResponse>): PrepareTransactionResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.changedNodes = [];
+        message.epoch = "0";
+        if (value !== undefined)
+            reflectionMergePartial<PrepareTransactionResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PrepareTransactionResponse): PrepareTransactionResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.SomeNodeData changed_nodes */ 1:
+                    message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toString();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PrepareTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
+        for (let i = 0; i < message.changedNodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== "0")
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PrepareTransactionResponse
+ */
+export const PrepareTransactionResponse = new PrepareTransactionResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CommitPreparedTransactionRequest$Type extends MessageType<CommitPreparedTransactionRequest> {
+    constructor() {
+        super("symbolx.bench.CommitPreparedTransactionRequest", [
+            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CommitPreparedTransactionRequest>): CommitPreparedTransactionRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.transactionId = "";
+        if (value !== undefined)
+            reflectionMergePartial<CommitPreparedTransactionRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitPreparedTransactionRequest): CommitPreparedTransactionRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string package_id */ 4:
+                    message.packageId = reader.string();
+                    break;
+                case /* string transaction_id */ 5:
+                    message.transactionId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CommitPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string bench_id = 1; */
+        if (message.benchId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* optional string package_id = 4; */
+        if (message.packageId !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
+        /* string transaction_id = 5; */
+        if (message.transactionId !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.transactionId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CommitPreparedTransactionRequest
+ */
+export const CommitPreparedTransactionRequest = new CommitPreparedTransactionRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CommitPreparedTransactionResponse$Type extends MessageType<CommitPreparedTransactionResponse> {
+    constructor() {
+        super("symbolx.bench.CommitPreparedTransactionResponse", []);
+    }
+    create(value?: PartialMessage<CommitPreparedTransactionResponse>): CommitPreparedTransactionResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CommitPreparedTransactionResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitPreparedTransactionResponse): CommitPreparedTransactionResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: CommitPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CommitPreparedTransactionResponse
+ */
+export const CommitPreparedTransactionResponse = new CommitPreparedTransactionResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RollbackPreparedTransactionRequest$Type extends MessageType<RollbackPreparedTransactionRequest> {
+    constructor() {
+        super("symbolx.bench.RollbackPreparedTransactionRequest", [
+            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RollbackPreparedTransactionRequest>): RollbackPreparedTransactionRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.transactionId = "";
+        if (value !== undefined)
+            reflectionMergePartial<RollbackPreparedTransactionRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RollbackPreparedTransactionRequest): RollbackPreparedTransactionRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string package_id */ 4:
+                    message.packageId = reader.string();
+                    break;
+                case /* string transaction_id */ 5:
+                    message.transactionId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RollbackPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string bench_id = 1; */
+        if (message.benchId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* optional string package_id = 4; */
+        if (message.packageId !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
+        /* string transaction_id = 5; */
+        if (message.transactionId !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.transactionId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RollbackPreparedTransactionRequest
+ */
+export const RollbackPreparedTransactionRequest = new RollbackPreparedTransactionRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RollbackPreparedTransactionResponse$Type extends MessageType<RollbackPreparedTransactionResponse> {
+    constructor() {
+        super("symbolx.bench.RollbackPreparedTransactionResponse", []);
+    }
+    create(value?: PartialMessage<RollbackPreparedTransactionResponse>): RollbackPreparedTransactionResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RollbackPreparedTransactionResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RollbackPreparedTransactionResponse): RollbackPreparedTransactionResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RollbackPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RollbackPreparedTransactionResponse
+ */
+export const RollbackPreparedTransactionResponse = new RollbackPreparedTransactionResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class NotifyEditsRequest$Type extends MessageType<NotifyEditsRequest> {
+    constructor() {
+        super("symbolx.bench.NotifyEditsRequest", [
             { no: 1, name: "local_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
-    create(value?: PartialMessage<PushEditsRequest>): PushEditsRequest {
+    create(value?: PartialMessage<NotifyEditsRequest>): NotifyEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.localEdits = [];
         if (value !== undefined)
-            reflectionMergePartial<PushEditsRequest>(this, message, value);
+            reflectionMergePartial<NotifyEditsRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushEditsRequest): PushEditsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyEditsRequest): NotifyEditsRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2180,7 +2553,7 @@ class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: PushEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: NotifyEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.EditData local_edits = 1; */
         for (let i = 0; i < message.localEdits.length; i++)
             EditData.internalBinaryWrite(message.localEdits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2191,24 +2564,24 @@ class PushEditsRequest$Type extends MessageType<PushEditsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushEditsRequest
+ * @generated MessageType for protobuf message symbolx.bench.NotifyEditsRequest
  */
-export const PushEditsRequest = new PushEditsRequest$Type();
+export const NotifyEditsRequest = new NotifyEditsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushEditsResponse$Type extends MessageType<PushEditsResponse> {
+class NotifyEditsResponse$Type extends MessageType<NotifyEditsResponse> {
     constructor() {
-        super("symbolx.bench.PushEditsResponse", []);
+        super("symbolx.bench.NotifyEditsResponse", []);
     }
-    create(value?: PartialMessage<PushEditsResponse>): PushEditsResponse {
+    create(value?: PartialMessage<NotifyEditsResponse>): NotifyEditsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<PushEditsResponse>(this, message, value);
+            reflectionMergePartial<NotifyEditsResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushEditsResponse): PushEditsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyEditsResponse): NotifyEditsResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: PushEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: NotifyEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2216,9 +2589,9 @@ class PushEditsResponse$Type extends MessageType<PushEditsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushEditsResponse
+ * @generated MessageType for protobuf message symbolx.bench.NotifyEditsResponse
  */
-export const PushEditsResponse = new PushEditsResponse$Type();
+export const NotifyEditsResponse = new NotifyEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
     constructor() {
@@ -3019,20 +3392,20 @@ class WatchLogsResponse$Type extends MessageType<WatchLogsResponse> {
  */
 export const WatchLogsResponse = new WatchLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushServerLogsRequest$Type extends MessageType<PushServerLogsRequest> {
+class NotifyServerLogsRequest$Type extends MessageType<NotifyServerLogsRequest> {
     constructor() {
-        super("symbolx.bench.PushServerLogsRequest", [
+        super("symbolx.bench.NotifyServerLogsRequest", [
             { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
         ]);
     }
-    create(value?: PartialMessage<PushServerLogsRequest>): PushServerLogsRequest {
+    create(value?: PartialMessage<NotifyServerLogsRequest>): NotifyServerLogsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.logs = [];
         if (value !== undefined)
-            reflectionMergePartial<PushServerLogsRequest>(this, message, value);
+            reflectionMergePartial<NotifyServerLogsRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushServerLogsRequest): PushServerLogsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyServerLogsRequest): NotifyServerLogsRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -3051,7 +3424,7 @@ class PushServerLogsRequest$Type extends MessageType<PushServerLogsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: PushServerLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: NotifyServerLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.LogEntryData logs = 1; */
         for (let i = 0; i < message.logs.length; i++)
             LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -3062,24 +3435,24 @@ class PushServerLogsRequest$Type extends MessageType<PushServerLogsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushServerLogsRequest
+ * @generated MessageType for protobuf message symbolx.bench.NotifyServerLogsRequest
  */
-export const PushServerLogsRequest = new PushServerLogsRequest$Type();
+export const NotifyServerLogsRequest = new NotifyServerLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushServerLogsResponse$Type extends MessageType<PushServerLogsResponse> {
+class NotifyServerLogsResponse$Type extends MessageType<NotifyServerLogsResponse> {
     constructor() {
-        super("symbolx.bench.PushServerLogsResponse", []);
+        super("symbolx.bench.NotifyServerLogsResponse", []);
     }
-    create(value?: PartialMessage<PushServerLogsResponse>): PushServerLogsResponse {
+    create(value?: PartialMessage<NotifyServerLogsResponse>): NotifyServerLogsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<PushServerLogsResponse>(this, message, value);
+            reflectionMergePartial<NotifyServerLogsResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushServerLogsResponse): PushServerLogsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyServerLogsResponse): NotifyServerLogsResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: PushServerLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: NotifyServerLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3087,9 +3460,9 @@ class PushServerLogsResponse$Type extends MessageType<PushServerLogsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PushServerLogsResponse
+ * @generated MessageType for protobuf message symbolx.bench.NotifyServerLogsResponse
  */
-export const PushServerLogsResponse = new PushServerLogsResponse$Type();
+export const NotifyServerLogsResponse = new NotifyServerLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
     constructor() {
@@ -3493,7 +3866,10 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
-    { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
+    { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
+    { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
+    { name: "RollbackPreparedTransaction", options: {}, I: RollbackPreparedTransactionRequest, O: RollbackPreparedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
@@ -3503,14 +3879,17 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
-    { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
+    { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
+    { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
+    { name: "RollbackPreparedTransaction", options: {}, I: RollbackPreparedTransactionRequest, O: RollbackPreparedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-    { name: "PushEdits", options: {}, I: PushEditsRequest, O: PushEditsResponse },
+    { name: "NotifyEdits", options: {}, I: NotifyEditsRequest, O: NotifyEditsResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
     { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
-    { name: "PushServerLogs", options: {}, I: PushServerLogsRequest, O: Empty },
+    { name: "NotifyServerLogs", options: {}, I: NotifyServerLogsRequest, O: Empty },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
     { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },

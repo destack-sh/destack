@@ -25,8 +25,8 @@ from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
-    CommitEditsRequest,
-    CommitEditsResponse,
+    CommitTransactionRequest,
+    CommitTransactionResponse,
     CreateBenchRequest,
     CreateBenchResponse,
     SupervisorBase,
@@ -46,6 +46,12 @@ from bench.proto.wire import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
     AnyNodeData,
+    PrepareTransactionRequest,
+    PrepareTransactionResponse,
+    CommitPreparedTransactionRequest,
+    CommitPreparedTransactionResponse,
+    RollbackPreparedTransactionRequest,
+    RollbackPreparedTransactionResponse,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.utils import detached_session
@@ -110,9 +116,11 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             user.password_hash = hash_password(request.password, user.password_salt)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
             client.access_token = generate_access_token()
-            # nocheckin: create user's handle (again, ..need to patch edits.. or flush first..?)
             session.create_many(user, client)
+            await session.flush()
+            user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
+
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self._epoch
         )
@@ -130,9 +138,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
 
             # set new password
+            session.track(user)  # user is in other session
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            session.track(user)
             await session.commit()
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self._epoch)
 
@@ -333,9 +341,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
 
         return AggregateNodesResponse(aggregation=result._to_data(), epoch=self._epoch)
 
-    async def commit_edits(
-        self, subject: Subject, request: "CommitEditsRequest"
-    ) -> "CommitEditsResponse":
+    async def commit_transaction(
+        self, subject: Subject, request: "CommitTransactionRequest"
+    ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
         edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.edits)
         edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
@@ -370,10 +378,25 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             )
             await cur.connection.commit()
 
-        return CommitEditsResponse(
+        return CommitTransactionResponse(
             changed_nodes=[wiring.wrap_some_node(n) for n in changed_nodes],
             epoch=self._epoch,
         )
+
+    async def prepare_transaction(
+        self, subject: Subject, request: "PrepareTransactionRequest"
+    ) -> "PrepareTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def commit_prepared_transaction(
+        self, subject: Subject, request: "CommitPreparedTransactionRequest"
+    ) -> "CommitPreparedTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def rollback_prepared_transaction(
+        self, subject: Subject, request: "RollbackPreparedTransactionRequest"
+    ) -> "RollbackPreparedTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"

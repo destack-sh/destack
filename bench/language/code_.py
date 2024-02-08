@@ -227,7 +227,7 @@ class HasCode(Node):
             def _test_sync(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = callable(*args, **kwargs)
-                if self.session.has_regular_edits and not self.session._failed_commit:
+                if self.session.has_edits and not self.session._failed_commit:
                     self.session.commit()  # force commit errors to appear immediately
                 return ret
 
@@ -237,7 +237,7 @@ class HasCode(Node):
             async def _test_async(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = await callable(*args, **kwargs)  # force commit errors to appear immediately
-                if self.session.has_regular_edits and not self.session._failed_commit:
+                if self.session.has_edits and not self.session._failed_commit:
                     await self.session.commit()
                 return ret
 

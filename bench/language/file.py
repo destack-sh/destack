@@ -26,7 +26,7 @@ from bench.utils.func import _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    pass
+    from bench.language import FileContent
 
 logger = structlog.get_logger(__name__)
 
@@ -34,17 +34,6 @@ FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 FILE_MAX_NAME_LENGTH = 256
 GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
-
-
-@node(NodeType.FILE_CONTENT)
-class FileContent(Node):
-    """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
-
-    parent: Bench = p_parent(4, NodeType.BENCH)
-    sha512: str = p_internal(30)
-    content_length: int = p_internal(31, primitive_type=PrimitiveType.INT64)
-    content_type: str = p_internal(32)
-    status: FileStatus = p_internal(33)
 
 
 @struct(StructType.FILE)
@@ -55,7 +44,7 @@ class File(Struct):
     content_length: Optional[int] = p_internal(31)
     content_type: Optional[str] = p_internal(32)
     name: str = p_regular(33)
-    content: Optional[FileContent] = p_internal(
+    content: Optional["FileContent"] = p_internal(
         34, require=False, array=False, references=NodeType.FILE_CONTENT
     )
     status: FileStatus = p_internal(35, default=FileStatus.PENDING)

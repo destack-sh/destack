@@ -70,15 +70,20 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         betterproto_code = Path(TARGET_PY_FILE).read_text()
         # rename all request parameters to 'request', add subject parameter
         betterproto_code = re.sub(
-            r"self, [a-z_]+_request", 'self, subject: "RequestSubject", request', betterproto_code
+            # * is used only in stub signatures by betterproto (we only want bases here)
+            r"self, [a-z_]+_request:(?! \"[a-zA-Z]\", \*)",
+            'self, subject: "Subject", request:',
+            betterproto_code,
         )
+        betterproto_code = re.sub(r"\w[a-z_]+request,", "request,", betterproto_code)
+        betterproto_code = re.sub(r"\w[a-z_]+request:", "request:", betterproto_code)
         patch_prefix_code = f"""
 from typing import TYPE_CHECKING
 
 VERSION = '{VERSION}'
 
 if TYPE_CHECKING:
-    from bench.language import RequestSubject
+    from bench.language import Subject
 """
         patch_postfix_code = f"""
 import bench.proto.monkey # noqa

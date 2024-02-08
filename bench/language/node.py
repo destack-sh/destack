@@ -69,7 +69,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData
+from bench.proto.wire import AnyNodeData, AnyStructData, SomeNodeData
 from bench.sql.core import (
     CascadeAction,
     Column,
@@ -104,13 +104,16 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         PropertyReference,
-        ServerAllocation,
         Session,
         Space,
         TypeInfo,
         User,
         RichText,
         Handle,
+        Server,
+        Store,
+        Cache,
+        Drive,
     )
     from bench.language.notice import NoticeHandler
 
@@ -439,6 +442,15 @@ class Property(_TypeExpressionBase):
             raise ValueError(f"encrypted properties should be deferred {self!r}")
         if self.type and self.type in STRUCT_TYPES and self.is_deferred:
             raise ValueError(f"cannot defer properties in structs {self!r}")
+        if (
+            self.id is not None
+            and self.id is not UNSET
+            and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is user level fine)
+            and self.component.__name__ not in ("Node", "Struct")
+            and self.id not in ScopeNode.__properties_by_id__
+        ):
+            # cannot define system properties with id < 30
+            raise ValueError(f"invalid id: {self.id} for {self!r}")
 
     def _contribute_ptrs(self) -> tuple["Property", ...]:
         """
@@ -675,7 +687,7 @@ def p_runtime(
     )
 
 
-def p_parent(id: int, *node_type: NodeType):
+def p_parent(id: int, *node_type: NodeType, is_system: bool = False):
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -684,6 +696,7 @@ def p_parent(id: int, *node_type: NodeType):
         is_internal=True,
         is_stored=False,
         is_array=False,
+        is_system=is_system,
     )
 
 
@@ -1177,6 +1190,7 @@ def node(
         extra_indexes: list[Index] = [*indexes]
         extra_constraints: list[Constraint] = [*constraints]
         for columns in unique_together:
+            columns = tuple(sorted(columns))  # for consistency
             index_name = f"bench_idx_{'_'.join(columns)}"
             index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=columns)
             constraint = Constraint(
@@ -1643,10 +1657,10 @@ class Node(Struct, _NodeExpressionBase):
     archived_at: Optional[datetime] = p_system(14, default=None)
     last_edited_at: Optional[datetime] = p_system(15, default=None, require=True)
     # (only some nodes have some of these properties)
-    # last_changed_at: datetime = p_system(16)
-    # created_by: ... = p_system(17)
-    # last_edited_by: ... = p_system(18)
-    # last_changed_by: ... = p_system(19)
+    # created_by: ...
+    # last_edited_by: ...
+    # last_changed_at: datetime = ...
+    # last_changed_by: ...
     # computed_values: dict[int, ValueReference] | None = p_regular(20)
     # for instantiated templates
     # set_values: list[int] | None = p_regular(21)
@@ -1933,8 +1947,17 @@ class Node(Struct, _NodeExpressionBase):
             else:
                 return attr
 
-        # report lookup error with additional info
-        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
+        # report get error with additional info
+        candidates = {
+            # own properties
+            **{
+                p.name: p
+                for p in self.__properties__.values()
+                if p.reference_kind or not p.is_runtime_only
+            },
+            # public methods
+            **{m: None for m in dir(self) if not m.startswith("_")},
+        }
         if isinstance(self, ScopeNode):
             candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
@@ -2283,6 +2306,7 @@ class Bench(ScopeNode):
     main_handle: Optional["Handle"] = p_system(
         30, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Bench
+    handles: NodeList["Handle"] = p_child(NodeType.HANDLE)
     slug: str = p_system(31, unique=True)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(
@@ -2296,68 +2320,94 @@ class Bench(ScopeNode):
         36, default_factory=list, struct=StructType.POLICY, array=True
     )
 
-    # *per* universe/environment/??? stuff (will be moved there later)
-    head = p_system(40, require=False, array=False, references=NodeType.PACKAGE)
-
-    # resources (should probably be managed separately)
-    server_allocation: Optional["ServerAllocation"] = p_system(
-        50, default=None, struct=StructType.SERVER_ALLOCATION, defer=True
+    # source
+    main_package: Optional["Package"] = p_system(
+        40, require=False, array=False, references=NodeType.PACKAGE
     )
-    pg_name: Optional[str] = p_system(51, sensitive=True, default=None)
-    pg_username: Optional[str] = p_system(52, sensitive=True, default=None, defer=True)
-    pg_password: Optional[str] = p_system(
-        53, default=None, defer=True, encrypt=True, sensitive=True
+    packages: NodeList["Package"] = p_child(NodeType.PACKAGE)
+    main_environment: Optional["Environment"] = p_system(
+        41, require=False, array=False, references=NodeType.ENVIRONMENT
     )
-    os_name: Optional[str] = p_system(54, sensitive=True, default=None)
-    os_username: Optional[str] = p_system(55, sensitive=True, default=None, defer=True)
-    os_password: Optional[str] = p_system(
-        56, default=None, defer=True, encrypt=True, sensitive=True
+    environments: NodeList["Environment"] = p_child(NodeType.ENVIRONMENT)
+    main_branch: Optional["Branch"] = p_system(
+        42, require=False, array=False, references=NodeType.BRANCH
     )
+    branches: NodeList["Branch"] = p_child(NodeType.BRANCH)
+
+    # resources
+    servers: NodeList["Server"] = p_child(NodeType.SERVER)
+    stores: NodeList["Store"] = p_child(NodeType.STORE)
+    drives: NodeList["Drive"] = p_child(NodeType.DRIVE)
+    caches: NodeList["Cache"] = p_child(NodeType.CACHE)
 
 
-@dataclass
-class NodeChange:
-    source_edits: list[EditData]  # incoming external edits
-    interp_edits: list[EditData]  # resulting interp state change
-    added: list[Node]
-    updated: list[Node]
-    removed: list[Node]
-    touched_types: set[NodeType | BlockType] = dataclasses.field(init=False)
-    all_edits: list[EditData] = dataclasses.field(init=False)
-
-    def __post_init__(self):
-        self.touched_types = {n.metatype for n in self.touched} | {
-            n.type for n in self.touched if n.metatype == NodeType.BLOCK
-        }
-        self.all_edits = self.source_edits + self.interp_edits
-
-    def includes(self, *node_types: NodeType | BlockType) -> bool:
-        return any(nt in self.touched_types for nt in node_types)
-
-    @property
-    def touched(self) -> Iterable[Node]:
-        return chain(self.added, self.updated, self.removed)
-
-    @staticmethod
-    def empty() -> "NodeChange":
-        return NodeChange([], [], [], [], [])
-
-
-@node(NodeType.PACKAGE, identifier=IdentifierType.VARIABLE)
-class Package(ScopeNode):
-    """A package is a semi-isolated version of a Bench, containing the actual blocks and so on."""
+@node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
+class Environment(ScopeNode):
+    """An environment isolates resources from the rest of a Bench."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
-    policies: list["Policy"] | None = p_regular(
-        24, default_factory=list, struct=StructType.POLICY, array=True
+    name: Optional[str] = p_regular(32)
+    text: Optional["RichText"] = p_regular(
+        34, require=False, array=False, struct=StructType.RICH_TEXT
     )
-    is_snapshot: bool = p_system(32, default=False)  # snapshot or head?
+    policies: list["Policy"] | None = p_regular(
+        35, default_factory=list, struct=StructType.POLICY, array=True
+    )
+
+    store: "Store" = p_system(40, require=True, array=False, references=NodeType.STORE)
+    index: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
+    drive: "Drive" = p_system(42, require=True, array=False, references=NodeType.DRIVE)
+    cache: Optional["Cache"] = p_system(43, require=True, array=False, references=NodeType.CACHE)
+
+
+@node(NodeType.BRANCH, identifier=IdentifierType.VARIABLE)
+class Branch(ScopeNode):
+    """A branch is a Git-like pointer to the head of a lineage of packages."""
+
+    parent: Bench = p_parent(4, NodeType.BENCH)
+    name: Optional[str] = p_regular(32)
+    text: Optional["RichText"] = p_regular(
+        34, require=False, array=False, struct=StructType.RICH_TEXT
+    )
+    main_package: Optional["Package"] = p_system(
+        35, require=False, array=False, references=NodeType.PACKAGE
+    )
+    policies: list["Policy"] | None = p_regular(
+        36, default_factory=list, struct=StructType.POLICY, array=True
+    )
+
+
+@node(
+    NodeType.PACKAGE,
+    identifier=IdentifierType.VARIABLE,
+    unique_together=(("parent_bench_id", "slug"),),
+)
+class Package(ScopeNode):
+    """A package is a semi-isolated version of a Bench containing all the source and data."""
+
+    parent: Bench = p_parent(4, NodeType.BENCH)
+    slug: Optional[str] = p_regular(33)
+    text: Optional["RichText"] = p_regular(
+        34, require=False, array=False, struct=StructType.RICH_TEXT
+    )
+    policies: list["Policy"] | None = p_regular(
+        35, default_factory=list, struct=StructType.POLICY, array=True
+    )
+    is_active: bool = p_system(36, default=False)
+    is_partial: bool = p_system(37, default=False)
+    base: Optional["Package"] = p_system(
+        38, require=False, array=False, references=NodeType.PACKAGE
+    )
+    environment: Environment = p_system(
+        39, require=True, array=False, references=NodeType.ENVIRONMENT
+    )
+    branch: Branch = p_system(40, require=True, array=False, references=NodeType.BRANCH)
+
     blocks: NodeList["Block"] = p_child(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_child(NodeType.SPACE)
+    # dependencies: NodeList["Dependency"] = p_child(NodeType.DEPENDENCY)
 
-    dependencies: dict[str, "Package"] = p_runtime(default_factory=dict)
     builtins: list["Block"] = p_runtime(default_factory=list)
-
     _source: Optional[NodeDataTree] = p_runtime(default=None)
 
     @property
@@ -2365,35 +2415,24 @@ class Package(ScopeNode):
         return self.parent.name if self.parent is not None else None
 
     @property
-    def is_active(self):
-        return not self.is_snapshot
-
-    @property
     def pg_name(self) -> str:
-        return self.parent.pg_name
+        return self.environment.store.handle
 
     @property
     def os_name(self) -> str:
-        return self.parent.os_name
+        return self.environment.index.handle
 
     @property
     def _nodes(self) -> Collection[Node]:
         return self._root.nodes_by_ck.values()
 
     def __content_str__(self):
-        return f"is_snapshot={self.is_snapshot}"
+        return f"is_active={self.is_active}, blocks={len(self.blocks)}, spaces={len(self.spaces)}"
 
     def add_builtin(self, block: "Block") -> None:
         if not any(dep == block.package for dep in self.dependencies.values()):
             raise ValueError(f"cannot add builtin {block!r} to {self!r} without {block.package!r}")
         self.builtins.append(block)
-
-    def add_dependency(self, dependency: "Package") -> None:
-        if dependency.py_ident in self.dependencies:
-            raise ValueError(
-                f"{self!r} already has dependency {dependency.py_ident}: {self.dependencies[dependency.py_ident]}"
-            )
-        self.dependencies[dependency.py_ident] = dependency
 
     def lookup(
         self,
@@ -2410,53 +2449,6 @@ class Package(ScopeNode):
                         break
             return resolved
         raise NotImplementedError
-
-    def _track_inner(self, session: "Session"):
-        for dependency in self.dependencies.values():
-            if dependency._status != NS.TRACKED:
-                # multiple packages can depend on the same package, only track once
-                dependency._track_rec(session)
-
-    def _untrack_inner(self) -> None:
-        for dependency in self.dependencies.values():
-            if dependency._status == NS.TRACKED:  # see above
-                dependency._untrack_rec()
-
-    def _apply_edits(self, edits: list[EditData], old_source: NodeTree | None = None) -> NodeChange:
-        """
-        Applies the given external edits to the package.
-        TODO @Performance @UX: :HotReload patch edits directly?
-        """
-        assert self._source is not None, f"cannot apply edits to {self!r} without source"
-
-        if not edits:
-            return NodeChange.empty()
-
-        # update source
-        old_source = old_source if old_source is not None else self._source.copy()
-        self._apply_edits_to_source(edits)
-
-        # update self (this is obviously inefficient, but performs surprisingly okay)
-        self._reset_from_source()
-
-        # compute change, apply interp source changes if any
-        change = self._compute_change(edits, old_source)
-        if change.interp_edits:
-            self._apply_edits_to_source(change.interp_edits)
-        return change
-
-    def _apply_edits_to_source(self, edits: list[EditData]) -> None:
-        """Applies the edits directly to the source without any interp."""
-        for edit in edits:
-            self._source.apply_edit(edit)
-
-    def _compute_change(
-        self,
-        source_edits: list[EditData],
-        old_source: NodeTree,
-    ) -> NodeChange:
-        """Computes the change between the old and new package state."""
-        raise NotImplementedError("nocheckin: _compute_change")
 
 
 # quick access to all the classes

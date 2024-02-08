@@ -336,7 +336,7 @@ class RecordQuery:
         self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
     ) -> _RecordFetchResult:
         """Actually fetches the raw record results from some engine."""
-        from bench.os.engine import os_search
+        from bench.search.engine import os_search
         from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records_data
 
         where = self._combined_filter

@@ -9,7 +9,6 @@ from grpclib.testing import ChannelFor
 from bench.language import Client, ReadOptions, User
 from bench.language.const import (
     NodeType,
-    ABOVE_SOURCE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     EditType,
     ROOT_NODE_TYPES,
@@ -24,7 +23,7 @@ from bench.proto.wire import (
     RpcMetadata,
     SignupUserRequest,
     EditData,
-    CommitEditsRequest,
+    CommitTransactionRequest,
     SearchNodesRequest,
     AggregationOp,
     AggregateNodesRequest,
@@ -177,12 +176,14 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
                 node=wiring.wrap_some_node(new_client._to_data()),
                 origin=actor_handle.origin,
             )
-            create_client_req = CommitEditsRequest(edits=[create_client_edit])
+            create_client_req = CommitTransactionRequest(edits=[create_client_edit])
             if is_self:
-                _ = await supervisor.commit_edits(create_client_req, metadata=actor_handle.headers)
+                _ = await supervisor.commit_transaction(
+                    create_client_req, metadata=actor_handle.headers
+                )
             else:
                 with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
-                    _ = await supervisor.commit_edits(
+                    _ = await supervisor.commit_transaction(
                         create_client_req, metadata=actor_handle.headers
                     )
 
@@ -224,8 +225,8 @@ async def test_public_node_read(
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-@pytest.mark.parametrize("node_type", (nt for nt in ROOT_NODE_TYPES), ids=lambda t: t.name)
-async def test_root_node_edit(
+@pytest.mark.parametrize("node_type", (*ROOT_NODE_TYPES,), ids=lambda t: t.name)
+async def test_root_node_create(
     node_type: NodeType,
     some_user: UserHandle,
     supervisor: SupervisorStub,
@@ -245,6 +246,8 @@ async def test_root_node_edit(
             node=wiring.wrap_some_node(node_data),
             origin=some_user.origin,
         )
-        commit_req = CommitEditsRequest(edits=[edit])
+        commit_req = CommitTransactionRequest(edits=[edit])
         with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
-            _ = await supervisor.commit_edits(commit_req, metadata=some_user.metadata.to_headers())
+            _ = await supervisor.commit_transaction(
+                commit_req, metadata=some_user.metadata.to_headers()
+            )

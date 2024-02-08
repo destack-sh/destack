@@ -19,7 +19,7 @@ from bench.utils.func import IdEnum
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Policy
+    from bench.language import Block, Icon, Policy, RichText
 
 
 class ViewType(IdEnum):
@@ -79,14 +79,15 @@ class Space(ScopeNode, HasViews):
     """A space for a user to interact with the Bench."""
 
     parent: Package = p_parent(4, NodeType.PACKAGE)
-    policies: list["Policy"] | None = p_regular(
-        24, default_factory=list, struct=StructType.POLICY, array=True
-    )
 
     name: str = p_regular(31)
-    order_key: str = p_internal(32)
+    text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)
+    order_key: str = p_internal(33)
+    policies: list["Policy"] | None = p_regular(
+        34, default_factory=list, struct=StructType.POLICY, array=True
+    )
     # layout/views/...
-    dock: "SpaceDock" = p_regular(34, require=True, array=False, struct=StructType.SPACE_DOCK)
+    dock: "SpaceDock" = p_regular(35, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
 class SpaceDockItemType(IdEnum):

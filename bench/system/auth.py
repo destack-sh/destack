@@ -1,5 +1,8 @@
 import asyncio
 from os import urandom
+import random
+import secrets
+import string
 
 import structlog
 from grpclib import GRPCError
@@ -69,6 +72,28 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
 def generate_access_token() -> str:
     """Generate a random access token."""
     return urandom(ACCESS_TOKEN_LENGTH).hex()
+
+
+def generate_random_username(length: int = 32, lowercase: bool = False) -> str:
+    """Random alphanumeric username (starts with a text character)."""
+    if lowercase:
+        pool = string.ascii_lowercase + string.digits
+    else:
+        pool = string.ascii_letters + string.digits
+    name = random.choice(string.ascii_lowercase)
+    name += "".join(random.choice(pool) for _ in range(length - 1))
+    return name
+
+
+def generate_secret_password(length: int = 48) -> str:
+    """URL-safe password."""
+    password = secrets.token_urlsafe(length - 4)[: length - 4]
+    # ensure at least one lowercase, uppercase, digit, special character
+    password += random.choice(string.ascii_lowercase)
+    password += random.choice(string.ascii_uppercase)
+    password += random.choice(string.digits)
+    password += random.choice("!@$^&*()_+-=")
+    return password
 
 
 async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
