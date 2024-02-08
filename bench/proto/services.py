@@ -23,7 +23,7 @@ from grpclib.testing import ChannelFor
 
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
-from bench.language.link import NoNodeFoundError
+from bench.language.link import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.auth import get_subject_from_metadata
 from bench.sql.engine import SqlAlreadyExistsError
@@ -116,7 +116,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         func = self._wrap_rpc_func(func, method_slug, handler)  # custom wrap per service
 
         @functools.wraps(func)
-        async def _wrapped_rpc(stream: grpclib.server.Stream) -> None:
+        async def _managed_rpc(stream: grpclib.server.Stream) -> None:
             """Managed RPC call with some instrumentation and error handling."""
 
             start = asyncio.get_running_loop().time()
@@ -158,7 +158,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 duration = asyncio.get_running_loop().time() - start
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status_map: Mapping[type, GRPCStatus] = {
-                    NoNodeFoundError: GRPCStatus.NOT_FOUND,
+                    NodeNotFoundError: GRPCStatus.NOT_FOUND,
                     SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
                     AccessError: GRPCStatus.PERMISSION_DENIED,
                 }
@@ -176,7 +176,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                     details = e.__class__.__name__
                 raise GRPCError(GRPCStatus.INTERNAL, details) from e
 
-        return grpclib.const.Handler(_wrapped_rpc, cardinality, request_type, reply_type)
+        return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 
 
 class MonitoredServiceBase(BenchServiceBase, Monitored):

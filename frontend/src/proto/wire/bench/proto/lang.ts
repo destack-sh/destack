@@ -1164,7 +1164,7 @@ export interface BadgeData {
     keyValueHash?: string;
 }
 /**
- * A Bench is the AI-native operating system for a new generation of fully integrated apps.
+ * A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
  *
  * @generated from protobuf message symbolx.bench.BenchData
  */
@@ -1210,9 +1210,9 @@ export interface BenchData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
      */
-    handlePtr?: NodeReferenceData;
+    mainHandlePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: string slug = 31;
      */
@@ -1635,7 +1635,7 @@ export interface FileContentData {
     status: FileStatus;
 }
 /**
- * A Bench handle.
+ * A Bench @handle. Can only be created/edited by the system.
  *
  * @generated from protobuf message symbolx.bench.HandleData
  */
@@ -1680,10 +1680,6 @@ export interface HandleData {
      * @generated from protobuf field: string slug = 30;
      */
     slug: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owner_ptr = 31;
-     */
-    ownerPtr?: NodeReferenceData;
 }
 /**
  * Attach an identity to a block or member.
@@ -2078,9 +2074,9 @@ export interface OrganizationData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
      */
-    handlePtr?: NodeReferenceData;
+    mainHandlePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string slug = 31;
      */
@@ -3042,9 +3038,9 @@ export interface UserData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
      */
-    handlePtr?: NodeReferenceData;
+    mainHandlePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string slug = 31;
      */
@@ -8179,7 +8175,7 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => RichTextData },
@@ -8242,8 +8238,8 @@ class BenchData$Type extends MessageType<BenchData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
-                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                    message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
                 case /* string slug */ 31:
                     message.slug = reader.string();
@@ -8326,9 +8322,9 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
-        if (message.handlePtr)
-            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        if (message.mainHandlePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 31; */
         if (message.slug !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.slug);
@@ -9172,8 +9168,7 @@ class HandleData$Type extends MessageType<HandleData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "owner_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<HandleData>): HandleData {
@@ -9221,9 +9216,6 @@ class HandleData$Type extends MessageType<HandleData> {
                 case /* string slug */ 30:
                     message.slug = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData owner_ptr */ 31:
-                    message.ownerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownerPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -9266,9 +9258,6 @@ class HandleData$Type extends MessageType<HandleData> {
         /* string slug = 30; */
         if (message.slug !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.slug);
-        /* optional symbolx.bench.NodeReferenceData owner_ptr = 31; */
-        if (message.ownerPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownerPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -10079,7 +10068,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => RichTextData },
@@ -10131,8 +10120,8 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* symbolx.bench.NodeReferenceData handle_ptr */ 30:
-                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                    message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
                 case /* optional string slug */ 31:
                     message.slug = reader.string();
@@ -10188,9 +10177,9 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData handle_ptr = 30; */
-        if (message.handlePtr)
-            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        if (message.mainHandlePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional string slug = 31; */
         if (message.slug !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.slug);
@@ -12205,7 +12194,7 @@ class UserData$Type extends MessageType<UserData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => RichTextData },
@@ -12264,8 +12253,8 @@ class UserData$Type extends MessageType<UserData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 30:
-                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                    message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
                 case /* optional string slug */ 31:
                     message.slug = reader.string();
@@ -12339,9 +12328,9 @@ class UserData$Type extends MessageType<UserData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData handle_ptr = 30; */
-        if (message.handlePtr)
-            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        if (message.mainHandlePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional string slug = 31; */
         if (message.slug !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.slug);

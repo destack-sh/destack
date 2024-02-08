@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.07.5"
+VERSION = "2024.02.08.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -81,8 +81,9 @@ class NodeType(IdEnum):
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
-# (we duplicate in-package/in-bench info here to access it while initialising the node classes,
-#  but we check for consistency during finalization)
+ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+)
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100) + (NodeType.SPACE,)
 )
@@ -91,7 +92,7 @@ SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 )
 IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if nt.id < 200)
-    + (NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.SPACE)
+    + (NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.SPACE, NodeType.HANDLE)
 )
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)

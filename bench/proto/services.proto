@@ -21,19 +21,19 @@ message SignupUserRequest {
   string id = 1;
   string slug = 2;
   optional string name = 3;
-  string email = 4;
-  string password = 5;
+  string email = 4 [(sensitive) = true];
+  string password = 5 [(sensitive) = true];
   ClientData client = 6;
 }
 message SignupUserResponse {
   UserData user = 1;
-  string access_token = 2;
+  string access_token = 2 [(sensitive) = true];
   uint64 epoch = 3;
 }
 
 message ChangeUserPasswordRequest {
-  string old_password = 1;
-  string new_password = 2;
+  string old_password = 1 [(sensitive) = true];
+  string new_password = 2 [(sensitive) = true];
 }
 message ChangeUserPasswordResponse {
   UserData user = 1;
@@ -44,15 +44,15 @@ message LoginUserRequest {
   oneof user {
     string id = 1;
     string slug = 2;
-    string email = 3;
+    string email = 3 [(sensitive) = true];
   }
-  string password = 4;
+  string password = 4 [(sensitive) = true];
   ClientData client = 5;
 }
 message LoginUserResponse {
   UserData user = 1;
   ClientData client = 2;
-  string access_token = 3;
+  string access_token = 3 [(sensitive) = true];
   uint64 epoch = 4;
 }
 
@@ -141,6 +141,7 @@ message AggregateNodesResponse {
 message CommitEditsRequest {
   // scope
   optional string bench_id = 1;
+  optional string package_id = 4;
   // request
   repeated EditData edits = 5;
 }
@@ -285,7 +286,7 @@ message RunProxyBlockRequest {
 
 message RunProxyBlockResponse {
   google.protobuf.Struct outputs = 1;
-  google.protobuf.Struct error = 2;
+  optional RunErrorData error = 2;
 }
 
 

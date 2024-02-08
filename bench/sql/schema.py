@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.07.5"
+VERSION = "2024.02.08.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -25,7 +25,7 @@ BENCH_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
-            "handle_id",
+            "main_handle_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_handle",
             on_delete=CascadeAction.SET_NULL,
@@ -1040,6 +1040,27 @@ HANDLE_TABLE = Table(
     "bench_handle",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column(
+            "parent_user_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_organization_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_organization",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1047,27 +1068,6 @@ HANDLE_TABLE = Table(
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("slug", PrimitiveType.STRING, is_unique=True),
-        Column(
-            "owner_user_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
-            "owner_organization_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_organization",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
-            "owner_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
     ),
     indexes=(
         Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
@@ -1077,6 +1077,11 @@ HANDLE_TABLE = Table(
     constraints=(
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
+        ),
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_user_id IS NOT NULL) OR (parent_organization_id IS NOT NULL) OR (parent_bench_id IS NOT NULL)",
         ),
     ),
 )
@@ -1093,7 +1098,7 @@ USER_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
-            "handle_id",
+            "main_handle_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_handle",
             on_delete=CascadeAction.SET_NULL,
@@ -1104,7 +1109,7 @@ USER_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("email", PrimitiveType.STRING, is_unique=True),
         Column(
-            "main_bench_bench_id",
+            "main_bench_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_bench",
             on_delete=CascadeAction.SET_NULL,
@@ -1144,16 +1149,17 @@ ORGANIZATION_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
-            "handle_id",
+            "main_handle_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_handle",
             on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
         ),
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column(
-            "main_bench_bench_id",
+            "main_bench_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_bench",
             on_delete=CascadeAction.SET_NULL,
@@ -1202,7 +1208,7 @@ CLIENT_TABLE = Table(
         Column("last_seen_at", PrimitiveType.DATETIME),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("main_space_space_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("main_space_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),

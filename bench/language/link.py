@@ -633,7 +633,7 @@ class QueryError(BenchError, ValueError):
         self.cause = cause
 
 
-class NoNodeFoundError(QueryError):
+class NodeNotFoundError(QueryError):
     pass
 
 
@@ -759,7 +759,7 @@ class NodeQuery(Generic[NodeT]):
         else:
             combined_query = self.filter(filter)
             if len(results) == 0:
-                raise NoNodeFoundError(combined_query)
+                raise NodeNotFoundError(combined_query)
             else:
                 raise MultipleNodesFoundError(combined_query)
 

@@ -71,6 +71,31 @@ betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._ge
 
 
 class _PatchedMessage(BetterprotoMessage):
+    def __str__(self):
+        str_parts = []
+        for field_name in (
+            "id",
+            "ck",
+            "revision",
+            "type",
+            "bench_id",
+            "package_id",
+            "package_ptr",
+            "parent_ptr",
+            "epoch",
+        ):
+            value = getattr(self, field_name, None)
+            if value is not None:
+                str_parts.append(f"{field_name}={value!r}")
+        return ", ".join(str_parts)
+
+    def __repr__(self):
+        content_str = str(self)
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}>"
+        else:
+            return f"<{self.__class__.__name__}>"
+
     def to_robust_dict(self):
         """Patched betterproto.Message.to_dict that handles RobustJson for Structs."""
 
@@ -240,6 +265,8 @@ class _PatchedMessage(BetterprotoMessage):
         return self.from_robust_dict(json.loads(json_string))
 
 
+betterproto.Message.__str__ = _PatchedMessage.__str__
+betterproto.Message.__repr__ = _PatchedMessage.__repr__
 betterproto.Message.to_robust_dict = _PatchedMessage.to_robust_dict
 betterproto.Message.from_robust_dict = _PatchedMessage.from_robust_dict
 betterproto.Message.to_robust_json = _PatchedMessage.to_robust_json

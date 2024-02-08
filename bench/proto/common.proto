@@ -6,6 +6,12 @@ import "bench/proto/lang.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FieldOptions {
+  // Field should never be printed in logs.
+  optional bool sensitive = 50000;
+}
 
 message ClientOrigin {
   ClientKind kind = 1;

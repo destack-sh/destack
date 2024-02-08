@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.07.5"
+VERSION = "2024.02.08.0"
 
 if TYPE_CHECKING:
     from bench.language import RequestSubject
@@ -1167,7 +1167,7 @@ class BadgeData(betterproto.Message):
 class BenchData(betterproto.Message):
     """
     A Bench is the AI-native operating system for a new generation of fully
-    integrated apps.
+    integrated, fluid apps.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1180,7 +1180,7 @@ class BenchData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: str = betterproto.string_field(31)
     name: str = betterproto.string_field(32)
     text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
@@ -1321,7 +1321,7 @@ class FileContentData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class HandleData(betterproto.Message):
-    """A Bench handle."""
+    """A Bench @handle. Can only be created/edited by the system."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1333,7 +1333,6 @@ class HandleData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     slug: str = betterproto.string_field(30)
-    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1489,7 +1488,7 @@ class OrganizationData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: "NodeReferenceData" = betterproto.message_field(30)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: str = betterproto.string_field(32)
     text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
@@ -1855,7 +1854,7 @@ class UserData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
@@ -2133,6 +2132,7 @@ class CommitEditsRequest(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     """scope"""
 
+    package_id: Optional[str] = betterproto.string_field(4, optional=True)
     edits: List["EditData"] = betterproto.message_field(5)
     """request"""
 
@@ -2271,7 +2271,7 @@ class RunProxyBlockRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunProxyBlockResponse(betterproto.Message):
     outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
-    error: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
+    error: Optional["RunErrorData"] = betterproto.message_field(2, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3452,68 +3452,68 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    SpaceData,
-    BlockData,
-    RunData,
-    ServerData,
-    PackageData,
-    TriggerData,
-    IdentityData,
-    PauseData,
-    SkipData,
-    RecordData,
-    BenchData,
-    ViewData,
-    SessionData,
-    SignalData,
-    ClientData,
-    LinkData,
+    FieldData,
     RoleData,
+    OrganizationData,
+    PackageData,
+    SkipData,
+    NotificationData,
+    IdentityData,
+    TagData,
+    ViewData,
+    NoticeData,
+    TriggerData,
+    RecordData,
+    LinkData,
     UserData,
+    QueryData,
+    SpaceData,
+    SignalData,
+    SessionData,
+    MembershipData,
+    PauseData,
     FileContentData,
     BadgeData,
-    MembershipData,
-    TagData,
-    FieldData,
-    NotificationData,
-    QueryData,
-    OrganizationData,
-    NoticeData,
+    ServerData,
+    BlockData,
+    BenchData,
+    ClientData,
     HandleData,
+    RunData,
 ]
 AnyStructData = Union[
-    FileData,
-    SubjectData,
-    RunErrorData,
-    BenchPathData,
-    RequestData,
-    ScheduleData,
-    AggregationData,
-    PolicyRuleData,
-    FieldPathData,
-    ValueSelectionData,
-    NodeReferenceData,
-    RunCodeFrameData,
-    SpaceDockItemData,
-    ReadOptionsData,
-    AccessMatrixData,
-    ExpressionData,
     TypeInfoData,
-    AccessTraceData,
-    RichTextData,
-    RichTextSpanData,
-    ServerImageDependencyData,
-    PropertyPathData,
-    AggregationBucketData,
-    ServerImageData,
-    PolicyData,
-    IconData,
-    SpaceDockData,
-    AccessData,
-    ServerAllocationData,
     AccessZoneData,
     FieldPathSegmentData,
+    FileData,
+    BenchPathData,
+    AccessTraceData,
     LogEntryData,
     PropertyReferenceData,
     ValueReferenceData,
+    SubjectData,
+    ExpressionData,
+    AggregationBucketData,
+    AccessMatrixData,
+    RunErrorData,
+    SpaceDockData,
+    PolicyRuleData,
+    IconData,
+    FieldPathData,
+    PolicyData,
+    RunCodeFrameData,
+    RichTextData,
+    ReadOptionsData,
+    ScheduleData,
+    AggregationData,
+    ServerImageDependencyData,
+    RequestData,
+    PropertyPathData,
+    ValueSelectionData,
+    ServerAllocationData,
+    SpaceDockItemData,
+    ServerImageData,
+    NodeReferenceData,
+    AccessData,
+    RichTextSpanData,
 ]

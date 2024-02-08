@@ -1,24 +1,25 @@
 import enum
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import cachetools
 
 from bench.language.const import BenchError
 
 if TYPE_CHECKING:
+    from bench.proto.wire import AnyNodeData, AnyStructData
     from bench.language.node import Struct, Node, Property, Property
 
 
 class ValidationError(BenchError, ValueError):
     def __init__(
         self,
-        subject: "Struct",
+        subject: Union["Struct", "AnyStructData", "AnyNodeData"],
         message: str,
-        properties: list["Property"] | None,
+        properties: list["Property"] | None = None,
         cause: Exception | None = None,
     ):
-        super().__init__(f"{subject!r}: {message} at {properties}")
+        super().__init__(f"{subject!r}: {message}" + f" at {properties}" if properties else "")
         self.subject = subject
         self.properties = properties
         self.message = message

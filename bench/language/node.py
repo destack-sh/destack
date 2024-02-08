@@ -537,7 +537,7 @@ class Property(_TypeExpressionBase):
                     or ref_type == NodeType.PACKAGE
                 )
                 prop_postfix = "id" if store_as_id else "ck"
-                if self.name == ref_type.name.lower():  # reduce clutter if type is unambiguous
+                if ref_type.name.lower() in self.name:  # reduce clutter if type is unambiguous
                     prop_name = f"{self.name}_{prop_postfix}"
                 else:
                     prop_name = f"{self.name}_{ref_type.name.lower()}_{prop_postfix}"
@@ -1001,7 +1001,7 @@ def _process_struct_base_cls(
     cls.__properties_name_by_id__ = frozendict(
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
     )
-    cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
+    cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_runtime_only})
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__reference_properties__ = frozendict(
         {p.name: p for p in props if p.reference_types or p.is_property_reference}
@@ -1898,9 +1898,7 @@ class Node(Struct, _NodeExpressionBase):
                     return  # success
 
         # report set error with additional info
-        candidates = {
-            **(self.__tracked_properties__ if self._status == NS.TRACKED else self.__properties__),
-        }
+        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
         if isinstance(self, ScopeNode):
             candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
@@ -1936,7 +1934,7 @@ class Node(Struct, _NodeExpressionBase):
                 return attr
 
         # report lookup error with additional info
-        candidates = {k: v for k, v in self.__runtime_properties__.items() if not k.startswith("_")}
+        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
         if isinstance(self, ScopeNode):
             candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
@@ -2278,11 +2276,13 @@ class Skip(Node):
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """
-    A Bench is the AI-native operating system for a new generation of fully integrated apps.
+    A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
     """
 
     parent: None = p_parent(4)
-    handle: "Handle" = p_system(30, require=False, array=False, references=NodeType.HANDLE)
+    main_handle: Optional["Handle"] = p_system(
+        30, require=False, array=False, references=NodeType.HANDLE
+    )  # not actually optional but Handle.parent = Bench
     slug: str = p_system(31, unique=True)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(
