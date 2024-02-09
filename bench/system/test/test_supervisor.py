@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import grpclib
 import pytest
@@ -27,6 +28,7 @@ from bench.proto.wire import (
     SearchNodesRequest,
     AggregationOp,
     AggregateNodesRequest,
+    TransactionData,
 )
 from bench.system.supervisor import Supervisor
 from bench.system.test.conftest import make_user_handle, UserHandle
@@ -57,7 +59,7 @@ def raises_grpc_error(status: grpclib.const.Status):
 
 
 async def test_user_auth_flow(supervisor: SupervisorStub):
-    """Create a User, login and logout. Read back user data at various points."""
+    """Create a User, login and logout. Read back data to confirm."""
 
     user = User(slug="test", name="Test", email="test@symbolx.com")
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
@@ -141,7 +143,7 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
         for target_handle in all_handles:
             actor = actor_handle.user
             target = target_handle.user
-            is_self = actor == target
+            is_target_self = actor == target
 
             # request our own and everyone else's data
             sensitive_properties = (User.email, User.password_salt, User.password_hash)
@@ -154,7 +156,7 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
             )
             read_target = read_user_rep.nodes[0].user
             assert read_target.slug == target.slug
-            if is_self:  # we should be able to read our own sensitive data
+            if is_target_self:  # we should be able to read our own sensitive data
                 assert read_target.email == target.email
                 assert read_target.password_salt
                 assert read_target.password_hash
@@ -176,12 +178,13 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
                 node=wiring.wrap_some_node(new_client._to_data()),
                 origin=actor_handle.origin,
             )
-            create_client_req = CommitTransactionRequest(edits=[create_client_edit])
-            if is_self:
+            transaction = TransactionData(id=str(uuid4()), edits=[create_client_edit])
+            create_client_req = CommitTransactionRequest(transaction=transaction)
+            if is_target_self:  # can create clients for ourselves
                 _ = await supervisor.commit_transaction(
                     create_client_req, metadata=actor_handle.headers
                 )
-            else:
+            else:  # but not for others
                 with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
                     _ = await supervisor.commit_transaction(
                         create_client_req, metadata=actor_handle.headers
@@ -246,7 +249,8 @@ async def test_root_node_create(
             node=wiring.wrap_some_node(node_data),
             origin=some_user.origin,
         )
-        commit_req = CommitTransactionRequest(edits=[edit])
+        transaction = TransactionData(id=str(uuid4()), edits=[edit])
+        commit_req = CommitTransactionRequest(transaction=transaction)
         with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
             _ = await supervisor.commit_transaction(
                 commit_req, metadata=some_user.metadata.to_headers()

@@ -48,7 +48,7 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
     NodeType.RECORD,
     passthrough=(("value", _Passthrough.Full),),
     stored_custom=True,
-    index_in_os=True,
+    index_in_search=True,
     local=True,
 )
 class Record(HasValue, Node):

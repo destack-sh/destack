@@ -717,7 +717,7 @@ class NodeQuery(Generic[NodeT]):
             ops = self._filter._collect_ops() if self._filter else ()
             if with_ops:
                 ops |= set(with_ops)
-            if node_cls.__is_indexed_in_os__ and (
+            if node_cls.__is_indexed_in_search__ and (
                 ops & ExpressionOps.AGG_SCALAR or ops & ExpressionOps.AGG_BUCKET
             ):
                 return QueryEngine.LOCAL_OPENSEARCH

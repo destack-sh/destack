@@ -13,6 +13,7 @@ from bench.language.node import (
     p_system,
     p_child,
 )
+from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -23,6 +24,9 @@ if TYPE_CHECKING:
     NodeType.HANDLE,
     roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     identifier=IdentifierType.VARIABLE,
+    constraints=(
+        Constraint("bench_slug_is_slug", ConstraintType.CHECK, condition="(slug ~ '^[a-z0-9-]+$')"),
+    ),
 )
 class Handle(Node):
     """A Bench @handle. Can only be created/edited by the system."""
@@ -37,12 +41,12 @@ class Handle(Node):
 class User(ScopeNode):
     """A Bench user."""
 
-    # (can create user without handle)
+    # (main_handle is optional because we can create user without handle)
     main_handle: Optional[Handle] = p_system(
         30, require=False, array=False, references=NodeType.HANDLE
     )
     handles: NodeList[Handle] = p_child(NodeType.HANDLE)
-    slug: Optional[str] = p_system(31, unique=True)
+    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
     name: Optional[str] = p_regular(32, default=None)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
     email: str = p_system(34, defer=True, unique=True, sensitive=True)
@@ -74,7 +78,7 @@ class Organization(ScopeNode):
         30, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Organization
     handles: NodeList[Handle] = p_child(NodeType.HANDLE)
-    slug: Optional[str] = p_system(31, unique=True)
+    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
     main_bench: Optional["Bench"] = p_system(

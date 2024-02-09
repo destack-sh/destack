@@ -172,14 +172,14 @@ message CommitPreparedTransactionRequest {
 message CommitPreparedTransactionResponse {
 }
 
-message RollbackPreparedTransactionRequest {
+message CancelPreparedTransactionRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
   // request
   string transaction_id = 5;
 }
-message RollbackPreparedTransactionResponse {
+message CancelPreparedTransactionResponse {
 }
 
 message NotifyEditsRequest {
@@ -256,7 +256,7 @@ service Supervisor {
   // Commits a prepared transaction to global nodes.
   rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
   // Rolls back a prepared transaction to global nodes.
-  rpc RollbackPreparedTransaction(RollbackPreparedTransactionRequest) returns (RollbackPreparedTransactionResponse);
+  rpc CancelPreparedTransaction(CancelPreparedTransactionRequest) returns (CancelPreparedTransactionResponse);
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
@@ -349,7 +349,7 @@ service BenchHost {
   // Commits a prepared transaction to this Bench.
   rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
   // Rolls back a prepared transaction to this Bench.
-  rpc RollbackPreparedTransaction(RollbackPreparedTransactionRequest) returns (RollbackPreparedTransactionResponse);
+  rpc CancelPreparedTransaction(CancelPreparedTransactionRequest) returns (CancelPreparedTransactionResponse);
   // Receive any relevant edits to this Bench.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
   // Notifies locally bypassed edits to the package subscribers.

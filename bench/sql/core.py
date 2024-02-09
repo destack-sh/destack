@@ -326,7 +326,7 @@ class Constraint(TableObject):
             # must be wrapped in parentheses
             assert self.condition.startswith("(") and self.condition.endswith(
                 ")"
-            ), f"invalid condition: {self!r}"
+            ), f"invalid condition: {self.condition}"
 
     def __str__(self):
         table_name = self._table.name if self._table else None

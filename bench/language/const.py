@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import contextvars
 import enum
 import typing
@@ -14,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.09.0"
+VERSION = "2024.02.09.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -43,14 +41,16 @@ class NodeType(IdEnum):
     QUERY = 26
     VIEW = 27
     # STEP = 28
+    # CONNECTION? (also for Flow)
     NOTICE = 29
-    LINK = 30
-    SKIP = 31
+    LINK = 35
+    SKIP = 36
     # COMMENT = ...
     # REACTION = ...
     SPACE = 40
     # DEPENDENCY = ...
     # UPGRADE = ...
+    # LOCK?
 
     # session
     SESSION = 50  # (local)
@@ -109,7 +109,7 @@ ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 
 
 class StructType(IdEnum):
-    # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
+    # starts at 500 to avoid collisions with NodeType (BenchType combines both in one metatype)
     BENCH_PATH = 500
     NODE_REFERENCE = 501
     PROPERTY_REFERENCE = 502
@@ -120,6 +120,8 @@ class StructType(IdEnum):
     VALUE_SELECTION = 507
 
     TYPE_INFO = 510
+    CONTEXT = 511
+    SCHEDULE = 512
 
     FILE = 520
     ICON = 521
@@ -139,12 +141,11 @@ class StructType(IdEnum):
     AGGREGATION = 561
     AGGREGATION_BUCKET = 562
 
-    SCHEDULE = 580
-
-    LOG_ENTRY = 590
-    RUN_CODE_FRAME = 591
-    RUN_ERROR = 592
-    # CONTEXT = ...
+    CODE = 590
+    CODE_SECTION = 591
+    RUN_CODE_FRAME = 592
+    RUN_ERROR = 593
+    LOG_ENTRY = 600
     # CURSOR?
 
     SERVER_IMAGE = 630
@@ -187,6 +188,7 @@ class BlockType(IdEnum):
     CHOICE = 11  # define a choice type with fields
     TAG = 12  # define a tag type with fields
     SIGNAL = 13  # define a signal type with fields
+    PROTOCOL = 14  # define a 'protocol' for a block tree/template with fields
     # NOTICE = ...  # define a new notice type
     # NOTIFICATION = ...  # define a new notification type
     # BLOCK = ...  # define a new block type?
@@ -198,14 +200,14 @@ class BlockType(IdEnum):
     ROUTINE = 31  # define a code function with input/output fields (incl. input/output)
     SCRIPT = 32  # define a code script with fields
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
-    MODEL = 34  # define a model 'function' with input/output fields (incl. input/output)
 
     QUERY = 40  # define a set of queries
     DATABASE = 41  # define a database with queries
-    SCREEN = 42  # define a screen with views
 
-    ROLE = 50  # define a role with policies
-    IDENTITY = 51  # define an identity with roles & policies
+    SCREEN = 50  # define a screen with views
+
+    ROLE = 60  # define a role with policies
+    IDENTITY = 61  # define an identity with roles & policies
 
     @property
     def is_type(self) -> bool:
@@ -235,6 +237,12 @@ class BlockTypes:
     NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 
+class BlockMode(IdEnum):
+    INLINE = 1
+    PAGE = 2
+    MODULE = 3
+
+
 class NodeSource(IdEnum):
     PERSISTED = 1
     INTERP = 2
@@ -243,9 +251,9 @@ class NodeSource(IdEnum):
 
 class NodeVisibility(IdEnum):
     # ...?
-    # BLOCK = 2
+    BLOCK = 2
     PAGE = 4
-    # MODULE = 6
+    MODULE = 6
     BENCH = 8
     ALL = 10
 
@@ -319,7 +327,7 @@ class ReadType(IdEnum):
     LIST = 4  # list, search, filter, etc.
 
     @property
-    def kind(self) -> AccessKind:
+    def kind(self) -> "AccessKind":
         return AccessKind.READ
 
 
@@ -339,7 +347,7 @@ class EditType(IdEnum):
     DELETE = 20
 
     @property
-    def kind(self) -> AccessKind:
+    def kind(self) -> "AccessKind":
         return AccessKind.EDIT
 
 
@@ -352,7 +360,7 @@ class RunType(IdEnum):
     KILL = 33
 
     @property
-    def kind(self) -> AccessKind:
+    def kind(self) -> "AccessKind":
         return AccessKind.RUN
 
 

@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.09.0"
+VERSION = "2024.02.09.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -291,22 +291,26 @@ BLOCK_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type", PrimitiveType.INT32, default="2"),
+        Column("mode", PrimitiveType.INT32, default="1"),
+        Column("visibility", PrimitiveType.INT32, default="10"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("bases_block_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
-        Column("is_page", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_module", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_unique_name", PrimitiveType.BOOLEAN, default="false"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column("code", PrimitiveType.STRING, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("is_unique", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_intrinsic", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_method", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -443,6 +447,7 @@ FIELD_TABLE = Table(
         Column("primitive_type", PrimitiveType.INT32, is_nullable=True),
         Column("bench_type", PrimitiveType.INT32, is_nullable=True),
         Column("base_type_block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("visibility", PrimitiveType.INT32, default="10"),
         Column("format_hint", PrimitiveType.INT32, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("length", PrimitiveType.INT32, is_nullable=True),
@@ -789,11 +794,9 @@ SESSION_TABLE = Table(
         Column("last_edited_at", PrimitiveType.DATETIME),
         Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_process_id", PrimitiveType.STRING, is_nullable=True),
-        Column("trigger_type", PrimitiveType.INT32, is_nullable=True),
-        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("is_runtime", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -1282,6 +1285,8 @@ FILE_CONTENT_TABLE = Table(
         Column("content_length", PrimitiveType.INT64),
         Column("content_type", PrimitiveType.STRING),
         Column("status", PrimitiveType.INT32),
+        Column("retention", PrimitiveType.INT32),
+        Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
@@ -1335,6 +1340,7 @@ HANDLE_TABLE = Table(
         Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
+        Constraint("bench_slug_is_slug", ConstraintType.CHECK, condition="(slug ~ '^[a-z0-9-]+$')"),
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
         ),
@@ -1507,7 +1513,6 @@ NOTIFICATION_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("last_edited_at", PrimitiveType.DATETIME),
-        Column("kind", PrimitiveType.INT32),
         Column("expires_at", PrimitiveType.DATETIME),
         Column("read_at", PrimitiveType.DATETIME),
     ),

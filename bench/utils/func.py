@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import enum
 import functools
@@ -348,12 +346,11 @@ class IdEnum(enum.IntEnum):
     def __new__(cls, id: int):
         obj = int.__new__(cls, id)
         obj._value_ = id
+        obj.ord = len(cls) + 1  # start at 1 for use with bytetuple
+        obj.id = id
 
         # check id
         assert id > 0, f"invalid id {id}"
-        obj.id = id
-
-        # check duplicates
         existing = first((v for v in cls if v.id == id), None)
         assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
 
@@ -380,7 +377,7 @@ class IdEnum(enum.IntEnum):
         return _MAX_ID_BY_ENUM[cls]
 
     @staticmethod
-    def combine(name: str, *enums: type[IdEnum]) -> type[IdEnum]:
+    def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
         return IdEnum(name, {t.name: t.id for e in enums for t in e})
 
 
@@ -391,6 +388,7 @@ EnumT = TypeVar("EnumT", bound=IdEnum)
 class bytetuple(typing.Generic[EnumT]):
     """
     Tuple with a bitarray for fast membership check.
+    @TODO Performance!: use ordinals instead of ids in bytetuples
     """
 
     def __init__(self, *items, enum_cls: type[EnumT] = None):
@@ -411,7 +409,7 @@ class bytetuple(typing.Generic[EnumT]):
         id = item if isinstance(item, int) else item.id
         return self.bits[id]
 
-    def __and__(self, other: bytetuple):
+    def __and__(self, other: "bytetuple"):
         assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
         assert (
             self.enum_cls == other.enum_cls
@@ -420,7 +418,7 @@ class bytetuple(typing.Generic[EnumT]):
         items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
         return bytetuple(*items)
 
-    def __or__(self, other: bytetuple):
+    def __or__(self, other: "bytetuple"):
         assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
         assert (
             self.enum_cls == other.enum_cls

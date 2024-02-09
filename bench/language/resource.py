@@ -26,7 +26,7 @@ from bench.language.node import (
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync
+from bench.utils.func import _auto_async_to_sync, IdEnum
 
 
 @node(NodeType.SERVER)
@@ -104,6 +104,12 @@ class Drive(Node):
     uri: Optional[str] = p_system(41, unique=True)
 
 
+class FileRetentionMode(IdEnum):
+    AUTOMATIC = 1  # garbage collected if no references
+    MANUAL = 2  # never garbage collected
+    TIMED = 3  # delete after a certain time
+
+
 @node(NodeType.FILE_CONTENT)
 class FileContent(Node):
     """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
@@ -113,6 +119,8 @@ class FileContent(Node):
     content_length: int = p_internal(31, primitive_type=PrimitiveType.INT64)
     content_type: str = p_internal(32)
     status: FileStatus = p_internal(33)
+    retention: FileRetentionMode = p_internal(34)
+    expires_at: Optional[datetime] = p_internal(35)
 
 
 CacheKey = str | bytes

@@ -37,8 +37,8 @@ import { Supervisor } from "./services";
 import type { WatchEditsResponse } from "./services";
 import type { WatchEditsRequest } from "./services";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
-import type { RollbackPreparedTransactionResponse } from "./services";
-import type { RollbackPreparedTransactionRequest } from "./services";
+import type { CancelPreparedTransactionResponse } from "./services";
+import type { CancelPreparedTransactionRequest } from "./services";
 import type { CommitPreparedTransactionResponse } from "./services";
 import type { CommitPreparedTransactionRequest } from "./services";
 import type { PrepareTransactionResponse } from "./services";
@@ -153,9 +153,9 @@ export interface ISupervisorClient {
     /**
      * Rolls back a prepared transaction to global nodes.
      *
-     * @generated from protobuf rpc: RollbackPreparedTransaction(symbolx.bench.RollbackPreparedTransactionRequest) returns (symbolx.bench.RollbackPreparedTransactionResponse);
+     * @generated from protobuf rpc: CancelPreparedTransaction(symbolx.bench.CancelPreparedTransactionRequest) returns (symbolx.bench.CancelPreparedTransactionResponse);
      */
-    rollbackPreparedTransaction(input: RollbackPreparedTransactionRequest, options?: RpcOptions): UnaryCall<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse>;
+    cancelPreparedTransaction(input: CancelPreparedTransactionRequest, options?: RpcOptions): UnaryCall<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse>;
     /**
      * Subscribes to relevant global edits.
      *
@@ -290,11 +290,11 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     /**
      * Rolls back a prepared transaction to global nodes.
      *
-     * @generated from protobuf rpc: RollbackPreparedTransaction(symbolx.bench.RollbackPreparedTransactionRequest) returns (symbolx.bench.RollbackPreparedTransactionResponse);
+     * @generated from protobuf rpc: CancelPreparedTransaction(symbolx.bench.CancelPreparedTransactionRequest) returns (symbolx.bench.CancelPreparedTransactionResponse);
      */
-    rollbackPreparedTransaction(input: RollbackPreparedTransactionRequest, options?: RpcOptions): UnaryCall<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse> {
+    cancelPreparedTransaction(input: CancelPreparedTransactionRequest, options?: RpcOptions): UnaryCall<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse> {
         const method = this.methods[11], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Subscribes to relevant global edits.
@@ -357,9 +357,9 @@ export interface IBenchHostClient {
     /**
      * Rolls back a prepared transaction to this Bench.
      *
-     * @generated from protobuf rpc: RollbackPreparedTransaction(symbolx.bench.RollbackPreparedTransactionRequest) returns (symbolx.bench.RollbackPreparedTransactionResponse);
+     * @generated from protobuf rpc: CancelPreparedTransaction(symbolx.bench.CancelPreparedTransactionRequest) returns (symbolx.bench.CancelPreparedTransactionResponse);
      */
-    rollbackPreparedTransaction(input: RollbackPreparedTransactionRequest, options?: RpcOptions): UnaryCall<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse>;
+    cancelPreparedTransaction(input: CancelPreparedTransactionRequest, options?: RpcOptions): UnaryCall<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse>;
     /**
      * Receive any relevant edits to this Bench.
      *
@@ -525,11 +525,11 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
     /**
      * Rolls back a prepared transaction to this Bench.
      *
-     * @generated from protobuf rpc: RollbackPreparedTransaction(symbolx.bench.RollbackPreparedTransactionRequest) returns (symbolx.bench.RollbackPreparedTransactionResponse);
+     * @generated from protobuf rpc: CancelPreparedTransaction(symbolx.bench.CancelPreparedTransactionRequest) returns (symbolx.bench.CancelPreparedTransactionResponse);
      */
-    rollbackPreparedTransaction(input: RollbackPreparedTransactionRequest, options?: RpcOptions): UnaryCall<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse> {
+    cancelPreparedTransaction(input: CancelPreparedTransactionRequest, options?: RpcOptions): UnaryCall<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse> {
         const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RollbackPreparedTransactionRequest, RollbackPreparedTransactionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<CancelPreparedTransactionRequest, CancelPreparedTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Receive any relevant edits to this Bench.

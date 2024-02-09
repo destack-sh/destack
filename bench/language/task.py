@@ -12,7 +12,6 @@ import structlog
 
 from bench.language.const import NodeType, RunErrorKind, RunStatus
 from bench.language.field import Field, TypedDict
-from bench.language.model import HasModel
 from bench.language.node import Node, ScopeNode, node_component, p_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
