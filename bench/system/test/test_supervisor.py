@@ -236,7 +236,7 @@ async def test_root_node_create(
 
     node = fabricator.fabricate(node_type)
     node_data = wiring.pack_node(node)
-    node_data.parent_ptr = None  # don't need parents for basic permission check
+    node_data.parent_ptr = None  # roots don't have parents
 
     # try create
     for edit_type in (EditType.CREATE, EditType.UPSERT):

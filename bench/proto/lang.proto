@@ -9,7 +9,7 @@ enum AccessKind {
   ACCESS_KIND_UNSPECIFIED = 0;
   ACCESS_KIND_READ = 1;
   ACCESS_KIND_EDIT = 10;
-  ACCESS_KIND_RUN = 25;
+  ACCESS_KIND_RUN = 30;
 }
 
 enum AccessMode {
@@ -35,10 +35,10 @@ enum AccessType {
   ACCESS_TYPE_SOFT_DELETE = 18;
   ACCESS_TYPE_RESTORE = 19;
   ACCESS_TYPE_DELETE = 20;
-  ACCESS_TYPE_START = 25;
-  ACCESS_TYPE_PAUSE = 26;
-  ACCESS_TYPE_RESUME = 37;
-  ACCESS_TYPE_KILL = 28;
+  ACCESS_TYPE_START = 30;
+  ACCESS_TYPE_PAUSE = 31;
+  ACCESS_TYPE_RESUME = 32;
+  ACCESS_TYPE_KILL = 33;
 }
 
 enum AggregationOp {
@@ -273,17 +273,6 @@ enum FormatHint {
   FORMAT_HINT_AUDIO = 62;
 }
 
-enum IconKind {
-  ICON_KIND_UNSPECIFIED = 0;
-  ICON_KIND_EMOJI = 1;
-  ICON_KIND_BUILTIN = 2;
-  ICON_KIND_CUSTOM = 3;
-}
-
-enum IconType {
-  ICON_TYPE_UNSPECIFIED = 0;
-}
-
 enum IdEnum {
   ID_ENUM_UNSPECIFIED = 0;
 }
@@ -371,20 +360,6 @@ enum NoticeKind {
   NOTICE_KIND_ERROR = 4;
 }
 
-// Built-in notice types.
-enum NoticeType {
-  NOTICE_TYPE_UNSPECIFIED = 0;
-  NOTICE_TYPE_MISSING_REFERENCE = 1;
-  NOTICE_TYPE_CIRCULAR_BASE = 2;
-  NOTICE_TYPE_MISMATCHED_BASE = 3;
-  NOTICE_TYPE_AMBIGUOUS_DEFINITION = 100;
-  NOTICE_TYPE_BAD_NAME = 300;
-}
-
-enum NotificationKind {
-  NOTIFICATION_KIND_UNSPECIFIED = 0;
-}
-
 enum PolicyEffect {
   POLICY_EFFECT_UNSPECIFIED = 0;
   POLICY_EFFECT_ALLOW = 1;
@@ -392,7 +367,7 @@ enum PolicyEffect {
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-// NOTE: the ids here are used in encode/decode pipelines, take extra care.
+// NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
 enum PrimitiveType {
   PRIMITIVE_TYPE_UNSPECIFIED = 0;
   PRIMITIVE_TYPE_BOOLEAN = 1;
@@ -452,13 +427,12 @@ enum RunStatus {
 // A type of Run access on nodes.
 enum RunType {
   RUN_TYPE_UNSPECIFIED = 0;
-  RUN_TYPE_START = 25;
-  RUN_TYPE_PAUSE = 26;
-  RUN_TYPE_RESUME = 37;
-  RUN_TYPE_KILL = 28;
+  RUN_TYPE_START = 30;
+  RUN_TYPE_PAUSE = 31;
+  RUN_TYPE_RESUME = 32;
+  RUN_TYPE_KILL = 33;
 }
 
-// Schedules for blocks.
 enum ScheduleType {
   SCHEDULE_TYPE_UNSPECIFIED = 0;
   SCHEDULE_TYPE_INTERVAL = 1;
@@ -498,11 +472,18 @@ enum SortOp {
   SORT_OP_DESCENDING = 201;
 }
 
+enum StoreEngine {
+  STORE_ENGINE_UNSPECIFIED = 0;
+  STORE_ENGINE_POSTGRES = 1;
+  STORE_ENGINE_OPENSEARCH = 20;
+  STORE_ENGINE_CLICKHOUSE = 30;
+}
+
 enum StoreKind {
   STORE_KIND_UNSPECIFIED = 0;
-  STORE_KIND_POSTGRES = 1;
-  STORE_KIND_OPENSEARCH = 2;
-  STORE_KIND_CLICKHOUSE = 3;
+  STORE_KIND_RELATIONAL = 1;
+  STORE_KIND_SEARCH = 2;
+  STORE_KIND_ANALYTICAL = 3;
 }
 
 enum StructType {
@@ -549,34 +530,15 @@ enum TriggerType {
   TRIGGER_TYPE_SIGNAL = 2;
 }
 
-enum ViewType {
-  VIEW_TYPE_UNSPECIFIED = 0;
-  VIEW_TYPE_PAGE = 1;
-  VIEW_TYPE_BLOCK = 2;
-  VIEW_TYPE_EXPLORER = 10;
-  VIEW_TYPE_HISTORY = 11;
-  VIEW_TYPE_WATCH = 12;
-  VIEW_TYPE_TESTING = 13;
-  VIEW_TYPE_BENCH = 14;
-  VIEW_TYPE_INSPECTOR = 15;
-  VIEW_TYPE_LIBRARY = 16;
-  VIEW_TYPE_ACCESS = 17;
-  VIEW_TYPE_WINDOW_GROUP = 40;
-  VIEW_TYPE_WINDOW = 41;
-  VIEW_TYPE_PANEL = 42;
-  VIEW_TYPE_SPACER = 60;
-  VIEW_TYPE_DIVIDER = 61;
-}
-
 // An evaluated access on some objects as part of a larger Request (by the same subject).
 // As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
 // (And if object_properties is unset, it applies to all properties.)
 message AccessData {
   BenchType metatype = 1;
-  AccessMode mode = 30;
-  PolicyEffect decision = 31;
-  AccessType verb = 32;
-  BenchType object_type = 33;
+  int32 mode = 30;
+  int32 decision = 31;
+  int32 verb = 32;
+  int32 object_type = 33;
   repeated PropertyReferenceData object_properties_ptr = 34;
   optional AccessTraceData trace = 35;
 }
@@ -610,7 +572,7 @@ message AccessZoneData {
 // The result of an aggregation expression.
 message AggregationData {
   BenchType metatype = 1;
-  AggregationOp op = 30;
+  int32 op = 30;
   optional bool exists = 31;
   optional int32 count = 32;
   optional float scalar = 33;
@@ -686,12 +648,12 @@ message BenchPathData {
 // An expression (conditional, aggregation, sort, etc).
 message ExpressionData {
   BenchType metatype = 1;
-  ExpressionOp op = 30;
+  int32 op = 30;
   optional NodeReferenceData field_ptr = 31;
   optional PropertyReferenceData property_ptr = 32;
   repeated ExpressionData clauses = 35;
   google.protobuf.Struct value = 36;
-  optional SortMode mode = 37;
+  optional int32 mode = 37;
 }
 
 // A path of built-in Node/Struct properties and user-defined Fields.
@@ -715,15 +677,15 @@ message FileData {
   optional string content_type = 32;
   string name = 33;
   optional NodeReferenceData content_ptr = 34;
-  FileStatus status = 35;
+  int32 status = 35;
 }
 
 // Icon(kind: bench.language.icon.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.icon.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
 message IconData {
   BenchType metatype = 1;
-  IconKind kind = 30;
+  int32 kind = 30;
   optional string emoji = 31;
-  optional IconType type = 32;
+  optional int32 type = 32;
   optional FileData image = 33;
 }
 
@@ -745,7 +707,7 @@ message LogEntryData {
 // NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
 message NodeReferenceData {
   BenchType metatype = 1;
-  NodeType type = 30;
+  int32 type = 30;
   optional string id = 31;
   optional string ck = 32;
   optional string base_ck = 33;
@@ -785,10 +747,10 @@ message PolicyRuleData {
   optional bool subject_is_staff = 42;
   optional bool subject_is_member = 43;
   optional bool subject_is_owner = 44;
-  PolicyEffect effect = 60;
-  repeated AccessType verbs = 61;
-  repeated AccessKind verb_kinds = 62;
-  repeated NodeType object_node_types = 80;
+  int32 effect = 60;
+  repeated int32 verbs = 61;
+  repeated int32 verb_kinds = 62;
+  repeated int32 object_node_types = 80;
   repeated PropertyReferenceData object_properties_ptr = 81;
   optional bool object_properties_is_system = 82;
   optional bool object_properties_is_sensitive = 83;
@@ -803,17 +765,17 @@ message PropertyPathData {
 // PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
 message PropertyReferenceData {
   BenchType metatype = 1;
-  BenchType type = 30;
+  int32 type = 30;
   int32 id = 31;
-  optional NodeType references_type = 32;
+  optional int32 references_type = 32;
 }
 
 // Fine-grained options to a read request.
 // This is an addition to primary options (like the filter for a search or aggregation).
 message ReadOptionsData {
   BenchType metatype = 1;
-  repeated NodeType ancestor_types = 30;
-  repeated NodeType descendant_types = 31;
+  repeated int32 ancestor_types = 30;
+  repeated int32 descendant_types = 31;
   repeated PropertyReferenceData related_properties_ptr = 32;
   repeated PropertyReferenceData include_properties_ptr = 40;
   repeated PropertyReferenceData exclude_properties_ptr = 41;
@@ -826,7 +788,7 @@ message ReadOptionsData {
 message RequestData {
   BenchType metatype = 1;
   SubjectData subject = 30;
-  PolicyEffect decision = 31;
+  int32 decision = 31;
   repeated AccessData accesses = 32;
 }
 
@@ -862,7 +824,7 @@ message RunCodeFrameData {
 // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, node_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
 message RunErrorData {
   BenchType metatype = 1;
-  RunErrorKind kind = 30;
+  int32 kind = 30;
   string type = 31;
   optional string message = 32;
   optional NodeReferenceData node_ptr = 33;
@@ -872,7 +834,7 @@ message RunErrorData {
 // The time-based schedule of something.
 message ScheduleData {
   BenchType metatype = 1;
-  ScheduleType type = 30;
+  int32 type = 30;
   optional string timezone = 31;
   optional int32 interval = 32;
   optional string cron = 33;
@@ -945,10 +907,10 @@ message SubjectData {
 // Type checking is done in ./value.py. You'll note that we can only check some things without querying.
 message TypeInfoData {
   BenchType metatype = 1;
-  optional PrimitiveType primitive_type = 40;
-  optional BenchType bench_type = 41;
+  optional int32 primitive_type = 40;
+  optional int32 bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  optional FormatHint format_hint = 44;
+  optional int32 format_hint = 44;
   optional ExpressionData condition = 45;
   optional int32 length = 46;
   optional int32 precision = 47;
@@ -985,7 +947,7 @@ message BadgeData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  BadgeType type = 30;
+  int32 type = 30;
   optional string name = 31;
   repeated PolicyData delegated_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
@@ -1033,7 +995,7 @@ message BlockData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  BlockType type = 30;
+  int32 type = 30;
   repeated PolicyData policies = 32;
   repeated NodeReferenceData bases_ptr = 33;
   optional TypeInfoData builtin_base = 34;
@@ -1115,9 +1077,10 @@ message DriveData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  string name = 31;
-  optional RichTextData text = 32;
-  optional string handle = 33;
+  string name = 32;
+  optional RichTextData text = 34;
+  optional string host = 40;
+  optional string uri = 41;
 }
 
 // An environment isolates resources from the rest of a Bench.
@@ -1136,9 +1099,10 @@ message EnvironmentData {
   optional RichTextData text = 34;
   repeated PolicyData policies = 35;
   NodeReferenceData store_ptr = 40;
-  NodeReferenceData index_ptr = 41;
-  NodeReferenceData drive_ptr = 42;
-  NodeReferenceData cache_ptr = 43;
+  NodeReferenceData search_ptr = 41;
+  NodeReferenceData analytics_ptr = 42;
+  NodeReferenceData drive_ptr = 43;
+  NodeReferenceData cache_ptr = 44;
 }
 
 // A used-defined attribute of some value.
@@ -1159,10 +1123,10 @@ message FieldData {
   optional string dynamic_key = 32;
   optional RichTextData text = 33;
   optional google.protobuf.Struct value_packed = 34;
-  optional PrimitiveType primitive_type = 40;
-  optional BenchType bench_type = 41;
+  optional int32 primitive_type = 40;
+  optional int32 bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  optional FormatHint format_hint = 44;
+  optional int32 format_hint = 44;
   optional ExpressionData condition = 45;
   optional int32 length = 46;
   optional int32 precision = 47;
@@ -1189,7 +1153,7 @@ message FileContentData {
   string sha512 = 30;
   int64 content_length = 31;
   string content_type = 32;
-  FileStatus status = 33;
+  int32 status = 33;
 }
 
 // A Bench @handle. Can only be created/edited by the system.
@@ -1286,8 +1250,8 @@ message NoticeData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  NoticeKind kind = 30;
-  NoticeType type = 31;
+  int32 kind = 30;
+  int32 type = 31;
   string message = 33;
   optional FieldPathData path = 34;
   repeated PropertyReferenceData properties_ptr = 35;
@@ -1304,7 +1268,6 @@ message NotificationData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  NotificationKind kind = 30;
   google.protobuf.Timestamp expires_at = 33;
   google.protobuf.Timestamp read_at = 34;
 }
@@ -1380,7 +1343,7 @@ message QueryData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional string name = 30;
   optional string order_key = 31;
-  NodeType node_type = 32;
+  int32 node_type = 32;
   repeated NodeReferenceData bases_ptr = 33;
   optional ExpressionData filter = 34;
   repeated ExpressionData sort = 35;
@@ -1441,7 +1404,7 @@ message RunData {
   optional google.protobuf.Timestamp scheduled_at = 36;
   optional google.protobuf.Timestamp started_at = 37;
   optional google.protobuf.Timestamp terminated_at = 38;
-  RunStatus status = 39;
+  int32 status = 39;
   optional google.protobuf.Struct inputs_packed = 40;
   optional google.protobuf.Struct outputs_packed = 41;
   optional google.protobuf.Struct value_packed = 42;
@@ -1459,18 +1422,16 @@ message ServerData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  ServerProfile profile = 30;
+  int32 profile = 30;
   optional ServerImageData image = 31;
   optional string version = 32;
   bool sleep = 33;
-  ServerStatus status = 40;
-  optional ServerProfile current_profile = 41;
+  int32 status = 40;
+  optional int32 current_profile = 41;
   optional ServerImageData current_image = 42;
   optional string current_version = 43;
-  optional google.protobuf.Timestamp last_active_at = 50;
-  optional google.protobuf.Timestamp last_bumped_at = 51;
-  optional string external_id = 52;
-  optional string access_token = 53;
+  optional google.protobuf.Timestamp last_active_at = 44;
+  optional google.protobuf.Timestamp last_bumped_at = 45;
 }
 
 // A managed context for running a Bench package (in a server).
@@ -1489,7 +1450,7 @@ message SessionData {
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData server_ptr = 31;
   optional string server_process_id = 32;
-  optional TriggerType trigger_type = 33;
+  optional int32 trigger_type = 33;
   optional string trigger_id = 34;
   optional google.protobuf.Timestamp opened_at = 35;
   optional google.protobuf.Timestamp closed_at = 36;
@@ -1551,7 +1512,7 @@ message SpaceData {
 }
 
 // A store for database-like storage in a Bench.
-// Virtualized on an actual physical database of the requested kind (may be a sub-schema or such).
+// Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
 message StoreData {
   BenchType metatype = 1;
   string id = 2;
@@ -1562,12 +1523,18 @@ message StoreData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  StoreKind kind = 30;
-  string name = 31;
-  optional RichTextData text = 32;
-  optional string handle = 33;
-  optional string username = 34;
-  optional string password = 35;
+  int32 kind = 30;
+  int32 engine = 31;
+  string name = 32;
+  optional RichTextData text = 34;
+  bool is_host_dedicated = 35;
+  bool is_database_dedicated = 36;
+  bool is_schema_dedicated = 37;
+  optional string host = 41;
+  optional string database = 42;
+  optional string schema = 43;
+  optional string username = 44;
+  optional string password = 45;
 }
 
 // An association between a tag and a node (with optional value).
@@ -1600,7 +1567,7 @@ message TriggerData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  TriggerType type = 30;
+  int32 type = 30;
   optional string name = 31;
   bool active = 32;
   optional ScheduleData schedule = 33;
@@ -1646,7 +1613,7 @@ message ViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  ViewType type = 30;
+  int32 type = 30;
   optional string name = 31;
   optional IconData icon = 32;
 }

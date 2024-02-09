@@ -11,6 +11,7 @@ from bench.language.const import (
     StoreKind,
     FileStatus,
     PrimitiveType,
+    StoreEngine,
 )
 from bench.language.node import (
     Bench,
@@ -33,23 +34,18 @@ class Server(Node):
     """A server providing the compute runtime for a Bench."""
 
     parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
-    # desired state
+
     profile: ServerProfile = p_regular(30)
     image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
     version: Optional[str] = p_system(32)
     sleep: bool = p_regular(33, default=True)
-    # actual state
+
     status: ServerStatus = p_system(40)
     current_profile: Optional[ServerProfile] = p_system(41)
     current_image: Optional["ServerImage"] = p_system(42, struct=StructType.SERVER_IMAGE)
     current_version: Optional[str] = p_system(43)
-    # tracking
-    last_active_at: Optional[datetime] = p_internal(50, default_factory=utcnow_with_tz)
-    last_bumped_at: Optional[datetime] = p_internal(51, default_factory=utcnow_with_tz)
-    external_id: Optional[str] = p_system(52, unique=True)
-    access_token: Optional[str] = p_system(
-        53, default=None, encrypt=True, defer=True, sensitive=True
-    )
+    last_active_at: Optional[datetime] = p_internal(44, default_factory=utcnow_with_tz)
+    last_bumped_at: Optional[datetime] = p_internal(45, default_factory=utcnow_with_tz)
 
 
 @struct(StructType.SERVER_IMAGE)
@@ -72,16 +68,24 @@ class ServerImageRequirement(Struct):
 class Store(Node):
     """
     A store for database-like storage in a Bench.
-    Virtualized on an actual physical database of the requested kind (may be a sub-schema or such).
+    Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
     """
 
     parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
     kind: StoreKind = p_system(30)
-    name: str = p_regular(31)
-    text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)
-    handle: Optional[str] = p_system(33, unique=True)
-    username: Optional[str] = p_system(34, sensitive=True, encrypt=True, defer=True)
-    password: Optional[str] = p_system(35, sensitive=True, encrypt=True, defer=True)
+    engine: StoreEngine = p_system(31)
+    name: str = p_regular(32)
+    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    is_host_dedicated: bool = p_system(35, default=False)
+    is_database_dedicated: bool = p_system(36, default=False)
+    is_schema_dedicated: bool = p_system(37, default=False)
+
+    # base: Optional[Store] ...if shared?
+    host: Optional[str] = p_system(41, sensitive=True, defer=True)
+    database: Optional[str] = p_system(42, sensitive=True, defer=True)
+    schema: Optional[str] = p_system(43, sensitive=True, defer=True)
+    username: Optional[str] = p_system(44, sensitive=True, encrypt=True, defer=True)
+    password: Optional[str] = p_system(45, sensitive=True, encrypt=True, defer=True)
 
 
 @node(NodeType.DRIVE)
@@ -92,9 +96,12 @@ class Drive(Node):
     """
 
     parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
-    name: str = p_regular(31)
-    text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)
-    handle: Optional[str] = p_system(33, unique=True)
+    # engine: ...?
+    name: str = p_regular(32)
+    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+
+    host: Optional[str] = p_system(40, unique=True)
+    uri: Optional[str] = p_system(41, unique=True)
 
 
 @node(NodeType.FILE_CONTENT)

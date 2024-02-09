@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.08.2"
+VERSION = "2024.02.09.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -346,12 +346,10 @@ class EditType(IdEnum):
 class RunType(IdEnum):
     """A type of Run access on nodes."""
 
-    START = 25
-    PAUSE = 26
-    RESUME = 37
-    KILL = 28
-
-    # ideally <32 so we can bitpack into a single int
+    START = 30
+    PAUSE = 31
+    RESUME = 32
+    KILL = 33
 
     @property
     def kind(self) -> AccessKind:
@@ -359,10 +357,10 @@ class RunType(IdEnum):
 
 
 class AccessKind(IdEnum):
-    # NOTE: AccessType ids and their overlap with AccessKind is important for our masks.
+    # NOTE: AccessType/AccessKind ids should match (used in properties masks).
     READ = 1
     EDIT = 10
-    RUN = 25
+    RUN = 30
 
     @property
     def from_id(self):
@@ -411,9 +409,15 @@ class AccessMode(IdEnum):
 
 
 class StoreKind(IdEnum):
+    RELATIONAL = 1
+    SEARCH = 2
+    ANALYTICAL = 3  # would be nice to unify with SEARCH...
+
+
+class StoreEngine(IdEnum):
     POSTGRES = 1
-    OPENSEARCH = 2
-    CLICKHOUSE = 3
+    OPENSEARCH = 20
+    CLICKHOUSE = 30
 
 
 class BadgeType(IdEnum):
@@ -424,6 +428,7 @@ class BadgeType(IdEnum):
 class PolicyEffect(IdEnum):
     ALLOW = 1
     DENY = 2
+    # DEFER?, METER, LIMIT, ...
 
 
 class ClientKind(IdEnum):
@@ -431,14 +436,10 @@ class ClientKind(IdEnum):
     SERVER = 2
 
 
-class NotificationKind(IdEnum):
-    pass
-
-
 class PrimitiveType(IdEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-    NOTE: the ids here are used in encode/decode pipelines, take extra care.
+    NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
     """
 
     BOOLEAN = 1
@@ -493,8 +494,6 @@ class TriggerType(IdEnum):
 
 
 class ScheduleType(IdEnum):
-    """Schedules for blocks."""
-
     INTERVAL = 1
     CRON = 2
 
