@@ -78,6 +78,8 @@ class _PatchedMessage(BetterprotoMessage):
             "ck",
             "revision",
             "type",
+            "name",
+            "slug",
             "bench_id",
             "package_id",
             "package_ptr",
@@ -112,6 +114,7 @@ class _PatchedMessage(BetterprotoMessage):
                 value = getattr(self, field_name)
             except AttributeError:
                 value = self._get_field_default(field_name)
+            # prop lookup here error here -> proto schema locally out of sync (tested against)
             prop = struct_cls.__properties__[field_name]
             key = str(prop.id)
             if meta.proto_type == betterproto.TYPE_MESSAGE:

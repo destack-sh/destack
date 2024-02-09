@@ -420,8 +420,8 @@ class Property(_TypeExpressionBase):
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
-            if issubclass(annotation.type, IdEnum):  # store as string for now
-                self.primitive_type = PrimitiveType.STRING
+            if issubclass(annotation.type, IdEnum):
+                self.primitive_type = PrimitiveType.INT32
             elif issubclass(annotation.type, enum.IntFlag):
                 self.primitive_type = PrimitiveType.INT64
             elif issubclass(annotation.type, Struct):
@@ -2355,9 +2355,12 @@ class Environment(ScopeNode):
     )
 
     store: "Store" = p_system(40, require=True, array=False, references=NodeType.STORE)
-    index: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
-    drive: "Drive" = p_system(42, require=True, array=False, references=NodeType.DRIVE)
-    cache: Optional["Cache"] = p_system(43, require=True, array=False, references=NodeType.CACHE)
+    search: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
+    analytics: Optional["Store"] = p_system(
+        42, require=True, array=False, references=NodeType.STORE
+    )
+    drive: "Drive" = p_system(43, require=True, array=False, references=NodeType.DRIVE)
+    cache: Optional["Cache"] = p_system(44, require=True, array=False, references=NodeType.CACHE)
 
 
 @node(NodeType.BRANCH, identifier=IdentifierType.VARIABLE)

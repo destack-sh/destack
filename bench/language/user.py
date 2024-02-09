@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import NodeType, NotificationKind, StructType
+from bench.language.const import NodeType, StructType
 from bench.language.link import NodeList
 from bench.language.node import (
     Node,
@@ -134,7 +134,7 @@ class Notification(Node):
     """A notification for a user."""
 
     parent: User = p_parent(4, NodeType.USER)
-    kind: NotificationKind = p_internal(30)
+    # kind: ...?
     # -> builtin_type / custom_type / ... 'type' as union
     expires_at: datetime = p_internal(33)
     read_at: datetime = p_internal(34)
