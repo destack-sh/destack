@@ -12,15 +12,14 @@ from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
-from bench.language.link import NodeNotFoundError
+from bench.language.expression import NodeNotFoundError
 from bench.language.node import NODE_CLASS_BY_TYPE, Bench
-from bench.system.utils import detached_session
 from bench.sql.client import _get_pg_connection_str, async_pg_cursor
 from bench.sql.engine import (
     GLOBAL_TABLES,
     LOCAL_TABLES,
-    map_node_class_to_pg_table,
     SqlUndefinedObjectError,
+    map_node_class_to_pg_table,
 )
 from bench.sql.migration import (
     Migration,
@@ -34,6 +33,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
+from bench.system.utils import detached_session
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)

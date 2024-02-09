@@ -10,7 +10,6 @@ import typer
 from bench.cli.utils import _shell
 from bench.language import VERSION
 from bench.language.node import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES, Node
-from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 
 TARGET_PY_DIR = "bench/proto/wire"
@@ -32,15 +31,7 @@ def _generate_proto_schema() -> str:
         bench_classes=[*FINAL_BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
         unions={"SomeNode": ("node", node_classes)},
-        extras=[
-            Message(
-                name="PackageTreeData",
-                fields=[
-                    Field(id=1, name="package", type="PackageData"),
-                    Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
-                ],
-            ),
-        ],
+        extras=[],
         message_postfix="Data",
     )
     return proto.to_proto_source()

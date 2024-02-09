@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.09.1"
+VERSION = "2024.02.09.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -188,7 +188,7 @@ class BlockType(IdEnum):
     CHOICE = 11  # define a choice type with fields
     TAG = 12  # define a tag type with fields
     SIGNAL = 13  # define a signal type with fields
-    PROTOCOL = 14  # define a 'protocol' for a block tree/template with fields
+    PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
     # NOTICE = ...  # define a new notice type
     # NOTIFICATION = ...  # define a new notification type
     # BLOCK = ...  # define a new block type?
@@ -307,9 +307,6 @@ class NodeStatus(enum.IntEnum):
     SOURCE = 0  # just loaded
     INTERP = 1  # everything resolved & ready
     TRACKED = 2  # live in a session
-
-
-NS = NodeStatus
 
 
 #

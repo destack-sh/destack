@@ -2,22 +2,22 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.link import NodeList
+from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
     ScopeNode,
     node,
-    p_parent,
+    p_child,
     p_internal,
+    p_parent,
     p_regular,
     p_system,
-    p_child,
 )
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Space, Server, RichText, Role
+    from bench.language import Bench, RichText, Role, Server, Space
 
 
 @node(

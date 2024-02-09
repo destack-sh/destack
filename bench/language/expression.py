@@ -1,9 +1,13 @@
 import functools
-from typing import TYPE_CHECKING, Any, Optional, Union
+import re
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, Optional, TypeVar, Union
 from uuid import UUID
+
+from asgiref.sync import async_to_sync
 
 from bench.language.const import (
     AggregationOp,
+    BenchError,
     BenchType,
     ConditionalOp,
     ExpressionKind,
@@ -13,23 +17,25 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
+    active_session,
 )
 from bench.language.node import (
+    BENCH_CLASS_BY_TYPE,
     Node,
     Property,
     Struct,
     node,
     p_parent,
-    struct,
     p_regular,
-    BENCH_CLASS_BY_TYPE,
+    struct,
 )
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
+from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, TypeInfo
+    from bench.language import Block, Expression, Field, Node, Property, ReadOptions, TypeInfo
     from bench.language.field import HasFields
 
 #
@@ -565,6 +571,203 @@ SUPPORTED_OPS_BY_TYPE: dict[PrimitiveType, set[ConditionalOp]] = {
 }
 _EMPTY_SET = set()
 
+NodeT = TypeVar("NodeT", bound="Node")
+
+
+def _require_expression_op(op: ExpressionOp):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self: "_TypeExpressionBase", *args, **kwargs):
+            _check_field_supports(self._as_type, op)
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value: Any = None):
+    if isinstance(target, Property):
+        return C(op, field=None, property=target, value=value)
+    else:
+        return C(op, field=target, property=None, value=value)
+
+
+def _to_sort(op: SortOp, target: Union["Field", "Property"]):
+    if isinstance(target, Property):
+        return S(op, field=None, property=target)
+    else:
+        return S(op, field=target, property=None)
+
+
+class _TypeExpressionBase:
+    """
+    Base for field-like expressions on a field-like class.
+    We define this here to use it for Property and Field.
+    """
+
+    @property
+    def _as_type(self) -> "TypeInfo":
+        raise NotImplementedError(f"{self!r} does not implement type")
+
+    # comparison
+
+    @_require_expression_op(ConditionalOp.EQUALS)
+    def equals(self: Any, value: Any) -> "Expression":
+        if value is None:
+            return self.not_exists()
+        return _to_conditional(ConditionalOp.EQUALS, self, value=value)
+
+    @_require_expression_op(ConditionalOp.NOT_EQUALS)
+    def not_equal(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.NOT_EQUALS, self, value=value)
+
+    @_require_expression_op(ConditionalOp.GREATER_THAN)
+    def greater_than(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.GREATER_THAN, self, value=value)
+
+    @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
+    def greater_than_or_equals(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self, value=value)
+
+    @_require_expression_op(ConditionalOp.LESS_THAN)
+    def less_than(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.LESS_THAN, self, value=value)
+
+    @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
+    def less_than_or_equals(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
+
+    def __eq__(self, other):
+        if isinstance(self, Node) and isinstance(other, Node):
+            return Node.__eq__(self, other)  # imitate Field equality
+        else:
+            return self.equals(other)
+
+    def __ne__(self, other):
+        if isinstance(self, Node) and isinstance(other, Node):
+            return Node.__ne__(self, other)
+        else:
+            return self.not_equal(other)
+
+    __gt__ = greater_than
+    __ge__ = greater_than_or_equals
+    __lt__ = less_than
+    __le__ = less_than_or_equals
+
+    # string comparison
+
+    @_require_expression_op(ConditionalOp.MATCHES)
+    def matches(self: Any, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.MATCHES, self, value=value)
+
+    @_require_expression_op(ConditionalOp.STARTS_WITH)
+    def starts_with(self: Any, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
+
+    @_require_expression_op(ConditionalOp.REGEX)
+    def regex(self: Any, value: str | re.Pattern) -> "Expression":
+        if isinstance(value, re.Pattern):
+            value = value.pattern
+        return _to_conditional(ConditionalOp.REGEX, self, value=value)
+
+    # containment
+
+    @_require_expression_op(ConditionalOp.IN)
+    def in_(self: Any, *values: list[Any]) -> "Expression":
+        return _to_conditional(ConditionalOp.IN, self, value=values)
+
+    @_require_expression_op(ConditionalOp.NOT_IN)
+    def not_in(self: Any, *values: list[Any]) -> "Expression":
+        return _to_conditional(ConditionalOp.NOT_IN, self, value=values)
+
+    @_require_expression_op(ConditionalOp.CONTAINS)
+    def contains(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.CONTAINS, self, value=value)
+
+    @_require_expression_op(ConditionalOp.NOT_CONTAINS)
+    def not_contains(self: Any, value: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.NOT_CONTAINS, self, value=value)
+
+    # existence
+
+    @_require_expression_op(ConditionalOp.EXISTS)
+    def exists(self: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.EXISTS, self)
+
+    @_require_expression_op(ConditionalOp.NOT_EXISTS)
+    def not_exists(self: Any) -> "Expression":
+        return _to_conditional(ConditionalOp.NOT_EXISTS, self)
+
+    # knn
+
+    @_require_expression_op(ConditionalOp.NEAR)
+    def near(self: Any, value: list[float]) -> "Expression":
+        return _to_conditional(ConditionalOp.NEAR, self, value=value)
+
+    # sort
+
+    @_require_expression_op(SortOp.ASCENDING)
+    def asc(self: Any) -> "Expression":
+        return _to_sort(SortOp.ASCENDING, self)
+
+    ascending = asc
+
+    @_require_expression_op(SortOp.DESCENDING)
+    def desc(self: Any) -> "Expression":
+        return _to_sort(SortOp.DESCENDING, self)
+
+    descending = desc
+
+
+FieldOrProperty = Union["Field", "Property", Any]
+
+
+class _NodeExpressionBase:
+    @classmethod
+    def query(cls: type["Node"]):
+        return NodeQuery(node_type=cls.metatype)
+
+    @classmethod
+    async def tolist(cls: type["Node"]) -> list[NodeT]:
+        return await NodeQuery(node_type=cls.metatype).tolist()
+
+    @classmethod
+    def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
+        return NodeQuery(node_type=cls.metatype).get(conditional, **kwargs)
+
+    @classmethod
+    def filter(cls: type["Node"], filter: "Expression" = None, **kwargs) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).filter(filter, **kwargs)
+
+    @classmethod
+    def sort(cls: type["Node"], sort: "Expression" = None, *args: str) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).sort(sort, *args)
+
+    @classmethod
+    def include(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).include(*properties)
+
+    @classmethod
+    def exclude(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).exclude(*properties)
+
+    @classmethod
+    def related(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).related(*properties)
+
+    @classmethod
+    def first(cls: type["Node"], count: int) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).first(count)
+
+    @classmethod
+    async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:
+        return NodeQuery(node_type=cls.metatype).count(filter, **kwargs)
+
+    @classmethod
+    async def exists(cls: type["Node"], filter: "Expression" = None, **kwargs) -> bool:
+        return NodeQuery(node_type=cls.metatype).exists(filter, **kwargs)
+
 
 #
 # Queries
@@ -587,3 +790,328 @@ class Query(Node):
 
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
+
+
+# NOTE: For some reason Node.id type checks as <annotation>', but it's a Property? dataclass transform broken?
+_NodeFetchResult = NamedTuple(
+    "_NodeFetchResult",
+    [
+        ("nodes", list[AnyNodeData]),
+        ("cursors", list[str]),
+        ("start_cursor", str | None),
+        ("total", int),
+        ("engine", QueryEngine),
+    ],
+)
+
+
+class QueryError(BenchError, ValueError):
+    def __init__(self, query: "NodeQuery", cause: Exception | None = None):
+        super().__init__(repr(query))
+        self.query = query
+        self.cause = cause
+
+
+class NodeNotFoundError(QueryError):
+    pass
+
+
+class MultipleNodesFoundError(QueryError):
+    pass
+
+
+class NodeQuery(Generic[NodeT]):
+    def __init__(
+        self,
+        node_type: NodeType | None,
+        filter: Optional["Expression"] = None,
+        sort: list["Expression"] | None = None,
+        first: int | None = None,
+        skip: int | None = None,
+        engine: Optional[QueryEngine] = None,
+        options: Optional["ReadOptions"] = None,
+        cache: bool = True,
+    ):
+        from bench.language.node import NODE_CLASS_BY_TYPE, Node
+
+        self._node_type = node_type
+        self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
+        self._filter = filter
+        self._sort = sort
+        self._first = first
+        self._skip = skip
+        self._engine = engine
+        self._options = options
+        self._cache = cache
+        self._cached_nodes: list[NodeT] | None = None
+        self._cached_cursors: list[str] | None = None
+
+    def __str__(self):
+        args_strs = []
+        for k in ("filter", "sort", "first", "skip", "engine"):
+            v = getattr(self, f"_{k}", None)
+            if k == "query":
+                v = f"({v})" if v is not None else None
+            if v is not None:
+                args_strs.append(f"{k}={v}")
+        if args_strs:
+            args_str = ", ".join(args_strs)
+        else:
+            args_str = "[*]"
+        return f"{self._node_type.bench_name} {args_str}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    def copy(self):
+        """Clones the query (the properties are immutable)."""
+        return NodeQuery(
+            node_type=self._node_type,
+            filter=self._filter,
+            sort=self._sort,
+            first=self._first,
+            skip=self._skip,
+            engine=self._engine,
+            options=self._options,
+            # cache is not copied on purpose as it shouldn't propagate
+        )
+
+    def _copy_options(self) -> "ReadOptions":
+        from bench.language.access import ReadOptions
+
+        if self._options is None:
+            return ReadOptions()
+        else:
+            return self._options.copy()
+
+    def _invalidate(self):
+        self._cached_records = None
+        self._cached_cursors = None
+
+    def _get_target_engine(self, *with_ops: "ExpressionOp") -> QueryEngine:
+        from bench.language.expression import ExpressionOps
+
+        node_cls = self._node_cls
+        if node_cls.__is_local__:
+            ops = self._filter._collect_ops() if self._filter else ()
+            if with_ops:
+                ops |= set(with_ops)
+            if node_cls.__is_indexed_in_search__ and (
+                ops & ExpressionOps.AGG_SCALAR or ops & ExpressionOps.AGG_BUCKET
+            ):
+                return QueryEngine.LOCAL_OPENSEARCH
+            else:
+                return QueryEngine.LOCAL_POSTGRES
+        else:
+            return QueryEngine.GLOBAL_POSTGRES
+
+    async def __aiter__(self):
+        if self._cached_nodes is None:
+            return iter(await self._fetch())
+        return iter(self._cached_nodes)
+
+    @_auto_async_to_sync
+    async def tolist(self) -> list[NodeT]:
+        if self._cached_nodes is None:
+            return await self._fetch()
+        return self._cached_nodes
+
+    def __iter__(self):
+        if self._cached_nodes is None:
+            return iter(async_to_sync(self._fetch)())
+        return iter(self._cached_nodes)
+
+    def __len__(self):
+        if self._cached_nodes is not None:
+            return len(self._cached_nodes)
+        return self.count()
+
+    @_auto_async_to_sync
+    async def get(self, filter: "Expression" = None, **kwargs) -> NodeT:
+        """Returns the unique result matching the query (errors otherwise)."""
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        results = await self.filter(filter).tolist()
+        if len(results) == 1:
+            return results[0]
+        else:
+            combined_query = self.filter(filter)
+            if len(results) == 0:
+                raise NodeNotFoundError(combined_query)
+            else:
+                raise MultipleNodesFoundError(combined_query)
+
+    def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
+        """Adds a filter clause to the query."""
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        copy = self.copy()
+        copy._filter = filter & self._filter if self._filter is not None else filter
+        return copy
+
+    def sort(
+        self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
+    ) -> "NodeQuery[NodeT]":
+        """Sorts the query results by the given sort criteria."""
+        copy = self.copy()
+        sort = coerce_sort(self._node_cls, sort, *args)
+        copy._sort = sort
+        return copy
+
+    def first(self, count: int) -> "NodeQuery[NodeT]":
+        """Returns the first N results."""
+        copy = self.copy()
+        copy._first = count
+        return copy
+
+    def skip(self, count: int) -> "NodeQuery[NodeT]":
+        """Skips the first N results."""
+        copy = self.copy()
+        copy._skip = count
+        return copy
+
+    def include(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.include_properties.extend(properties)
+        return copy
+
+    def exclude(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.exclude_properties.extend(*properties)
+        return copy
+
+    def related(self, *properties: FieldOrProperty) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.related_properties.extend(*properties)
+        return copy
+
+    def ancestors(self, *node_types: NodeType) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.ancestor_types = node_types
+        return copy
+
+    def descendants(self, *node_types: NodeType) -> "NodeQuery":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.descendant_types = node_types
+        return copy
+
+    def __getitem__(self, item: slice | int) -> Union["NodeQuery[NodeT]", NodeT]:
+        if isinstance(item, slice):
+            if item.stop is None:
+                return self.skip(item.start or 0)
+            elif item.start is not None:
+                return self.skip(item.start).first(item.stop - item.start)
+            else:
+                return self.first(item.stop)
+        elif isinstance(item, int):
+            if self._cached_nodes is None:
+                records = async_to_sync(self._fetch)()
+            else:
+                records = self._cached_nodes
+            if item < 0:
+                item += len(records)
+            if item >= len(records):
+                raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
+            return records[item]
+        else:
+            raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
+
+    async def _fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
+        from bench.proto import wire, wiring
+        from bench.sql.engine import ReadOptions, pg_search_nodes
+
+        session = active_session()
+        engine = self._get_target_engine()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            nodes, cursors, _ = await pg_search_nodes(
+                session=session,
+                node_type=self._node_type,
+                options=self._options or ReadOptions(),
+                filter=self._filter,
+                sort=self._sort,
+                first=self._first,
+                skip=self._skip,
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
+            request = wire.SearchNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(self._filter),
+                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
+                limit=self._first,
+                options=wiring.pack_struct_maybe(self._options),
+            )
+            await session.host.search_nodes(request)
+            # return [wiring.unwrap_some_node(n) for n in response.nodes]
+            raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
+        else:
+            raise ValueError(f"unexpected query engine {engine}")
+
+        if self._cache:
+            self._cached_nodes = nodes
+            self._cached_cursors = cursors
+
+        return nodes
+
+    @_auto_async_to_sync
+    async def count(self, filter: "Expression" = None, **kwargs) -> int:
+        """Returns the number of results. May refine the query."""
+        from bench.proto import wire, wiring
+        from bench.sql.engine import compile_pg_conditional, pg_count
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        engine = self._get_target_engine()
+        session = active_session()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            cur = session._global_pg_cursor or session._local_pg_cursor
+            return await pg_count(
+                cur=cur,
+                table=self._node_cls.__table__,
+                where=compile_pg_conditional(self._node_cls, filter),
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
+            request = wire.AggregateNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(filter),
+                limit=self._first,
+                aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
+            )
+            aggregation_data = await active_session()._host.aggregate_nodes(request)
+            return int(aggregation_data.aggregation.scalar)
+        else:
+            raise ValueError(f"unexpected query engine {engine}")
+
+    @_auto_async_to_sync
+    async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
+        """Whether any results exist. May refine the query."""
+        from bench.proto import wire, wiring
+        from bench.sql.engine import compile_pg_conditional, pg_exists
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        engine = self._get_target_engine()
+        session = active_session()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            cur = session._global_pg_cursor or session._local_pg_cursor
+            return await pg_exists(
+                cur=cur,
+                table=self._node_cls.__table__,
+                where=compile_pg_conditional(self._node_cls, filter),
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request remotely
+            request = wire.AggregateNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(filter),
+                aggregation=wire.ExpressionData(op=wire.ExpressionOp.EXISTS),
+            )
+            aggregation_data = await active_session()._host.aggregate_nodes(request)
+            return aggregation_data.aggregation.exists
+        else:
+            raise ValueError(f"unexpected query engine {engine}")

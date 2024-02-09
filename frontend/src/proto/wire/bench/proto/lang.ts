@@ -288,7 +288,7 @@ export interface CodeSectionData {
     code: string;
 }
 /**
- * A semi-magical value that accumulates context down the tree (starting with system context).
+ * A semi-magical value that accumulates context down the graph (starting with system context).
  *
  * @generated from protobuf message symbolx.bench.ContextData
  */
@@ -528,11 +528,11 @@ export interface NodeReferenceData {
  * 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
  * a. Policies are scoped to the node their definition or
  * b. Delegate is attached to (or less as specified).
- * 3. Policies are evaluated in order up the node tree, first match decides*.
+ * 3. Policies are evaluated in order up the node graph, first match decides*.
  * (This means you can read a sub block but not its parent.)
  * 4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
  *
- * * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+ * * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
  * is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
  *
  * @generated from protobuf message symbolx.bench.PolicyData
@@ -2053,7 +2053,7 @@ export interface IdentityData {
     typePtr?: NodeReferenceData;
 }
 /**
- * A reference to another node in some tree. The referenced subtree is inlined on access.
+ * A reference to another node in some graph. The referenced subtree is inlined on access.
  *
  * @generated from protobuf message symbolx.bench.LinkData
  */
@@ -2167,7 +2167,7 @@ export interface MembershipData {
     isOwner: boolean;
 }
 /**
- * A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+ * A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
  * All nodes have a globally unique id (id).
  * Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
  *
@@ -2212,7 +2212,7 @@ export interface BaseNodeData {
     lastEditedAt?: Timestamp;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3034,7 +3034,7 @@ export interface SignalData {
     valuePacked?: Struct;
 }
 /**
- * A reference to another node in some tree that wasn't available for some reason (usually permissions).
+ * A reference to another node in some graph that wasn't available for some reason (usually permissions).
  *
  * @generated from protobuf message symbolx.bench.SkipData
  */
@@ -3319,7 +3319,7 @@ export interface TagData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -3755,19 +3755,6 @@ export interface SomeNodeData {
     } | {
         oneofKind: undefined;
     };
-}
-/**
- * @generated from protobuf message symbolx.bench.PackageTreeData
- */
-export interface PackageTreeData {
-    /**
-     * @generated from protobuf field: symbolx.bench.PackageData package = 1;
-     */
-    package?: PackageData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 2;
-     */
-    nodes: SomeNodeData[];
 }
 /**
  * @generated from protobuf enum symbolx.bench.AccessKind
@@ -14217,57 +14204,3 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
  * @generated MessageType for protobuf message symbolx.bench.SomeNodeData
  */
 export const SomeNodeData = new SomeNodeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PackageTreeData$Type extends MessageType<PackageTreeData> {
-    constructor() {
-        super("symbolx.bench.PackageTreeData", [
-            { no: 1, name: "package", kind: "message", T: () => PackageData },
-            { no: 2, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
-        ]);
-    }
-    create(value?: PartialMessage<PackageTreeData>): PackageTreeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodes = [];
-        if (value !== undefined)
-            reflectionMergePartial<PackageTreeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PackageTreeData): PackageTreeData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.PackageData package */ 1:
-                    message.package = PackageData.internalBinaryRead(reader, reader.uint32(), options, message.package);
-                    break;
-                case /* repeated symbolx.bench.SomeNodeData nodes */ 2:
-                    message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PackageTreeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.PackageData package = 1; */
-        if (message.package)
-            PackageData.internalBinaryWrite(message.package, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.SomeNodeData nodes = 2; */
-        for (let i = 0; i < message.nodes.length; i++)
-            SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PackageTreeData
- */
-export const PackageTreeData = new PackageTreeData$Type();

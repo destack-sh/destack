@@ -10,9 +10,12 @@ from bench.language.const import (
     ACCESS_KINDS,
     IN_BENCH_NODE_TYPES,
     NODE_TYPES,
+    PUBLIC_NODE_TYPES,
+    ROOT_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
     AccessKind,
+    AccessMode,
     AccessType,
     BadgeType,
     BenchError,
@@ -23,35 +26,32 @@ from bench.language.const import (
     ReadType,
     RunType,
     StructType,
-    PUBLIC_NODE_TYPES,
-    AccessMode,
-    ROOT_NODE_TYPES,
 )
-from bench.language.link import on_notice_raise, NodeList
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
-    Node,
-    ScopeNode,
     Bench,
+    Node,
     Package,
     Property,
+    ScopeNode,
     Struct,
+    _on_completing_setup,
     iter_properties,
     node,
+    on_notice_raise,
+    p_child,
     p_internal,
     p_parent,
     p_regular,
     p_runtime,
     p_system,
     struct,
-    p_child,
-    _on_completing_setup,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
-from bench.language.tree import NodeDataTree, NodeTree
 from bench.language.user import Membership, User
 from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
@@ -59,7 +59,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Organization, Client, NodeReference
+    from bench.language import Block, Client, Expression, NodeReference, Organization
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -262,11 +262,11 @@ class Policy(Struct):
      2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
        a. Policies are scoped to the node their definition or
        b. Delegate is attached to (or less as specified).
-     3. Policies are evaluated in order up the node tree, first match decides*.
+     3. Policies are evaluated in order up the node graph, first match decides*.
         (This means you can read a sub block but not its parent.)
      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 
-     * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+     * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
         is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 
     """
@@ -539,10 +539,10 @@ class Subject(Struct):
     )
     roles: list["Role"] = p_system(46, require=False, array=True, references=NodeType.ROLE)
 
-    def split_into_acting_subjects(self, tree: NodeDataTree) -> tuple["Subject", ...]:
+    def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
         """
-        Split into different subjects that may have different access and are relevant in the given tree.
-         (The tree is assumed to contain all relevant owners!).
+        Split into different subjects that may have different access and are relevant in the given graph.
+         (The graph is assumed to contain all relevant owners!).
         Basically, acting subject X in "subject is acting as X" (where X may have different access).
         """
 
@@ -558,17 +558,17 @@ class Subject(Struct):
         if self.badge:
             applicable_principals.append(Subject(badge=self.badge))
         for owner in self.owned or ():
-            if str(owner.id) in tree:
+            if str(owner.id) in graph:
                 applicable_principals.append(Subject(owned=[owner]))
         for membership in self.memberships or ():
-            if str(membership.parent_id) in tree:
+            if str(membership.parent_id) in graph:
                 applicable_principals.append(Subject(memberships=[membership]))
         for role in self.roles or ():
             if role.parent_type == NodeType.BLOCK:
-                if str(role.parent_id) in tree:
+                if str(role.parent_id) in graph:
                     applicable_principals.append(Subject(roles=[role]))
             elif role.parent_type == NodeType.MEMBERSHIP:
-                if str(role.parent.parent_id) in tree:
+                if str(role.parent.parent_id) in graph:
                     applicable_principals.append(Subject(roles=[role]))
             else:
                 raise BenchError(f"unexpected parent to {role!r}")
@@ -736,6 +736,27 @@ class AccessError(BenchError, ValueError):
         self.cause = cause
 
 
+# properties refers to non-system properties (except in create/upsert)
+ALLOWED_PROPERTIES_NAME_BY_EDIT_TYPE: dict[EditType, tuple[str, ...]] = {
+    EditType.BUMP_CHANGED: UNSET,  # not yet supported
+    EditType.BUMP_ACTIVE: UNSET,  # not yet supported
+    EditType.CREATE: (),  # all
+    EditType.UPSERT: (),  # all
+    EditType.UPDATE: (),  # all
+    EditType.MOVE: ("parent",),
+    EditType.ARCHIVE: ("archived_at",),
+    EditType.UNARCHIVE: ("archived_at",),
+    EditType.SOFT_DELETE: ("deleted_at",),
+    EditType.RESTORE: ("deleted_at",),
+    EditType.DELETE: (),  # all
+}
+ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE: dict[EditType, tuple[int, ...]] = {
+    edit_type: tuple(Node.__properties__[prop_name].id for prop_name in prop_names)
+    if prop_names is not UNSET
+    else UNSET
+    for edit_type, prop_names in ALLOWED_PROPERTIES_NAME_BY_EDIT_TYPE.items()
+}
+
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
     Policy("SystemProtection").append(
@@ -863,8 +884,8 @@ def adapt_read_options(
 
 
 def get_edited_scopes(edits: list[EditData]) -> dict[UUID, "NodeReference"]:
-    from bench.proto import wiring, wire
     from bench.language import NodeReference
+    from bench.proto import wire, wiring
 
     edited_scopes_ptr: dict[UUID, "NodeReference"] = {}
     for edit in edits:
@@ -888,17 +909,17 @@ def get_edited_scopes(edits: list[EditData]) -> dict[UUID, "NodeReference"]:
 
 def generate_access_matrix(
     subject: Subject,
-    tree: NodeDataTree,
+    graph: NodeDataGraph,
     base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
     root_owner: Owner | None = None,
-    unpacked_tree: NodeTree | None = None,
+    unpacked_graph: NodeGraph | None = None,
 ) -> AccessMatrix:
     """Generates an access matrix to quickly evaluate access for a specific subject."""
 
     from bench.proto import wiring
 
-    roots = tree.find_roots()
-    identities = subject.split_into_acting_subjects(tree)
+    roots = graph.find_roots()
+    identities = subject.split_into_acting_subjects(graph)
     scope_zones: list[AccessZone] = []
     base_zones: list[AccessZone] = []
     matrix = AccessMatrix(
@@ -913,8 +934,8 @@ def generate_access_matrix(
 
         # if this node defines new policies, apply them to their scope
         if getattr(current_node, "policies", None):
-            if unpacked_tree:
-                new_policies: list[Policy] = unpacked_tree.get(to_uuid(current_node.id)).policies
+            if unpacked_graph:
+                new_policies: list[Policy] = unpacked_graph.get(to_uuid(current_node.id)).policies
             else:
                 new_policies: list[Policy] = [
                     wiring.unpack_struct_interp(p) for p in current_node.policies
@@ -968,7 +989,7 @@ def generate_access_matrix(
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
         current_type: NodeType = wiring.unpack_enum(NodeType, current_node.metatype)
         for child_type in CHILD_NODE_TYPES[current_type]:
-            for child_node in tree.iter_descendants(current_node, child_type):
+            for child_node in graph.iter_descendants(current_node, child_type):
                 _assign_access_zones(child_node, owner, current_zones_by_identity)
 
     # start at root
@@ -1100,33 +1121,33 @@ def evaluate_access(
 
 def evaluate_and_adapt_read(
     matrix: AccessMatrix,
-    tree: NodeDataTree,
+    graph: NodeDataGraph,
     *,
     adapt_nodes_in_place: bool,
     required_nodes: Collection[NodeReferenceData] | None = None,
     trace: bool = False,
 ) -> tuple[Request, Collection[AnyNodeData]]:
     """
-    Evaluate *and* adapt access to all nodes in the given tree, pruning nodes & properties as needed.
+    Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
      -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
     In case a node was completely denied but its children weren't, we include a Skip node in the result.
-    If no overall owner is given, the owners (i.e. actual roots) must be in the tree.
+    If no overall owner is given, the owners (i.e. actual roots) must be in the graph.
     Assumes that all policies are valid.
     """
     from bench.proto import wire, wiring
 
     visible_nodes: list[AnyNodeData] = []
     accesses: list[Access] = []
-    skips: dict[str, wire.SkipData | UNSET] = {}
+    skips: dict[str, wire.SkipData] = {}
 
     # adapt & filter nodes
     verb = ReadType.GET  # same for all?
-    for node in tree.nodes:
+    for node in graph.nodes:
         object_node_type: NodeType = wiring.unpack_enum(NodeType, node.metatype)
         object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
         object_properties: bitarray = object_node_cls.__properties_mask__
 
-        root = tree.get_root(node)  # a bit inefficient?
+        root = graph.get_root(node)  # a bit inefficient?
         # nocheckin: cache this access per zone!
         adapted_properties, access = evaluate_access(
             matrix=matrix,
@@ -1179,16 +1200,16 @@ def evaluate_and_adapt_read(
 
 
 def evaluate_edit(
-    matrix: AccessMatrix, tree: NodeDataTree, edits: Collection[EditData], *, trace: bool = False
+    matrix: AccessMatrix, graph: NodeDataGraph, edits: Collection[EditData], *, trace: bool = False
 ) -> Request:
     """
-    Evaluates whether the given policies (base and in tree) allow the given edits.
-    Assumes that all policies are valid, and that all relevant scopes are in the tree.
+    Evaluates whether the given policies (base and in graph) allow the given edits.
+    Assumes that all policies are valid, and that all relevant scopes are in the graph.
     """
     from bench.proto import wiring
 
     accesses: list[Access] = []
-    # when creating nested nodes in one transaction, the tree only knows about their 'root',
+    # when creating nested nodes in one transaction, the graph only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] | None = None
     for edit in edits:
@@ -1209,9 +1230,9 @@ def evaluate_edit(
                 new_node_scopes_by_child_id[node.id] = scope_id
             else:
                 scope_id = node.id
-            scope = tree.get(scope_id)
-            assert scope is not None, f"scope {scope_id} for {edit!r} not in {tree!r}"
-            root = tree.get_root(scope)
+            scope = graph.get(scope_id)
+            assert scope is not None, f"scope {scope_id} for {edit!r} not in {graph!r}"
+            root = graph.get_root(scope)
         else:
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 # there's a system rule against creating roots, but would need special logic to enforce it
@@ -1255,7 +1276,7 @@ def evaluate_run(
     trace: bool = False,
 ) -> Request:
     """
-    Evaluates whether the given policies (base and in tree) allow the given run access.
+    Evaluates whether the given policies (base and in graph) allow the given run access.
     Assumes that all policies are valid.
     """
     node_cls = NODE_CLASS_BY_TYPE[node.metatype]

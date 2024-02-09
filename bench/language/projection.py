@@ -69,7 +69,7 @@ class Projection:
             if depth >= max_distance:
                 return
             n._visit_self(visitor)
-            for child in n._root_tree.iter_descendants(n):
+            for child in n._root_graph.iter_descendants(n):
                 _walk_node_descendants_dfs(child, depth + 1)
 
         # walk descendants
@@ -105,8 +105,8 @@ class Projection:
         return seen_by_ck
 
     def view_value(self, value: dict, type: "IsTyped", is_output: bool = None) -> dict[UUID, Node]:
-        from bench.language.value import walk_value
         from bench.language.text import Text
+        from bench.language.value import walk_value
 
         seen_by_ck: dict[UUID, Node] = {}
 

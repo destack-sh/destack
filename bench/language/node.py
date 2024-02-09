@@ -37,7 +37,6 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
-    NS,
     STRUCT_TYPES,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
@@ -45,7 +44,6 @@ from bench.language.const import (
     BenchType,
     BlockType,
     NodeRelationType,
-    NodeSource,
     NodeStatus,
     NodeTrackingLevel,
     NodeType,
@@ -53,16 +51,14 @@ from bench.language.const import (
     StructType,
     _active_session,
 )
-from bench.language.link import (
-    _NC,
+from bench.language.graph import (
+    DetachedNodeGraph,
+    NodeDataGraph,
+    NodeGraph,
+    NodeGraphBase,
     NodeList,
     NodeListBase,
-    _InterpEffect,
-    _NodeExpressionBase,
-    _TypeExpressionBase,
-    on_notice_raise,
 )
-from bench.language.tree import DetachedNodeTree, NodeDataTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
     PropertyValidationHandler,
     ValidationError,
@@ -97,6 +93,10 @@ if TYPE_CHECKING:
     from bench.language import (
         BenchPath,
         Block,
+        Cache,
+        Drive,
+        FieldPath,
+        Handle,
         NodeReference,
         NodeVisitor,
         Notice,
@@ -104,20 +104,43 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         PropertyReference,
+        RichText,
+        Server,
         Session,
         Space,
+        Store,
         TypeInfo,
         User,
-        RichText,
-        Handle,
-        Server,
-        Store,
-        Cache,
-        Drive,
     )
+    from bench.language.expression import _NodeExpressionBase, _TypeExpressionBase
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
+
+_custom_completion_hooks: list[Callable] = []
+
+
+def _on_completing_setup(func: Callable = None):
+    """Decorator to register finalization functions."""
+    if func is None:
+        return functools.partial(_on_completing_setup)
+    _custom_completion_hooks.append(func)
+    return func
+
+
+def on_notice_raise(
+    subject: "Node",
+    type: "NoticeType",
+    message: Optional[str] = None,
+    path: Optional["FieldPath"] = None,
+    properties: list["Property"] | None = None,
+):
+    from bench.language.notice import Notice, NoticeError
+
+    notice = Notice.from_subject(
+        subject=subject, type=type, message=message, path=path, properties=properties
+    )
+    raise NoticeError(notice)
 
 
 def get_node_id(package_id: UUID, ck: UUID):
@@ -144,7 +167,7 @@ class NodeReferenceKind(enum.StrEnum):
 
 
 @dataclass(eq=False, slots=True)
-class Property(_TypeExpressionBase):
+class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     """A system-defined attribute of a node or struct."""
 
     # basics
@@ -317,7 +340,7 @@ class Property(_TypeExpressionBase):
         return not self.is_runtime_only and self.is_stored
 
     @property
-    def is_tree_reference(self) -> bool:
+    def is_graph_reference(self) -> bool:
         """Whether this is a node relation property (parent/child/ancestor)."""
         return self.reference_kind in (
             NodeReferenceKind.PARENT,
@@ -383,7 +406,7 @@ class Property(_TypeExpressionBase):
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.primitive_type is UNSET and (self.is_tree_reference or self.reference_types):
+        if self.primitive_type is UNSET and (self.is_graph_reference or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
             self.primitive_type = None
@@ -479,7 +502,6 @@ class Property(_TypeExpressionBase):
                 default=None,
                 reference_source=self,
             )
-            self.reference_ptr = property_ptr
             self.reference_stored_ptrs = (property_ptr,)
             self.reference_wired_ptr = property_ptr
             self.is_wired = False
@@ -591,7 +613,7 @@ class Property(_TypeExpressionBase):
 
     def copy(self, value: Any) -> Any:
         """Copies a non-None value of this property"""
-        if self.is_tree_reference:
+        if self.is_graph_reference:
             raise ValueError(f"cannot copy relation {self!r}")
         elif self.reference_types:
             return value  # identity
@@ -609,6 +631,15 @@ class Property(_TypeExpressionBase):
             return self.custom_validate(value, on_notice)
         else:
             return None
+
+
+@_on_completing_setup
+def _add_property_expression_base():
+    from bench.language.expression import _TypeExpressionBase
+
+    for name, attr in _TypeExpressionBase.__dict__.items():
+        if isinstance(attr, Property):
+            setattr(Property, name, attr)
 
 
 def p_property(
@@ -933,7 +964,7 @@ def _process_struct_base_cls(
                 if existing.ignore_conflicts:
                     continue
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-            if not is_node and prop.is_tree_reference:
+            if not is_node and prop.is_graph_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
         reserved_properties.update(component.__reserved_properties__)
     cls.__reserved_properties__ = frozenset(reserved_properties)
@@ -1410,7 +1441,7 @@ class Struct(abc.ABC):
     def __post_init__(self):
         if self._status is None:
             # not sure if this is totally right... where do we get :StructScope?
-            self._status = NS.INTERP if _active_session.get() else NS.SOURCE
+            self._status = NodeStatus.INTERP if _active_session.get() else NodeStatus.SOURCE
         self._init_self()
 
     def __content_str__(self) -> str:
@@ -1488,11 +1519,11 @@ class Struct(abc.ABC):
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
-        scope_tree = scope._tree if scope is not None else None
+        scope_graph = scope._graph if scope is not None else None
         for prop in self.__reference_properties__.values():
-            if scope_tree is not None:  # if scope is set only clear nodes in scope
+            if scope_graph is not None:  # if scope is set only clear nodes in scope
                 val = getattr(self, prop.name)
-                if val is None or val.ck not in scope_tree:
+                if val is None or val.ck not in scope_graph:
                     continue
             # TODO @Broken?: reset node references in clear for real (if still needed)
             # setattr(self, prop.name, None)
@@ -1563,8 +1594,8 @@ class Struct(abc.ABC):
 
     # struct has basic set of lifecycle methods (no index because no scope)
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.INTERP)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NodeStatus.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NodeStatus.INTERP)
     _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
 
@@ -1606,9 +1637,9 @@ class Struct(abc.ABC):
 
 
 @node_component
-class Node(Struct, _NodeExpressionBase):
+class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     """
-    A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+    A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
     All nodes have a globally unique id (id).
     Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
     """
@@ -1673,6 +1704,7 @@ class Node(Struct, _NodeExpressionBase):
     _status: NodeStatus = p_runtime(default=None)
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
     _is_new: bool = p_runtime(default=False)
+    _updated_properties: bitarray | None = p_runtime(default=None)
     _deferred_properties: tuple[Property, ...] | None = p_runtime(default=None)
 
     def __post_init__(self):
@@ -1701,9 +1733,9 @@ class Node(Struct, _NodeExpressionBase):
             self._session._dangling_nodes_by_ck[self.ck] = self
         # init status
         if self._status is None:
-            self._status = NS.INTERP if self._session is not None else NS.SOURCE
+            self._status = NodeStatus.INTERP if self._session is not None else NodeStatus.SOURCE
         self._init_self()
-        if self._status == NS.INTERP and self._session is not None:
+        if self._status == NodeStatus.INTERP and self._session is not None:
             on_notice = on_notice_raise if self.scope is None else self.scope._on_notice
             self._interp_self(self, on_notice=on_notice)
             self._track_self(self._session)
@@ -1735,9 +1767,9 @@ class Node(Struct, _NodeExpressionBase):
         return self.scope._root_scope
 
     @property
-    def _root_tree(self) -> "NodeTreeBase":
+    def _root_graph(self) -> "NodeGraphBase":
         root = self._root
-        return cast("ScopeNode", root)._root_tree
+        return cast("ScopeNode", root)._root_graph
 
     def _assign_id(self, package_id: UUID):
         assert package_id, f"cannot assign id to {self!r} without a package id"
@@ -1781,14 +1813,6 @@ class Node(Struct, _NodeExpressionBase):
             return self.parent is not None
         else:
             return True
-
-    @property
-    def is_archived(self) -> bool:
-        return self.archived_at is not None
-
-    @property
-    def is_soft_deleted(self) -> bool:
-        return self.deleted_at is not None
 
     @property
     def scope(self) -> Optional["ScopeNode"]:
@@ -1890,9 +1914,44 @@ class Node(Struct, _NodeExpressionBase):
     def __hash__(self):
         return hash(self.id)
 
+    @property
+    def is_extant(self):
+        return self.archived_at is None and self.deleted_at is None
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None
+
+    @property
+    def is_soft_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+    def move_to(
+        self,
+        parent: "Node",
+        after: Optional["Node"],
+        before: Optional["Node"],
+        order_key: str = None,
+    ):
+        raise NotImplementedError
+
+    def delete(self):
+        """Soft delete this node."""
+        assert not self.is_soft_deleted, f"{self!r} is already soft deleted"
+        raise NotImplementedError
+
+    def restore(self):
+        """Restore this node from soft deletion."""
+        assert self.is_soft_deleted, f"{self!r} is not soft deleted"
+        raise NotImplementedError
+
+    def hard_delete_forever(self):
+        """Hard delete this node. Forever. Irreversibly."""
+        raise NotImplementedError
+
     def __setattr__(self, key, value):
         """Sets *any* attribute on this node."""
-        if self._status != NS.TRACKED:
+        if self._status != NodeStatus.TRACKED:
             return object.__setattr__(self, key, value)
 
         prop = self.__properties__.get(key)
@@ -1918,11 +1977,15 @@ class Node(Struct, _NodeExpressionBase):
                     self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
                 )
             if not self._is_new:
-                self._session.update(self, (prop,))
+                # _updated_properties is reset in Transaction after flush or other edit type
+                if self._updated_properties is None:
+                    self._updated_properties = bitarray(self.__max_property_id__ + 1)
+                self._updated_properties[prop.id] = True
+                self._session.update(self)
             self._updated_self((prop,))
             return
 
-        # while in a session: also try first full passthrough target (if any)
+        # also try first full passthrough target (if any)
         for target, mode in self.__passthrough_targets__:
             target = getattr(self, target)
             if mode == _Passthrough.Full:
@@ -2009,7 +2072,7 @@ class Node(Struct, _NodeExpressionBase):
     def _track_inner(self, session: "Session") -> None:
         """Track this object in the given session."""
         self._session = session
-        self._status = NS.TRACKED
+        self._status = NodeStatus.TRACKED
 
     def _untrack_inner(self) -> None:
         """Stop tracking this object."""
@@ -2047,8 +2110,8 @@ class Node(Struct, _NodeExpressionBase):
     @final
     def _init_self(self):
         # init lists
+        existing_lists: dict[str, Any] | None = None
         if self.__has_scope__:
-            existing_lists: dict[str, Any] | None = None
             for name, prop in self.__list_properties__.items():
                 existing = getattr(self, name, None)
                 node_list = prop.list_type(self, prop)
@@ -2068,19 +2131,14 @@ class Node(Struct, _NodeExpressionBase):
 
         # keep manually set node lists if passed in
         if self.__has_scope__ and existing_lists:
-            changed_nodes: list[NodeT] = []
-            was_interp = self._status >= NS.INTERP
-            detach_trigger = _NC.Detach if was_interp else _NC.Ignore
+            was_interp = self._status >= NodeStatus.INTERP
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
-                    getattr(self, name).extend(*existing, _trigger=detach_trigger)
-                    changed_nodes.extend(existing)
-            if changed_nodes and was_interp:
-                _InterpEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
+                    getattr(self, name).extend(*existing)
 
         # validate if in session after all init are done
         if (
-            self._status >= NS.INTERP
+            self._status >= NodeStatus.INTERP
             and self._is_new
             and self._session is not None
             and self._session is not UNSET
@@ -2088,10 +2146,10 @@ class Node(Struct, _NodeExpressionBase):
             self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.INTERP)
-    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NS.TRACKED)
-    _untrack_self = _make_self_method(_ComponentMethod.untrack, _untrack_inner, NS.INTERP)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NodeStatus.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NodeStatus.INTERP)
+    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NodeStatus.TRACKED)
+    _untrack_self = _make_self_method(_ComponentMethod.untrack, _untrack_inner, NodeStatus.INTERP)
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
     @final
@@ -2102,7 +2160,7 @@ class Node(Struct, _NodeExpressionBase):
         """
         props = {}
         for name, prop in self.__properties__.items():
-            if prop.is_tree_reference or prop.is_computed:
+            if prop.is_graph_reference or prop.is_computed:
                 continue
             props[name] = prop.copy(getattr(self, name))
         if keep_parent:
@@ -2135,6 +2193,16 @@ class Node(Struct, _NodeExpressionBase):
         return wrap_some_node(pack_node(self))
 
 
+@_on_completing_setup
+def _add_node_expression_base():
+    from bench.language.expression import _NodeExpressionBase
+
+    for name, method in _NodeExpressionBase.__dict__.items():
+        if name.startswith("_"):
+            continue
+        setattr(Node, name, method)
+
+
 def _make_rec_method(
     method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
 ):
@@ -2142,8 +2210,8 @@ def _make_rec_method(
 
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
-        # tree has only host and inlined nodes, so this ignores out-of-line descendants (like records)
-        descendants = self._root_tree.collect_descendants(self, recursive=True)
+        # graph has only host and inlined nodes, so this ignores out-of-line descendants (like records)
+        descendants = self._root_graph.collect_descendants(self, recursive=True)
         method_name = method.self
         if custom_kwargs:
             for node in descendants:
@@ -2167,8 +2235,8 @@ class ScopeNode(Node):
     __has_scope__: ClassVar[bool] = True
     last_changed_at: Optional[datetime] = p_internal(16, default=None)
     notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
-    # the node tree is maintained at the highest root node (usually *the* root node, but may be detached)
-    _tree: Union["NodeTreeBase", None] = p_runtime(default=None)
+    # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
+    _graph: Union["NodeGraphBase", None] = p_runtime(default=None)
 
     @property
     def scope(self) -> "ScopeNode":
@@ -2176,16 +2244,12 @@ class ScopeNode(Node):
 
     def _init_inner(self) -> None:
         if self.parent is None:
-            # if we're not in a tree, start a new one
+            # if we're not in a graph, start a new one
             if NodeType.BENCH in self.__roots__:
-                self._tree = DetachedNodeTree()
+                self._graph = DetachedNodeGraph()
             else:
-                self._tree = NodeTree()
-            self._tree.add(self)
-
-    def _updated_inner(self, properties: Collection[Property]) -> None:
-        if any(p.name == "name" for p in properties):
-            _InterpEffect._collect(self.parent, self.parent, (self,), _NC.Full)._effect(_NC.Full)
+                self._graph = NodeGraph()
+            self._graph.add(self)
 
     _clear_rec = _make_rec_method(
         _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
@@ -2208,10 +2272,10 @@ class ScopeNode(Node):
 
     def _get_children_by_ident(self) -> Mapping[str, Node]:
         roo = self._root_scope
-        if roo is None or roo._tree is None:
+        if roo is None or roo._graph is None:
             return EMPTY_DICT
         seen_by_ident = {}
-        for child in roo._tree.collect_descendants(self):
+        for child in roo._graph.collect_descendants(self):
             seen_by_ident[child.py_ident] = child
         return seen_by_ident
 
@@ -2219,7 +2283,7 @@ class ScopeNode(Node):
         # check for ambiguous node definitions by name/ident
         from bench.language.notice import NoticeType
 
-        children = scope._root_tree.collect_descendants(self)
+        children = scope._root_graph.collect_descendants(self)
         if not children:
             return  # nothing to index
         seen_by_ident = {}
@@ -2234,22 +2298,22 @@ class ScopeNode(Node):
 
     def _walk_rec(self) -> Iterable["Node"]:
         yield self
-        yield from self._root_tree.collect_descendants(self, recursive=True)
+        yield from self._root_graph.collect_descendants(self, recursive=True)
 
     @property
     def _root_scope(self) -> "ScopeNode":
-        """The root of the 'local' node tree (usually package, but maybe a detached root node)"""
+        """The root of the 'local' node graph (usually package, but maybe a detached root node)"""
         parent = self
         while parent.parent is not None:
             parent = parent.parent
         return parent
 
     @property
-    def _root_tree(self) -> Union["NodeTreeBase"]:
-        """The tree at the current node root."""
-        tree = self._root_scope._tree
-        assert tree is not None, f"no local tree for {self!r} in {self._root_scope!r}"
-        return tree
+    def _root_graph(self) -> Union["NodeGraphBase"]:
+        """The graph at the current node root."""
+        graph = self._root_scope._graph
+        assert graph is not None, f"no local graph for {self!r} in {self._root_scope!r}"
+        return graph
 
     def lookup(
         self,
@@ -2258,8 +2322,8 @@ class ScopeNode(Node):
     ) -> NodeT | None:
         """Lookup a node by path. Return None if not found."""
         if isinstance(path, UUID):
-            if self._tree is not None:
-                return self._tree.get(path)
+            if self._graph is not None:
+                return self._graph.get(path)
             else:
                 return self._root_scope.lookup(path, node_t=node_t)
 
@@ -2281,7 +2345,7 @@ class ScopeNode(Node):
         if not subject.attached:
             return  # no way to derive notice id, so just ignore?
         notice = Notice.from_subject(subject, type, message, **kwargs)
-        notice.subject.notices.append(notice, _trigger=_NC.Ignore)
+        notice.subject.notices.append(notice)
 
 
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
@@ -2294,7 +2358,7 @@ LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK
 
 @node(NodeType.LINK)
 class Link(Node):
-    """A reference to another node in some tree. The referenced subtree is inlined on access."""
+    """A reference to another node in some graph. The referenced subtree is inlined on access."""
 
     parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
@@ -2305,7 +2369,7 @@ class Link(Node):
 
 @node(NodeType.SKIP)
 class Skip(Node):
-    """A reference to another node in some tree that wasn't available for some reason (usually permissions)."""
+    """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 
     parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
@@ -2429,7 +2493,7 @@ class Package(ScopeNode):
     # dependencies: NodeList["Dependency"] = p_child(NodeType.DEPENDENCY)
 
     builtins: list["Block"] = p_runtime(default_factory=list)
-    _source: Optional[NodeDataTree] = p_runtime(default=None)
+    _source: Optional[NodeDataGraph] = p_runtime(default=None)
 
     @property
     def name(self):
@@ -2462,10 +2526,10 @@ class Package(ScopeNode):
     ) -> NodeT | None:
         # extended lookup with dependencies, defaults to regular scope lookup
         if isinstance(path, UUID):
-            resolved = self._root_tree.get(path)
+            resolved = self._root_graph.get(path)
             if resolved is None:
                 for dependency in self.dependencies.values():
-                    resolved = dependency._tree.get(path)
+                    resolved = dependency._graph.get(path)
                     if resolved is not None:
                         break
             return resolved
@@ -2487,16 +2551,6 @@ FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
-
-_custom_completion_hooks: list[Callable] = []
-
-
-def _on_completing_setup(func: Callable = None):
-    """Decorator to register finalization functions."""
-    if func is None:
-        return functools.partial(_on_completing_setup)
-    _custom_completion_hooks.append(func)
-    return func
 
 
 def _complete_bench_setup():
@@ -2566,15 +2620,6 @@ def _complete_bench_setup():
         cls.__runtime_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
         )
-
-    # set tables
-    from bench.sql.engine import TABLE_BY_NODE_TYPE
-
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
-        else:
-            node_cls.__table__ = None
 
     # determine node ancestry relationships (parent/child)
     parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
@@ -2650,3 +2695,12 @@ def _complete_bench_setup():
     # run completion hooks
     for hook in _custom_completion_hooks:
         hook()
+
+    # set tables (depends on completion hooks)
+    from bench.sql.engine import TABLE_BY_NODE_TYPE
+
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
+            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
+        else:
+            node_cls.__table__ = None

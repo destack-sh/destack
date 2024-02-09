@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 import structlog
 
 from bench.language.node import (
-    NS,
     UNSET,
     Node,
+    NodeStatus,
     Property,
     ScopeNode,
     node_component,
@@ -50,7 +50,9 @@ class HasValue(Node):
             try:
 
                 def get_k(f):
-                    return f.py_ident if self._status == NS.TRACKED else f.storage_key  # noqa
+                    return (
+                        f.py_ident if self._status == NodeStatus.TRACKED else f.storage_key
+                    )  # noqa
 
                 check_type(self.value or {}, self._type, get_k=get_k)
             except TypeError as e:
@@ -143,7 +145,7 @@ def map_value(
         if not isinstance(value, Mapping):
             return None if none_if_invalid else value
         mapped = {}
-        assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
+        assert type._status >= NodeStatus.INTERP, f"unexpected unresolved type {type}"
         for subtype in type.fields:
             source_k, target_k = map_k(subtype)
             if source_k not in value:

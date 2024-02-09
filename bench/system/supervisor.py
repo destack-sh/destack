@@ -6,64 +6,64 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, Expression, NodeReference, User
+from bench.language import Client, Expression, NodeReference, Transaction, User
 from bench.language.access import (
     ReadOptions,
+    Subject,
     adapt_read_options,
     evaluate_and_adapt_read,
-    generate_access_matrix,
-    Subject,
     evaluate_edit,
+    generate_access_matrix,
     get_edited_scopes,
 )
-from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp
+from bench.language.const import ABOVE_SOURCE_NODE_TYPES, AggregationOp, NodeType
 from bench.language.expression import Aggregation
+from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE
-from bench.language.tree import NodeDataTree
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
+    AnyNodeData,
+    CancelPreparedTransactionRequest,
+    CancelPreparedTransactionResponse,
+    ChangeUserPasswordRequest,
+    ChangeUserPasswordResponse,
+    CommitPreparedTransactionRequest,
+    CommitPreparedTransactionResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     CreateBenchRequest,
     CreateBenchResponse,
-    SupervisorBase,
-    SupervisorStub,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
+    PrepareTransactionRequest,
+    PrepareTransactionResponse,
     ReadNodesRequest,
     ReadNodesResponse,
     SearchNodesRequest,
     SearchNodesResponse,
     SignupUserRequest,
     SignupUserResponse,
+    SupervisorBase,
+    SupervisorStub,
     WatchEditsRequest,
     WatchEditsResponse,
-    ChangeUserPasswordRequest,
-    ChangeUserPasswordResponse,
-    AnyNodeData,
-    PrepareTransactionRequest,
-    PrepareTransactionResponse,
-    CommitPreparedTransactionRequest,
-    CommitPreparedTransactionResponse,
-    CancelPreparedTransactionRequest,
-    CancelPreparedTransactionResponse,
+)
+from bench.sql.client import async_pg_cursor
+from bench.sql.engine import (
+    compile_pg_conditional,
+    pg_count,
+    pg_exists,
+    pg_read_node_data_graph,
+    pg_search_nodes_data_graph,
+    pg_write_regular_edits,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.utils import detached_session
-from bench.sql.client import async_pg_cursor
-from bench.sql.engine import (
-    pg_count,
-    pg_read_node_data_tree,
-    pg_search_nodes_data_tree,
-    compile_pg_conditional,
-    pg_exists,
-    pg_write_regular_edits,
-)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import group_by, to_uuid
 
@@ -235,25 +235,25 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         )
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
-        tree = NodeDataTree()
+        graph = NodeDataGraph()
         async with async_pg_cursor() as cur:
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
-                _ = await pg_read_node_data_tree(
+                _ = await pg_read_node_data_graph(
                     cur=cur,
                     root_type=node_type,
                     root_ids=tuple(r.id for r in root_node_references),
                     options=adapted_options,
-                    _tree=tree,  # accumulate into tree
+                    _graph=graph,  # accumulate into graph
                 )
-        if any(root.id not in tree for root in request.roots):
-            missing_roots = tuple(root for root in roots if str(root.id) not in tree)
+        if any(root.id not in graph for root in request.roots):
+            missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
-        access = generate_access_matrix(subject, tree)
+        access = generate_access_matrix(subject, graph)
         access, adapted_nodes = evaluate_and_adapt_read(
-            access, tree, required_nodes=request.roots, adapt_nodes_in_place=True
+            access, graph, required_nodes=request.roots, adapt_nodes_in_place=True
         )
         await self._log_and_check_access(access)
 
@@ -281,7 +281,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         adapted_options = adapt_read_options(subject, node_type, options)
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.filter(node_type, filter)
-            roots, tree = await pg_search_nodes_data_tree(
+            roots, graph = await pg_search_nodes_data_graph(
                 cur=cur,
                 node_type=node_type,
                 filter=combined_filter,
@@ -298,9 +298,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 )
             else:
                 count = None
-        access = generate_access_matrix(subject, tree)
+        access = generate_access_matrix(subject, graph)
         access, adapted_nodes = evaluate_and_adapt_read(
-            access, tree, adapt_nodes_in_place=True, required_nodes=request.bases
+            access, graph, adapt_nodes_in_place=True, required_nodes=request.bases
         )
         await self._log_and_check_access(access)
 
@@ -352,31 +352,31 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.edits)
+        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.transaction.edits)
         edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
             edited_scopes_ptr.values(), lambda r: r.type
         )
         async with async_pg_cursor() as cur:
-            # read the required nodes into a single tree
-            tree = NodeDataTree()
+            # read the required nodes into a single graph for evaluation
+            graph = NodeDataGraph()
             for node_type, node_references in edited_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO @Performance: select only require properties for edit eval (id/policies/...?)
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
-                _ = await pg_read_node_data_tree(
+                _ = await pg_read_node_data_graph(
                     cur=cur,
                     root_type=node_type,
                     root_ids=tuple(r.id for r in node_references),
                     options=adapted_options,
-                    _tree=tree,  # accumulate into tree
+                    _graph=graph,  # accumulate into graph
                 )
-                if any(str(r.id) not in tree for r in node_references):
-                    missing = tuple(r for r in node_references if str(r.id) not in tree)
+                if any(str(r.id) not in graph for r in node_references):
+                    missing = tuple(r for r in node_references if str(r.id) not in graph)
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"edit scopes not found: {missing}")
 
             # evaluate the edits
-            matrix = generate_access_matrix(subject, tree)
-            access = evaluate_edit(matrix, tree, request.edits)
+            matrix = generate_access_matrix(subject, graph)
+            access = evaluate_edit(matrix, graph, request.edits)
             await self._log_and_check_access(access)
 
             # apply the edits

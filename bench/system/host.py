@@ -11,28 +11,34 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Expression, NodeReference, Organization, User
-from bench.language.access import ReadOptions, adapt_read_options, Subject
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, SUB_BENCH_NODE_TYPES
+from bench.language import Expression, NodeReference, Organization, Transaction, User
+from bench.language.access import ReadOptions, Subject, adapt_read_options
+from bench.language.const import IN_PACKAGE_NODE_TYPES, SUB_BENCH_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
+from bench.language.graph import NodeDataGraph
 from bench.language.node import Bench, Package
-from bench.language.tree import NodeDataTree
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
+    BenchHostBase,
+    BenchHostStub,
+    CancelPreparedTransactionRequest,
+    CancelPreparedTransactionResponse,
+    CommitPreparedTransactionRequest,
+    CommitPreparedTransactionResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     DownloadFilesRequest,
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
-    BenchHostBase,
-    BenchHostStub,
     NotifyEditsRequest,
     NotifyEditsResponse,
     NotifyServerLogsRequest,
+    PrepareTransactionRequest,
+    PrepareTransactionResponse,
     ReadNodesRequest,
     ReadNodesResponse,
     RunProxyBlockRequest,
@@ -49,15 +55,9 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
-    PrepareTransactionRequest,
-    PrepareTransactionResponse,
-    CommitPreparedTransactionRequest,
-    CommitPreparedTransactionResponse,
-    CancelPreparedTransactionRequest,
-    CancelPreparedTransactionResponse,
 )
-from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.sql.engine import pg_read_node
+from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -150,7 +150,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         return f"<{self.__class__.__name} {self}>"
 
     @property
-    def package_source(self) -> NodeDataTree:
+    def package_source(self) -> NodeDataGraph:
         assert self._package is not None, f"package not loaded in {self}"
         return self._package._source
 
@@ -182,14 +182,14 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             # )
 
     #
-    # General Bench IO for this package :BenchIO
+    # General IO for this Bench :BenchIO
     #
 
     async def read_nodes(
         self, subject: Subject, request: "ReadNodesRequest"
     ) -> "ReadNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
-        if any(root.node_type not in SUB_BENCH_NODE_TYPES for root in roots):
+        if any(root.type not in SUB_BENCH_NODE_TYPES for root in roots):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options, self._package)
@@ -240,6 +240,8 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
+        tx = Transaction.from_existing(request.transaction.edits)
+        # ...?
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def prepare_transaction(

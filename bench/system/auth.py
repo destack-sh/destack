@@ -1,8 +1,8 @@
 import asyncio
-from os import urandom
 import random
 import secrets
 import string
+from os import urandom
 
 import structlog
 from grpclib import GRPCError
@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Badge, Client, User
 from bench.language.access import Subject
 from bench.language.const import NodeType
-from bench.language.link import NodeNotFoundError
+from bench.language.expression import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.utils import detached_session
 from bench.utils.func import to_uuid
