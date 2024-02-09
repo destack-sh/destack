@@ -12,11 +12,10 @@ from psycopg import sql
 from bench.language.const import UNSET, ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.node import (
-    _NC,
-    NS,
     Node,
     NodeList,
     NodeListBase,
+    NodeStatus,
     NRel,
     Property,
     ScopeNode,
@@ -70,7 +69,7 @@ class Record(HasValue, Node):
     def new(
         *args,
         for_parent: "Block" = None,
-        _status: NS = None,
+        _status: NodeStatus = None,
         _id: UUID = None,
         _ck: UUID = None,
         **kwargs,
@@ -319,7 +318,7 @@ class RecordQuery:
 
         session = self._database.session
         if not _no_flush and session._local_edits:
-            await session.flush_local()  # first flush any local edits
+            await session.flush(local_only=True)  # first flush any local edits
         fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
         records: list[Record] = []
         for record_data in fetched.records:
@@ -395,7 +394,7 @@ class RecordQuery:
         filter = coerce_conditional(self._database, filter, kwargs)
 
         if not _no_flush and self._database.session._local_edits:
-            await self._database.session.flush_local()
+            await self._database.session.flush(local_only=True)
 
         where = compile_pg_conditional(self._database, filter & self._combined_filter)
         return await pg_count(
@@ -415,7 +414,7 @@ class RecordQuery:
             return bool(self._cached_records)
 
         if self._database.session._local_edits:
-            await self._database.session.flush_local()
+            await self._database.session.flush(local_only=True)
 
         if filter is None:
             filter = self._combined_filter
@@ -438,7 +437,7 @@ class RecordQuery:
 
         session = self._database.session
         if session._local_edits:
-            await session.flush_local()
+            await session.flush(local_only=True)
 
         # 'serialize' values (probably need a better way here to retain some native types?)
         check_type(value, self._database)
@@ -471,7 +470,7 @@ class RecordQuery:
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         if session._local_edits:
-            await session.flush_local()
+            await session.flush(local_only=True)
         where = Expression.and_if_set(
             self._filter,
             C(ConditionalOp.EQUALS, field_key="block_key", value=self._database.dynamic_key),
@@ -504,52 +503,30 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def __str__(self):
         return f"from {self._parent._table.name}"
 
-    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full):
+    def append(self, node: Record):
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.package.id)
-        # 'create' node
-        if _create and not self._parent.attached:
+        if not self._parent.attached:
             raise RuntimeError(f"cannot create {node!r} in detached {self!r}")
-        # update affected nodes
-        if _trigger:
-            node._attached_self()
-            if self._parent._session:
-                node._track_self(self._parent._session)
-        # 'create' node in session
-        if _create and self._parent._session and self._parent.attached:
+        if self._parent._session and self._parent.attached:
             self._parent.session.create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
+    def extend(self, *nodes: Record) -> None:
         for record in nodes:
-            self.append(record, _create=False, _trigger=_NC.Ignore)
-        # 'create' nodes
-        if _create and not self._parent.attached:
-            raise RuntimeError(f"cannot create {nodes!r} in detached {self!r}")
-        # update affected nodes
-        if _trigger:
-            for n in nodes:
-                n._attached_self()
-            if self._parent._session:
-                for n in nodes:
-                    n._track_self(self._parent._session)
-        # 'create' nodes in session
-        if _create and self._parent._session and self._parent.attached:
-            self._parent.session.create(*nodes)
+            self.append(record)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
-        if _delete:
-            if self._parent._session:
-                self._parent._session.delete(self, node)
-            if not self._parent.attached:
-                self._parent._root_tree.remove(node)
+    def remove(self, node: Record) -> None:
+        if self._parent._session:
+            self._parent._session.delete(self, node)
+        if not self._parent.attached:
+            self._parent._root_graph.remove(node)
         node.parent = None
 
     @_auto_async_to_sync
-    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
-        if _delete:
-            await RecordQuery.filter(self).delete()
+    async def clear(self) -> None:
+        await RecordQuery.filter(self).delete()
 
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?

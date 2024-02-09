@@ -1,26 +1,19 @@
 import asyncio
 import dataclasses
-from dataclasses import dataclass
 import sys
 import threading
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Collection,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
 from uuid import UUID, uuid4
 
 import psycopg
 import structlog
-from bitarray import bitarray
 
+from bench.language.access import ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE
 from bench.language.const import (
     EditType,
     NodeTrackingLevel,
@@ -32,11 +25,12 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
-    _NC,
     UNSET,
+    Bench,
+    Branch,
+    Environment,
     Node,
     Package,
-    Property,
     ScopeNode,
     Struct,
     get_node_id,
@@ -44,20 +38,17 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_runtime,
-    struct,
     p_system,
-    Bench,
-    Environment,
-    Branch,
+    struct,
 )
 from bench.language.run import Run, RunError
+from bench.proto.wire import BenchHostStub, EditData, SupervisorStub
 from bench.search.client import get_os_errors, os_client
-from bench.proto.wire import BenchHostStub, SupervisorStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync
 from bench.utils.env import IS_DEBUG
+from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
     from bench.language import Block, Server, Trigger
@@ -87,7 +78,7 @@ class LogEntry(Struct):
 
 @struct(StructType.CONTEXT)
 class Context(Struct):
-    """A semi-magical value that accumulates context down the tree (starting with system context)."""
+    """A semi-magical value that accumulates context down the graph (starting with system context)."""
 
     # system
     bench: Optional[Bench] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
@@ -110,29 +101,78 @@ class Context(Struct):
     # value: ...
 
 
-@dataclass(slots=True)
-class EditEvent:
-    kind: EditType
-    node: Node
-    properties: bitarray | None
+dcfield = dataclasses.field
 
 
 @dataclass(slots=True)
 class Transaction:
-    """A transaction in the Bench state graph. Atomic across supported Stores."""
+    """
+    A transaction in the Bench state graph.
+    Edits in a transaction are atomic (in our primary Postgres/Relational stores).
+    """
 
-    id: UUID = dataclasses.field(default_factory=uuid4)
-    _all_edits: list[EditEvent] = dataclasses.field(default_factory=list)
-    _pending_edits: list[EditEvent] = dataclasses.field(default_factory=list)
-    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dataclasses.field(
+    id: UUID = dcfield(default_factory=uuid4)
+
+    global_pg_cursor: psycopg.AsyncCursor | None = dcfield(default=None)
+    local_pg_cursors: dict[str, psycopg.AsyncCursor] = dcfield(default_factory=dict)
+    supervisor: Optional["SupervisorStub"] = dcfield(default=None)
+    host: Optional["BenchHostStub"] = dcfield(default=None)
+
+    edits: list[EditData] = dcfield(default_factory=list)
+    pending_edits: list[EditData] = dcfield(default_factory=list)
+    _pending_updates: set[Node] = dcfield(default_factory=set)
+
+    # for syncing databases
+    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
         default_factory=lambda: defaultdict(set)
     )
-    _touched_databases_by_id: dict[UUID, "Block"] = dataclasses.field(default_factory=dict)
-    _schema_changed: bool = dataclasses.field(default=False)
+    _schema_changed: bool = dcfield(default=False)
+
+    @staticmethod
+    def from_existing(edits: Collection[EditData]):
+        tx = Transaction()
+        tx.edits.extend(edits)
+        tx.pending_edits.extend(edits)
+        for edit in edits:  # replay edits
+            tx._on_edit(edit)
+        return tx
 
     #
     # Edits
     #
+
+    def _make_edit(self, type: EditType, node: Node):
+        from bench.proto import wiring
+
+        edit = EditEvent(type, node)
+        allowed_properties = ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE[type]
+        if allowed_properties == ():  # all properties
+            node_data = node._to_data()
+        else:
+            # TODO @Performance: pack only edited node properties
+            node_data = node._to_data()
+
+        if node._updated_properties:
+            properties = node._updated_properties.search(True)
+        else:
+            properties = None
+
+        edit = EditData(
+            type=wiring.pack_enum(EditType, type),
+            node_type=node_data.metatype,
+            node=wiring.wrap_some_node(node_data),
+            properties=properties,
+        )
+        self.edits.append(edit)
+        self.pending_edits.append(edit)
+
+    def _on_edit(self, edit: EditData):
+        if edit.node_type == NodeType.FIELD:
+            self._schema_changed = True
+
+    def _flush_pending_updates(self):
+        for node in self._pending_updates:
+            edit = self._make_edit(EditType.UPDATE, node)
 
     def create(self, n: Node):
         raise NotImplementedError
@@ -140,7 +180,7 @@ class Transaction:
     def upsert(self, n: Node):
         raise NotImplementedError
 
-    def update(self, n: Node, properties: list[Property] | tuple[Property, ...]):
+    def update(self, n: Node):
         raise NotImplementedError
 
     def move(self, n: Node):
@@ -161,28 +201,33 @@ class Transaction:
     def delete(self, n: Node):
         raise NotImplementedError
 
+    def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
+        self._changed_record_ids_by_base_id[database.id].update(record_ids)
+
     #
     # Transaction management
     #
 
+    async def open(self):
+        pass
+
     async def flush(self):
+        """Flushes any pending edits to the stores."""
         raise NotImplementedError
 
     async def commit(self):
+        """Commits the transaction (after flushing any remaining pending edits)."""
         raise NotImplementedError
 
     async def rollback(self):
+        """Rolls back uncommitted edits."""
         raise NotImplementedError
 
     async def close(self) -> None:
-        if self._global_pg_cursor:
-            await self._global_pg_cursor.connection.rollback()
-        if self._local_pg_cursor:
-            await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
-            pg_pool = await get_pg_connection_pool(self.package.pg_name)
-            await pg_pool.putconn(self._local_pg_cursor.connection)
-            self._local_pg_cursor = None
-        for pg_name, pg_cursor in self._other_local_pg_cursors.items():
+        """Closes the transaction and associated cursors, rolling back uncommitted edits."""
+        if self.global_pg_cursor:
+            await self.global_pg_cursor.connection.rollback()
+        for pg_name, pg_cursor in self.local_pg_cursors.items():
             await pg_cursor.connection.rollback()
             pg_pool = await get_pg_connection_pool(pg_name)
             await pg_pool.putconn(pg_cursor.connection)
@@ -205,24 +250,24 @@ class Session(ScopeNode):
     closed_at: Optional[datetime] = p_system(33, default=None)
     is_runtime: bool = p_system(34, default=False)
 
-    tx: Transaction | None = p_runtime(default=None)
-
+    _tx: Transaction | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
-
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     # runtime
-    _runtime_tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
-    _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
-    _pending_logs: list[LogEntry] | None = p_runtime(default=None)
+    _stacktrace: list[Run] | None = p_runtime(default_factory=list)
     _runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
     _pending_runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
+    _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
+    _runtime_tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
+
+    # logs
+    _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
+    _pending_logs: list[LogEntry] | None = p_runtime(default=None)
     _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
     _stdout_collector: Optional["LogCollector"] = p_runtime(default=None)
     _stderr_collector: Optional["LogCollector"] = p_runtime(default=None)
-    _stacktrace: list[Run] | None = p_runtime(default_factory=list)
-    _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
 
     def __content_str__(self):
         if self.closed_at:
@@ -233,8 +278,7 @@ class Session(ScopeNode):
             status = "pending"
         return (
             f"{status}, "
-            f"{len(self._global_edits)} global edits, "
-            f"{len(self._local_edits)} local edits, "
+            f"{self._tx or '<no tx>'}, "
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
         )
 
@@ -248,7 +292,7 @@ class Session(ScopeNode):
     @property
     def has_edits(self) -> bool:
         """Whether this session has any non-session edits."""
-        return self.tx.has_edits
+        return self._tx.has_edits
 
     @property
     def is_open(self) -> bool:
@@ -307,11 +351,8 @@ class Session(ScopeNode):
             self._active_nodes_by_ck = {}
             self._stacktrace = []
 
-        # prepare local postgres
-        if self._local_pg_cursor is None and self.package:
-            pg_pool = await get_pg_connection_pool(self.package.pg_name)
-            pg_connection = await pg_pool.getconn(timeout=2)
-            self._local_pg_cursor = pg_connection.cursor()
+        # open transaction
+        self._tx = Transaction()
 
         self.opened_at = utcnow_with_tz()
         logger.debug("session.open.done")
@@ -337,7 +378,7 @@ class Session(ScopeNode):
         logger.debug("session.close")
 
         # close transaction
-        await self.tx.close()
+        await self._tx.close()
 
         # close session
         self.closed_at = utcnow_with_tz()
@@ -380,44 +421,52 @@ class Session(ScopeNode):
     # Transaction
     #
 
-    def create(self, n: Node):
+    def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
-        self._edit(EditType.CREATE, n=n)
+        for n in nodes:
+            self._tx.create(n)
 
-    def upsert(self, n: Node):
+    def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        self._edit(EditType.UPSERT, n=n)
+        for n in nodes:
+            self._tx.upsert(n)
 
-    def update(self, n: Node, properties: list[Property] | tuple[Property, ...]):
+    def update(self, *nodes: Node):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        if n.ck not in self._created_nodes_by_ck:
-            self._edit(EditType.UPDATE, n=n, properties=properties)
+        for n in nodes:
+            self._tx.update(n)
 
-    def move(self, n: Node):
+    def move(self, *nodes: Node):
         """Moves and updates an existing node."""
-        self._edit(EditType.MOVE, n=n)
+        for n in nodes:
+            self._tx.move(n)
 
-    def soft_delete(self, n: Node):
+    def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        self._check_not_active(n)
+        for n in nodes:
+            self._tx.soft_delete(n)
 
-    def restore(self, n: Node):
+    def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
-        self._edit(EditType.RESTORE, n=n)
+        for n in nodes:
+            self._tx.restore(n)
 
-    def archive(self, n: Node):
+    def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        self._check_not_active(n)
-        self._edit(EditType.ARCHIVE, n=n)
+        for n in nodes:
+            self._check_not_active(n)
+            self._tx.archive(n)
 
-    def unarchive(self, n: Node):
+    def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
-        self._edit(EditType.UNARCHIVE, n=n)
+        for n in nodes:
+            self._tx.unarchive(n)
 
-    def delete(self, n: Node):
+    def hard_delete_forever(self, *nodes: Node):
         """Irreversibly deletes a node."""
-        self._check_not_active(n)
-        self._edit(EditType.DELETE, n=n)
+        for n in nodes:
+            self._check_not_active(n)
+            self._tx.delete(n)
 
     def _check_not_active(self, n: Node):
         """Checks if the node or any of its ancestors are active."""
@@ -426,8 +475,7 @@ class Session(ScopeNode):
             raise RuntimeError(f"cannot delete ancestor {n!r} of running block: {block!r}")
 
     def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
-        self._touched_databases_by_id[database.id] = database
-        self._changed_record_ids_by_base_id[database.id].update(record_ids)
+        self._tx._records_changed(database, record_ids)
 
     #
     # Stack: runs/logs
@@ -446,8 +494,8 @@ class Session(ScopeNode):
     async def _flush_logs(self) -> None:
         """Flushes pending logs to OS."""
 
-        from bench.search.engine import pack_struct
         from bench.proto import wiring
+        from bench.search.engine import pack_struct
 
         with self._runtime_tracing_lock:
             logs = self._pending_logs
@@ -640,7 +688,7 @@ class Session(ScopeNode):
         )
         run._session = None  # reset to None so it can be tracked
         # we track session nodes manually :ManualSessionTracking
-        parent.runs.append(run, _trigger=_NC.Ignore, _create=False)
+        parent.runs.append(run)
         custom_value = _custom_value.get()
         if root is None and self._root_run_value:
             run.value.update(self._root_run_value)

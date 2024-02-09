@@ -2,7 +2,7 @@ import enum
 from collections import OrderedDict
 from copy import copy
 from itertools import chain
-from typing import Any, TypeVar, Union, cast, Collection
+from typing import Any, Collection, TypeVar, Union, cast
 from uuid import UUID
 
 import betterproto
@@ -10,26 +10,26 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language.const import BenchType, NodeType
-from bench.language.link import on_notice_raise
+from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     METATYPE_PROPERTY,
     NODE_CLASS_BY_TYPE,
     Node,
+    NodeGraph,
     NodeStatus,
-    NodeTree,
     Property,
     ScopeNode,
     Struct,
+    on_notice_raise,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.session import Session
-from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
-from bench.utils.func import to_uuid, IdEnum
+from bench.utils.func import IdEnum, to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -245,7 +245,7 @@ def pack_node_inline(
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
-    to_pack = root._root_tree.collect_descendants(root, recursive=True)
+    to_pack = root._root_graph.collect_descendants(root, recursive=True)
     packed_by_id[root.id] = pack_node(root)
     for node in to_pack:
         if node.metatype in exclude:
@@ -256,7 +256,7 @@ def pack_node_inline(
 
 
 def unpack_nodes_inline(
-    source_tree: NodeDataTree,
+    source_graph: NodeDataGraph,
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
@@ -266,11 +266,11 @@ def unpack_nodes_inline(
 
     exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
-    source_roots = source_tree.find_roots()
+    source_roots = source_graph.find_roots()
     for root_data in source_roots:
-        unpacked_tree = NodeTree()
+        unpacked_graph = NodeGraph()
         # unpack all nodes top down (breadth first)
-        for node_data in chain((root_data,), source_tree.iter_descendants(root_data)):
+        for node_data in chain((root_data,), source_graph.iter_descendants(root_data)):
             if node_data.metatype in exclude:
                 continue
 
@@ -280,27 +280,27 @@ def unpack_nodes_inline(
             if node_parent_id is None or parent is not None and node_parent_id == parent.id:
                 node_parent = parent
             else:
-                node_parent = unpacked_tree.get(node_parent_id)
+                node_parent = unpacked_graph.get(node_parent_id)
                 if node_parent is None:
-                    raise ValueError(f"parent {node_parent_id} not found in {unpacked_tree!r}")
+                    raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_node(node_data, node_parent, session=session)
 
             # keep parent instance if it was passed (update in place)
             if parent is not None and node.id == parent.id:
                 for prop in parent.__properties__.values():
-                    if not prop.is_runtime_only and not prop.is_tree_reference:
+                    if not prop.is_runtime_only and not prop.is_graph_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = parent
 
-            unpacked_tree.add(node)
+            unpacked_graph.add(node)
 
         # index & recover node lists
-        root = unpacked_tree.find_root()
+        root = unpacked_graph.find_root()
         if root is None:
-            raise ValueError(f"no root found in {unpacked_tree!r}")
+            raise ValueError(f"no root found in {unpacked_graph!r}")
         if isinstance(root, ScopeNode):
-            root._root_tree.set(unpacked_tree.nodes)
-        for node in unpacked_tree.nodes_by_id.values():
+            root._root_graph.set(unpacked_graph.nodes)
+        for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = NodeStatus.SOURCE
         unpacked_roots.append(root)
@@ -310,7 +310,7 @@ def unpack_nodes_inline(
         recovered_roots = []
         for root in roots:
             for found_root in unpacked_roots:  # somewhat inefficient...
-                recovered = found_root._root_tree.get(to_uuid(root.id))
+                recovered = found_root._root_graph.get(to_uuid(root.id))
                 if recovered is not None:
                     recovered_roots.append(recovered)
                     break
@@ -320,7 +320,7 @@ def unpack_nodes_inline(
 
 
 def unpack_node_inline(
-    source_tree: NodeDataTree,
+    source_graph: NodeDataGraph,
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
@@ -328,7 +328,7 @@ def unpack_node_inline(
 ) -> Node:
     """Unpack a node and all its inline descendants"""
     roots = unpack_nodes_inline(
-        source_tree, parent, session, exclude, roots=[root] if root is not None else None
+        source_graph, parent, session, exclude, roots=[root] if root is not None else None
     )
     if len(roots) != 1:
         raise ValueError(f"expected 1 root, got {len(roots)}")

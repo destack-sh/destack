@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.09.1"
+VERSION = "2024.02.09.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -739,7 +732,7 @@ class CodeSectionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ContextData(betterproto.Message):
     """
-    A semi-magical value that accumulates context down the tree (starting with
+    A semi-magical value that accumulates context down the graph (starting with
     system context).
     """
 
@@ -850,10 +843,10 @@ class PolicyData(betterproto.Message):
     unless explicitly and completely ALLOWed. 2. Policies are attached directly
     to nodes or via delegates (badges, roles, identities, ...). a. Policies are
     scoped to the node their definition or b. Delegate is attached to (or less
-    as specified). 3. Policies are evaluated in order up the node tree, first
+    as specified). 3. Policies are evaluated in order up the node graph, first
     match decides*. (This means you can read a sub block but not its parent.)
     4. Every identity/role/... applicable to a subject is evaluated separately
-    and *any* allow wins.  * Conceptually, we do 'ray trace' up the tree for
+    and *any* allow wins.  * Conceptually, we do 'ray trace' up the graph for
     every node, but actually doing that for every request is prohibitively
     expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a
     shortcut.
@@ -1464,8 +1457,8 @@ class IdentityData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LinkData(betterproto.Message):
     """
-    A reference to another node in some tree. The referenced subtree is inlined
-    on access.
+    A reference to another node in some graph. The referenced subtree is
+    inlined on access.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1505,8 +1498,9 @@ class MembershipData(betterproto.Message):
 class BaseNodeData(betterproto.Message):
     """
     A node in the Bench graph: it's a struct with an identity, so it can relate
-    nodes in a tree. All nodes have a globally unique id (id). Source nodes may
-    also have a constant identifier key (ck) used to derive the id per Package.
+    nodes in a graph. All nodes have a globally unique id (id). Source nodes
+    may also have a constant identifier key (ck) used to derive the id per
+    Package.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1537,8 +1531,9 @@ class NoticeData(betterproto.Message):
     Optional[datetime.datetime] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _deferred_properties:
-    tuple[bench.language.node.Property, ...] | None = None)
+    _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
+    None, _deferred_properties: tuple[bench.language.node.Property, ...] | None
+    = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1824,7 +1819,7 @@ class SignalData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SkipData(betterproto.Message):
     """
-    A reference to another node in some tree that wasn't available for some
+    A reference to another node in some graph that wasn't available for some
     reason (usually permissions).
     """
 
@@ -1933,8 +1928,9 @@ class TriggerData(betterproto.Message):
     Optional[datetime.datetime] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _deferred_properties:
-    tuple[bench.language.node.Property, ...] | None = None)
+    _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
+    None, _deferred_properties: tuple[bench.language.node.Property, ...] | None
+    = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2038,12 +2034,6 @@ class SomeNodeData(betterproto.Message):
     client: "ClientData" = betterproto.message_field(31, group="node")
     notification: "NotificationData" = betterproto.message_field(32, group="node")
     membership: "MembershipData" = betterproto.message_field(33, group="node")
-
-
-@dataclass(eq=False, repr=False)
-class PackageTreeData(betterproto.Message):
-    package: "PackageData" = betterproto.message_field(1)
-    nodes: List["SomeNodeData"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -3827,80 +3817,80 @@ class ServerProcessBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
 
+import bench.proto.monkey  # noqa
+
 AnyNodeData = Union[
-    LinkData,
-    RecordData,
-    HandleData,
-    SkipData,
-    BlockData,
-    TriggerData,
     NoticeData,
-    FileContentData,
-    RunData,
-    SpaceData,
-    PauseData,
-    ClientData,
-    OrganizationData,
-    QueryData,
-    SessionData,
-    NotificationData,
     UserData,
-    TagData,
-    BranchData,
-    ServerData,
-    MembershipData,
-    StoreData,
-    SignalData,
-    CacheData,
-    RoleData,
-    PackageData,
-    BadgeData,
-    IdentityData,
+    PauseData,
     DriveData,
+    BlockData,
+    OrganizationData,
     ViewData,
+    FileContentData,
+    ClientData,
+    TagData,
+    IdentityData,
+    TriggerData,
+    CacheData,
     EnvironmentData,
+    PackageData,
     BenchData,
+    SpaceData,
+    SkipData,
+    StoreData,
+    NotificationData,
+    ServerData,
+    HandleData,
+    MembershipData,
+    SignalData,
+    BranchData,
+    LinkData,
+    BadgeData,
+    QueryData,
     FieldData,
+    SessionData,
+    RunData,
+    RoleData,
+    RecordData,
 ]
 AnyStructData = Union[
-    AccessData,
+    ServerImageData,
+    PropertyReferenceData,
+    ValueReferenceData,
+    PolicyRuleData,
+    RichTextSpanData,
+    PropertyPathData,
+    PolicyData,
     LogEntryData,
+    FieldPathSegmentData,
+    SubjectData,
+    ExpressionData,
+    FileData,
+    ScheduleData,
+    RequestData,
+    TypeInfoData,
+    AccessData,
+    IconData,
+    AccessZoneData,
+    SpaceDockData,
+    ContextData,
+    ReadOptionsData,
+    AggregationBucketData,
+    RichTextData,
+    NodeReferenceData,
+    BenchPathData,
+    RunErrorData,
+    ValueSelectionData,
+    FieldPathData,
+    AccessTraceData,
+    RunCodeFrameData,
+    AccessMatrixData,
+    SpaceDockItemData,
+    CodeSectionData,
     ServerImageRequirementData,
     CodeData,
-    FieldPathData,
-    RichTextData,
-    PropertyReferenceData,
-    ReadOptionsData,
-    PolicyRuleData,
-    BenchPathData,
-    ScheduleData,
-    TypeInfoData,
-    AccessZoneData,
-    RequestData,
-    RunCodeFrameData,
-    SpaceDockItemData,
-    SpaceDockData,
-    AggregationBucketData,
-    AccessMatrixData,
-    NodeReferenceData,
-    IconData,
-    ValueSelectionData,
-    ServerImageData,
-    AccessTraceData,
-    ExpressionData,
-    FieldPathSegmentData,
-    PolicyData,
-    RichTextSpanData,
-    RunErrorData,
-    CodeSectionData,
     AggregationData,
-    PropertyPathData,
-    FileData,
-    ValueReferenceData,
-    ContextData,
-    SubjectData,
 ]

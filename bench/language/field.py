@@ -11,10 +11,11 @@ from bench.language.const import (
     BlockType,
     FormatHint,
     NodeType,
+    NodeVisibility,
     StructType,
     new_dynamic_node_key,
-    NodeVisibility,
 )
+from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
     Node,
     NodeList,
@@ -22,7 +23,6 @@ from bench.language.node import (
     Property,
     ScopeNode,
     Struct,
-    _TypeExpressionBase,
     node,
     node_component,
     p_child,

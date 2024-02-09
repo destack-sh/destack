@@ -672,7 +672,7 @@ message CodeSectionData {
   string code = 32;
 }
 
-// A semi-magical value that accumulates context down the tree (starting with system context).
+// A semi-magical value that accumulates context down the graph (starting with system context).
 message ContextData {
   BenchType metatype = 1;
   optional NodeReferenceData environment_ptr = 31;
@@ -756,11 +756,11 @@ message NodeReferenceData {
 // 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
 // a. Policies are scoped to the node their definition or
 // b. Delegate is attached to (or less as specified).
-// 3. Policies are evaluated in order up the node tree, first match decides*.
+// 3. Policies are evaluated in order up the node graph, first match decides*.
 // (This means you can read a sub block but not its parent.)
 // 4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 // 
-// * Conceptually, we do 'ray trace' up the tree for every node, but actually doing that for every request
+// * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
 // is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
@@ -1234,7 +1234,7 @@ message IdentityData {
   NodeReferenceData type_ptr = 30;
 }
 
-// A reference to another node in some tree. The referenced subtree is inlined on access.
+// A reference to another node in some graph. The referenced subtree is inlined on access.
 message LinkData {
   BenchType metatype = 1;
   string id = 2;
@@ -1267,7 +1267,7 @@ message MembershipData {
   bool is_owner = 31;
 }
 
-// A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a tree.
+// A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
 // All nodes have a globally unique id (id).
 // Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
 message BaseNodeData {
@@ -1282,7 +1282,7 @@ message BaseNodeData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1516,7 +1516,7 @@ message SignalData {
   optional google.protobuf.Struct value_packed = 31;
 }
 
-// A reference to another node in some tree that wasn't available for some reason (usually permissions).
+// A reference to another node in some graph that wasn't available for some reason (usually permissions).
 message SkipData {
   BenchType metatype = 1;
   string id = 2;
@@ -1597,7 +1597,7 @@ message TagData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1697,10 +1697,5 @@ message SomeNodeData {
     NotificationData notification = 32;
     MembershipData membership = 33;
   };
-}
-
-message PackageTreeData {
-  PackageData package = 1;
-  repeated SomeNodeData nodes = 2;
 }
 

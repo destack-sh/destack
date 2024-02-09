@@ -2,13 +2,13 @@ import asyncio
 import functools
 from typing import (
     TYPE_CHECKING,
+    AsyncIterable,
     Callable,
     Collection,
     Generic,
     Mapping,
     TypeVar,
     final,
-    AsyncIterable,
 )
 
 import betterproto
@@ -22,14 +22,14 @@ from grpclib.testing import ChannelFor
 
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
-from bench.language.link import NodeNotFoundError
+from bench.language.expression import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
-from bench.system.auth import get_subject_from_metadata
 from bench.sql.engine import SqlAlreadyExistsError
+from bench.system.auth import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
+from bench.utils.env import IS_DEBUG, IS_TEST
 from bench.utils.monitoring import Monitored
 from bench.utils.utils import sentry_capture
-from bench.utils.env import IS_DEBUG, IS_TEST
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 

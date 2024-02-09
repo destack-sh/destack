@@ -19,8 +19,8 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.node import (
-    NS,
     Node,
+    NodeStatus,
     ScopeNode,
     Struct,
     node,
@@ -54,7 +54,7 @@ class HasRun(Node):
 
     def _call_inner(self, *args, **kwargs):
         assert (
-            self.attached and self._status == NS.TRACKED
+            self.attached and self._status == NodeStatus.TRACKED
         ), f"cannot call {self!r} (status={self._status!r})"
         try:
             asyncio.get_running_loop()
@@ -212,8 +212,8 @@ class RunCodeFrame(Struct):
                     frame.line = code.code.splitlines()[frame.lineno - 1]
                     frame.locals = frame.locals or {}
                     for ident, var in code._block_references.items():
-                        if ident not in frame.locals and var.id in session.package._tree:
-                            frame.locals[ident] = repr(session.package._tree[var.id])
+                        if ident not in frame.locals and var.id in session.package._graph:
+                            frame.locals[ident] = repr(session.package._graph[var.id])
             if found_start:
                 # trim file path for python packages
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"

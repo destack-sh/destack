@@ -25,7 +25,7 @@ from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
 from bench.language.access import ReadOptions
-from bench.language.const import NODE_TYPES, BenchError, EditType, NodeType, SortOp, EMPTY_DICT
+from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -34,6 +34,7 @@ from bench.language.expression import (
     ExpressionOps,
     QueryEngineIncapableError,
 )
+from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
@@ -43,9 +44,8 @@ from bench.language.node import (
     Property,
     get_node_id,
 )
-from bench.language.tree import NodeDataTree
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData, IdEnum
+from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import (
@@ -70,8 +70,8 @@ from bench.sql.core import (
 )
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
 from bench.utils.func import describe_type, to_uuid
-from bench.utils.env import IS_DEBUG, IS_TEST, IS_LOCAL
 
 logger = structlog.get_logger(__name__)
 
@@ -1174,19 +1174,19 @@ async def pg_select_nodes_data(
     return PgSelectNodesDataResult(nodes_data, cursors, after)
 
 
-async def pg_read_node_data_tree(
+async def pg_read_node_data_graph(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
     options: ReadOptions,
-    _tree: NodeDataTree | None = None,
-) -> NodeDataTree | None:
+    _graph: NodeDataGraph | None = None,
+) -> NodeDataGraph | None:
     """
     Reads regular nodes from the given PG database.
-    Returns a tree of nodes that *may* contain the requested nodes.
+    Returns a graph of nodes that *may* contain the requested nodes.
     """
 
-    visited_tree = _tree if _tree is not None else NodeDataTree()
+    visited_graph = _graph if _graph is not None else NodeDataGraph()
 
     # select "roots"
     root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=root_ids))
@@ -1199,7 +1199,7 @@ async def pg_read_node_data_tree(
     if not roots.nodes:
         return None
     for node in roots.nodes:
-        visited_tree.add(node)
+        visited_graph.add(node)
 
     # select ancestors (recursively)
     # (basically, walk parent pointer if type is in ancestor_types)
@@ -1214,7 +1214,7 @@ async def pg_read_node_data_tree(
                 if (
                     node.parent_ptr is not None
                     and node.parent_ptr.type in options.ancestor_types
-                    and node.parent_ptr.id not in visited_tree
+                    and node.parent_ptr.id not in visited_graph
                 ):
                     to_select_by_type[node.parent_ptr.type].append(node.parent_ptr.id)
 
@@ -1232,7 +1232,7 @@ async def pg_read_node_data_tree(
                 )
                 next_parents.extend(layer.nodes)
                 for node in layer.nodes:
-                    visited_tree.add(node)
+                    visited_graph.add(node)
             current_parents = next_parents
 
     # select descendants (recursively)
@@ -1271,16 +1271,16 @@ async def pg_read_node_data_tree(
                     filter=options.filter(child_type, parent_filter),
                     properties=options.select(child_type),
                 )
-                next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
+                next_parents.extend(n for n in children.nodes if n.id not in visited_graph)
                 for child in children.nodes:
-                    visited_tree.add(child)
+                    visited_graph.add(child)
 
             current_parents = next_parents
 
-    return visited_tree
+    return visited_graph
 
 
-async def pg_search_nodes_data_tree(
+async def pg_search_nodes_data_graph(
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
     *,
@@ -1290,8 +1290,8 @@ async def pg_search_nodes_data_tree(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> tuple[PgSelectNodesDataResult, NodeDataTree]:
-    """Select root nodes and then read the tree of nodes from the given PG database."""
+) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
+    """Select root nodes and then read the graph of nodes from the given PG database."""
 
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch
@@ -1307,14 +1307,14 @@ async def pg_search_nodes_data_tree(
             properties=(node_cls.__properties__["id"],),
         )
         if not roots.nodes:
-            return roots, NodeDataTree()
-        tree = await pg_read_node_data_tree(
+            return roots, NodeDataGraph()
+        graph = await pg_read_node_data_graph(
             cur=cur,
             root_type=node_type,
             root_ids=tuple(to_uuid(node.id) for node in roots.nodes),
             options=options,
         )
-        return roots, tree
+        return roots, graph
     else:
         # otherwise just select in one go
         roots = await pg_select_nodes_data(
@@ -1327,8 +1327,8 @@ async def pg_search_nodes_data_tree(
             after=after,
             properties=options.select(node_type),
         )
-        tree = NodeDataTree(nodes=roots.nodes)
-        return roots, tree
+        graph = NodeDataGraph(nodes=roots.nodes)
+        return roots, graph
 
 
 async def pg_read_nodes(
@@ -1341,11 +1341,11 @@ async def pg_read_nodes(
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
     cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
-    source_tree = await pg_read_node_data_tree(cur, root_type, root_ids, options)
-    if source_tree is None:
+    source_graph = await pg_read_node_data_graph(cur, root_type, root_ids, options)
+    if source_graph is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
-    roots = tuple(source_tree.get(str(id)) for id in root_ids)
-    return wiring.unpack_nodes_inline(source_tree, parent=parent, session=session, roots=roots)
+    roots = tuple(source_graph.get(str(id)) for id in root_ids)
+    return wiring.unpack_nodes_inline(source_graph, parent=parent, session=session, roots=roots)
 
 
 async def pg_read_node(
@@ -1377,7 +1377,7 @@ async def pg_search_nodes(
     """Searches 'regular' nodes from the given PG database and unpacks them into the session."""
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     cur = session.local_pg_cursor if node_cls.__is_local__ else session.global_pg_cursor
-    roots, tree = await pg_search_nodes_data_tree(
+    roots, graph = await pg_search_nodes_data_graph(
         cur=cur,
         node_type=node_type,
         options=options,
@@ -1387,9 +1387,9 @@ async def pg_search_nodes(
         skip=skip,
         after=after,
     )
-    if not tree:
+    if not graph:
         return (), (), None
-    nodes = wiring.unpack_nodes_inline(tree, parent=parent, session=session, roots=roots.nodes)
+    nodes = wiring.unpack_nodes_inline(graph, parent=parent, session=session, roots=roots.nodes)
     return nodes, roots.cursors, roots.start_cursor
 
 

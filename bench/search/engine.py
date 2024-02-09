@@ -21,10 +21,10 @@ from bench.language.expression import (
     S,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
-from bench.search import core as os
-from bench.search.client import get_os_errors, os_client
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
+from bench.search import core as os
+from bench.search.client import get_os_errors, os_client
 from bench.sql.core import PrimitiveType
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +66,7 @@ async def update_local_os_schema(package: Package, dynamic: str = "strict") -> N
     outputs_mappings: dict[str, os.Field] = {}
 
     # add dynamic user mappings
-    for node in package._tree.iter_descendants(package, NodeType.BLOCK, recursive=True):
+    for node in package._graph.iter_descendants(package, NodeType.BLOCK, recursive=True):
         if node.type == BlockType.DATABASE:
             # all fields go into Record.value
             for field in node.fields:
