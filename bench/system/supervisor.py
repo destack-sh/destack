@@ -50,8 +50,8 @@ from bench.proto.wire import (
     PrepareTransactionResponse,
     CommitPreparedTransactionRequest,
     CommitPreparedTransactionResponse,
-    RollbackPreparedTransactionRequest,
-    RollbackPreparedTransactionResponse,
+    CancelPreparedTransactionRequest,
+    CancelPreparedTransactionResponse,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.utils import detached_session
@@ -130,6 +130,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     ) -> "ChangeUserPasswordResponse":
         if not subject.is_authenticated:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+
         async with detached_session() as session:
             user = subject.user
             if not await check_password(
@@ -142,6 +143,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
+
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self._epoch)
 
     async def login_user(
@@ -165,6 +167,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             client.access_token = generate_access_token()
             session.upsert(client)
             await session.commit()
+
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -177,6 +180,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     ) -> "LogoutUserResponse":
         if subject.client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+
         async with detached_session() as session:
             # log out the current or the specified clients
             if request.client_ids:
@@ -193,6 +197,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 client.access_token = None
                 client.last_seen_at = utcnow_with_tz()
             await session.commit()
+
         return LogoutUserResponse()
 
     #
@@ -205,10 +210,12 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         user: User | None = subject.user
         if not user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+
         async with detached_session() as session:
             session.track(user)
             if user.bench:  # can't create secondary benches yet
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "bench already exists")
+
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
@@ -270,8 +277,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
-        adapted_options = adapt_read_options(subject, node_type, options)
 
+        adapted_options = adapt_read_options(subject, node_type, options)
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.filter(node_type, filter)
             roots, tree = await pg_search_nodes_data_tree(
@@ -318,8 +325,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
-        adapted_options = adapt_read_options(subject, node_type, ReadOptions())
 
+        adapted_options = adapt_read_options(subject, node_type, ReadOptions())
         async with async_pg_cursor() as cur:
             combined_filter = adapted_options.filter(node_type, filter)
             if aggregation.op == AggregationOp.EXISTS:
@@ -393,9 +400,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     ) -> "CommitPreparedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def rollback_prepared_transaction(
-        self, subject: Subject, request: "RollbackPreparedTransactionRequest"
-    ) -> "RollbackPreparedTransactionResponse":
+    async def cancel_prepared_transaction(
+        self, subject: Subject, request: "CancelPreparedTransactionRequest"
+    ) -> "CancelPreparedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(

@@ -53,8 +53,8 @@ from bench.proto.wire import (
     PrepareTransactionResponse,
     CommitPreparedTransactionRequest,
     CommitPreparedTransactionResponse,
-    RollbackPreparedTransactionRequest,
-    RollbackPreparedTransactionResponse,
+    CancelPreparedTransactionRequest,
+    CancelPreparedTransactionResponse,
 )
 from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.sql.engine import pg_read_node
@@ -252,9 +252,9 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     ) -> "CommitPreparedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def rollback_prepared_transaction(
-        self, subject: Subject, request: "RollbackPreparedTransactionRequest"
-    ) -> "RollbackPreparedTransactionResponse":
+    async def cancel_prepared_transaction(
+        self, subject: Subject, request: "CancelPreparedTransactionRequest"
+    ) -> "CancelPreparedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(

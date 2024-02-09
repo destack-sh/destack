@@ -1,3 +1,4 @@
+from .code_ import CodeSection, Code
 from .path import BenchPath
 from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
@@ -57,7 +58,7 @@ from .notice import Notice, NoticeError, NoticeType
 from .projection import NodeVisitor
 from .render import render
 from .run import Pause, Run, RunError
-from .session import LogEntry, Session
+from .session import LogEntry, Session, Context, Transaction
 from .signal import Signal
 from .tag import Tag
 from .task import TaskError
@@ -91,7 +92,10 @@ __all__ = [
     "C",
     "Cache",
     "Client",
+    "Code",
+    "CodeSection",
     "ConditionalOp",
+    "Context",
     "Drive",
     "Expression",
     "Field",
@@ -148,6 +152,7 @@ __all__ = [
     "Struct",
     "Subject",
     "Tag",
+    "Transaction",
     "Trigger",
     "TriggerType",
     "TypeInfo",

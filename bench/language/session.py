@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 from dataclasses import dataclass
 import sys
 import threading
@@ -6,7 +7,6 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from datetime import datetime
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,8 +14,6 @@ from typing import (
     Collection,
     Optional,
     Union,
-    cast,
-    Iterable,
 )
 from uuid import UUID, uuid4
 
@@ -24,7 +22,6 @@ import structlog
 from bitarray import bitarray
 
 from bench.language.const import (
-    NTL,
     EditType,
     NodeTrackingLevel,
     NodeType,
@@ -48,10 +45,14 @@ from bench.language.node import (
     p_parent,
     p_runtime,
     struct,
+    p_system,
+    Bench,
+    Environment,
+    Branch,
 )
 from bench.language.run import Run, RunError
 from bench.search.client import get_os_errors, os_client
-from bench.proto.wire import BenchHostStub, CommitTransactionRequest, EditData, SupervisorStub
+from bench.proto.wire import BenchHostStub, SupervisorStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -59,12 +60,12 @@ from bench.utils.func import _auto_async_to_sync
 from bench.utils.env import IS_DEBUG
 
 if TYPE_CHECKING:
-    from bench.language import Block, Record, Server, Trigger
+    from bench.language import Block, Server, Trigger
 
 logger = structlog.get_logger(__name__)
 
 
-@struct(StructType.LOG_ENTRY, index_in_os=True)
+@struct(StructType.LOG_ENTRY, index_in_search=True)
 class LogEntry(Struct):
     """An entry. In a log."""
 
@@ -79,12 +80,34 @@ class LogEntry(Struct):
     block: Optional["Block"] = p_internal(37, require=False, array=False, references=NodeType.BLOCK)
     run: Optional["Run"] = p_internal(38, require=False, array=False, references=NodeType.RUN)
     message: Optional[str] = p_internal(39, default=None)
-    value: dict[str, Any] | None = p_internal(
-        40, require=False, default=None, primitive_type=PrimitiveType.JSON, ignore_conflicts=True
-    )
 
     def __content_str__(self):
         return f"'{self.message}' ({self.created_at})"
+
+
+@struct(StructType.CONTEXT)
+class Context(Struct):
+    """A semi-magical value that accumulates context down the tree (starting with system context)."""
+
+    # system
+    bench: Optional[Bench] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
+    environment: Optional[Environment] = p_internal(
+        31, require=False, array=False, references=NodeType.ENVIRONMENT
+    )
+    branch: Optional[Branch] = p_internal(
+        32, require=False, array=False, references=NodeType.BRANCH
+    )
+    package: Optional[Package] = p_internal(
+        33, require=False, array=False, references=NodeType.PACKAGE
+    )
+    module: Optional["Block"] = p_internal(
+        34, require=False, array=False, references=NodeType.BLOCK
+    )
+    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
+    # log: ...
+
+    # custom
+    # value: ...
 
 
 @dataclass(slots=True)
@@ -92,70 +115,105 @@ class EditEvent:
     kind: EditType
     node: Node
     properties: bitarray | None
-    started_at: datetime | None = None
-    updated_at: datetime | None = None
 
 
 @dataclass(slots=True)
-class ConsumedEdits:
-    global_edits: list[EditData] | tuple[EditData, ...]
-    local_edits: list[EditData] | tuple[EditData, ...]
-    session_edits: list[EditData] | tuple[EditData, ...]
+class Transaction:
+    """A transaction in the Bench state graph. Atomic across supported Stores."""
 
-    def all(self) -> Iterable[EditData]:
-        return chain(self.global_edits, self.local_edits, self.session_edits)
+    id: UUID = dataclasses.field(default_factory=uuid4)
+    _all_edits: list[EditEvent] = dataclasses.field(default_factory=list)
+    _pending_edits: list[EditEvent] = dataclasses.field(default_factory=list)
+    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dataclasses.field(
+        default_factory=lambda: defaultdict(set)
+    )
+    _touched_databases_by_id: dict[UUID, "Block"] = dataclasses.field(default_factory=dict)
+    _schema_changed: bool = dataclasses.field(default=False)
 
-    def global_only(self) -> Iterable[EditData]:
-        return self.global_edits
+    #
+    # Edits
+    #
 
-    def local_only(self) -> Iterable[EditData]:
-        return chain(self.local_edits, self.session_edits)
+    def create(self, n: Node):
+        raise NotImplementedError
+
+    def upsert(self, n: Node):
+        raise NotImplementedError
+
+    def update(self, n: Node, properties: list[Property] | tuple[Property, ...]):
+        raise NotImplementedError
+
+    def move(self, n: Node):
+        raise NotImplementedError
+
+    def soft_delete(self, n: Node):
+        raise NotImplementedError
+
+    def restore(self, n: Node):
+        raise NotImplementedError
+
+    def archive(self, n: Node):
+        raise NotImplementedError
+
+    def unarchive(self, n: Node):
+        raise NotImplementedError
+
+    def delete(self, n: Node):
+        raise NotImplementedError
+
+    #
+    # Transaction management
+    #
+
+    async def flush(self):
+        raise NotImplementedError
+
+    async def commit(self):
+        raise NotImplementedError
+
+    async def rollback(self):
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        if self._global_pg_cursor:
+            await self._global_pg_cursor.connection.rollback()
+        if self._local_pg_cursor:
+            await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
+            pg_pool = await get_pg_connection_pool(self.package.pg_name)
+            await pg_pool.putconn(self._local_pg_cursor.connection)
+            self._local_pg_cursor = None
+        for pg_name, pg_cursor in self._other_local_pg_cursors.items():
+            await pg_cursor.connection.rollback()
+            pg_pool = await get_pg_connection_pool(pg_name)
+            await pg_pool.putconn(pg_cursor.connection)
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 
 
-@node(NodeType.SESSION, index_in_os=True, local=True)
+@node(NodeType.SESSION, index_in_search=True, local=True)
 class Session(ScopeNode):
     """
-    A managed context for running a Bench package (in a server).
+    A managed session for interacting with Bench nodes and (if on a Server) running them.
     """
 
-    parent: Package = p_parent(4, NodeType.PACKAGE)
-    server: Optional["Server"] = p_internal(
+    parent: Package = p_parent(4, NodeType.PACKAGE, is_system=True)
+    server: Optional["Server"] = p_system(
         31, require=False, array=False, references=NodeType.SERVER
     )
-    server_process_id: Optional[str] = p_internal(32, default=None)
-    trigger_type: Optional[TriggerType] = p_internal(33, default=None)
-    trigger_id: Optional[UUID] = p_internal(34, default=None)
-    opened_at: Optional[datetime] = p_internal(35, default=None)
-    closed_at: Optional[datetime] = p_internal(36, default=None)
+    opened_at: Optional[datetime] = p_system(32, default=None)
+    closed_at: Optional[datetime] = p_system(33, default=None)
+    is_runtime: bool = p_system(34, default=False)
+
+    tx: Transaction | None = p_runtime(default=None)
 
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
-    _root_run_ck: UUID | None = p_runtime(default=None)
-    _root_run_value: dict | None = p_runtime(default=None)
-    _init_run_value: dict | None = p_runtime(default=None)
-    _cache: Union["Cache", None] = p_runtime(default=None)
-    _log: structlog.BoundLogger = p_runtime(default=None)
 
-    _failed_commit: bool = p_runtime(default=False)
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _global_pg_cursor: psycopg.AsyncCursor | None = p_runtime(default=None)
-    _local_pg_cursor: psycopg.AsyncCursor | None = p_runtime(default=None)
-    _other_local_pg_cursors: dict[str, psycopg.AsyncCursor] = p_runtime(default_factory=dict)
-    _tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
 
-    _created_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _updated_nodes_event_by_ck: dict[UUID, int] = p_runtime(default_factory=dict)
-    _local_edits: list[EditEvent] = p_runtime(default_factory=list)
-    _global_edits: list[EditEvent] = p_runtime(default_factory=list)
-    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = p_runtime(
-        default_factory=lambda: defaultdict(set)
-    )
-    _touched_databases_by_id: dict[UUID, "Block"] = p_runtime(default_factory=dict)
-    _schema_changed: bool = p_runtime(default=False)
-
+    # runtime
+    _runtime_tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
     _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
     _pending_logs: list[LogEntry] | None = p_runtime(default=None)
     _runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
@@ -182,29 +240,29 @@ class Session(ScopeNode):
 
     def _init_inner(self) -> None:
         self._session = self
-        self._log = logger.bind(session=self)
 
     @property
-    def dangling(self) -> tuple[Node, ...]:
+    def pending_nodes(self) -> tuple[Node, ...]:
         return tuple(n for n in self._dangling_nodes_by_ck.values() if not n.parent)
+
+    @property
+    def has_edits(self) -> bool:
+        """Whether this session has any non-session edits."""
+        return self.tx.has_edits
+
+    @property
+    def is_open(self) -> bool:
+        return self.opened_at is not None and self.closed_at is None
+
+    @property
+    def is_closed(self) -> bool:
+        return self.closed_at is not None
 
     @property
     def host(self) -> "BenchHostStub":
         """The remote host."""
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
-
-    @property
-    def global_pg_cursor(self) -> psycopg.AsyncCursor:
-        """Cursor to the global DB. Only available in trusted server code."""
-        assert self._global_pg_cursor is not None, f"global_pg_cursor is unavailable in {self!r}"
-        return self._global_pg_cursor
-
-    @property
-    def local_pg_cursor(self) -> psycopg.AsyncCursor:
-        """Cursor to the local DB. Available locally in this Bench (if there is one)."""
-        assert self._local_pg_cursor is not None, f"local_pg_cursor is unavailable in {self!r}"
-        return self._local_pg_cursor
 
     async def pg_cursor_to_local(self, package: Package) -> psycopg.AsyncCursor:
         if package == self.package:
@@ -224,184 +282,75 @@ class Session(ScopeNode):
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()!r}")
         _active_session.set(self)
-        self._log.debug("session.open")
+        logger.debug("session.open")
 
-        # flush loop
-        assert session_flush_interval > 0.025, f"flush_interval {session_flush_interval} < 0.025s"
+        # prepare runtime
+        if self.is_runtime:
+            # log collection
+            self._pending_logs = []
+            self._cached_logs = deque(maxlen=LOG_CACHE_SIZE)
+            self._stdout_collector = LogCollector(self._track_log, "stdout", self)
+            self._stderr_collector = LogCollector(self._track_log, "stderr", self)
+            self._stdout_collector.start()
+            self._stderr_collector.start()
 
-        async def _flush_session_loop():
-            while True:
-                await self.flush_session()
-                await self._flush_logs()
-                await asyncio.sleep(session_flush_interval)
+            # auto-flush session/runs/etc.
+            async def _flush_session_loop():
+                while True:
+                    await asyncio.sleep(session_flush_interval)
+                    await self.flush_session()
+                    await self._flush_logs()
 
-        self._flush_session_loop = asyncio.create_task(_flush_session_loop())
-
-        # prepare session
-        self.opened_at = utcnow_with_tz()
-        self._runs_by_id = {}
-        self._pending_runs_by_id = {}
-        self._active_nodes_by_ck = {}
-        self._stacktrace = []
-
-        # log collection
-        self._pending_logs = []
-        self._cached_logs = deque(maxlen=LOG_CACHE_SIZE)
-        self._stdout_collector = LogCollector(self._track_log, "stdout", self)
-        self._stderr_collector = LogCollector(self._track_log, "stderr", self)
-        self._stdout_collector.start()
-        self._stderr_collector.start()
+            self._flush_session_loop = asyncio.create_task(_flush_session_loop())
+            self._runs_by_id = {}
+            self._pending_runs_by_id = {}
+            self._active_nodes_by_ck = {}
+            self._stacktrace = []
 
         # prepare local postgres
-        if self._local_pg_cursor is None:
+        if self._local_pg_cursor is None and self.package:
             pg_pool = await get_pg_connection_pool(self.package.pg_name)
             pg_connection = await pg_pool.getconn(timeout=2)
             self._local_pg_cursor = pg_connection.cursor()
 
-        self._log.debug("session.open.done")
+        self.opened_at = utcnow_with_tz()
+        logger.debug("session.open.done")
+
+    @_auto_async_to_sync
+    async def flush(self):
+        assert self.is_open, f"cannot flush {self!r} when closed"
+
+    @_auto_async_to_sync
+    async def commit(self):
+        assert self.is_open, f"cannot commit {self!r} when closed"
+
+    @_auto_async_to_sync
+    async def rollback(self):
+        assert self.is_open, f"cannot rollback {self!r} when closed"
+        raise NotImplementedError  # unclear what this should do
 
     @_auto_async_to_sync
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
-        self._log.debug("session.close")
+        logger.debug("session.close")
 
-        # close postgres connections
-        if self._global_pg_cursor:
-            await self._global_pg_cursor.connection.rollback()
-        if self._local_pg_cursor:
-            await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
-            pg_pool = await get_pg_connection_pool(self.package.pg_name)
-            await pg_pool.putconn(self._local_pg_cursor.connection)
-            self._local_pg_cursor = None
-        for pg_name, pg_cursor in self._other_local_pg_cursors.items():
-            await pg_cursor.connection.rollback()
-            pg_pool = await get_pg_connection_pool(pg_name)
-            await pg_pool.putconn(pg_cursor.connection)
+        # close transaction
+        await self.tx.close()
 
         # close session
         self.closed_at = utcnow_with_tz()
         _active_session.set(None)
-        self._stdout_collector.stop()
-        self._stderr_collector.stop()
 
-        self._flush_session_loop.cancel()
-        if self.dangling:
-            self._log.warn("session.close.dangling", dangling=self.dangling)
-        self._log.debug("session.close.done")
+        # close runtime
+        if self.is_runtime:
+            self._stdout_collector.stop()
+            self._stderr_collector.stop()
+            self._flush_session_loop.cancel()
 
-    @property
-    def has_edits(self) -> bool:
-        """Whether this session has any non-session edits."""
-        return (
-            len(self._local_edits) > 0
-            or len(self._global_edits) > 0
-            or len(self._changed_record_ids_by_base_id) > 0
-        )
-
-    @_auto_async_to_sync
-    async def flush_local(self):
-        """Flushes local Postgres edits."""
-
-        from bench.sql.engine import pg_write_record_edits, update_dynamic_local_pg_schema
-
-        # if the schema changed, also flush PG schema
-        if self._schema_changed:
-            await update_dynamic_local_pg_schema(self.package.pg_name, self.package)
-            self._schema_changed = False
-
-        edits = self._eat_edits(local=True)
-        await pg_write_record_edits(self.local_pg_cursor, edits.local_edits)
-
-    @_auto_async_to_sync
-    async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
-        """Flushes session edits."""
-
-        from bench.sql.engine import pg_write_regular_edits
-
-        edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
-        await pg_write_regular_edits(cur=self.local_pg_cursor, edits=edits.session_edits)
-
-    @_auto_async_to_sync
-    async def flush(self):
-        raise NotImplementedError
-
-    @_auto_async_to_sync
-    async def commit(self) -> ConsumedEdits:
-        """Commits package edits and syncs committed local edits to OS."""
-
-        from bench.search.engine import sync_pg_databases_to_os
-        from bench.sql.engine import pg_write_record_edits, pg_write_regular_edits
-
-        assert not self._failed_commit, f"session {self!r} is broken after failed commit"
-
-        # prepare
-        touched_databases_by_id = {**self._touched_databases_by_id}
-        edits = self._eat_edits(global_=True, local=True, session=True)
-        log = self._log.bind(
-            global_edits=edits.global_edits,
-            local_edits=len(edits.local_edits),
-            session_edits=edits.session_edits,
-            local_edits_preview=edits.local_edits[:16],
-        )
-        log.debug("session.commit")
-
-        # commit
-        try:
-            if edits.local_edits or edits.session_edits:
-                await pg_write_record_edits(
-                    cur=self.local_pg_cursor,
-                    edits=(edits.local_edits or ()) + (edits.session_edits or ()),
-                    all_databases_by_id=touched_databases_by_id,
-                )
-            if edits.global_edits:
-                if self._global_pg_cursor is not None:
-                    await pg_write_regular_edits(
-                        cur=self._global_pg_cursor, edits=edits.global_edits
-                    )
-                else:
-                    await self.host.commit_transaction(
-                        CommitTransactionRequest(edits=edits.global_edits)
-                    )
-            if self._local_pg_cursor is not None:
-                await self._local_pg_cursor.connection.commit()
-
-            if self.attached:
-                self.package._apply_edits_to_source(edits.global_edits)
-            log.debug("session.commit.done")
-        except Exception as e:
-            # 'unwind' package state, mark session as broken
-            log.exception("session.commit.failed", exc_info=True)
-            if self.package is not None:
-                self.package._reset_from_source()
-            self._failed_commit = True
-            # nocheckin: put session commit error in session & outermost run
-            raise RuntimeError(
-                f"failed to commit edits ({len(edits.global_edits or ())} global, {len(edits.local_edits or ())} local, {len(edits.session_edits or ())} session): {e}"
-            ) from e
-
-        # sync to os & notify edits to already applied local records
-        if self._changed_record_ids_by_base_id:
-            # TODO @Robustness: repair index in case of local PG/OS sync failures
-            # sync local edits to index
-            log.debug("session.commit.index")
-            changed_records: list[tuple["Block", set[UUID]]] = [
-                (self._touched_databases_by_id[block_id], record_ids)
-                for block_id, record_ids in self._changed_record_ids_by_base_id.items()
-            ]
-            await sync_pg_databases_to_os(self.package, self.local_pg_cursor, changed_records)
-            self._changed_record_ids_by_base_id.clear()
-            self._touched_databases_by_id.clear()
-
-            # publish local edits
-            await self._host.notify_databases_changed(touched_databases_by_id.values())
-
-        return edits
-
-    @_auto_async_to_sync
-    async def rollback(self):
-        raise NotImplementedError  # unclear what this should do
+        if self.pending_nodes:
+            logger.warn("session.close.dangling", dangling=self.pending_nodes)
 
     #
     # Tracking
@@ -428,88 +377,47 @@ class Session(ScopeNode):
             n._untrack_self(self)
 
     #
-    # Edits
+    # Transaction
     #
 
     def create(self, n: Node):
         """Creates a new node. Errors if the node already exists."""
         self._edit(EditType.CREATE, n=n)
 
-    def create_many(self, *nodes: Node):
-        for n in nodes:
-            self._edit(EditType.CREATE, n=n)
-
     def upsert(self, n: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         self._edit(EditType.UPSERT, n=n)
-
-    def upsert_many(self, *nodes: Node):
-        for n in nodes:
-            self._edit(EditType.UPSERT, n=n)
 
     def update(self, n: Node, properties: list[Property] | tuple[Property, ...]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if n.ck not in self._created_nodes_by_ck:
             self._edit(EditType.UPDATE, n=n, properties=properties)
 
-    def update_many(self, *nodes: Node, properties: list[Property] | tuple[Property, ...]):
-        for n in nodes:
-            if n.ck not in self._created_nodes_by_ck:
-                self._edit(EditType.UPDATE, n=n, properties=properties)
-
-    def move(self, n: Node, properties: list[Property] | tuple[Property, ...] = None):
-        """Moves and updates an existing node. Can update any properties."""
-        self._edit(EditType.MOVE, n=n, properties=properties)
-
-    def move_many(self, *nodes: Node, properties: list[Property] | tuple[Property, ...] = None):
-        for n in nodes:
-            self._edit(EditType.MOVE, n=n, properties=properties)
+    def move(self, n: Node):
+        """Moves and updates an existing node."""
+        self._edit(EditType.MOVE, n=n)
 
     def soft_delete(self, n: Node):
         """Deletes a node with the option to recover it for a limited time."""
         self._check_not_active(n)
-        self._edit(EditType.SOFT_DELETE, n=n)
-
-    def soft_delete_many(self, *nodes: Node):
-        for n in nodes:
-            self._check_not_active(n)
-            self._edit(EditType.SOFT_DELETE, n=n)
 
     def restore(self, n: Node):
         """Restore a soft deleted node."""
         self._edit(EditType.RESTORE, n=n)
-
-    def restore_many(self, *nodes: Node):
-        for n in nodes:
-            self._edit(EditType.RESTORE, n=n)
 
     def archive(self, n: Node):
         """Marks a node as archived, so it will be hidden by default."""
         self._check_not_active(n)
         self._edit(EditType.ARCHIVE, n=n)
 
-    def archive_many(self, *nodes: Node):
-        for n in nodes:
-            self._check_not_active(n)
-            self._edit(EditType.ARCHIVE, n=n)
-
     def unarchive(self, n: Node):
         """Re-track a node from the archive in its original place."""
         self._edit(EditType.UNARCHIVE, n=n)
-
-    def unarchive_many(self, *nodes: Node):
-        for n in nodes:
-            self._edit(EditType.UNARCHIVE, n=n)
 
     def delete(self, n: Node):
         """Irreversibly deletes a node."""
         self._check_not_active(n)
         self._edit(EditType.DELETE, n=n)
-
-    def delete_many(self, *nodes: Node):
-        for n in nodes:
-            self._check_not_active(n)
-            self._edit(EditType.DELETE, n=n)
 
     def _check_not_active(self, n: Node):
         """Checks if the node or any of its ancestors are active."""
@@ -521,147 +429,8 @@ class Session(ScopeNode):
         self._touched_databases_by_id[database.id] = database
         self._changed_record_ids_by_base_id[database.id].update(record_ids)
 
-    def _edit(self, kind: EditType, n: Node, properties: list[Property] = None):
-        """Register a non-session edit event to a node (local or global)."""
-        assert self.closed_at is None, f"cannot {kind.name} {n!r} in session {self!r}"
-        assert n._track & NTL.FULL, f"cannot {kind.name} untracked {n!r}"
-        assert n._session == self, f"cannot {kind.name} {n!r} in another session"
-
-        if n.metatype == NodeType.FIELD:
-            self._schema_changed = True
-
-        edits = self._local_edits if n.__is_local__ else self._global_edits
-
-        if kind in (EditType.CREATE, EditType.UPSERT):
-            self._created_nodes_by_ck[n.ck] = n
-        elif kind in (EditType.UPDATE, EditType.MOVE):
-            # merge with previous update if there is one
-            update_idx = self._updated_nodes_event_by_ck.get(n.ck)
-            if update_idx is not None:
-                for prop in properties:
-                    edits[update_idx].properties[prop.id] = True
-                return  # merged, ignore this edit
-            else:  # remember update event index
-                self._updated_nodes_event_by_ck[n.ck] = len(edits)
-
-        # create new mini-edit
-        if properties:
-            properties_mask = bitarray(n.__max_property_id__ + 1)
-            for prop in properties:
-                properties_mask[prop.id] = True
-        else:
-            properties_mask = None
-        now = utcnow_with_tz()
-        edit = EditEvent(
-            kind=kind, node=n, properties=properties_mask, started_at=now, updated_at=now
-        )
-        edits.append(edit)
-
-        if n.metatype == NodeType.RECORD:
-            n: "Record"
-            self._changed_record_ids_by_base_id[edit.node.parent_id].add(edit.node.id)
-            self._touched_databases_by_id[edit.node.parent_id] = n.parent
-        if edit.node.ck in self.session._dangling_nodes_by_ck:
-            del self.session._dangling_nodes_by_ck[edit.node.ck]
-
-    def _eat_edits(
-        self,
-        *,
-        local: bool = False,
-        session: bool = False,
-        global_: bool = False,
-        kill_pending_runs: bool = False,
-    ) -> ConsumedEdits:
-        """
-        Consumes all cached edits into proper Edits.
-        Global edits = any package edits that aren't local.
-        Local edits = any record or not-in-session session edits.
-        Session edits = any session data from this session.
-        """
-        from bench.language.database import Record
-        from bench.proto.wiring import pack_enum, pack_node, wrap_some_node
-
-        with self._tracing_lock:
-            # create local edits
-            local_edits: list[EditData] = []
-            local_seen_cks: set[UUID] = set()
-
-            if local:
-                for event in self._local_edits:
-                    properties = (
-                        event.properties.search(True) if event.properties is not None else None
-                    )
-                    edit = EditData(
-                        type=event.kind,
-                        node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
-                        node=wrap_some_node(pack_node(cast(Record, event.node))),
-                        properties=properties,
-                    )
-                    if not global_:  # not needed if including everything
-                        local_seen_cks.add(cast(Record, event.node).ck)
-                    local_edits.append(edit)
-                self._local_edits.clear()
-
-            # create global edits (if needed)
-            global_edits: list[EditData] | None = [] if global_ else None
-            if global_:
-                for event in self._global_edits:
-                    properties = (
-                        event.properties.search(True) if event.properties is not None else None
-                    )
-                    edit = EditData(
-                        type=event.kind,
-                        node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
-                        node=wrap_some_node(pack_node(event.node)),
-                        properties=properties,
-                    )
-                    global_edits.append(edit)
-                self._global_edits.clear()
-
-            # mark created nodes as no longer new
-            for node in self._created_nodes_by_ck.values():
-                node._is_new = False
-
-            # reset regular edits
-            if global_:  # just clear all
-                self._created_nodes_by_ck.clear()
-                self._updated_nodes_event_by_ck.clear()
-            else:  # clear only local seen
-                self._created_nodes_by_ck.difference_update(local_seen_cks)
-                self._updated_nodes_event_by_ck = {
-                    ck: idx
-                    for ck, idx in self._updated_nodes_event_by_ck.items()
-                    if ck not in local_seen_cks
-                }
-
-            # turn session and pending runs into session edits
-            if session and self._pending_runs_by_id:
-                runs = list(self._pending_runs_by_id.values())
-                self._pending_runs_by_id.clear()
-                if kill_pending_runs:
-                    # abort any remaining active runs
-                    for run in chain(runs, self._runs_by_id.values()):
-                        run._mark_dead_if_active()
-                session_edits: list[EditData] | None = []
-                for n in chain((self.session,), runs):
-                    node_data = pack_node(n)
-                    edit = EditData(
-                        type=EditType.UPSERT,
-                        node_type=pack_enum(NodeType, n.metatype),
-                        node=(wrap_some_node(node_data)),
-                    )
-                    session_edits.append(edit)
-            else:
-                session_edits = None
-
-        return ConsumedEdits(
-            global_edits=global_edits,
-            session_edits=session_edits,
-            local_edits=local_edits,
-        )
-
     #
-    # Session
+    # Stack: runs/logs
     #
 
     @property
@@ -680,12 +449,12 @@ class Session(ScopeNode):
         from bench.search.engine import pack_struct
         from bench.proto import wiring
 
-        with self._tracing_lock:
+        with self._runtime_tracing_lock:
             logs = self._pending_logs
             self._pending_logs = []
         if not logs:
             return
-        self._log.debug("session.write_logs", logs=len(logs))
+        logger.debug("session.write_logs", logs=len(logs))
         ops: list[dict] = []
         os_name = self.package.os_name
         logs = [wiring.pack_struct(log) for log in logs]
@@ -696,7 +465,7 @@ class Session(ScopeNode):
         if ret["errors"]:
             raise RuntimeError(f"failed to write logs: {get_os_errors(ret)}")
         await self._host.notify_logs(logs)
-        self._log.debug("session.write_logs.done", logs=len(logs))
+        logger.debug("session.write_logs.done", logs=len(logs))
 
     def _track_run(self, run: Run):
         # replace if already exists by id (runs are updated)
@@ -735,7 +504,7 @@ class Session(ScopeNode):
             block=block,
             inputs=pack_value(inputs, block, is_output=False, none_if_invalid=True),
         )
-        with self._tracing_lock:
+        with self._runtime_tracing_lock:
             self._stacktrace.append(run)
             self._update_stacktrace_ancestors()
             _set_active_run(run)
@@ -763,7 +532,7 @@ class Session(ScopeNode):
             self._run_exception(block, e)
             raise e
 
-        with self._tracing_lock:
+        with self._runtime_tracing_lock:
             run = self._pop_stacktrace()
             assert run.block == block, f"bad stack in {self!r}: {run!r} got {block!r}"
             run.terminated_at = utcnow_with_tz()
@@ -777,7 +546,7 @@ class Session(ScopeNode):
 
     def _run_exception(self, block: "Block", exception: BaseException):
         assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
-        with self._tracing_lock:
+        with self._runtime_tracing_lock:
             run = self._pop_stacktrace()
             assert run.block == block, f"bad stack in {self!r}: {run!r} got {block!r}"
             run.terminated_at = utcnow_with_tz()
@@ -815,7 +584,7 @@ class Session(ScopeNode):
         custom_value = _custom_value.get()
         for k, v in (custom_value or {}).items():
             run.value[k] = v
-        with self._tracing_lock:
+        with self._runtime_tracing_lock:
             self._track_run(run)
             self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
@@ -867,9 +636,9 @@ class Session(ScopeNode):
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else None,
             _track=NodeTrackingLevel.NONE,
-            _session=UNSET,  # ensure run isn't validated/tracked in session
+            _session=UNSET,  # ensure run isn't validated/tracked in active session
         )
-        run._session = None  # reset to None so it can be trackd
+        run._session = None  # reset to None so it can be tracked
         # we track session nodes manually :ManualSessionTracking
         parent.runs.append(run, _trigger=_NC.Ignore, _create=False)
         custom_value = _custom_value.get()
@@ -882,6 +651,9 @@ class Session(ScopeNode):
         return run
 
 
+#
+# Log collection
+# (will obviously move out soon)
 # TODO @Performance!: revamp contextual stdout/stderr capture
 
 stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)

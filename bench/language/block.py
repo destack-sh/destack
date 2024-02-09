@@ -3,11 +3,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.code_ import HasCode
-from bench.language.const import BlockType, NodeType, StructType
+from bench.language.const import BlockType, NodeType, StructType, BlockMode, NodeVisibility
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
-from bench.language.model import HasModel
 from bench.language.node import (
     Node,
     NodeList,
@@ -20,6 +18,7 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_regular,
+    p_system,
 )
 from bench.language.run import HasRun
 from bench.language.tag import HasTags
@@ -32,26 +31,11 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Badge, Package, Policy, TypeInfo, RichText, Icon
+    from bench.language import Badge, Package, Policy, TypeInfo, RichText, Icon, Code
 
 
 @node_component
 class IsInstantiable(Node):
-    def prune(self, *args, **kwargs) -> Any:
-        from bench.language.value import check_type
-
-        assert self.type == BlockType.CLASS, f"{self!r} is not a class"
-        combined = {}
-        for field, arg in zip(self.fields, args):
-            combined[field.py_ident] = arg
-        for field in self.fields:
-            if field.name in kwargs:
-                combined[field.py_ident] = kwargs[field.name]
-            elif field.py_ident in kwargs:
-                combined[field.py_ident] = kwargs[field.py_ident]
-        check_type(combined, self)
-        return TypedDict(combined, self)
-
     def _call_inner(self, *args, **kwargs) -> Any:
         if self.type == BlockType.CLASS:
             from bench.language.value import check_type
@@ -88,18 +72,18 @@ IdentT = IdentifierType
 
 _block = _BlockTypeDescriptor
 _block(BlockType.PAGE, (HasFields,), IdentT.VARIABLE)
-_block(BlockType.TAG, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.TAG, (HasFields,), IdentT.TYPE)
 _block(BlockType.TEXT, (), IdentT.VARIABLE)
 _block(BlockType.BLANK, (), IdentT.VARIABLE)
 _block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
 _block(BlockType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
 _block(BlockType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
 _block(BlockType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
+_block(BlockType.PROTOCOL, (HasFields,), IdentT.TYPE)
 _block(BlockType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
-_block(BlockType.ROUTINE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
-_block(BlockType.SCRIPT, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_block(BlockType.ROUTINE, (HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_block(BlockType.SCRIPT, (HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
 _block(BlockType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
-_block(BlockType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _block(BlockType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.TYPE)
@@ -128,23 +112,21 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Block(ScopeNode, HasTags):
-    """A core Bench building block containing logic, types, UI, data, AI, and basically anything source."""
+    """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
     children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
 
+    # core
     type: BlockType = p_internal(30, default=BlockType.BLANK)
-    # visibility: NodeVisibility = p_regular(31, default=NodeVisibility.PACKAGE)
-    policies: list["Policy"] | None = p_regular(32, default=None, struct=StructType.POLICY)
+    mode: BlockMode = p_regular(31, default=BlockMode.INLINE)
+    visibility: NodeVisibility = p_regular(32, default=NodeVisibility.ALL)
+    policies: list["Policy"] | None = p_regular(33, default=None, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(
-        33, default=None, require=False, array=True, references=NodeType.BLOCK
+        34, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = p_regular(34, default=None, struct=StructType.TYPE_INFO)
-    is_page: bool = p_regular(35, default=False)
-    is_module: bool = p_regular(36, default=False)
-    is_unique_name: bool = p_regular(37, default=False)
-    # is_protocol?
+    builtin_base: Optional["TypeInfo"] = p_regular(35, default=None, struct=StructType.TYPE_INFO)
 
     # shared
     name: str | None = p_regular(40, default=None, validate=validate_name)
@@ -165,7 +147,9 @@ class Block(ScopeNode, HasTags):
         copy=deepcopy,
         primitive_type=PrimitiveType.JSON,
     )
-    code: str | None = p_regular(46, default=None)
+    code: Optional["Code"] = p_regular(
+        46, default=None, require=False, array=False, struct=StructType.CODE
+    )
     icon: Optional["Icon"] = p_regular(
         47, default=None, require=False, array=False, struct=StructType.ICON
     )
@@ -177,6 +161,14 @@ class Block(ScopeNode, HasTags):
     delegated_policies: list["Policy"] | None = p_regular(
         51, default_factory=list, struct=StructType.POLICY
     )
+
+    # flags
+    is_unique: bool = p_regular(60, default=False)  # unique by name in module
+    is_intrinsic: bool = p_system(61, default=False)  # provided by the system
+    is_protocol: bool = p_regular(62, default=False)  # has a protocol
+    is_method: bool = p_regular(63, default=False)  # bound to instance (has access to 'self')
+    is_paused: bool = p_regular(64, default=False)  # triggers below (incl.) block are paused
+    # is_frozen (read-only in instances of template)?
 
     @staticmethod
     def new(

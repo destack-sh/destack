@@ -519,9 +519,9 @@ export interface CommitPreparedTransactionRequest {
 export interface CommitPreparedTransactionResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.RollbackPreparedTransactionRequest
+ * @generated from protobuf message symbolx.bench.CancelPreparedTransactionRequest
  */
-export interface RollbackPreparedTransactionRequest {
+export interface CancelPreparedTransactionRequest {
     /**
      * scope
      *
@@ -540,9 +540,9 @@ export interface RollbackPreparedTransactionRequest {
     transactionId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.RollbackPreparedTransactionResponse
+ * @generated from protobuf message symbolx.bench.CancelPreparedTransactionResponse
  */
-export interface RollbackPreparedTransactionResponse {
+export interface CancelPreparedTransactionResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.NotifyEditsRequest
@@ -2435,22 +2435,22 @@ class CommitPreparedTransactionResponse$Type extends MessageType<CommitPreparedT
  */
 export const CommitPreparedTransactionResponse = new CommitPreparedTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RollbackPreparedTransactionRequest$Type extends MessageType<RollbackPreparedTransactionRequest> {
+class CancelPreparedTransactionRequest$Type extends MessageType<CancelPreparedTransactionRequest> {
     constructor() {
-        super("symbolx.bench.RollbackPreparedTransactionRequest", [
+        super("symbolx.bench.CancelPreparedTransactionRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<RollbackPreparedTransactionRequest>): RollbackPreparedTransactionRequest {
+    create(value?: PartialMessage<CancelPreparedTransactionRequest>): CancelPreparedTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.transactionId = "";
         if (value !== undefined)
-            reflectionMergePartial<RollbackPreparedTransactionRequest>(this, message, value);
+            reflectionMergePartial<CancelPreparedTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RollbackPreparedTransactionRequest): RollbackPreparedTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelPreparedTransactionRequest): CancelPreparedTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2475,7 +2475,7 @@ class RollbackPreparedTransactionRequest$Type extends MessageType<RollbackPrepar
         }
         return message;
     }
-    internalBinaryWrite(message: RollbackPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CancelPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
@@ -2492,24 +2492,24 @@ class RollbackPreparedTransactionRequest$Type extends MessageType<RollbackPrepar
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RollbackPreparedTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.CancelPreparedTransactionRequest
  */
-export const RollbackPreparedTransactionRequest = new RollbackPreparedTransactionRequest$Type();
+export const CancelPreparedTransactionRequest = new CancelPreparedTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RollbackPreparedTransactionResponse$Type extends MessageType<RollbackPreparedTransactionResponse> {
+class CancelPreparedTransactionResponse$Type extends MessageType<CancelPreparedTransactionResponse> {
     constructor() {
-        super("symbolx.bench.RollbackPreparedTransactionResponse", []);
+        super("symbolx.bench.CancelPreparedTransactionResponse", []);
     }
-    create(value?: PartialMessage<RollbackPreparedTransactionResponse>): RollbackPreparedTransactionResponse {
+    create(value?: PartialMessage<CancelPreparedTransactionResponse>): CancelPreparedTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<RollbackPreparedTransactionResponse>(this, message, value);
+            reflectionMergePartial<CancelPreparedTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RollbackPreparedTransactionResponse): RollbackPreparedTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelPreparedTransactionResponse): CancelPreparedTransactionResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: RollbackPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CancelPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2517,9 +2517,9 @@ class RollbackPreparedTransactionResponse$Type extends MessageType<RollbackPrepa
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RollbackPreparedTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.CancelPreparedTransactionResponse
  */
-export const RollbackPreparedTransactionResponse = new RollbackPreparedTransactionResponse$Type();
+export const CancelPreparedTransactionResponse = new CancelPreparedTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class NotifyEditsRequest$Type extends MessageType<NotifyEditsRequest> {
     constructor() {
@@ -3869,7 +3869,7 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
     { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
-    { name: "RollbackPreparedTransaction", options: {}, I: RollbackPreparedTransactionRequest, O: RollbackPreparedTransactionResponse },
+    { name: "CancelPreparedTransaction", options: {}, I: CancelPreparedTransactionRequest, O: CancelPreparedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
@@ -3882,7 +3882,7 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
     { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
-    { name: "RollbackPreparedTransaction", options: {}, I: RollbackPreparedTransactionRequest, O: RollbackPreparedTransactionResponse },
+    { name: "CancelPreparedTransaction", options: {}, I: CancelPreparedTransactionRequest, O: CancelPreparedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "NotifyEdits", options: {}, I: NotifyEditsRequest, O: NotifyEditsResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },

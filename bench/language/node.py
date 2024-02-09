@@ -1072,12 +1072,12 @@ def struct_component(
 def struct(
     struct_type: StructType,
     reserved: set[str | int] = None,
-    index_in_os: bool = False,
+    index_in_search: bool = False,
     identifier: IdentifierType | None = None,
 ):
     def decorate(cls):
         cls = struct_component(cls, struct_type=struct_type, reserved=reserved, is_final=True)
-        cls.__is_indexed_in_os__ = index_in_os
+        cls.__is_indexed_in_search__ = index_in_search
         cls.__identifier_type__ = identifier
         return cls
 
@@ -1154,7 +1154,7 @@ def node(
     dynamic_components: tuple[type["Node"], ...] = (),
     stored: bool = True,
     stored_custom: bool = False,
-    index_in_os: bool = False,
+    index_in_search: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     reserved: set[str | int] = None,
@@ -1183,7 +1183,7 @@ def node(
         )
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
-        cls.__is_indexed_in_os__ = index_in_os
+        cls.__is_indexed_in_search__ = index_in_search
         cls.__is_local__ = local
         cls.__identifier_type__ = identifier
 
@@ -1401,7 +1401,7 @@ class Struct(abc.ABC):
     __max_property_id__: ClassVar[int] = None
     __properties_mask__: ClassVar[bitarray] = None
 
-    __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
+    __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
     _status: NodeStatus = p_runtime(default=None)
 
@@ -1630,9 +1630,9 @@ class Node(Struct, _NodeExpressionBase):
     __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_sub_package__: ClassVar[bool] = UNSET  # part of a Package (excludes Package itself)
-    __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
-    __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
-    __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
+    __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
+    __is_stored_custom__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
     __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
     __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG
@@ -1645,9 +1645,10 @@ class Node(Struct, _NodeExpressionBase):
     parent: Optional["Node"] = p_parent(4)
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
-    # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
-    bench: "Bench" = p_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
-    source: NodeSource = p_system(9, default=NodeSource.PERSISTED, store=False, require=True)
+    bench: "Bench" = p_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
+    # source: NodeSource = p_system(
+    #     8, default=NodeSource.PERSISTED, store=False, wire=True, require=True
+    # )
 
     # 10-29: reserved for node tracking
     revision: int = p_system(10, default=0, require=True, primitive_type=PrimitiveType.INT64)
@@ -1672,7 +1673,7 @@ class Node(Struct, _NodeExpressionBase):
     _status: NodeStatus = p_runtime(default=None)
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
     _is_new: bool = p_runtime(default=False)
-    _deferred_properties: tuple[str, ...] | None = p_runtime(default=None)
+    _deferred_properties: tuple[Property, ...] | None = p_runtime(default=None)
 
     def __post_init__(self):
         # init ck/id
@@ -1752,10 +1753,19 @@ class Node(Struct, _NodeExpressionBase):
             ident_str = str(self.id)
         if content_str:
             content_str = f" ({content_str})"
-        if self.__parent_property__ is None:
-            return f"'{ident_str}'{content_str}"
+        if self.archived_at is not None:
+            if self.deleted_at is not None:
+                status_str = " [archived, soft deleted]"
+            else:
+                status_str = " [archived]"
+        elif self.deleted_at is not None:
+            status_str = " [soft deleted]"
         else:
-            return f"'{self.absolute_path}'{content_str}"
+            status_str = ""
+        if self.__parent_property__ is None:
+            return f"'{ident_str}'{content_str}{status_str}"
+        else:
+            return f"'{self.absolute_path}'{content_str}{status_str}"
 
     @final
     def __repr__(self):  # noqa: override the default __repr__ for nodes
@@ -1771,6 +1781,14 @@ class Node(Struct, _NodeExpressionBase):
             return self.parent is not None
         else:
             return True
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None
+
+    @property
+    def is_soft_deleted(self) -> bool:
+        return self.deleted_at is not None
 
     @property
     def scope(self) -> Optional["ScopeNode"]:
@@ -1873,6 +1891,7 @@ class Node(Struct, _NodeExpressionBase):
         return hash(self.id)
 
     def __setattr__(self, key, value):
+        """Sets *any* attribute on this node."""
         if self._status != NS.TRACKED:
             return object.__setattr__(self, key, value)
 
@@ -1903,13 +1922,12 @@ class Node(Struct, _NodeExpressionBase):
             self._updated_self((prop,))
             return
 
-        if self._session is not None:
-            # while in a session: also try first full passthrough target (if any)
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    setattr(target, key, value)
-                    return  # success
+        # while in a session: also try first full passthrough target (if any)
+        for target, mode in self.__passthrough_targets__:
+            target = getattr(self, target)
+            if mode == _Passthrough.Full:
+                setattr(target, key, value)
+                return  # success
 
         # report set error with additional info
         candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
@@ -2307,7 +2325,7 @@ class Bench(ScopeNode):
         30, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_child(NodeType.HANDLE)
-    slug: str = p_system(31, unique=True)
+    slug: str = p_system(31, unique=True)  # must match main handle
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(
         33, require=False, array=False, struct=StructType.RICH_TEXT

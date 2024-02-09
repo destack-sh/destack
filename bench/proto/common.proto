@@ -50,6 +50,6 @@ message EditData {
 
 // Transaction of edits to a Node.
 message TransactionData {
-  optional string id = 1;
+  string id = 1;
   repeated EditData edits = 2;
 }

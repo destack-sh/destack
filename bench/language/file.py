@@ -8,15 +8,11 @@ import aiohttp
 import requests
 import structlog
 
-from bench.language.const import FileStatus, NodeType, PrimitiveType, StructType, active_session
+from bench.language.const import FileStatus, NodeType, StructType, active_session
 from bench.language.node import (
-    Bench,
-    Node,
     Property,
     Struct,
-    node,
     p_internal,
-    p_parent,
     p_regular,
     p_runtime,
     struct,
@@ -43,11 +39,11 @@ class File(Struct):
     sha512: Optional[str] = p_internal(30)
     content_length: Optional[int] = p_internal(31)
     content_type: Optional[str] = p_internal(32)
-    name: str = p_regular(33)
+    name: Optional[str] = p_regular(33)
     content: Optional["FileContent"] = p_internal(
         34, require=False, array=False, references=NodeType.FILE_CONTENT
     )
-    status: FileStatus = p_internal(35, default=FileStatus.PENDING)
+    external_url: Optional[str] = p_internal(35)
 
     _cached_bytes: Optional[bytes] = p_runtime(default=None)
 

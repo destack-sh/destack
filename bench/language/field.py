@@ -13,6 +13,7 @@ from bench.language.const import (
     NodeType,
     StructType,
     new_dynamic_node_key,
+    NodeVisibility,
 )
 from bench.language.node import (
     Node,
@@ -110,7 +111,7 @@ class TypeInfo(Struct):
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     # + bonus info/constraints
-    # visibility: NodeVisibility = struct_property(43, default=NodeVisibility.PUBLIC)
+    visibility: NodeVisibility = p_regular(43, default=NodeVisibility.ALL)
     format_hint: Optional[FormatHint] = p_regular(44, default=None)
     condition: Optional["Expression"] = p_regular(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -119,7 +120,7 @@ class TypeInfo(Struct):
     precision: Optional[int] = p_regular(47, require=False, default=None)
     scale: Optional[int] = p_regular(48, require=False, default=None)
     # default for this type :GeneralizeHasValue
-    # default: Optional[Any] = struct_property(
+    # default_packed: Optional[Any] = p_regular(
     #     49, require=False, default=None, primitive_type=PrimitiveType.JSON
     # )
 
@@ -128,7 +129,7 @@ class TypeInfo(Struct):
     is_required: bool = p_regular(51, default=False)
     is_secret: bool = p_regular(52, default=False)
 
-    # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
+    # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
     _fields: tuple["Field", ...] | None = p_runtime(default=None)
     _resolved_type: Optional["TypeInfo"] = p_runtime(default=None)
 

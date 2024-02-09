@@ -132,7 +132,7 @@ class Role(Node):
 @node(NodeType.IDENTITY)
 class Identity(ScopeNode):
     """
-    Attach an identity to a block,  member or user.
+    Attach an identity to a block, member or user (only the user itself can do that).
     Identity policies are delegated to the parent and its descendants.
     The delegated policies apply to all descendant's accesses.
     """
@@ -514,29 +514,30 @@ class Subject(Struct):
 
     is_authenticated: Optional[bool] = p_system(30, default=None)
     is_staff: Optional[bool] = p_system(31, default=None)
+    is_system: Optional[bool] = p_system(32, default=None)
     # (Client isn't a separate subject but useful to know)
     client: Optional["Client"] = p_system(
-        32, default=None, require=False, array=False, references=NodeType.CLIENT
+        40, default=None, require=False, array=False, references=NodeType.CLIENT
     )
     user: Optional["User"] = p_system(
-        34, default=None, require=False, array=False, references=NodeType.USER
+        41, default=None, require=False, array=False, references=NodeType.USER
     )
     identity: Optional["Identity"] = p_system(
-        35, default=None, require=False, array=False, references=NodeType.IDENTITY
+        42, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
     badge: Optional["Badge"] = p_system(
-        36, default=None, require=False, array=False, references=NodeType.BADGE
+        43, default=None, require=False, array=False, references=NodeType.BADGE
     )
     owned: list[Owner] = p_system(
-        37,
+        44,
         array=True,
         require=False,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
     memberships: list[Union["Bench", "Organization"]] = p_system(
-        38, require=False, array=True, references=NodeType.MEMBERSHIP
+        45, require=False, array=True, references=NodeType.MEMBERSHIP
     )
-    roles: list["Role"] = p_system(39, require=False, array=True, references=NodeType.ROLE)
+    roles: list["Role"] = p_system(46, require=False, array=True, references=NodeType.ROLE)
 
     def split_into_acting_subjects(self, tree: NodeDataTree) -> tuple["Subject", ...]:
         """
@@ -675,8 +676,9 @@ class Request(Struct):
     decision: PolicyEffect = p_system(31, require=True)
     accesses: list[Access] = p_system(32, array=True, require=True, struct=StructType.REQUEST)
 
-    # scope
+    # scope/context
     # bench, package, space, user, ...
+    transaction_id: Optional[UUID] = p_system(40, require=False, default=None)
 
     def __content_str__(self) -> str:
         return f"{self.decision.bench_name} [{self.subject}]: ({', '.join(str(r) for r in self.accesses)})"

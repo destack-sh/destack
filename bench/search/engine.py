@@ -348,7 +348,7 @@ HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)
 TEXT_FIELD = HTML_FIELD
 
 
-def _is_property_indexed_in_os(prop: Property) -> bool:
+def _is_property_indexed_in_search(prop: Property) -> bool:
     return prop.is_stored and not prop.is_encrypted and not prop.is_deferred
 
 
@@ -358,7 +358,7 @@ def map_struct_type_to_os_document(
     fields: dict[str, os.Field] = {}
 
     for prop in struct.__stored_properties__.values():
-        if not _is_property_indexed_in_os(prop):
+        if not _is_property_indexed_in_search(prop):
             continue
         if prop.is_enum:
             field = os.Field(os.FieldType.KEYWORD)
@@ -386,7 +386,7 @@ def map_struct_type_to_os_document(
 LOCAL_DOCUMENTS: tuple[os.Document, ...] = tuple(
     map_struct_type_to_os_document(struct)
     for struct in BENCH_CLASS_BY_TYPE.values()
-    if struct.__is_indexed_in_os__
+    if struct.__is_indexed_in_search__
 )
 
 
@@ -425,7 +425,7 @@ def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     document: dict[str, Any] = {TYPE_DISCRIMINATOR_KEY: metatype.name}
     for prop in bench_cls.__stored_properties__.values():
-        if not _is_property_indexed_in_os(prop):
+        if not _is_property_indexed_in_search(prop):
             continue
         value = getattr(node, prop.name)
         document[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
@@ -438,7 +438,7 @@ def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]
     proto_kwargs = {}
     for prop in bench_cls.__stored_properties__.values():
-        if not _is_property_indexed_in_os(prop):
+        if not _is_property_indexed_in_search(prop):
             continue
         value = source.get(prop.name)
         proto_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
@@ -764,7 +764,7 @@ async def os_write_edits(module: Package, edits: list[EditData], *, refresh: boo
         metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
         node_cls = BENCH_CLASS_BY_TYPE[metatype]
         index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
-        if not node_cls.__is_indexed_in_os__:
+        if not node_cls.__is_indexed_in_search__:
             continue  # ignore
         elif edit.type.type in (
             EditType.CREATE,
