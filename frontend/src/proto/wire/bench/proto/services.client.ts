@@ -49,8 +49,8 @@ import type { AggregateNodesResponse } from "./services";
 import type { AggregateNodesRequest } from "./services";
 import type { SearchNodesResponse } from "./services";
 import type { SearchNodesRequest } from "./services";
-import type { ReadNodesResponse } from "./services";
-import type { ReadNodesRequest } from "./services";
+import type { GetNodesResponse } from "./services";
+import type { GetNodesRequest } from "./services";
 import type { CreateBenchResponse } from "./services";
 import type { CreateBenchRequest } from "./services";
 import type { LogoutUserResponse } from "./services";
@@ -117,9 +117,9 @@ export interface ISupervisorClient {
     /**
      * Get global nodes.
      *
-     * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse>;
     /**
      * Search global nodes.
      *
@@ -236,11 +236,11 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     /**
      * Get global nodes.
      *
-     * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse> {
         const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<GetNodesRequest, GetNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Search global nodes.
@@ -319,11 +319,11 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
  */
 export interface IBenchHostClient {
     /**
-     * Reads local or global nodes.
+     * Reads local nodes.
      *
-     * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse>;
     /**
      * Searches nodes using filters.
      *
@@ -469,13 +469,13 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Reads local or global nodes.
+     * Reads local nodes.
      *
-     * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<GetNodesRequest, GetNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Searches nodes using filters.

@@ -17,6 +17,7 @@ from bench.language.const import IN_PACKAGE_NODE_TYPES, SUB_BENCH_NODE_TYPES, No
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Bench, Package
+from bench.language.query import QueryBuilder
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -39,8 +40,8 @@ from bench.proto.wire import (
     NotifyServerLogsRequest,
     PrepareTransactionRequest,
     PrepareTransactionResponse,
-    ReadNodesRequest,
-    ReadNodesResponse,
+    GetNodesRequest,
+    GetNodesResponse,
     RunProxyBlockRequest,
     RunProxyBlockResponse,
     SearchLogsRequest,
@@ -56,7 +57,7 @@ from bench.proto.wire import (
     WatchLogsRequest,
     WatchLogsResponse,
 )
-from bench.sql.engine import pg_read_node
+from bench.sql.engine import pg_get_node
 from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
 from bench.utils.func import to_uuid
 
@@ -166,14 +167,14 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
 
     async def start_quick(self) -> None:
         async with detached_session() as session:
-            self._bench: Bench = await pg_read_node(
+            self._bench: Bench = await pg_get_node(
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
                 options=ReadOptions(related_properties=(Bench.owner, Bench.head)),
             )
             self._owner = self._bench.owner
-            # self._package: Package = await pg_read_node(
+            # self._package: Package = await pg_get_node(
             #     session=session,
             #     root_type=NodeType.PACKAGE,
             #     root_id=self.package_id,
@@ -185,9 +186,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     # General IO for this Bench :BenchIO
     #
 
-    async def read_nodes(
-        self, subject: Subject, request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
         if any(root.type not in SUB_BENCH_NODE_TYPES for root in roots):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
@@ -208,14 +207,15 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort
         ] or None
-
-        if request.node_type == NodeType.RECORD:
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        else:
-            # we don't support generic server-side 'node search' yet
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot search {request.node_type}")
+        query = QueryBuilder(
+            node_type=node_type,
+            filter=filter,
+            sort=sort,
+            options=adapted_options,
+            first=request.first,
+            skip=request.skip,
+        )
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def aggregate_nodes(
         self, subject: Subject, request: "AggregateNodesRequest"
@@ -229,13 +229,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         ] or None
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation, self._package)
 
-        if request.node_type == NodeType.RECORD:
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        elif request.node_type in (NodeType.SESSION, NodeType.RUN, NodeType.PAUSE):
-            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        else:
-            # we don't support generic server-side 'node search' yet
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot aggregate {request.node_type}")
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"

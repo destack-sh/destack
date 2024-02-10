@@ -83,7 +83,7 @@ message CreateBenchResponse {
   uint64 epoch = 2;
 }
 
-message ReadNodesRequest {
+message GetNodesRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
@@ -91,7 +91,7 @@ message ReadNodesRequest {
   repeated NodeReferenceData roots = 5;
   optional ReadOptionsData options = 6;
 }
-message ReadNodesResponse {
+message GetNodesResponse {
   repeated SomeNodeData nodes = 1;
   optional AccessMatrixData access = 2;
   uint64 epoch = 3;
@@ -106,10 +106,11 @@ message SearchNodesRequest {
   repeated NodeReferenceData bases = 6;
   optional ExpressionData filter = 7;
   repeated ExpressionData sort = 8;
-  optional int32 limit = 9;
-  optional string after = 10;
-  optional ReadOptionsData options = 11;
-  optional bool count = 12;
+  optional int32 first = 9;
+  optional int32 skip = 10;
+  optional string after = 11;
+  optional ReadOptionsData options = 12;
+  optional bool count = 13;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -244,7 +245,7 @@ service Supervisor {
   //
 
   // Get global nodes.
-  rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   // Search global nodes.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Aggregate global nodes.
@@ -336,8 +337,8 @@ service BenchHost {
   // General IO for nodes in this Bench only :BenchIO
   //
 
-  // Reads local or global nodes.
-  rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+  // Reads local nodes.
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   // Searches nodes using filters.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Aggregate nodes into statistics.

@@ -247,9 +247,9 @@ export interface CreateBenchResponse {
     epoch: bigint;
 }
 /**
- * @generated from protobuf message symbolx.bench.ReadNodesRequest
+ * @generated from protobuf message symbolx.bench.GetNodesRequest
  */
-export interface ReadNodesRequest {
+export interface GetNodesRequest {
     /**
      * scope
      *
@@ -272,9 +272,9 @@ export interface ReadNodesRequest {
     options?: ReadOptionsData;
 }
 /**
- * @generated from protobuf message symbolx.bench.ReadNodesResponse
+ * @generated from protobuf message symbolx.bench.GetNodesResponse
  */
-export interface ReadNodesResponse {
+export interface GetNodesResponse {
     /**
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
@@ -321,19 +321,23 @@ export interface SearchNodesRequest {
      */
     sort: ExpressionData[];
     /**
-     * @generated from protobuf field: optional int32 limit = 9;
+     * @generated from protobuf field: optional int32 first = 9;
      */
-    limit?: number;
+    first?: number;
     /**
-     * @generated from protobuf field: optional string after = 10;
+     * @generated from protobuf field: optional int32 skip = 10;
+     */
+    skip?: number;
+    /**
+     * @generated from protobuf field: optional string after = 11;
      */
     after?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 11;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 12;
      */
     options?: ReadOptionsData;
     /**
-     * @generated from protobuf field: optional bool count = 12;
+     * @generated from protobuf field: optional bool count = 13;
      */
     count?: boolean;
 }
@@ -1631,23 +1635,23 @@ class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
  */
 export const CreateBenchResponse = new CreateBenchResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
+class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
     constructor() {
-        super("symbolx.bench.ReadNodesRequest", [
+        super("symbolx.bench.GetNodesRequest", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 6, name: "options", kind: "message", T: () => ReadOptionsData }
         ]);
     }
-    create(value?: PartialMessage<ReadNodesRequest>): ReadNodesRequest {
+    create(value?: PartialMessage<GetNodesRequest>): GetNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.roots = [];
         if (value !== undefined)
-            reflectionMergePartial<ReadNodesRequest>(this, message, value);
+            reflectionMergePartial<GetNodesRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadNodesRequest): ReadNodesRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetNodesRequest): GetNodesRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -1675,7 +1679,7 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: ReadNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: GetNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
@@ -1695,27 +1699,27 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ReadNodesRequest
+ * @generated MessageType for protobuf message symbolx.bench.GetNodesRequest
  */
-export const ReadNodesRequest = new ReadNodesRequest$Type();
+export const GetNodesRequest = new GetNodesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
+class GetNodesResponse$Type extends MessageType<GetNodesResponse> {
     constructor() {
-        super("symbolx.bench.ReadNodesResponse", [
+        super("symbolx.bench.GetNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "access", kind: "message", T: () => AccessMatrixData },
             { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
+    create(value?: PartialMessage<GetNodesResponse>): GetNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
         message.epoch = 0n;
         if (value !== undefined)
-            reflectionMergePartial<ReadNodesResponse>(this, message, value);
+            reflectionMergePartial<GetNodesResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadNodesResponse): ReadNodesResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetNodesResponse): GetNodesResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -1740,7 +1744,7 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: ReadNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: GetNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.SomeNodeData nodes = 1; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -1757,9 +1761,9 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ReadNodesResponse
+ * @generated MessageType for protobuf message symbolx.bench.GetNodesResponse
  */
-export const ReadNodesResponse = new ReadNodesResponse$Type();
+export const GetNodesResponse = new GetNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
@@ -1770,10 +1774,11 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 6, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 7, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 8, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 9, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 10, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 11, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 12, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 9, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 10, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 11, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 12, name: "options", kind: "message", T: () => ReadOptionsData },
+            { no: 13, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1808,16 +1813,19 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* repeated symbolx.bench.ExpressionData sort */ 8:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 limit */ 9:
-                    message.limit = reader.int32();
+                case /* optional int32 first */ 9:
+                    message.first = reader.int32();
                     break;
-                case /* optional string after */ 10:
+                case /* optional int32 skip */ 10:
+                    message.skip = reader.int32();
+                    break;
+                case /* optional string after */ 11:
                     message.after = reader.string();
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 11:
+                case /* optional symbolx.bench.ReadOptionsData options */ 12:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
-                case /* optional bool count */ 12:
+                case /* optional bool count */ 13:
                     message.count = reader.bool();
                     break;
                 default:
@@ -1850,18 +1858,21 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* repeated symbolx.bench.ExpressionData sort = 8; */
         for (let i = 0; i < message.sort.length; i++)
             ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(8, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 limit = 9; */
-        if (message.limit !== undefined)
-            writer.tag(9, WireType.Varint).int32(message.limit);
-        /* optional string after = 10; */
+        /* optional int32 first = 9; */
+        if (message.first !== undefined)
+            writer.tag(9, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 10; */
+        if (message.skip !== undefined)
+            writer.tag(10, WireType.Varint).int32(message.skip);
+        /* optional string after = 11; */
         if (message.after !== undefined)
-            writer.tag(10, WireType.LengthDelimited).string(message.after);
-        /* optional symbolx.bench.ReadOptionsData options = 11; */
+            writer.tag(11, WireType.LengthDelimited).string(message.after);
+        /* optional symbolx.bench.ReadOptionsData options = 12; */
         if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool count = 12; */
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool count = 13; */
         if (message.count !== undefined)
-            writer.tag(12, WireType.Varint).bool(message.count);
+            writer.tag(13, WireType.Varint).bool(message.count);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3863,7 +3874,7 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
     { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
     { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
-    { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
+    { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
@@ -3876,7 +3887,7 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
  * @generated ServiceType for protobuf service symbolx.bench.BenchHost
  */
 export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
-    { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
+    { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },

@@ -23,17 +23,11 @@ import structlog
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
+from bench.language import Block, ConditionalOp, Field, Package, QueryEngineType, Session, TypeInfo
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
-from bench.language.expression import (
-    TYPE_DISCRIMINATOR_KEY,
-    C,
-    Expression,
-    ExpressionOps,
-    QueryEngineIncapableError,
-)
+from bench.language.expression import TYPE_DISCRIMINATOR_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -450,7 +444,7 @@ def compile_pg_conditional(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise QueryEngineIncapableError(QueryEngine.LOCAL_POSTGRES, cond, "unsupported conditional")
+    raise QueryEngineIncapableError(QueryEngineType.LOCAL_STORE, cond, "unsupported conditional")
 
 
 def compile_pg_sort(database: Block, sort: Expression) -> SqlNode:
@@ -1174,10 +1168,10 @@ async def pg_select_nodes_data(
     return PgSelectNodesDataResult(nodes_data, cursors, after)
 
 
-async def pg_read_node_data_graph(
+async def pg_get_node_data_graph(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
-    root_ids: tuple[UUID, ...],
+    roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
     options: ReadOptions,
     _graph: NodeDataGraph | None = None,
 ) -> NodeDataGraph | None:
@@ -1188,23 +1182,33 @@ async def pg_read_node_data_graph(
 
     visited_graph = _graph if _graph is not None else NodeDataGraph()
 
-    # select "roots"
-    root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=root_ids))
-    roots = await pg_select_nodes_data(
-        cur=cur,
-        node_type=root_type,
-        filter=root_filter,
-        properties=options.select(root_type),
-    )
-    if not roots.nodes:
-        return None
-    for node in roots.nodes:
+    if not roots:
+        return visited_graph
+
+    if isinstance(roots[0], UUID):
+        # select "roots"
+        root_filter = options.filter(
+            root_type, C(ConditionalOp.IN, property=Node.id, value=tuple(r.id for r in roots))
+        )
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=root_type,
+            filter=root_filter,
+            properties=options.select(root_type),
+        )
+        if not roots.nodes:
+            return None
+        root_nodes = roots.nodes
+    else:
+        root_nodes = cast(tuple[AnyNodeData, ...], roots)
+
+    for node in root_nodes:
         visited_graph.add(node)
 
     # select ancestors (recursively)
     # (basically, walk parent pointer if type is in ancestor_types)
     if options.ancestor_types:
-        current_parents: list[wire.AnyNodeData] = roots.nodes
+        current_parents: list[wire.AnyNodeData] = root_nodes
         to_select_by_type: dict[NodeType, list[str]] = defaultdict(list)
         while current_parents:
             to_select_by_type.clear()
@@ -1239,7 +1243,7 @@ async def pg_read_node_data_graph(
     # nocheckin @Performance!: recurse read nodes up?/down in SQL
     #  (take advantage of the ancestry graph to optimize this)
     if options.descendant_types:
-        current_parents: list[wire.AnyNodeData] = roots.nodes
+        current_parents: list[wire.AnyNodeData] = root_nodes
         while current_parents:
             next_parents: list[wire.AnyNodeData] = []
             # traverse all direct children of plausible types
@@ -1308,10 +1312,10 @@ async def pg_search_nodes_data_graph(
         )
         if not roots.nodes:
             return roots, NodeDataGraph()
-        graph = await pg_read_node_data_graph(
+        graph = await pg_get_node_data_graph(
             cur=cur,
             root_type=node_type,
-            root_ids=tuple(to_uuid(node.id) for node in roots.nodes),
+            roots=roots.nodes,
             options=options,
         )
         return roots, graph
@@ -1331,7 +1335,7 @@ async def pg_search_nodes_data_graph(
         return roots, graph
 
 
-async def pg_read_nodes(
+async def pg_get_nodes(
     session: Session,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
@@ -1340,15 +1344,15 @@ async def pg_read_nodes(
 ) -> tuple[NodeT, ...]:
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
-    cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
-    source_graph = await pg_read_node_data_graph(cur, root_type, root_ids, options)
+    cur = session._tx.pg_cursor_to()
+    source_graph = await pg_get_node_data_graph(cur, root_type, root_ids, options)
     if source_graph is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
     roots = tuple(source_graph.get(str(id)) for id in root_ids)
     return wiring.unpack_nodes_inline(source_graph, parent=parent, session=session, roots=roots)
 
 
-async def pg_read_node(
+async def pg_get_node(
     session: Session,
     root_type: NodeType,
     root_id: UUID,
@@ -1356,7 +1360,7 @@ async def pg_read_node(
     parent: Node | None = None,
 ) -> NodeT:
     """Reads a 'regular' node from the given PG database and unpacks it into the session."""
-    roots = await pg_read_nodes(session, root_type, (root_id,), options, parent)
+    roots = await pg_get_nodes(session, root_type, (root_id,), options, parent)
     if len(roots) != 1:
         raise ValueError(f"could not find root {root_type.name}:{root_id} (in {session!r})")
     return roots[0]

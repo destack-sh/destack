@@ -1,5 +1,6 @@
 from .code_ import CodeSection, Code
 from .path import BenchPath
+from .query import Query
 from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
 from .access import (
@@ -23,7 +24,7 @@ from .const import (
     ConditionalOp,
     FormatHint,
     PolicyEffect,
-    QueryEngine,
+    QueryEngineType,
     ScheduleType,
     SortMode,
     SortOp,
@@ -38,10 +39,10 @@ from .expression import (
     NodeReference,
     PropertyPath,
     PropertyReference,
-    Query,
     S,
     ValueReference,
     ValueSelection,
+    Aggregation,
 )
 from .field import Field, HasFields, TypeInfo
 from .file import File
@@ -85,6 +86,7 @@ __all__ = [
     "Access",
     "AccessError",
     "AccessType",
+    "Aggregation",
     "Badge",
     "Bench",
     "BenchError",
@@ -128,7 +130,7 @@ __all__ = [
     "PropertyPath",
     "PropertyReference",
     "Query",
-    "QueryEngine",
+    "QueryEngineType",
     "ReadOptions",
     "Record",
     "render",

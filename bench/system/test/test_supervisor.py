@@ -20,7 +20,7 @@ from bench.proto.wire import (
     SupervisorStub,
     LoginUserRequest,
     LogoutUserRequest,
-    ReadNodesRequest,
+    GetNodesRequest,
     RpcMetadata,
     SignupUserRequest,
     EditData,
@@ -95,7 +95,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
     assert login_rep.access_token
 
     # read user with sensitive data, authorized -> success
-    read_user_req = ReadNodesRequest(
+    read_user_req = GetNodesRequest(
         roots=[user.to_ref()._to_data()],
         options=ReadOptions(
             include_properties=[User.email], descendant_types=[NodeType.CLIENT]
@@ -106,9 +106,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
         client_kind=wire.ClientKind.USER,
         client_access_token=login_rep.access_token,
     )
-    read_user_rep = await supervisor.read_nodes(
-        read_user_req, metadata=access_metadata.to_headers()
-    )
+    read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
     assert len(read_user_rep.nodes) == 2
     assert read_user_rep.nodes[0].user.email == user.email
 
@@ -124,7 +122,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
 
     # read user, logged out, expired token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
-        _ = await supervisor.read_nodes(read_user_req, metadata=access_metadata.to_headers())
+        _ = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
 
 
 async def test_cross_user_protection(supervisor: SupervisorStub):
@@ -147,13 +145,11 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
 
             # request our own and everyone else's data
             sensitive_properties = (User.email, User.password_salt, User.password_hash)
-            read_user_req = ReadNodesRequest(
+            read_user_req = GetNodesRequest(
                 roots=[target.to_ref()._to_data()],
                 options=ReadOptions(include_properties=sensitive_properties)._to_data(),
             )
-            read_user_rep = await supervisor.read_nodes(
-                read_user_req, metadata=actor_handle.headers
-            )
+            read_user_rep = await supervisor.get_nodes(read_user_req, metadata=actor_handle.headers)
             read_target = read_user_rep.nodes[0].user
             assert read_target.slug == target.slug
             if is_target_self:  # we should be able to read our own sensitive data

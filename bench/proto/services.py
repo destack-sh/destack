@@ -22,7 +22,7 @@ from grpclib.testing import ChannelFor
 
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
-from bench.language.expression import NodeNotFoundError
+from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.sql.engine import SqlAlreadyExistsError
 from bench.system.auth import get_subject_from_metadata
