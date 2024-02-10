@@ -62,7 +62,6 @@ class Record(HasValue, Node):
         primitive_type=PrimitiveType.JSON,
         ignore_conflicts=True,
     )
-
     # could also have Record.secret_value_packed as in Block (no materialization needed?)
 
     @staticmethod
@@ -89,7 +88,7 @@ class Record(HasValue, Node):
             if not isinstance(_ck, UUID):
                 raise TypeError(f"invalid ck {_ck} ({type(_ck)})")
             id_kwargs["ck"] = _ck
-        if for_parent and for_parent.attached:
+        if for_parent and for_parent.is_attached:
             # inline args and check type for instant feedback
             for field, arg in zip(for_parent.fields, args):
                 value[field.name] = arg
@@ -449,7 +448,6 @@ class RecordQuery:
         now = utcnow_with_tz()
         value["revision"] = sql.SQL("revision + 1")
         value["updated_at"] = now
-        value["last_edited_at"] = now
         updated_rows = await pg_update_static(
             cur=await self._database._get_pg_cursor(),
             table=self._database._table,
@@ -506,11 +504,11 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def append(self, node: Record):
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
-        if node.id is None and self._parent.attached:
+        if node.id is None and self._parent.is_attached:
             node._assign_id(self._parent.package.id)
-        if not self._parent.attached:
+        if not self._parent.is_attached:
             raise RuntimeError(f"cannot create {node!r} in detached {self!r}")
-        if self._parent._session and self._parent.attached:
+        if self._parent._session and self._parent.is_attached:
             self._parent.session.create(node)
 
     def extend(self, *nodes: Record) -> None:
@@ -520,7 +518,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def remove(self, node: Record) -> None:
         if self._parent._session:
             self._parent._session.delete(self, node)
-        if not self._parent.attached:
+        if not self._parent.is_attached:
             self._parent._root_graph.remove(node)
         node.parent = None
 

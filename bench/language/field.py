@@ -84,16 +84,19 @@ class TypeInfo(Struct):
 
     A type is either:
        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+          [primitive_type] | [base_type = Block aliased to primitive_type]
        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
+          [bench_type = StructType] | [base_type is newtype with bench_type]
        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+          [bench_type = NodeType] | [base_type = Block aliased to bench_type]
        4. reference to a block (value is NodeReference that is an 'instance' of the block)
-           node type is Record and reference ~ Database, values must be Records in that database
-           node type is Run and reference ~ Block, values must be Runs of that block
-           node type is Field and reference ~ Block, values must be a Field in that block
-           node type is Signal and reference ~ Block, values must be Signals of that block type
-           node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
-            (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
-           node type is Block and reference is None, values must be instances of the combined newtype
+          [bench_type = NodeType & base_type = Block]
+           type = Record, base = DatabaseBlock -> values must be Records in that database
+           type = Run, base = Block -> values must be Runs of that block
+           type = Field, base = Block -> values must be a Field in that block
+           type = Signal, base = Block -> values must be Signals of that block type
+           type = Block, base = Block -> values must be Blocks conforming to that block protocol
+           type = Block, base = None -> values must be instances of the resolved type
             ...
 
     Types may also specify:
@@ -110,6 +113,7 @@ class TypeInfo(Struct):
     base_type: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
+
     # + bonus info/constraints
     visibility: NodeVisibility = p_regular(43, default=NodeVisibility.ALL)
     format_hint: Optional[FormatHint] = p_regular(44, default=None)
@@ -128,6 +132,7 @@ class TypeInfo(Struct):
     is_array: bool = p_regular(50, default=False)
     is_required: bool = p_regular(51, default=False)
     is_secret: bool = p_regular(52, default=False)
+    # is_instance to disambiguate?
 
     # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
     _fields: tuple["Field", ...] | None = p_runtime(default=None)

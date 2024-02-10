@@ -198,8 +198,8 @@ OS_SORT_MODE_BY_BENCH = {
 
 def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]:
     props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
-    if sort.mode:
-        props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
+    if sort.sort_mode:
+        props["mode"] = OS_SORT_MODE_BY_BENCH[sort.sort_mode]
     if sort.property is not None:
         return {sort.property.resolved_name: props}
     else:

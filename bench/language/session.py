@@ -1,19 +1,25 @@
 import asyncio
 import dataclasses
+from dataclasses import dataclass
 import sys
 import threading
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
-from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Optional,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import psycopg
 import structlog
 
-from bench.language.access import ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE
 from bench.language.const import (
     EditType,
     NodeTrackingLevel,
@@ -26,9 +32,6 @@ from bench.language.const import (
 from bench.language.field import TypeInfo
 from bench.language.node import (
     UNSET,
-    Bench,
-    Branch,
-    Environment,
     Node,
     Package,
     ScopeNode,
@@ -38,17 +41,21 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_runtime,
-    p_system,
     struct,
+    p_system,
+    Bench,
+    Environment,
+    Branch,
+    Property,
 )
 from bench.language.run import Run, RunError
-from bench.proto.wire import BenchHostStub, EditData, SupervisorStub
 from bench.search.client import get_os_errors, os_client
+from bench.proto.wire import BenchHostStub, SupervisorStub, EditData
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.env import IS_DEBUG
 from bench.utils.func import _auto_async_to_sync
+from bench.utils.env import IS_DEBUG
 
 if TYPE_CHECKING:
     from bench.language import Block, Server, Trigger
@@ -120,7 +127,7 @@ class Transaction:
 
     edits: list[EditData] = dcfield(default_factory=list)
     pending_edits: list[EditData] = dcfield(default_factory=list)
-    _pending_updates: set[Node] = dcfield(default_factory=set)
+    _pending_updates_idx: dict[Node, int] = dcfield(default_factory=dict)
 
     # for syncing databases
     _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
@@ -141,22 +148,16 @@ class Transaction:
     # Edits
     #
 
-    def _make_edit(self, type: EditType, node: Node):
+    def _make_edit(self, type: EditType, n: Node):
+        """Creates an edit and adds it to the pending edits."""
         from bench.proto import wiring
 
-        edit = EditEvent(type, node)
-        allowed_properties = ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE[type]
-        if allowed_properties == ():  # all properties
-            node_data = node._to_data()
-        else:
-            # TODO @Performance: pack only edited node properties
-            node_data = node._to_data()
-
-        if node._updated_properties:
-            properties = node._updated_properties.search(True)
+        # TODO @Performance: pack only edited node properties
+        node_data = n._to_data()
+        if n._updated_properties:
+            properties = n._updated_properties.search(True)
         else:
             properties = None
-
         edit = EditData(
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
@@ -170,36 +171,49 @@ class Transaction:
         if edit.node_type == NodeType.FIELD:
             self._schema_changed = True
 
-    def _flush_pending_updates(self):
-        for node in self._pending_updates:
-            edit = self._make_edit(EditType.UPDATE, node)
-
     def create(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.CREATE, n)
 
     def upsert(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.UPSERT, n)
 
-    def update(self, n: Node):
-        raise NotImplementedError
+    def update(self, n: Node, properties: tuple[Property, ...]):
+        from bench.proto import wiring
+
+        current_update_idx = self._pending_updates_idx.get(n)
+        if current_update_idx is not None:
+            # update edit in place to avoid re-packing everything for successive updates
+            #  (this is almost always correct in user code as package nodes ref with ck, not ids,
+            #   in our own code, we just flush if we need a create first)
+            update = self.pending_edits[current_update_idx]
+            update.properties = n._updated_properties.search(True)
+            node_data = wiring.unwrap_some_node(update.node)
+            for prop in properties:
+                if prop.reference_wired_ptr:
+                    prop = prop.reference_wired_ptr
+                value = getattr(struct, prop.name)
+                value = wiring._pack_struct_prop(prop, value, ignore_array=False)
+                setattr(node_data, prop.name, value)
+        else:
+            self._make_edit(EditType.UPDATE, n)
 
     def move(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.MOVE, n)
 
     def soft_delete(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.SOFT_DELETE, n)
 
     def restore(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.RESTORE, n)
 
     def archive(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.ARCHIVE, n)
 
     def unarchive(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.UNARCHIVE, n)
 
     def delete(self, n: Node):
-        raise NotImplementedError
+        self._make_edit(EditType.DELETE, n)
 
     def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
         self._changed_record_ids_by_base_id[database.id].update(record_ids)
@@ -431,10 +445,10 @@ class Session(ScopeNode):
         for n in nodes:
             self._tx.upsert(n)
 
-    def update(self, *nodes: Node):
+    def update(self, *nodes: Node, properties: tuple[Property, ...]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         for n in nodes:
-            self._tx.update(n)
+            self._tx.update(n, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
@@ -494,8 +508,8 @@ class Session(ScopeNode):
     async def _flush_logs(self) -> None:
         """Flushes pending logs to OS."""
 
-        from bench.proto import wiring
         from bench.search.engine import pack_struct
+        from bench.proto import wiring
 
         with self._runtime_tracing_lock:
             logs = self._pending_logs

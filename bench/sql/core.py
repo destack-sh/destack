@@ -535,6 +535,7 @@ POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
     "uuid": PostgresColumnType.UUID,
     "varchar": PostgresColumnType.CHARACTER_VARYING,
     "bool": PostgresColumnType.BOOLEAN,
+    "int2": PostgresColumnType.SMALLINT,
     "int4": PostgresColumnType.INTEGER,
     "int8": PostgresColumnType.BIGINT,
     "float4": PostgresColumnType.REAL,
@@ -552,6 +553,7 @@ POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
 POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
     PrimitiveType.STRING: PostgresColumnType.CHARACTER_VARYING,
     PrimitiveType.BOOLEAN: PostgresColumnType.BOOLEAN,
+    PrimitiveType.INT16: PostgresColumnType.SMALLINT,
     PrimitiveType.INT32: PostgresColumnType.INTEGER,
     PrimitiveType.INT64: PostgresColumnType.BIGINT,
     PrimitiveType.FLOAT32: PostgresColumnType.REAL,
@@ -592,7 +594,6 @@ RECORD_BASE_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
-        Column("last_edited_at", PrimitiveType.DATETIME, default="now()", _source=16),
         Column("block_key", PrimitiveType.STRING, _source=20),
     ),
     indexes=(

@@ -50,6 +50,7 @@ from bench.language.const import (
     NRel,
     StructType,
     _active_session,
+    NodeSource,
 )
 from bench.language.graph import (
     DetachedNodeGraph,
@@ -111,6 +112,7 @@ if TYPE_CHECKING:
         Store,
         TypeInfo,
         User,
+        ValueReference,
     )
     from bench.language.expression import _NodeExpressionBase, _TypeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -444,7 +446,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
             if issubclass(annotation.type, IdEnum):
-                self.primitive_type = PrimitiveType.INT32
+                self.primitive_type = PrimitiveType.INT16
             elif issubclass(annotation.type, enum.IntFlag):
                 self.primitive_type = PrimitiveType.INT64
             elif issubclass(annotation.type, Struct):
@@ -654,6 +656,7 @@ def p_property(
     references: tuple[NodeType, ...] | NodeType = None,
     struct: StructType = None,
     store: bool = UNSET,
+    wire: bool = UNSET,
     primitive_type: PrimitiveType = UNSET,
     index_in_pg: bool = False,
     array: bool = UNSET,
@@ -678,6 +681,7 @@ def p_property(
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
         ignore_conflicts=ignore_conflicts,
+        is_wired=wire,
         is_stored=store,
         struct_type=struct,
         primitive_type=primitive_type,
@@ -1677,9 +1681,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
     bench: "Bench" = p_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
-    # source: NodeSource = p_system(
-    #     8, default=NodeSource.PERSISTED, store=False, wire=True, require=True
-    # )
+    source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
     revision: int = p_system(10, default=0, require=True, primitive_type=PrimitiveType.INT64)
@@ -1687,14 +1689,11 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     updated_at: datetime = p_system(12, default=None, require=True)
     deleted_at: Optional[datetime] = p_system(13, default=None)
     archived_at: Optional[datetime] = p_system(14, default=None)
-    last_edited_at: Optional[datetime] = p_system(15, default=None, require=True)
     # (only some nodes have some of these properties)
-    # created_by: ...
-    # last_edited_by: ...
-    # last_changed_at: datetime = ...
-    # last_changed_by: ...
+    # changed_at, active_at, ....
+    # created_by, updated_by, changed_by, active_by, ...
     # computed_values: dict[int, ValueReference] | None = p_regular(20)
-    # for instantiated templates
+    # for instances of templates (with 'template' set)
     # set_values: list[int] | None = p_regular(21)
 
     # 30+ for 'user' node/struct properties
@@ -1713,7 +1712,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             if self.ck is None:
                 self.ck = uuid4()
                 self._is_new = True
-            if self.id is None and self.attached:
+            if self.id is None and self.is_attached:
                 self._assign_id(self.package.id)
         elif self.id is None:
             self.id = uuid4()
@@ -1724,8 +1723,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             now = utcnow_with_tz()
             self.created_at = now
             self.updated_at = now
-            self.last_edited_at = now
-            self.last_changed_at = now
         # init session context
         if self._session is None and self._session is not UNSET:
             self._session = _active_session.get()
@@ -1804,7 +1801,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         return f"<{self.__class__.__name__} {str(self)}>"
 
     @property
-    def attached(self) -> bool:
+    def is_attached(self) -> bool:
         if self.__is_in_package__:
             return self.parent is not None and self.package is not None
         elif self.__is_in_bench__:
@@ -1920,11 +1917,13 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     @property
     def is_archived(self) -> bool:
-        return self.archived_at is not None
+        return self.archived_at is not None or self.parent is not None and self.parent.is_archived
 
     @property
     def is_soft_deleted(self) -> bool:
-        return self.deleted_at is not None
+        return (
+            self.deleted_at is not None or self.parent is not None and self.parent.is_soft_deleted
+        )
 
     def move_to(
         self,
@@ -1950,7 +1949,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         raise NotImplementedError
 
     def __setattr__(self, key, value):
-        """Sets *any* attribute on this node."""
+        """Sets *any* attribute on this node (incl. slots)."""
         if self._status != NodeStatus.TRACKED:
             return object.__setattr__(self, key, value)
 
@@ -1976,12 +1975,11 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
                 object.__setattr__(
                     self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
                 )
-            if not self._is_new:
-                # _updated_properties is reset in Transaction after flush or other edit type
+            if not self._is_new:  # update in session
                 if self._updated_properties is None:
                     self._updated_properties = bitarray(self.__max_property_id__ + 1)
                 self._updated_properties[prop.id] = True
-                self._session.update(self)
+                self._session.update(self, (prop,))
             self._updated_self((prop,))
             return
 
@@ -2342,7 +2340,7 @@ class ScopeNode(Node):
     def _on_notice(self, subject: "Node", type: "NoticeType", message: str = None, **kwargs):
         from bench.language.notice import Notice
 
-        if not subject.attached:
+        if not subject.is_attached:
             return  # no way to derive notice id, so just ignore?
         notice = Notice.from_subject(subject, type, message, **kwargs)
         notice.subject.notices.append(notice)
@@ -2358,13 +2356,20 @@ LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK
 
 @node(NodeType.LINK)
 class Link(Node):
-    """A reference to another node in some graph. The referenced subtree is inlined on access."""
+    """
+    A reference to another node in some graph.
+    The referenced subtree is inlined on access.
+    The reference may be indirect through a value somewhere (which should point to a node).
+    """
 
     parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
-        30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
+        30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
     )
-    order_key: Optional[str] = p_internal(31, default=None)
+    value: Optional["ValueReference"] = p_regular(
+        31, require=False, array=False, struct=StructType.VALUE_REFERENCE
+    )
+    order_key: Optional[str] = p_internal(32, default=None)
 
 
 @node(NodeType.SKIP)

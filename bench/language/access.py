@@ -736,27 +736,6 @@ class AccessError(BenchError, ValueError):
         self.cause = cause
 
 
-# properties refers to non-system properties (except in create/upsert)
-ALLOWED_PROPERTIES_NAME_BY_EDIT_TYPE: dict[EditType, tuple[str, ...]] = {
-    EditType.BUMP_CHANGED: UNSET,  # not yet supported
-    EditType.BUMP_ACTIVE: UNSET,  # not yet supported
-    EditType.CREATE: (),  # all
-    EditType.UPSERT: (),  # all
-    EditType.UPDATE: (),  # all
-    EditType.MOVE: ("parent",),
-    EditType.ARCHIVE: ("archived_at",),
-    EditType.UNARCHIVE: ("archived_at",),
-    EditType.SOFT_DELETE: ("deleted_at",),
-    EditType.RESTORE: ("deleted_at",),
-    EditType.DELETE: (),  # all
-}
-ALLOWED_PROPERTIES_ID_BY_EDIT_TYPE: dict[EditType, tuple[int, ...]] = {
-    edit_type: tuple(Node.__properties__[prop_name].id for prop_name in prop_names)
-    if prop_names is not UNSET
-    else UNSET
-    for edit_type, prop_names in ALLOWED_PROPERTIES_NAME_BY_EDIT_TYPE.items()
-}
-
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
     Policy("SystemProtection").append(

@@ -54,7 +54,7 @@ class HasRun(Node):
 
     def _call_inner(self, *args, **kwargs):
         assert (
-            self.attached and self._status == NodeStatus.TRACKED
+            self.is_attached and self._status == NodeStatus.TRACKED
         ), f"cannot call {self!r} (status={self._status!r})"
         try:
             asyncio.get_running_loop()

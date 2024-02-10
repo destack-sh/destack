@@ -105,7 +105,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
     Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"npx protoc --ts_out {TARGET_TS_DIR} --ts_opt long_type_string --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
+        f"npx protoc --ts_out {TARGET_TS_DIR} --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
     )
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
     for path in Path(TARGET_TS_DIR).glob("**/*.ts"):

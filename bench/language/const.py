@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.02.09.3"
+VERSION = "2024.02.10.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -221,30 +221,18 @@ class BlockType(IdEnum):
     def is_scriptable(self) -> bool:
         return self in BlockTypes.SCRIPTABLE
 
-    @property
-    def is_nestable(self) -> bool:
-        return self not in BlockTypes.LEAVES
-
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 class BlockTypes:
-    TYPES = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20)
-    RUNNABLE = tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40)
-    SCRIPTABLE = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,)
-    LEAVES = (BlockType.BLANK, BlockType.TEXT)
-    NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
-
-
-class BlockMode(IdEnum):
-    INLINE = 1
-    PAGE = 2
-    MODULE = 3
+    TYPES = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
+    RUNNABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+    SCRIPTABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,))
 
 
 class NodeSource(IdEnum):
-    PERSISTED = 1
+    STORE = 1
     INTERP = 2
     LOCAL = 3
 
@@ -417,6 +405,7 @@ class StoreKind(IdEnum):
     RELATIONAL = 1
     SEARCH = 2
     ANALYTICAL = 3  # would be nice to unify with SEARCH...
+    # DOCUMENT?
 
 
 class StoreEngine(IdEnum):
@@ -448,18 +437,23 @@ class PrimitiveType(IdEnum):
     """
 
     BOOLEAN = 1
-    INT32 = 2  # range: -2147483648 to 2147483647
-    INT64 = 3  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT32 = 4  # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT64 = 5  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
-    DECIMAL = 6  # numeric(precision, scale)
-    STRING = 7
-    DATETIME = 8
-    INTERVAL = 9
-    JSON = 10
-    BYTES = 11
-    VECTOR = 12
-    UUID = 13
+    # ...
+    INT16 = 4  # range: -32768 to 32767
+    INT32 = 5  # range: -2147483648 to 2147483647
+    INT64 = 6  # range: -9223372036854775808 to 9223372036854775807
+    # ...
+    FLOAT32 = 9  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = 10  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    # ...
+    DECIMAL = 12  # numeric(precision, scale)
+    # ...
+    STRING = 15
+    JSON = 16
+    BYTES = 17
+    VECTOR = 18
+    UUID = 19
+    DATETIME = 20
+    INTERVAL = 21
 
 
 class FormatHint(IdEnum):
@@ -471,6 +465,7 @@ class FormatHint(IdEnum):
     URL = 3
     MARKDOWN = 4
     CODE = 5
+    EMOJI = 6
     # number
     PHONE = 20
     RATING = 21

@@ -40,6 +40,8 @@ from .expression import (
     PropertyReference,
     Query,
     S,
+    ValueReference,
+    ValueSelection,
 )
 from .field import Field, HasFields, TypeInfo
 from .file import File
@@ -158,6 +160,8 @@ __all__ = [
     "TypeInfo",
     "User",
     "ValidationError",
+    "ValueReference",
+    "ValueSelection",
     "VERSION",
     "View",
     "ViewType",
