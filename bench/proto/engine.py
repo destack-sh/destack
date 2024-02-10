@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.BOOLEAN: FieldType.BOOL,
+    PrimitiveType.INT16: FieldType.INT32,
     PrimitiveType.INT32: FieldType.INT32,
     PrimitiveType.INT64: FieldType.INT64,
     PrimitiveType.FLOAT32: FieldType.FLOAT,
@@ -70,7 +71,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             repeated=prop.is_array,
         )
     else:
-        raise TypeError(f"cannot map {prop.primitive_type} to proto type: {prop!r}")
+        raise TypeError(f"cannot map {prop.primitive_type.bench_name} to proto type: {prop!r}")
 
 
 def map_bench_struct_to_proto(

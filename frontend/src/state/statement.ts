@@ -175,7 +175,7 @@ export function useFields(statement: Ref<Statement | InterpStatement | undefined
       TYPEHINT_KEYWORD[template.hint as TypeHint] ??
       TYPETAG_KEYWORD[template.tag] ??
       nameFromReference ??
-      "field";
+      "field";sc
     const identity = newNodeIdentity(module.id.value, "Field");
     if ((template.id != null) != (template.ck != null)) {
       throw new Error("must provide both id and ck or neither");

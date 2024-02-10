@@ -138,13 +138,6 @@ enum BenchType {
   BENCH_TYPE_SPACE_DOCK_ITEM = 701;
 }
 
-enum BlockMode {
-  BLOCK_MODE_UNSPECIFIED = 0;
-  BLOCK_MODE_INLINE = 1;
-  BLOCK_MODE_PAGE = 2;
-  BLOCK_MODE_MODULE = 3;
-}
-
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_PAGE = 1;
@@ -272,6 +265,7 @@ enum FormatHint {
   FORMAT_HINT_URL = 3;
   FORMAT_HINT_MARKDOWN = 4;
   FORMAT_HINT_CODE = 5;
+  FORMAT_HINT_EMOJI = 6;
   FORMAT_HINT_PHONE = 20;
   FORMAT_HINT_RATING = 21;
   FORMAT_HINT_SLIDER = 22;
@@ -300,7 +294,7 @@ enum NodeRelationType {
 
 enum NodeSource {
   NODE_SOURCE_UNSPECIFIED = 0;
-  NODE_SOURCE_PERSISTED = 1;
+  NODE_SOURCE_STORE = 1;
   NODE_SOURCE_INTERP = 2;
   NODE_SOURCE_LOCAL = 3;
 }
@@ -383,18 +377,19 @@ enum PolicyEffect {
 enum PrimitiveType {
   PRIMITIVE_TYPE_UNSPECIFIED = 0;
   PRIMITIVE_TYPE_BOOLEAN = 1;
-  PRIMITIVE_TYPE_INT32 = 2;
-  PRIMITIVE_TYPE_INT64 = 3;
-  PRIMITIVE_TYPE_FLOAT32 = 4;
-  PRIMITIVE_TYPE_FLOAT64 = 5;
-  PRIMITIVE_TYPE_DECIMAL = 6;
-  PRIMITIVE_TYPE_STRING = 7;
-  PRIMITIVE_TYPE_DATETIME = 8;
-  PRIMITIVE_TYPE_INTERVAL = 9;
-  PRIMITIVE_TYPE_JSON = 10;
-  PRIMITIVE_TYPE_BYTES = 11;
-  PRIMITIVE_TYPE_VECTOR = 12;
-  PRIMITIVE_TYPE_UUID = 13;
+  PRIMITIVE_TYPE_INT16 = 4;
+  PRIMITIVE_TYPE_INT32 = 5;
+  PRIMITIVE_TYPE_INT64 = 6;
+  PRIMITIVE_TYPE_FLOAT32 = 9;
+  PRIMITIVE_TYPE_FLOAT64 = 10;
+  PRIMITIVE_TYPE_DECIMAL = 12;
+  PRIMITIVE_TYPE_STRING = 15;
+  PRIMITIVE_TYPE_JSON = 16;
+  PRIMITIVE_TYPE_BYTES = 17;
+  PRIMITIVE_TYPE_VECTOR = 18;
+  PRIMITIVE_TYPE_UUID = 19;
+  PRIMITIVE_TYPE_DATETIME = 20;
+  PRIMITIVE_TYPE_INTERVAL = 21;
 }
 
 enum QueryEngine {
@@ -689,7 +684,7 @@ message ExpressionData {
   optional PropertyReferenceData property_ptr = 32;
   repeated ExpressionData clauses = 35;
   google.protobuf.Struct value = 36;
-  optional int32 mode = 37;
+  optional int32 sort_mode = 37;
 }
 
 // A path of built-in Node/Struct properties and user-defined Fields.
@@ -924,16 +919,19 @@ message SubjectData {
 // 
 // A type is either:
 // 1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+// [primitive_type] | [base_type = Block aliased to primitive_type]
 // 2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
+// [bench_type = StructType] | [base_type is newtype with bench_type]
 // 3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+// [bench_type = NodeType] | [base_type = Block aliased to bench_type]
 // 4. reference to a block (value is NodeReference that is an 'instance' of the block)
-// node type is Record and reference ~ Database, values must be Records in that database
-// node type is Run and reference ~ Block, values must be Runs of that block
-// node type is Field and reference ~ Block, values must be a Field in that block
-// node type is Signal and reference ~ Block, values must be Signals of that block type
-// node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
-// (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
-// node type is Block and reference is None, values must be instances of the combined newtype
+// [bench_type = NodeType & base_type = Block]
+// type = Record, base = DatabaseBlock -> values must be Records in that database
+// type = Run, base = Block -> values must be Runs of that block
+// type = Field, base = Block -> values must be a Field in that block
+// type = Signal, base = Block -> values must be Signals of that block type
+// type = Block, base = Block -> values must be Blocks conforming to that block protocol
+// type = Block, base = None -> values must be instances of the resolved type
 // ...
 // 
 // Types may also specify:
@@ -979,12 +977,12 @@ message BadgeData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   int32 type = 30;
   optional string name = 31;
   repeated PolicyData delegated_policies = 32;
@@ -1001,12 +999,12 @@ message BenchData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 30;
   string slug = 31;
@@ -1026,34 +1024,35 @@ message BlockData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   int32 type = 30;
-  int32 mode = 31;
-  int32 visibility = 32;
-  repeated PolicyData policies = 33;
-  repeated NodeReferenceData bases_ptr = 34;
-  optional TypeInfoData builtin_base = 35;
-  optional string name = 40;
-  optional string order_key = 41;
-  optional string dynamic_key = 42;
-  optional RichTextData text = 43;
-  optional google.protobuf.Struct value_packed = 44;
-  optional google.protobuf.Struct secret_value_packed = 45;
-  optional CodeData code = 46;
-  optional IconData icon = 47;
-  optional NodeReferenceData reference_ptr = 50;
-  repeated PolicyData delegated_policies = 51;
-  bool is_unique = 60;
-  bool is_intrinsic = 61;
-  bool is_protocol = 62;
-  bool is_method = 63;
-  bool is_paused = 64;
+  optional string name = 32;
+  optional string order_key = 33;
+  int32 visibility = 34;
+  repeated PolicyData policies = 35;
+  repeated NodeReferenceData bases_ptr = 36;
+  optional TypeInfoData builtin_base = 37;
+  optional string dynamic_key = 40;
+  optional RichTextData text = 41;
+  optional google.protobuf.Struct value_packed = 42;
+  optional google.protobuf.Struct secret_value_packed = 43;
+  optional CodeData code = 44;
+  optional IconData icon = 45;
+  optional NodeReferenceData reference_ptr = 46;
+  repeated PolicyData delegated_policies = 47;
+  bool is_page = 60;
+  bool is_module = 61;
+  bool is_unique = 62;
+  bool is_intrinsic = 63;
+  bool is_protocol = 64;
+  bool is_method = 65;
+  optional int32 paused_at = 66;
 }
 
 // A branch is a Git-like pointer to the head of a lineage of packages.
@@ -1061,12 +1060,12 @@ message BranchData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 32;
   optional RichTextData text = 34;
@@ -1079,12 +1078,12 @@ message CacheData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
 }
 
 // A client to this Bench.
@@ -1092,12 +1091,12 @@ message ClientData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional string name = 32;
   string device_name = 33;
   optional string browser_name = 34;
@@ -1113,12 +1112,12 @@ message DriveData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   string name = 32;
   optional RichTextData text = 34;
   optional string host = 40;
@@ -1130,12 +1129,12 @@ message EnvironmentData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 32;
   optional RichTextData text = 34;
@@ -1154,12 +1153,12 @@ message FieldData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional string name = 30;
   optional string order_key = 31;
   optional string dynamic_key = 32;
@@ -1187,12 +1186,12 @@ message FileContentData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   string sha512 = 30;
   int64 content_length = 31;
   string content_type = 32;
@@ -1206,12 +1205,12 @@ message HandleData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   string slug = 30;
 }
 
@@ -1224,31 +1223,34 @@ message IdentityData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData type_ptr = 30;
 }
 
-// A reference to another node in some graph. The referenced subtree is inlined on access.
+// A reference to another node in some graph.
+// The referenced subtree is inlined on access.
+// The reference may be indirect through a value somewhere (which should point to a node).
 message LinkData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
-  NodeReferenceData reference_ptr = 30;
-  optional string order_key = 31;
+  optional NodeReferenceData reference_ptr = 30;
+  optional ValueReferenceData value = 31;
+  optional string order_key = 32;
 }
 
 // A membership to a Bench or Organization.
@@ -1256,12 +1258,12 @@ message MembershipData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData user_ptr = 30;
   bool is_owner = 31;
@@ -1274,27 +1276,27 @@ message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   int32 kind = 30;
   int32 type = 31;
   string message = 33;
@@ -1307,12 +1309,12 @@ message NotificationData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp expires_at = 33;
   google.protobuf.Timestamp read_at = 34;
 }
@@ -1322,12 +1324,12 @@ message OrganizationData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 30;
   optional string slug = 31;
@@ -1341,12 +1343,12 @@ message PackageData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional string slug = 33;
   optional RichTextData text = 34;
@@ -1365,12 +1367,12 @@ message PauseData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
 }
 
 // A persistent query.
@@ -1380,12 +1382,12 @@ message QueryData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional string name = 30;
   optional string order_key = 31;
   int32 node_type = 32;
@@ -1401,12 +1403,12 @@ message RecordData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Struct value_packed = 30;
 }
 
@@ -1419,12 +1421,12 @@ message RoleData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   NodeReferenceData type_ptr = 30;
 }
 
@@ -1435,12 +1437,12 @@ message RunData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData session_ptr = 30;
   optional NodeReferenceData root_ptr = 31;
@@ -1461,12 +1463,12 @@ message ServerData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   int32 profile = 30;
   optional ServerImageData image = 31;
   optional string version = 32;
@@ -1486,12 +1488,12 @@ message SessionData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData server_ptr = 31;
   optional google.protobuf.Timestamp opened_at = 32;
@@ -1506,12 +1508,12 @@ message SignalData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional NodeReferenceData type_ptr = 30;
   optional google.protobuf.Struct value_packed = 31;
 }
@@ -1523,12 +1525,12 @@ message SkipData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   NodeReferenceData reference_ptr = 30;
   optional string order_key = 31;
 }
@@ -1540,12 +1542,12 @@ message SpaceData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   string name = 31;
   optional RichTextData text = 32;
@@ -1560,12 +1562,12 @@ message StoreData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   int32 kind = 30;
   int32 engine = 31;
   string name = 32;
@@ -1587,29 +1589,29 @@ message TagData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Struct value_packed = 31;
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   int32 type = 30;
   optional string name = 31;
   bool active = 32;
@@ -1622,12 +1624,12 @@ message UserData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 30;
   optional string slug = 31;
@@ -1649,12 +1651,12 @@ message ViewData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  int32 source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   int32 type = 30;
   optional string name = 31;

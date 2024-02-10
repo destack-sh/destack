@@ -1,12 +1,11 @@
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.node import Package, Property
+from bench.language.node import Package
 from bench.language.const import NoticeKind, NodeType, StructType, BenchError
 from bench.language.expression import FieldPath, Property
 from bench.language.node import Node, node, p_parent, p_regular
 from bench.language.validation import enum_validator
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -28,10 +27,6 @@ class NoticeType(IdEnum):
 
     # hints
     BAD_NAME = 300
-
-    @property
-    def bench_name(self):
-        return to_casing(self.name, Casing.CAMEL)
 
     @property
     def kind(self) -> NoticeKind:
@@ -68,6 +63,7 @@ class Notice(Node):
     properties: Optional[list[Property]] = p_regular(
         35, default=None, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
+    # value_packed, value: ... # custom value
 
     def _init_inner(self):
         self.kind = self.type.kind

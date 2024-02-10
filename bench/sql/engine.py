@@ -1531,7 +1531,6 @@ async def _pg_write_regular_edit_batch(
         static_values = {
             "revision": sql.SQL("revision + 1"),
             "updated_at": now,
-            "last_edited_at": now,
         }
         rows = await pg_update_dynamic(
             cur=cur,
@@ -1731,7 +1730,6 @@ async def _pg_write_record_edit_batch(
         static_values = {
             "revision": sql.SQL("revision + 1"),
             "updated_at": now,
-            "last_edited_at": now,
         }
         rows = await pg_update_dynamic(
             cur=cur,
@@ -1812,7 +1810,6 @@ def pg_pack_record_data_row(database: Block, record: wire.RecordData) -> RowIn:
         "created_at": record.created_at,
         "updated_at": record.updated_at,
         "deleted_at": record.deleted_at,
-        "last_edited_at": record.last_edited_at,
         "revision": record.revision,
         "block_key": database.dynamic_key,
     }

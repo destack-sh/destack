@@ -233,7 +233,7 @@ class Expression(Struct):
     )
     clauses: list["Expression"] | None = p_regular(35, default=None, struct=StructType.EXPRESSION)
     value: Any = p_regular(36, default=None, primitive_type=PrimitiveType.JSON)
-    mode: Optional[SortMode] = p_regular(37, default=None)
+    sort_mode: Optional[SortMode] = p_regular(37, default=None)
 
     @__property__
     def kind(self) -> ExpressionKind:

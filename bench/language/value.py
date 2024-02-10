@@ -26,8 +26,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-# TODO @Cleanup: HasValue should somehow be a mixin per property :GeneralizeHasValue
-#  e.g. in Run we want typed 'value' behaviour on 'value','inputs','outputs', in Field on 'default'
+# nocheckin: HasValue should be a mixin property 'value: Value = p_value(...)' :GeneralizeHasValue
+#  - in Run we want 'value', 'inputs', 'outputs'
+#  - in Field on 'default' and 'value'
+#  - in Context on 'value'
 
 
 @node_component
@@ -80,7 +82,7 @@ class HasValue(Node):
         def _onwrite_value(key: str) -> None:
             # TODO @Performance: type check only the changed value
             check_type(self.value, self._type)
-            if self.attached:
+            if self.is_attached:
                 self.session.update(self, (self.__class__.value,))
 
         assert self._type is not None, f"missing type for {self!r}"

@@ -74,7 +74,7 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
         return roots[0] if roots else None
 
     def collect_descendants(
-        self, node: SomeNodeT, childn_type: NodeType | None = None, recursive: bool = False
+        self, node: SomeNodeT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["SomeNodeT", ...] | list["SomeNodeT"]:
         """
         Collects all descendants as filtered in BFS order.
@@ -83,13 +83,13 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
         raise NotImplementedError
 
     def iter_descendants(
-        self, node: SomeNodeT, childn_type: NodeType | None = None, recursive: bool = False
+        self, node: SomeNodeT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> Iterable[SomeNodeT]:
         """
         Iterate through filtered descendants in BFS order.
         If recursive, the child node type filter only applies to the first level.
         """
-        return iter(self.collect_descendants(node, childn_type, recursive))
+        return iter(self.collect_descendants(node, child_node_type, recursive))
 
     # utilities
 
@@ -112,10 +112,7 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
 
 class NodeGraph(NodeGraphBase[NodeT, UUID]):
-    """
-    An indexed graph of package nodes (UUIDs for ids, parent_ids).
-    This is the backing graph to most live nodes, so we optimize access a bit.
-    """
+    """A graph of Nodes with ids."""
 
     def __init__(self, nodes: Collection[NodeT] | "NodeGraph" = None):
         self.nodes_by_id: dict[UUID, NodeT] = {}
@@ -213,7 +210,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
     def collect_descendants(
         self,
         node: NodeT,
-        childn_type: NodeType | None = None,
+        child_node_type: NodeType | None = None,
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
         from bench.language.node import CHILD_NODE_TYPES
@@ -222,8 +219,8 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         if not node.__has_scope__:
             return ()
         if not recursive:
-            if childn_type is not None:  # best case
-                return self.nodes_by_parent_id_and_type.get((node.id, childn_type), ())
+            if child_node_type is not None:  # best case
+                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
             else:
                 descendants: list[NodeT] = []
                 for child_type in CHILD_NODE_TYPES[node.metatype]:
@@ -233,9 +230,9 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                 return descendants
         else:
             descendants: list[NodeT] = []
-            if childn_type:
+            if child_node_type:
                 queue = deque()
-                for child in self.nodes_by_parent_id_and_type.get((node.id, childn_type), ()):
+                for child in self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()):
                     queue.append(child)
                     descendants.append(child)
             else:
@@ -338,14 +335,14 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         )
 
     def collect_descendants(
-        self, node: NodeDataT, childn_type: NodeType | None = None, recursive: bool = False
+        self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
         from bench.language.node import CHILD_NODE_TYPES
 
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
         if not recursive:
-            if childn_type is not None:
-                return self.nodes_by_parent_id_and_type.get((node.id, childn_type), ())
+            if child_node_type is not None:
+                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
             else:
                 descendants: list[NodeDataT] = []
                 for child_type in CHILD_NODE_TYPES[node.metatype]:
@@ -355,8 +352,8 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
                 return descendants
         else:
             descendants: list[NodeDataT] = []
-            if childn_type:
-                queue = deque(self.nodes_by_parent_id_and_type.get((node.id, childn_type), ()))
+            if child_node_type:
+                queue = deque(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()))
             else:
                 queue = deque((node,))
             while queue:
@@ -460,7 +457,7 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
     def collect_descendants(
         self,
         node: NodeT,
-        childn_type: NodeType | None = None,
+        child_node_type: NodeType | None = None,
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
         assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
@@ -468,21 +465,21 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             return ()
         node_ck = node.ck
         if not recursive:
-            if childn_type is not None:
+            if child_node_type is not None:
                 return tuple(
                     child
                     for child in self.nodes_by_parent_ck.get(node_ck, ())
-                    if child.metatype == childn_type
+                    if child.metatype == child_node_type
                 )
             else:
                 return tuple(self.nodes_by_parent_ck.get(node_ck, ()))
         else:
             descendants: list[NodeT] = []
-            if childn_type:
+            if child_node_type:
                 queue = deque(
                     child
                     for child in self.nodes_by_parent_ck.get(node_ck, ())
-                    if child.metatype == childn_type
+                    if child.metatype == child_node_type
                 )
             else:
                 queue = deque(self.nodes_by_parent_ck.get(node_ck, ()))
@@ -573,12 +570,12 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
 
 
 class NodeList(NodeListBase[NodeT]):
-    __slots__ = ("_childn_type", "_flags")
+    __slots__ = ("_child_node_type", "_flags")
 
     def __init__(self, parent: "ScopeNode", property: "Property"):
         super().__init__(parent, property)
         assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
-        self._childn_type: NodeType = property.reference_types[0]
+        self._child_node_type: NodeType = property.reference_types[0]
         self._flags = property.children_flags
 
     def __str__(self):
@@ -588,7 +585,7 @@ class NodeList(NodeListBase[NodeT]):
     def nodes(self) -> tuple[NodeT, ...]:
         """Access the computed nodes"""
         return self._parent._root_graph.collect_descendants(
-            self._parent, self._childn_type, recursive=bool(self._flags & NRel.CUMULATIVE)
+            self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
         )
 
     def _ok_bounds(
@@ -620,7 +617,7 @@ class NodeList(NodeListBase[NodeT]):
             raise ValueError(f"cannot attach {n!r} to {self!r}: attached to {n.parent!r}")
 
         # assign ids if newly attached to the package (ids are derived from ck + package)
-        if not n.attached and self._parent.attached:
+        if not n.is_attached and self._parent.package:
             package_id = self._parent.package.id
             for n in n._walk_rec():
                 if n.id is None:
@@ -646,7 +643,7 @@ class NodeList(NodeListBase[NodeT]):
         if self._flags & NRel.ORDERED and n.order_key is None:
             n.order_key = generate_key_between(*self._ok_bounds(after, before))
         # 'create' node in session if it's attached
-        if self._parent._session and self._parent.attached:
+        if self._parent._session and self._parent.is_attached:
             self._parent._session.create(*added)
 
         return added

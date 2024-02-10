@@ -3,7 +3,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import BlockType, NodeType, StructType, BlockMode, NodeVisibility
+from bench.language.const import BlockType, NodeType, StructType, NodeVisibility
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.node import (
@@ -28,6 +28,7 @@ from bench.language.validation import validate_name
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
@@ -120,26 +121,25 @@ class Block(ScopeNode, HasTags):
 
     # core
     type: BlockType = p_internal(30, default=BlockType.BLANK)
-    mode: BlockMode = p_regular(31, default=BlockMode.INLINE)
-    visibility: NodeVisibility = p_regular(32, default=NodeVisibility.ALL)
-    policies: list["Policy"] | None = p_regular(33, default=None, struct=StructType.POLICY)
+    # custom type..?
+    name: str | None = p_regular(32, default=None, validate=validate_name)
+    order_key: str | None = p_internal(33, default=None)
+    visibility: NodeVisibility = p_regular(34, default=NodeVisibility.ALL)
+    policies: list["Policy"] | None = p_regular(35, default=None, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(
-        34, default=None, require=False, array=True, references=NodeType.BLOCK
+        36, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = p_regular(35, default=None, struct=StructType.TYPE_INFO)
+    builtin_base: Optional["TypeInfo"] = p_regular(37, default=None, struct=StructType.TYPE_INFO)
 
-    # shared
-    name: str | None = p_regular(40, default=None, validate=validate_name)
-    order_key: str | None = p_internal(41, default=None)
-    dynamic_key: str | None = p_internal(42, default=None)
+    dynamic_key: str | None = p_internal(40, default=None)
     text: Optional["RichText"] = p_regular(
-        43, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+        41, default=None, require=False, array=False, struct=StructType.RICH_TEXT
     )
     value_packed: Any | None = p_internal(
-        44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
+        42, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     secret_value_packed: Any | None = p_internal(
-        45,
+        43,
         default=None,
         encrypt=True,
         defer=True,
@@ -148,27 +148,28 @@ class Block(ScopeNode, HasTags):
         primitive_type=PrimitiveType.JSON,
     )
     code: Optional["Code"] = p_regular(
-        46, default=None, require=False, array=False, struct=StructType.CODE
+        44, default=None, require=False, array=False, struct=StructType.CODE
     )
     icon: Optional["Icon"] = p_regular(
-        47, default=None, require=False, array=False, struct=StructType.ICON
+        45, default=None, require=False, array=False, struct=StructType.ICON
     )
-
-    # specific
     reference: Optional["Block"] = p_regular(
-        50, require=False, array=False, references=NodeType.BLOCK
+        46, require=False, array=False, references=NodeType.BLOCK
     )
     delegated_policies: list["Policy"] | None = p_regular(
-        51, default_factory=list, struct=StructType.POLICY
+        47, default_factory=list, struct=StructType.POLICY
     )
 
     # flags
-    is_unique: bool = p_regular(60, default=False)  # unique by name in module
-    is_intrinsic: bool = p_system(61, default=False)  # provided by the system
-    is_protocol: bool = p_regular(62, default=False)  # has a protocol
-    is_method: bool = p_regular(63, default=False)  # bound to instance (has access to 'self')
-    is_paused: bool = p_regular(64, default=False)  # triggers below (incl.) block are paused
-    # is_frozen (read-only in instances of template)?
+    is_page: bool = p_regular(60, default=False)  # on its own page
+    is_module: bool = p_regular(61, default=False)  # has a module scope
+    is_unique: bool = p_regular(62, default=False)  # unique by name in parent module
+    is_intrinsic: bool = p_system(63, default=False)  # provided by the system
+    is_protocol: bool = p_regular(64, default=False)  # has a protocol
+    is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
+    paused_at: int | None = p_internal(66, default=None)  # triggers below (incl.) block are paused
+    # (this is basically a flag but is_paused propagates down the tree)
+    # is_frozen? (read-only in instances of template)
 
     @staticmethod
     def new(
@@ -227,8 +228,24 @@ class Block(ScopeNode, HasTags):
         return self.type.is_scriptable
 
     @property
-    def is_nestable(self) -> bool:
-        return self.type.is_nestable
+    def is_paused(self) -> bool:
+        return (
+            self.paused_at is not None
+            or self.parent_type == NodeType.BLOCK
+            and self.parent.is_paused
+        )
+
+    @is_paused.setter
+    def is_paused(self, is_paused: bool):
+        if is_paused:
+            if self.paused_at is None:
+                pausing_ancestor = self.parent
+                while pausing_ancestor is not None and pausing_ancestor.paused_at is None:
+                    pausing_ancestor = pausing_ancestor.parent
+                raise ValueError(f"{self!r} is not paused but its ancestor {pausing_ancestor!r} is")
+            self.paused_at = None
+        else:
+            self.paused_at = utcnow_with_tz()
 
     def __content_str__(self):
         return ""  # implemented by dynamic components
