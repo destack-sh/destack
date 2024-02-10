@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import BlockType, NodeType, StructType, NodeVisibility
 from bench.language.database import HasDatabase
-from bench.language.field import HasFields, TypedDict
+from bench.language.field import TypedDict
 from bench.language.node import (
     Node,
     NodeList,
@@ -21,9 +21,6 @@ from bench.language.node import (
     p_system,
 )
 from bench.language.run import HasRun
-from bench.language.tag import HasTags
-from bench.language.task import HasTask
-from bench.language.trigger import HasTriggers
 from bench.language.validation import validate_name
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
@@ -32,7 +29,18 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Badge, Package, Policy, TypeInfo, RichText, Icon, Code
+    from bench.language import (
+        Badge,
+        Package,
+        Policy,
+        TypeInfo,
+        RichText,
+        Icon,
+        Code,
+        Tag,
+        Field,
+        Trigger,
+    )
 
 
 @node_component
@@ -72,23 +80,23 @@ class _BlockTypeDescriptor:
 IdentT = IdentifierType
 
 _block = _BlockTypeDescriptor
-_block(BlockType.PAGE, (HasFields,), IdentT.VARIABLE)
-_block(BlockType.TAG, (HasFields,), IdentT.TYPE)
+_block(BlockType.PAGE, (), IdentT.VARIABLE)
+_block(BlockType.TAG, (), IdentT.TYPE)
 _block(BlockType.TEXT, (), IdentT.VARIABLE)
 _block(BlockType.BLANK, (), IdentT.VARIABLE)
 _block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
-_block(BlockType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
-_block(BlockType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
-_block(BlockType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
-_block(BlockType.PROTOCOL, (HasFields,), IdentT.TYPE)
-_block(BlockType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
-_block(BlockType.ROUTINE, (HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
-_block(BlockType.SCRIPT, (HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
-_block(BlockType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
-_block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
-_block(BlockType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
-_block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.TYPE)
-_block(BlockType.QUERY, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
+_block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
+_block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
+_block(BlockType.PROTOCOL, (), IdentT.TYPE)
+_block(BlockType.TASK, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.ROUTINE, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.SINGLE_VARIABLE, (), IdentT.VARIABLE)
+_block(BlockType.MULTI_VARIABLE, (), IdentT.VARIABLE)
+_block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
+_block(BlockType.QUERY, (), IdentT.VARIABLE)
 _block(BlockType.SCREEN, (), IdentT.TYPE)
 _block(BlockType.ROLE, (), IdentT.TYPE)
 _block(BlockType.IDENTITY, (), IdentT.TYPE)
@@ -112,12 +120,15 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Block(ScopeNode, HasTags):
+class Block(ScopeNode, HasValue):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED)
+    children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
+    fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
+    tags: NodeList["Tag"] = p_child(NodeType.TAG)
+    triggers: NodeList["Trigger"] = p_child(NodeType.TRIGGER)
 
     # core
     type: BlockType = p_internal(30, default=BlockType.BLANK)
@@ -168,6 +179,7 @@ class Block(ScopeNode, HasTags):
     is_protocol: bool = p_regular(64, default=False)  # has a protocol
     is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
     paused_at: int | None = p_internal(66, default=None)  # triggers below (incl.) block are paused
+
     # (this is basically a flag but is_paused propagates down the tree)
     # is_frozen? (read-only in instances of template)
 

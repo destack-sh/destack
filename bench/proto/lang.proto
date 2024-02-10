@@ -392,12 +392,12 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_INTERVAL = 21;
 }
 
-enum QueryEngine {
-  QUERY_ENGINE_UNSPECIFIED = 0;
-  QUERY_ENGINE_IN_MEMORY = 1;
-  QUERY_ENGINE_GLOBAL_POSTGRES = 2;
-  QUERY_ENGINE_LOCAL_POSTGRES = 4;
-  QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
+enum QueryEngineType {
+  QUERY_ENGINE_TYPE_UNSPECIFIED = 0;
+  QUERY_ENGINE_TYPE_IN_MEMORY = 1;
+  QUERY_ENGINE_TYPE_GLOBAL_STORE = 2;
+  QUERY_ENGINE_TYPE_LOCAL_STORE = 4;
+  QUERY_ENGINE_TYPE_LOCAL_SEARCH = 5;
 }
 
 // A type of Read access on nodes.
@@ -1159,6 +1159,7 @@ message FieldData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 30;
   optional string order_key = 31;
   optional string dynamic_key = 32;
@@ -1284,7 +1285,7 @@ message BaseNodeData {
   optional google.protobuf.Timestamp archived_at = 14;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1375,7 +1376,7 @@ message PauseData {
   optional google.protobuf.Timestamp archived_at = 14;
 }
 
-// A persistent query.
+// A stored query.
 message QueryData {
   BenchType metatype = 1;
   string id = 2;
@@ -1391,7 +1392,7 @@ message QueryData {
   optional string name = 30;
   optional string order_key = 31;
   int32 node_type = 32;
-  repeated NodeReferenceData bases_ptr = 33;
+  optional NodeReferenceData base_ptr = 33;
   optional ExpressionData filter = 34;
   repeated ExpressionData sort = 35;
 }
@@ -1599,7 +1600,7 @@ message TagData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;

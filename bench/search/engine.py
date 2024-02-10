@@ -9,7 +9,7 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language import C, ConditionalOp, Field, Package, QueryEngine, SortMode, SortOp
+from bench.language import C, ConditionalOp, Field, Package, QueryEngineType, SortMode, SortOp
 from bench.language.const import BenchType, BlockType, EditType, NodeType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
@@ -180,7 +180,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
         return {"exists": {"field": key}}
     elif cond.op == ConditionalOp.NOT_EXISTS:
         return {"bool": {"must_not": {"exists": {"field": key}}}}
-    raise QueryEngineIncapableError(QueryEngine.LOCAL_OPENSEARCH, cond, "unsupported conditional")
+    raise QueryEngineIncapableError(QueryEngineType.LOCAL_SEARCH, cond, "unsupported conditional")
 
 
 OS_SORT_ORDER_BY_BENCH = {
@@ -294,7 +294,7 @@ def os_compile_search(
 def _wrap_os_error(
     e: Exception, expr: Expression | list[Expression]
 ) -> QueryEngineError | Exception:
-    return QueryEngineError(QueryEngine.LOCAL_OPENSEARCH, expr, str(e))
+    return QueryEngineError(QueryEngineType.LOCAL_SEARCH, expr, str(e))
 
 
 async def os_search(

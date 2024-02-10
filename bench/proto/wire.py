@@ -428,12 +428,12 @@ class PrimitiveType(betterproto.Enum):
     INTERVAL = 21
 
 
-class QueryEngine(betterproto.Enum):
+class QueryEngineType(betterproto.Enum):
     UNSPECIFIED = 0
     IN_MEMORY = 1
-    GLOBAL_POSTGRES = 2
-    LOCAL_POSTGRES = 4
-    LOCAL_OPENSEARCH = 5
+    GLOBAL_STORE = 2
+    LOCAL_STORE = 4
+    LOCAL_SEARCH = 5
 
 
 class ReadType(betterproto.Enum):
@@ -1371,6 +1371,7 @@ class FieldData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1538,8 +1539,7 @@ class NoticeData(betterproto.Message):
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
     _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
-    None, _deferred_properties: tuple[bench.language.node.Property, ...] | None
-    = None)
+    None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1644,7 +1644,7 @@ class PauseData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryData(betterproto.Message):
-    """A persistent query."""
+    """A stored query."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1660,7 +1660,7 @@ class QueryData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     node_type: int = betterproto.int32_field(32)
-    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     filter: Optional["ExpressionData"] = betterproto.message_field(34, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(35)
 
@@ -1934,8 +1934,7 @@ class TriggerData(betterproto.Message):
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
     _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
-    None, _deferred_properties: tuple[bench.language.node.Property, ...] | None
-    = None)
+    None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2181,7 +2180,7 @@ class CreateBenchResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ReadNodesRequest(betterproto.Message):
+class GetNodesRequest(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     """scope"""
 
@@ -2193,7 +2192,7 @@ class ReadNodesRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ReadNodesResponse(betterproto.Message):
+class GetNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
     access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
     epoch: int = betterproto.uint64_field(3)
@@ -2211,10 +2210,11 @@ class SearchNodesRequest(betterproto.Message):
     bases: List["NodeReferenceData"] = betterproto.message_field(6)
     filter: Optional["ExpressionData"] = betterproto.message_field(7, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(8)
-    limit: Optional[int] = betterproto.int32_field(9, optional=True)
-    after: Optional[str] = betterproto.string_field(10, optional=True)
-    options: Optional["ReadOptionsData"] = betterproto.message_field(11, optional=True)
-    count: Optional[bool] = betterproto.bool_field(12, optional=True)
+    first: Optional[int] = betterproto.int32_field(9, optional=True)
+    skip: Optional[int] = betterproto.int32_field(10, optional=True)
+    after: Optional[str] = betterproto.string_field(11, optional=True)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(12, optional=True)
+    count: Optional[bool] = betterproto.bool_field(13, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2564,18 +2564,18 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def read_nodes(
+    async def get_nodes(
         self,
-        request: "ReadNodesRequest",
+        request: "GetNodesRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "ReadNodesResponse":
+    ) -> "GetNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/ReadNodes",
+            "/symbolx.bench.Supervisor/GetNodes",
             request,
-            ReadNodesResponse,
+            GetNodesResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2703,18 +2703,18 @@ class SupervisorStub(betterproto.ServiceStub):
 
 
 class BenchHostStub(betterproto.ServiceStub):
-    async def read_nodes(
+    async def get_nodes(
         self,
-        request: "ReadNodesRequest",
+        request: "GetNodesRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "ReadNodesResponse":
+    ) -> "GetNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/ReadNodes",
+            "/symbolx.bench.BenchHost/GetNodes",
             request,
-            ReadNodesResponse,
+            GetNodesResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3144,9 +3144,7 @@ class SupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def read_nodes(
-        self, subject: "Subject", request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -3221,11 +3219,11 @@ class SupervisorBase(ServiceBase):
         response = await self.create_bench(request)
         await stream.send_message(response)
 
-    async def __rpc_read_nodes(
-        self, stream: "grpclib.server.Stream[ReadNodesRequest, ReadNodesResponse]"
+    async def __rpc_get_nodes(
+        self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.read_nodes(request)
+        response = await self.get_nodes(request)
         await stream.send_message(response)
 
     async def __rpc_search_nodes(
@@ -3317,11 +3315,11 @@ class SupervisorBase(ServiceBase):
                 CreateBenchRequest,
                 CreateBenchResponse,
             ),
-            "/symbolx.bench.Supervisor/ReadNodes": grpclib.const.Handler(
-                self.__rpc_read_nodes,
+            "/symbolx.bench.Supervisor/GetNodes": grpclib.const.Handler(
+                self.__rpc_get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                ReadNodesRequest,
-                ReadNodesResponse,
+                GetNodesRequest,
+                GetNodesResponse,
             ),
             "/symbolx.bench.Supervisor/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
@@ -3369,9 +3367,7 @@ class SupervisorBase(ServiceBase):
 
 
 class BenchHostBase(ServiceBase):
-    async def read_nodes(
-        self, subject: "Subject", request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -3462,11 +3458,11 @@ class BenchHostBase(ServiceBase):
     ) -> "RunProxyBlockResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_read_nodes(
-        self, stream: "grpclib.server.Stream[ReadNodesRequest, ReadNodesResponse]"
+    async def __rpc_get_nodes(
+        self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.read_nodes(request)
+        response = await self.get_nodes(request)
         await stream.send_message(response)
 
     async def __rpc_search_nodes(
@@ -3611,11 +3607,11 @@ class BenchHostBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.BenchHost/ReadNodes": grpclib.const.Handler(
-                self.__rpc_read_nodes,
+            "/symbolx.bench.BenchHost/GetNodes": grpclib.const.Handler(
+                self.__rpc_get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                ReadNodesRequest,
-                ReadNodesResponse,
+                GetNodesRequest,
+                GetNodesResponse,
             ),
             "/symbolx.bench.BenchHost/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
@@ -3827,75 +3823,75 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    BranchData,
-    FieldData,
-    CacheData,
-    OrganizationData,
-    TagData,
-    ServerData,
-    ClientData,
-    UserData,
-    BlockData,
-    SignalData,
-    QueryData,
-    NotificationData,
-    RoleData,
-    ViewData,
-    IdentityData,
-    BadgeData,
-    RecordData,
-    BenchData,
-    PauseData,
-    SkipData,
-    MembershipData,
-    SessionData,
-    SpaceData,
-    NoticeData,
-    LinkData,
-    TriggerData,
-    StoreData,
-    FileContentData,
-    HandleData,
-    RunData,
-    EnvironmentData,
-    PackageData,
     DriveData,
+    RunData,
+    LinkData,
+    BadgeData,
+    IdentityData,
+    SessionData,
+    HandleData,
+    TriggerData,
+    SpaceData,
+    MembershipData,
+    FileContentData,
+    ViewData,
+    RoleData,
+    EnvironmentData,
+    BenchData,
+    SignalData,
+    PauseData,
+    FieldData,
+    PackageData,
+    UserData,
+    ClientData,
+    RecordData,
+    BlockData,
+    StoreData,
+    CacheData,
+    NotificationData,
+    QueryData,
+    OrganizationData,
+    BranchData,
+    TagData,
+    NoticeData,
+    ServerData,
+    SkipData,
 ]
 AnyStructData = Union[
-    SpaceDockItemData,
-    RichTextSpanData,
-    FileData,
-    CodeSectionData,
-    ServerImageRequirementData,
-    PropertyPathData,
-    AccessZoneData,
-    RequestData,
-    ValueSelectionData,
-    AggregationBucketData,
-    CodeData,
-    ContextData,
-    NodeReferenceData,
-    FieldPathData,
-    AccessData,
-    RichTextData,
-    ExpressionData,
     BenchPathData,
-    ValueReferenceData,
-    TypeInfoData,
-    AccessTraceData,
-    ReadOptionsData,
-    SpaceDockData,
-    ServerImageData,
-    SubjectData,
+    CodeData,
+    IconData,
+    PolicyData,
+    RichTextSpanData,
+    AccessMatrixData,
     LogEntryData,
-    ScheduleData,
-    AggregationData,
+    ServerImageRequirementData,
+    AccessTraceData,
+    RichTextData,
     RunCodeFrameData,
     PropertyReferenceData,
-    PolicyData,
-    PolicyRuleData,
-    IconData,
-    AccessMatrixData,
+    FieldPathData,
     FieldPathSegmentData,
+    ScheduleData,
     RunErrorData,
+    AggregationBucketData,
+    CodeSectionData,
+    AccessZoneData,
+    FileData,
+    NodeReferenceData,
+    PolicyRuleData,
+    ValueSelectionData,
+    SpaceDockData,
+    SubjectData,
+    AccessData,
+    PropertyPathData,
+    SpaceDockItemData,
+    ExpressionData,
+    ServerImageData,
+    TypeInfoData,
+    AggregationData,
+    ReadOptionsData,
+    RequestData,
+    ContextData,
+    ValueReferenceData,
 ]

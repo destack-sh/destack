@@ -1704,7 +1704,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
     _is_new: bool = p_runtime(default=False)
     _updated_properties: bitarray | None = p_runtime(default=None)
-    _deferred_properties: tuple[Property, ...] | None = p_runtime(default=None)
 
     def __post_init__(self):
         # init ck/id
@@ -1862,7 +1861,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     @property
     def absolute_path(self) -> str:
-        """"""
         if self.__parent_property__ is None or not self.__parent_property__.reference_types:
             return self.bench_ident
         elif self.parent is None:

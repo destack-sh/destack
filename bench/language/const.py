@@ -617,11 +617,11 @@ class SortOp(IdEnum):
     DESCENDING = 201
 
 
-class QueryEngine(IdEnum):
+class QueryEngineType(IdEnum):
     IN_MEMORY = 1
-    GLOBAL_POSTGRES = 2
-    LOCAL_POSTGRES = 4
-    LOCAL_OPENSEARCH = 5
+    GLOBAL_STORE = 2
+    LOCAL_STORE = 4
+    LOCAL_SEARCH = 5
 
 
 class SortMode(IdEnum):

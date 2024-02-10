@@ -2,7 +2,6 @@ import abc
 from collections import defaultdict, deque
 from typing import (
     TYPE_CHECKING,
-    Any,
     Collection,
     Generator,
     Generic,
@@ -507,7 +506,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self._parent.absolute_path}.{self._property.name}: {self}>"
 
-    def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
+    def create(self, *args, **kwargs) -> NodeT:
         """Creates a new node in the list."""
         if len(args) == 1 and isinstance(args[0], Node):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
@@ -519,23 +518,8 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NodeStatus.SOURCE)
         else:
             node = node_cls(*args, **kwargs, _status=NodeStatus.SOURCE)
-        if _append:
-            self.append(node)
+        self.append(node)
         return node
-
-    def create_many(self, *nodes: Collection[Any | dict]) -> list[NodeT]:
-        """Creates a new node in the list."""
-        created = []
-        for n in nodes:
-            if isinstance(n, dict):
-                node = self.create(**n, _append=False)
-            elif isinstance(n, tuple):
-                node = self.create(*n, _append=False)
-            else:
-                node = self.create(n, _append=False)
-            created.append(node)
-        self.extend(*created)
-        return created
 
     def append(self, node: NodeT) -> None:
         """
@@ -564,12 +548,9 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         """Gets a node by some id (as determined by the logic of the list)."""
         raise NotImplementedError
 
-    def index(self, node: NodeT) -> int:
-        """Gets the index of a node in the list."""
-        raise NotImplementedError
-
 
 class NodeList(NodeListBase[NodeT]):
+    # TODO @Cleanup @Architecture: use ReadQuery/WriteQuery in NodeList (with InMemoryGraphEngine to query)
     __slots__ = ("_child_node_type", "_flags")
 
     def __init__(self, parent: "ScopeNode", property: "Property"):

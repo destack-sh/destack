@@ -116,9 +116,12 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
+    TODO @Cleanup: ideally Transaction would be a Struct (like Edit)
+      (but we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
     id: UUID = dcfield(default_factory=uuid4)
+    is_runtime: bool = dcfield(default=False)
 
     global_pg_cursor: psycopg.AsyncCursor | None = dcfield(default=None)
     local_pg_cursors: dict[str, psycopg.AsyncCursor] = dcfield(default_factory=dict)
@@ -143,6 +146,19 @@ class Transaction:
         for edit in edits:  # replay edits
             tx._on_edit(edit)
         return tx
+
+    async def pg_cursor_to(
+        self, is_local: bool, package: Package | None = None
+    ) -> psycopg.AsyncCursor:
+        if not is_local:
+            assert self.global_pg_cursor is not None, f"no global pg cursor in {self!r}"
+            return self.global_pg_cursor
+        assert package is not None, f"no package for local {self!r}"
+        if package.pg_name not in self.local_pg_cursors:
+            pg_pool = await get_pg_connection_pool(package.pg_name)
+            pg_connection = await pg_pool.getconn(timeout=3)
+            self.local_pg_cursors[package.pg_name] = pg_connection.cursor()
+        return self.local_pg_cursors[package.pg_name]
 
     #
     # Edits
@@ -265,6 +281,8 @@ class Session(ScopeNode):
     is_runtime: bool = p_system(34, default=False)
 
     _tx: Transaction | None = p_runtime(default=None)
+    _global_pg_cursor: Optional[psycopg.AsyncCursor] = p_runtime(default=None)
+
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
@@ -322,16 +340,6 @@ class Session(ScopeNode):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
-    async def pg_cursor_to_local(self, package: Package) -> psycopg.AsyncCursor:
-        if package == self.package:
-            return self.local_pg_cursor
-        if package.pg_name not in self._other_local_pg_cursors:
-            logger.debug("session.open_foreign_pg", package=package)
-            pg_pool = await get_pg_connection_pool(package.pg_name)
-            pg_connection = await pg_pool.getconn(timeout=3)
-            self._other_local_pg_cursors[package.pg_name] = pg_connection.cursor()
-        return self._other_local_pg_cursors[package.pg_name]
-
     async def open(self, session_flush_interval: float = 0.1):
         """Opens the session for regular business."""
 
@@ -366,7 +374,7 @@ class Session(ScopeNode):
             self._stacktrace = []
 
         # open transaction
-        self._tx = Transaction()
+        self._tx = Transaction(is_runtiem=self.is_runtime)
 
         self.opened_at = utcnow_with_tz()
         logger.debug("session.open.done")

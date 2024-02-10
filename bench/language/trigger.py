@@ -87,11 +87,6 @@ class Trigger(Node):
         return f"{self.type} {content_str or '<none>'}"
 
 
-@node_component
-class HasTriggers(Node):
-    triggers: NodeList[Trigger] = p_child(NodeType.TRIGGER)
-
-
 class ScheduleIterator:
     """Iterator for a time trigger schedule."""
 

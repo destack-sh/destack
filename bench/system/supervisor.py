@@ -6,7 +6,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, Expression, NodeReference, Transaction, User
+from bench.language import Client, Expression, NodeReference, User
 from bench.language.access import (
     ReadOptions,
     Subject,
@@ -42,8 +42,8 @@ from bench.proto.wire import (
     LogoutUserResponse,
     PrepareTransactionRequest,
     PrepareTransactionResponse,
-    ReadNodesRequest,
-    ReadNodesResponse,
+    GetNodesRequest,
+    GetNodesResponse,
     SearchNodesRequest,
     SearchNodesResponse,
     SignupUserRequest,
@@ -58,7 +58,7 @@ from bench.sql.engine import (
     compile_pg_conditional,
     pg_count,
     pg_exists,
-    pg_read_node_data_graph,
+    pg_get_node_data_graph,
     pg_search_nodes_data_graph,
     pg_write_regular_edits,
 )
@@ -222,9 +222,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
     # General Bench IO for > package & global nodes only :BenchIO
     #
 
-    async def read_nodes(
-        self, subject: Subject, request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
@@ -240,7 +238,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
-                _ = await pg_read_node_data_graph(
+                _ = await pg_get_node_data_graph(
                     cur=cur,
                     root_type=node_type,
                     root_ids=tuple(r.id for r in root_node_references),
@@ -257,7 +255,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         )
         await self._log_and_check_access(access)
 
-        return ReadNodesResponse(
+        return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             access=access._to_data(),
             epoch=self._epoch,
@@ -363,7 +361,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO @Performance: select only require properties for edit eval (id/policies/...?)
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
-                _ = await pg_read_node_data_graph(
+                _ = await pg_get_node_data_graph(
                     cur=cur,
                     root_type=node_type,
                     root_ids=tuple(r.id for r in node_references),

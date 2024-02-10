@@ -5,21 +5,16 @@ from typing import Optional, Union
 from bench.language.const import BlockType, NodeType
 from bench.language.node import (
     Node,
-    NodeList,
-    NRel,
     node,
-    p_child,
-    node_component,
     p_parent,
     p_internal,
-    p_regular,
 )
 from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.func import dict_minus
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Field, HasFields, symbolx_lib
+    from bench.language import Block, Field, HasFields
 
 
 @node(NodeType.TAG)
@@ -73,12 +68,7 @@ class Tag(HasValue, Node):
 
     @property
     def _type(self) -> "HasFields":
-        return None
+        return self.reference
 
     def __content_str__(self):
         return f"#{self.reference}"
-
-
-@node_component
-class HasTags(Node):
-    tags: NodeList["Tag"] = p_child(NodeType.TAG, NRel.KEYED)

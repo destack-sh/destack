@@ -1804,6 +1804,10 @@ export interface FieldData {
      */
     archivedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp last_changed_at = 16;
+     */
+    lastChangedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional string name = 30;
      */
     name?: string;
@@ -2225,7 +2229,7 @@ export interface BaseNodeData {
     archivedAt?: Timestamp;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -2544,7 +2548,7 @@ export interface PauseData {
     archivedAt?: Timestamp;
 }
 /**
- * A persistent query.
+ * A stored query.
  *
  * @generated from protobuf message symbolx.bench.QueryData
  */
@@ -2606,9 +2610,9 @@ export interface QueryData {
      */
     nodeType: number;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 33;
      */
-    basesPtr: NodeReferenceData[];
+    basePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 34;
      */
@@ -3332,7 +3336,7 @@ export interface TagData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, _deferred_properties: tuple[bench.language.node.Property, ...] | None = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -5130,29 +5134,29 @@ export enum PrimitiveType {
     INTERVAL = 21
 }
 /**
- * @generated from protobuf enum symbolx.bench.QueryEngine
+ * @generated from protobuf enum symbolx.bench.QueryEngineType
  */
-export enum QueryEngine {
+export enum QueryEngineType {
     /**
-     * @generated from protobuf enum value: QUERY_ENGINE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: QUERY_ENGINE_IN_MEMORY = 1;
+     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_IN_MEMORY = 1;
      */
     IN_MEMORY = 1,
     /**
-     * @generated from protobuf enum value: QUERY_ENGINE_GLOBAL_POSTGRES = 2;
+     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_GLOBAL_STORE = 2;
      */
-    GLOBAL_POSTGRES = 2,
+    GLOBAL_STORE = 2,
     /**
-     * @generated from protobuf enum value: QUERY_ENGINE_LOCAL_POSTGRES = 4;
+     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_LOCAL_STORE = 4;
      */
-    LOCAL_POSTGRES = 4,
+    LOCAL_STORE = 4,
     /**
-     * @generated from protobuf enum value: QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
+     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_LOCAL_SEARCH = 5;
      */
-    LOCAL_OPENSEARCH = 5
+    LOCAL_SEARCH = 5
 }
 /**
  * A type of Read access on nodes.
@@ -9891,6 +9895,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9968,6 +9973,9 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* optional google.protobuf.Timestamp archived_at */ 14:
                     message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp last_changed_at */ 16:
+                    message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
                 case /* optional string name */ 30:
                     message.name = reader.string();
@@ -10074,6 +10082,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Timestamp archived_at = 14; */
         if (message.archivedAt)
             Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp last_changed_at = 16; */
+        if (message.lastChangedAt)
+            Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -11662,7 +11673,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "node_type", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 33, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 35, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
@@ -11675,7 +11686,6 @@ class QueryData$Type extends MessageType<QueryData> {
         message.source = 0;
         message.revision = 0n;
         message.nodeType = 0;
-        message.basesPtr = [];
         message.sort = [];
         if (value !== undefined)
             reflectionMergePartial<QueryData>(this, message, value);
@@ -11728,8 +11738,8 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* int32 node_type */ 32:
                     message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases_ptr */ 33:
-                    message.basesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 33:
+                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 34:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -11791,9 +11801,9 @@ class QueryData$Type extends MessageType<QueryData> {
         /* int32 node_type = 32; */
         if (message.nodeType !== 0)
             writer.tag(32, WireType.Varint).int32(message.nodeType);
-        /* repeated symbolx.bench.NodeReferenceData bases_ptr = 33; */
-        for (let i = 0; i < message.basesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.basesPtr[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData base_ptr = 33; */
+        if (message.basePtr)
+            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 34; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(34, WireType.LengthDelimited).fork(), options).join();

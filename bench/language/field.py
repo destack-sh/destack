@@ -39,7 +39,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, RichText
+    from bench.language import Block, Expression, RichText, Tag
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -238,7 +238,7 @@ class TypeInfo(Struct):
 
 
 @node(NodeType.FIELD)
-class Field(HasValue, TypeInfo, _TypeExpressionBase):
+class Field(ScopeNode, HasValue, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
@@ -261,6 +261,8 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
     # is_indexed: bool = p_regular(63, default=False)
     # is_unique: bool = p_regular(64, default=False)
+
+    tags: NodeList["Tag"] = p_child(NodeType.TAG)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
