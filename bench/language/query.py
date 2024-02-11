@@ -9,10 +9,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Collection,
     Self,
     NamedTuple,
     ClassVar,
+    Collection,
 )
 
 from asgiref.sync import async_to_sync
@@ -26,7 +26,14 @@ from bench.language.const import (
     AggregationOp,
 )
 from bench.language.node import node, Node, p_parent, p_regular
-from bench.proto.wire import AnyNodeData, BenchHostStub, SupervisorStub
+from bench.proto.wire import (
+    AnyNodeData,
+    BenchHostStub,
+    SupervisorStub,
+    NodeReferenceData,
+    AggregationData,
+    EditData,
+)
 from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
@@ -77,7 +84,7 @@ class MultipleNodesFoundError(QueryError):
 class QueryEngineError(BenchError, ValueError):
     def __init__(
         self,
-        engine: Union["QueryEngine", QueryEngineType],
+        engine: Union["StoreEngine", QueryEngineType],
         query: "QueryBuilder" = None,
         expr: Union["Expression", list["Expression"]] = None,
         reason: str = None,
@@ -163,32 +170,14 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
 
 
 class WriteQueryBase(abc.ABC, Generic[NodeT]):
-    """Write nodes wherever they need to go to match the query."""
-
-    # def create(self, ...): ?
-
-    def append(self, node: NodeT) -> None:
-        """Attaches a child node to the query's parent."""
-        raise NotImplementedError
-
-    def extend(self, nodes: list[NodeT]) -> None:
-        """Attaches multiple child nodes to the query's parent."""
-        raise NotImplementedError
-
-    def remove(self, node: NodeT) -> None:
-        """Removes and deletes a child node from the query's parent."""
-        raise NotImplementedError
-
-    def clear(self) -> None:
-        """Removes and deletes all matching nodes from the query's parent."""
-        raise NotImplementedError
+    """Modify all matching nodes."""
 
     def update(self, **kwargs) -> None:
         """Update the properties of all matching nodes."""
         raise NotImplementedError
 
-    def set(self, nodes: Collection[NodeT]) -> None:
-        """Replaces"""
+    def delete(self) -> None:
+        """Removes and deletes all matching nodes from the query's parent."""
         raise NotImplementedError
 
 
@@ -398,15 +387,15 @@ class QueryBuilder(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQuery
         raise NotImplementedError
 
 
-class SearchResult(NamedTuple):
-    nodes: list[NodeDataT]
-    roots: list[NodeDataT]
-    cursors: list[str]
+class FetchResult(NamedTuple):
+    nodes: list[NodeDataT] | tuple[NodeDataT, ...]
+    roots: list[NodeReferenceData] | tuple[NodeReferenceData, ...]
+    cursors: list[str] | tuple[str, ...]
     start_cursor: str | None
 
 
-class QueryEngine(abc.ABC, Generic[NodeT]):
-    """A query engine implementing the key operations of a query."""
+class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
+    """A store engine backing specific types of queries."""
 
     type: ClassVar[QueryEngineType]
 
@@ -416,27 +405,47 @@ class QueryEngine(abc.ABC, Generic[NodeT]):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
 
-    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]") -> SearchResult:
+    #
+    # Read
+    #
+
+    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]") -> FetchResult:
         raise QueryEngineIncapableError(self, query, reason="fetch unsupported")
 
-    async def exists(self, query: "QueryBuilder[NodeT, NodeDataT]") -> bool:
+    async def aggregate(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", aggregation: "Expression"
+    ) -> AggregationData:
         raise QueryEngineIncapableError(self, query, reason="exists unsupported")
 
-    async def count(self, query: "QueryBuilder[NodeT, NodeDataT]") -> int:
-        raise QueryEngineIncapableError(self, query, reason="count unsupported")
+    #
+    # Write
+    #
 
-    async def update(self, query: "QueryBuilder[NodeT, NodeDataT]", **kwargs) -> None:
+    async def update(self, query: "QueryBuilder[NodeT, NodeDataT]", **kwargs) -> list[EditData]:
         raise QueryEngineIncapableError(self, query, reason="update unsupported")
 
-    async def delete(self, query: "QueryBuilder[NodeT, NodeDataT]") -> None:
+    async def delete(self, query: "QueryBuilder[NodeT, NodeDataT]") -> list[EditData]:
         raise QueryEngineIncapableError(self, query, reason="delete unsupported")
 
+    #
+    # Transactions
+    #
 
-class RemoteQueryEngine(QueryEngine):
+    async def flush(self, edits: Collection[EditData]) -> None:
+        raise QueryEngineIncapableError(self, reason="flush unsupported")
+
+    async def commit(self, edits: Collection[EditData]) -> None:
+        raise QueryEngineIncapableError(self, reason="commit unsupported")
+
+    async def rollback(self, edits: Collection[EditData]) -> None:
+        raise QueryEngineIncapableError(self, reason="rollback unsupported")
+
+
+class RemoteStoreEngine(StoreEngine[NodeT, NodeDataT]):
     def __init__(self, remote: Union["BenchHostStub", "SupervisorStub"]):
         self._remote = remote
 
-    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]") -> SearchResult:
+    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]") -> FetchResult:
         from bench.proto import wire, wiring
 
         request = wire.SearchNodesRequest(
@@ -447,40 +456,64 @@ class RemoteQueryEngine(QueryEngine):
             options=wiring.pack_struct_maybe(query._options),
         )
         response = await self._remote.search_nodes(request)
-        return SearchResult(
+        return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
-            roots=[wiring.unwrap_some_node(n) for n in response.roots],
+            roots=response.rootsy,
             cursors=response.cursors,
             start_cursor=response.start_cursor,
         )
 
-    async def exists(self, query: "QueryBuilder[NodeT, NodeDataT]") -> bool:
+    async def aggregate(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", aggregation: "Expression"
+    ) -> AggregationData:
         from bench.proto import wire, wiring
-        from bench.language.expression import A
 
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter),
             limit=query._first,
-            aggregation=A(AggregationOp.EXISTS)._to_data(),
+            aggregation=aggregation._to_data(),
         )
         response = await self._remote.aggregate_nodes(request)
-        return response.aggregation.exists
-
-    async def count(self, query: "QueryBuilder[NodeT, NodeDataT]") -> int:
-        from bench.proto import wire, wiring
-        from bench.language.expression import A
-
-        request = wire.AggregateNodesRequest(
-            node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter),
-            limit=query._first,
-            aggregation=A(AggregationOp.COUNT)._to_data(),
-        )
-        response = await self._remote.aggregate_nodes(request)
-        return response.aggregation.count
+        return response.aggregation
 
 
-class PostgresQueryEngine(QueryEngine):
+class PostgresStoreEngine(StoreEngine):
     def __init__(self, cur: psycopg.AsyncCursor):
         self._cur = cur
+
+    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]") -> FetchResult:
+        from bench.sql.engine import pg_search_nodes_data_graph
+        from bench.language import NodeReference
+
+        roots, graph = await pg_search_nodes_data_graph(
+            cur=self._cur,
+            node_type=query._node_type,
+            options=query._options,
+            filter=query._filter,
+            sort=query._sort,
+            first=query._first,
+            skip=query._skip,
+        )
+        return FetchResult(
+            roots=[NodeReference.from_node_data(r) for r in roots.nodes],
+            nodes=graph.nodes,
+            cursors=roots.cursors,
+            start_cursor=roots.start_cursor,
+        )
+
+    async def aggregate(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", aggregation: "Expression"
+    ) -> AggregationData:
+        from bench.sql.engine import compile_pg_conditional, pg_exists, pg_count
+
+        if aggregation.op == AggregationOp.EXISTS:
+            filter = compile_pg_conditional(query._node_cls, query._filter)
+            exists = await pg_exists(self._cur, query._node_cls.__table__, filter)
+            return AggregationData(exists=exists)
+        elif aggregation.op == AggregationOp.COUNT:
+            filter = compile_pg_conditional(query._node_cls, query._filter)
+            count = await pg_count(self._cur, query._node_cls.__table__, filter)
+            return AggregationData(count=count)
+        else:
+            raise QueryEngineIncapableError(self, query, expr=aggregation, reason="unsupported")

@@ -188,6 +188,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     is_required: bool = False  # = must be non-null
     is_internal: bool = False  # = should be edited via accessors, but not enforced
     is_system: bool = False  # = only editable by system
+    is_kernel: bool = False  # = only viewable by system
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance
     is_wired: bool = UNSET  # serialized onto wire (in proto)
@@ -197,6 +198,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
+    is_serial: bool = False  # auto-incrementing integer
 
     # node references
     is_ancestor_nearest: bool | None = None  # for ancestor relations
@@ -649,6 +651,7 @@ def p_property(
     *,
     internal: bool = False,
     system: bool = False,
+    kernel: bool = False,
     description: str = None,
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
@@ -673,6 +676,7 @@ def p_property(
         description=description,
         is_internal=internal,
         is_system=system,
+        is_kernel=kernel,
         is_required=require,
         default=default,
         default_factory=default_factory,
@@ -700,6 +704,7 @@ else:
     p_regular = functools.partial(p_property, internal=False, system=False)
     p_internal = functools.partial(p_property, internal=True, system=False)
     p_system = functools.partial(p_property, internal=True, system=True)
+    p_kernel = functools.partial(p_property, internal=True, system=True, kernel=True)
 
 
 def p_runtime(
@@ -2389,20 +2394,20 @@ class Bench(ScopeNode):
 
     parent: None = p_parent(4)
     main_handle: Optional["Handle"] = p_system(
-        30, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_child(NodeType.HANDLE)
-    slug: str = p_system(31, unique=True)  # must match main handle
-    name: str = p_regular(32)
+    slug: str = p_system(32, unique=True)  # must match main handle
+    name: str = p_regular(33)
     text: Optional["RichText"] = p_regular(
-        33, require=False, array=False, struct=StructType.RICH_TEXT
+        34, require=False, array=False, struct=StructType.RICH_TEXT
     )
     owner: Union["User", "Organization"] = p_system(
-        34, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
+        35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
     # status: ...?
     policies: list["Policy"] | None = p_regular(
-        36, default_factory=list, struct=StructType.POLICY, array=True
+        37, default_factory=list, struct=StructType.POLICY, array=True
     )
 
     # source

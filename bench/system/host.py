@@ -25,10 +25,10 @@ from bench.proto.wire import (
     AggregateNodesResponse,
     BenchHostBase,
     BenchHostStub,
-    CancelPreparedTransactionRequest,
-    CancelPreparedTransactionResponse,
-    CommitPreparedTransactionRequest,
-    CommitPreparedTransactionResponse,
+    CancelCompletedTransactionRequest,
+    CancelCompletedTransactionResponse,
+    CommitCompletedTransactionRequest,
+    CommitCompletedTransactionResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     DownloadFilesRequest,
@@ -38,8 +38,8 @@ from bench.proto.wire import (
     NotifyEditsRequest,
     NotifyEditsResponse,
     NotifyServerLogsRequest,
-    PrepareTransactionRequest,
-    PrepareTransactionResponse,
+    CompleteTransactionRequest,
+    CompleteTransactionResponse,
     GetNodesRequest,
     GetNodesResponse,
     RunProxyBlockRequest,
@@ -238,19 +238,19 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         # ...?
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def prepare_transaction(
-        self, subject: Subject, request: "PrepareTransactionRequest"
-    ) -> "PrepareTransactionResponse":
+    async def complete_transaction(
+        self, subject: Subject, request: "CompleteTransactionRequest"
+    ) -> "CompleteTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def commit_prepared_transaction(
-        self, subject: Subject, request: "CommitPreparedTransactionRequest"
-    ) -> "CommitPreparedTransactionResponse":
+    async def commit_completed_transaction(
+        self, subject: Subject, request: "CommitCompletedTransactionRequest"
+    ) -> "CommitCompletedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def cancel_prepared_transaction(
-        self, subject: Subject, request: "CancelPreparedTransactionRequest"
-    ) -> "CancelPreparedTransactionResponse":
+    async def cancel_completed_transaction(
+        self, subject: Subject, request: "CancelCompletedTransactionRequest"
+    ) -> "CancelCompletedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(

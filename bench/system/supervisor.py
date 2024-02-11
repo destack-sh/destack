@@ -26,12 +26,12 @@ from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
     AnyNodeData,
-    CancelPreparedTransactionRequest,
-    CancelPreparedTransactionResponse,
+    CancelCompletedTransactionRequest,
+    CancelCompletedTransactionResponse,
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
-    CommitPreparedTransactionRequest,
-    CommitPreparedTransactionResponse,
+    CommitCompletedTransactionRequest,
+    CommitCompletedTransactionResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     CreateBenchRequest,
@@ -40,8 +40,8 @@ from bench.proto.wire import (
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
-    PrepareTransactionRequest,
-    PrepareTransactionResponse,
+    CompleteTransactionRequest,
+    CompleteTransactionResponse,
     GetNodesRequest,
     GetNodesResponse,
     SearchNodesRequest,
@@ -116,7 +116,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             user.password_hash = hash_password(request.password, user.password_salt)
             client: Client = wiring.unpack_node(request.client, parent=user, session=session)
             client.access_token = generate_access_token()
-            session.create_many(user, client)
+            session.create(user, client)
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
@@ -388,19 +388,19 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
             epoch=self._epoch,
         )
 
-    async def prepare_transaction(
-        self, subject: Subject, request: "PrepareTransactionRequest"
-    ) -> "PrepareTransactionResponse":
+    async def complete_transaction(
+        self, subject: Subject, request: "CompleteTransactionRequest"
+    ) -> "CompleteTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def commit_prepared_transaction(
-        self, subject: Subject, request: "CommitPreparedTransactionRequest"
-    ) -> "CommitPreparedTransactionResponse":
+    async def commit_completed_transaction(
+        self, subject: Subject, request: "CommitCompletedTransactionRequest"
+    ) -> "CommitCompletedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def cancel_prepared_transaction(
-        self, subject: Subject, request: "CancelPreparedTransactionRequest"
-    ) -> "CancelPreparedTransactionResponse":
+    async def cancel_completed_transaction(
+        self, subject: Subject, request: "CancelCompletedTransactionRequest"
+    ) -> "CancelCompletedTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(

@@ -2267,7 +2267,7 @@ class CommitTransactionResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PrepareTransactionRequest(betterproto.Message):
+class CompleteTransactionRequest(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     """scope"""
 
@@ -2277,13 +2277,13 @@ class PrepareTransactionRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PrepareTransactionResponse(betterproto.Message):
+class CompleteTransactionResponse(betterproto.Message):
     changed_nodes: List["SomeNodeData"] = betterproto.message_field(1)
     epoch: int = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class CommitPreparedTransactionRequest(betterproto.Message):
+class CommitCompletedTransactionRequest(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     """scope"""
 
@@ -2293,12 +2293,12 @@ class CommitPreparedTransactionRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CommitPreparedTransactionResponse(betterproto.Message):
+class CommitCompletedTransactionResponse(betterproto.Message):
     pass
 
 
 @dataclass(eq=False, repr=False)
-class CancelPreparedTransactionRequest(betterproto.Message):
+class CancelCompletedTransactionRequest(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     """scope"""
 
@@ -2308,7 +2308,7 @@ class CancelPreparedTransactionRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CancelPreparedTransactionResponse(betterproto.Message):
+class CancelCompletedTransactionResponse(betterproto.Message):
     pass
 
 
@@ -2632,52 +2632,52 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def prepare_transaction(
+    async def complete_transaction(
         self,
-        request: "PrepareTransactionRequest",
+        request: "CompleteTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PrepareTransactionResponse":
+    ) -> "CompleteTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/PrepareTransaction",
+            "/symbolx.bench.Supervisor/CompleteTransaction",
             request,
-            PrepareTransactionResponse,
+            CompleteTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def commit_prepared_transaction(
+    async def commit_completed_transaction(
         self,
-        request: "CommitPreparedTransactionRequest",
+        request: "CommitCompletedTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CommitPreparedTransactionResponse":
+    ) -> "CommitCompletedTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CommitPreparedTransaction",
+            "/symbolx.bench.Supervisor/CommitCompletedTransaction",
             request,
-            CommitPreparedTransactionResponse,
+            CommitCompletedTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def cancel_prepared_transaction(
+    async def cancel_completed_transaction(
         self,
-        request: "CancelPreparedTransactionRequest",
+        request: "CancelCompletedTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CancelPreparedTransactionResponse":
+    ) -> "CancelCompletedTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CancelPreparedTransaction",
+            "/symbolx.bench.Supervisor/CancelCompletedTransaction",
             request,
-            CancelPreparedTransactionResponse,
+            CancelCompletedTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2771,52 +2771,52 @@ class BenchHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def prepare_transaction(
+    async def complete_transaction(
         self,
-        request: "PrepareTransactionRequest",
+        request: "CompleteTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PrepareTransactionResponse":
+    ) -> "CompleteTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/PrepareTransaction",
+            "/symbolx.bench.BenchHost/CompleteTransaction",
             request,
-            PrepareTransactionResponse,
+            CompleteTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def commit_prepared_transaction(
+    async def commit_completed_transaction(
         self,
-        request: "CommitPreparedTransactionRequest",
+        request: "CommitCompletedTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CommitPreparedTransactionResponse":
+    ) -> "CommitCompletedTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CommitPreparedTransaction",
+            "/symbolx.bench.BenchHost/CommitCompletedTransaction",
             request,
-            CommitPreparedTransactionResponse,
+            CommitCompletedTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def cancel_prepared_transaction(
+    async def cancel_completed_transaction(
         self,
-        request: "CancelPreparedTransactionRequest",
+        request: "CancelCompletedTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CancelPreparedTransactionResponse":
+    ) -> "CancelCompletedTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CancelPreparedTransaction",
+            "/symbolx.bench.BenchHost/CancelCompletedTransaction",
             request,
-            CancelPreparedTransactionResponse,
+            CancelCompletedTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3162,19 +3162,19 @@ class SupervisorBase(ServiceBase):
     ) -> "CommitTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def prepare_transaction(
-        self, subject: "Subject", request: "PrepareTransactionRequest"
-    ) -> "PrepareTransactionResponse":
+    async def complete_transaction(
+        self, subject: "Subject", request: "CompleteTransactionRequest"
+    ) -> "CompleteTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def commit_prepared_transaction(
-        self, subject: "Subject", request: "CommitPreparedTransactionRequest"
-    ) -> "CommitPreparedTransactionResponse":
+    async def commit_completed_transaction(
+        self, subject: "Subject", request: "CommitCompletedTransactionRequest"
+    ) -> "CommitCompletedTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def cancel_prepared_transaction(
-        self, subject: "Subject", request: "CancelPreparedTransactionRequest"
-    ) -> "CancelPreparedTransactionResponse":
+    async def cancel_completed_transaction(
+        self, subject: "Subject", request: "CancelCompletedTransactionRequest"
+    ) -> "CancelCompletedTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -3249,28 +3249,28 @@ class SupervisorBase(ServiceBase):
         response = await self.commit_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_prepare_transaction(
+    async def __rpc_complete_transaction(
         self,
-        stream: "grpclib.server.Stream[PrepareTransactionRequest, PrepareTransactionResponse]",
+        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.prepare_transaction(request)
+        response = await self.complete_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_commit_prepared_transaction(
+    async def __rpc_commit_completed_transaction(
         self,
-        stream: "grpclib.server.Stream[CommitPreparedTransactionRequest, CommitPreparedTransactionResponse]",
+        stream: "grpclib.server.Stream[CommitCompletedTransactionRequest, CommitCompletedTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.commit_prepared_transaction(request)
+        response = await self.commit_completed_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_cancel_prepared_transaction(
+    async def __rpc_cancel_completed_transaction(
         self,
-        stream: "grpclib.server.Stream[CancelPreparedTransactionRequest, CancelPreparedTransactionResponse]",
+        stream: "grpclib.server.Stream[CancelCompletedTransactionRequest, CancelCompletedTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.cancel_prepared_transaction(request)
+        response = await self.cancel_completed_transaction(request)
         await stream.send_message(response)
 
     async def __rpc_watch_edits(
@@ -3339,23 +3339,23 @@ class SupervisorBase(ServiceBase):
                 CommitTransactionRequest,
                 CommitTransactionResponse,
             ),
-            "/symbolx.bench.Supervisor/PrepareTransaction": grpclib.const.Handler(
-                self.__rpc_prepare_transaction,
+            "/symbolx.bench.Supervisor/CompleteTransaction": grpclib.const.Handler(
+                self.__rpc_complete_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                PrepareTransactionRequest,
-                PrepareTransactionResponse,
+                CompleteTransactionRequest,
+                CompleteTransactionResponse,
             ),
-            "/symbolx.bench.Supervisor/CommitPreparedTransaction": grpclib.const.Handler(
-                self.__rpc_commit_prepared_transaction,
+            "/symbolx.bench.Supervisor/CommitCompletedTransaction": grpclib.const.Handler(
+                self.__rpc_commit_completed_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CommitPreparedTransactionRequest,
-                CommitPreparedTransactionResponse,
+                CommitCompletedTransactionRequest,
+                CommitCompletedTransactionResponse,
             ),
-            "/symbolx.bench.Supervisor/CancelPreparedTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_prepared_transaction,
+            "/symbolx.bench.Supervisor/CancelCompletedTransaction": grpclib.const.Handler(
+                self.__rpc_cancel_completed_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CancelPreparedTransactionRequest,
-                CancelPreparedTransactionResponse,
+                CancelCompletedTransactionRequest,
+                CancelCompletedTransactionResponse,
             ),
             "/symbolx.bench.Supervisor/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
@@ -3385,19 +3385,19 @@ class BenchHostBase(ServiceBase):
     ) -> "CommitTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def prepare_transaction(
-        self, subject: "Subject", request: "PrepareTransactionRequest"
-    ) -> "PrepareTransactionResponse":
+    async def complete_transaction(
+        self, subject: "Subject", request: "CompleteTransactionRequest"
+    ) -> "CompleteTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def commit_prepared_transaction(
-        self, subject: "Subject", request: "CommitPreparedTransactionRequest"
-    ) -> "CommitPreparedTransactionResponse":
+    async def commit_completed_transaction(
+        self, subject: "Subject", request: "CommitCompletedTransactionRequest"
+    ) -> "CommitCompletedTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def cancel_prepared_transaction(
-        self, subject: "Subject", request: "CancelPreparedTransactionRequest"
-    ) -> "CancelPreparedTransactionResponse":
+    async def cancel_completed_transaction(
+        self, subject: "Subject", request: "CancelCompletedTransactionRequest"
+    ) -> "CancelCompletedTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -3488,28 +3488,28 @@ class BenchHostBase(ServiceBase):
         response = await self.commit_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_prepare_transaction(
+    async def __rpc_complete_transaction(
         self,
-        stream: "grpclib.server.Stream[PrepareTransactionRequest, PrepareTransactionResponse]",
+        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.prepare_transaction(request)
+        response = await self.complete_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_commit_prepared_transaction(
+    async def __rpc_commit_completed_transaction(
         self,
-        stream: "grpclib.server.Stream[CommitPreparedTransactionRequest, CommitPreparedTransactionResponse]",
+        stream: "grpclib.server.Stream[CommitCompletedTransactionRequest, CommitCompletedTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.commit_prepared_transaction(request)
+        response = await self.commit_completed_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_cancel_prepared_transaction(
+    async def __rpc_cancel_completed_transaction(
         self,
-        stream: "grpclib.server.Stream[CancelPreparedTransactionRequest, CancelPreparedTransactionResponse]",
+        stream: "grpclib.server.Stream[CancelCompletedTransactionRequest, CancelCompletedTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.cancel_prepared_transaction(request)
+        response = await self.cancel_completed_transaction(request)
         await stream.send_message(response)
 
     async def __rpc_watch_edits(
@@ -3631,23 +3631,23 @@ class BenchHostBase(ServiceBase):
                 CommitTransactionRequest,
                 CommitTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/PrepareTransaction": grpclib.const.Handler(
-                self.__rpc_prepare_transaction,
+            "/symbolx.bench.BenchHost/CompleteTransaction": grpclib.const.Handler(
+                self.__rpc_complete_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                PrepareTransactionRequest,
-                PrepareTransactionResponse,
+                CompleteTransactionRequest,
+                CompleteTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/CommitPreparedTransaction": grpclib.const.Handler(
-                self.__rpc_commit_prepared_transaction,
+            "/symbolx.bench.BenchHost/CommitCompletedTransaction": grpclib.const.Handler(
+                self.__rpc_commit_completed_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CommitPreparedTransactionRequest,
-                CommitPreparedTransactionResponse,
+                CommitCompletedTransactionRequest,
+                CommitCompletedTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/CancelPreparedTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_prepared_transaction,
+            "/symbolx.bench.BenchHost/CancelCompletedTransaction": grpclib.const.Handler(
+                self.__rpc_cancel_completed_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CancelPreparedTransactionRequest,
-                CancelPreparedTransactionResponse,
+                CancelCompletedTransactionRequest,
+                CancelCompletedTransactionResponse,
             ),
             "/symbolx.bench.BenchHost/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,

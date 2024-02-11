@@ -151,36 +151,51 @@ message CommitTransactionResponse {
   uint64 epoch = 2;
 }
 
-message PrepareTransactionRequest {
+// TODO @Cleanup: use this?
+message BenchIOScope {
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  optional string transaction_id = 5;
+}
+
+message BeginTransactionRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
   // request
   TransactionData transaction = 5;
 }
-message PrepareTransactionResponse {
+
+message CompleteTransactionRequest {
+  // scope
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  // request
+  TransactionData transaction = 5;
+}
+message CompleteTransactionResponse {
   repeated SomeNodeData changed_nodes = 1;
   uint64 epoch = 2;
 }
 
-message CommitPreparedTransactionRequest {
+message CommitCompletedTransactionRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
   // request
   string transaction_id = 5;
 }
-message CommitPreparedTransactionResponse {
+message CommitCompletedTransactionResponse {
 }
 
-message CancelPreparedTransactionRequest {
+message CancelCompletedTransactionRequest {
   // scope
   optional string bench_id = 1;
   optional string package_id = 4;
   // request
   string transaction_id = 5;
 }
-message CancelPreparedTransactionResponse {
+message CancelCompletedTransactionResponse {
 }
 
 message NotifyEditsRequest {
@@ -253,11 +268,11 @@ service Supervisor {
   // Commits edits to global nodes.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
   // Prepares a transaction to commit to global nodes.
-  rpc PrepareTransaction(PrepareTransactionRequest) returns (PrepareTransactionResponse);
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   // Commits a prepared transaction to global nodes.
-  rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
+  rpc CommitCompletedTransaction(CommitCompletedTransactionRequest) returns (CommitCompletedTransactionResponse);
   // Rolls back a prepared transaction to global nodes.
-  rpc CancelPreparedTransaction(CancelPreparedTransactionRequest) returns (CancelPreparedTransactionResponse);
+  rpc CancelCompletedTransaction(CancelCompletedTransactionRequest) returns (CancelCompletedTransactionResponse);
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
@@ -346,11 +361,11 @@ service BenchHost {
   // Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
   // Prepares a transaction to commit to this Bench.
-  rpc PrepareTransaction(PrepareTransactionRequest) returns (PrepareTransactionResponse);
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   // Commits a prepared transaction to this Bench.
-  rpc CommitPreparedTransaction(CommitPreparedTransactionRequest) returns (CommitPreparedTransactionResponse);
+  rpc CommitCompletedTransaction(CommitCompletedTransactionRequest) returns (CommitCompletedTransactionResponse);
   // Rolls back a prepared transaction to this Bench.
-  rpc CancelPreparedTransaction(CancelPreparedTransactionRequest) returns (CancelPreparedTransactionResponse);
+  rpc CancelCompletedTransaction(CancelCompletedTransactionRequest) returns (CancelCompletedTransactionResponse);
   // Receive any relevant edits to this Bench.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
   // Notifies locally bypassed edits to the package subscribers.
