@@ -33,15 +33,15 @@ from bench.language.node import (
     p_runtime,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.query import QueryEngine, QueryBuilder
+from bench.language.query import StoreEngine, QueryBuilder
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
+from bench.proto.wire import RecordData
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Query
-    from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
 
@@ -120,7 +120,7 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-class RecordPostgresQueryEngine(QueryEngine[Record]):
+class RecordStoreEngine(StoreEngine[Record, RecordData]):
     def __init__(self, cur: psycopg.AsyncCursor):
         self._cur = cur
 
@@ -317,9 +317,6 @@ class HasDatabase(Node):
             self._table = RECORD_EPHEMERAL_TABLE
         else:
             self._table = map_database_to_pg_table(self)
-
-    async def _get_pg_cursor(self) -> psycopg.AsyncCursor:
-        return await self.session._tx.pg_cursor_to(is_local=True, package=self.package)
 
     @property
     def is_materialized(self):

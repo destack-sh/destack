@@ -116,7 +116,7 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
-    TODO @Cleanup: ideally Transaction would be a Struct (like Edit)
+    TODO @Cleanup: Transaction should be a Struct (along with Edit)
       (but we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
@@ -132,11 +132,15 @@ class Transaction:
     pending_edits: list[EditData] = dcfield(default_factory=list)
     _pending_updates_idx: dict[Node, int] = dcfield(default_factory=dict)
 
-    # for syncing databases
+    # for syncing databases (should probably generalize into untracked edits concept)
     _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
         default_factory=lambda: defaultdict(set)
     )
     _schema_changed: bool = dcfield(default=False)
+
+    @property
+    def has_edits(self) -> bool:
+        return len(self.edits) > 0 or len(self._changed_record_ids_by_base_id) > 0
 
     @staticmethod
     def from_existing(edits: Collection[EditData]):
@@ -147,18 +151,18 @@ class Transaction:
             tx._on_edit(edit)
         return tx
 
-    async def pg_cursor_to(
+    async def get_pg_cursor_to(
         self, is_local: bool, package: Package | None = None
-    ) -> psycopg.AsyncCursor:
+    ) -> Optional[psycopg.AsyncCursor]:
         if not is_local:
-            assert self.global_pg_cursor is not None, f"no global pg cursor in {self!r}"
             return self.global_pg_cursor
-        assert package is not None, f"no package for local {self!r}"
-        if package.pg_name not in self.local_pg_cursors:
-            pg_pool = await get_pg_connection_pool(package.pg_name)
-            pg_connection = await pg_pool.getconn(timeout=3)
-            self.local_pg_cursors[package.pg_name] = pg_connection.cursor()
-        return self.local_pg_cursors[package.pg_name]
+        else:
+            assert package is not None, f"no package for local {self!r}"
+            if package.pg_name not in self.local_pg_cursors:
+                pg_pool = await get_pg_connection_pool(package.pg_name)
+                pg_connection = await pg_pool.getconn(timeout=3)
+                self.local_pg_cursors[package.pg_name] = pg_connection.cursor()
+            return self.local_pg_cursors[package.pg_name]
 
     #
     # Edits
@@ -242,15 +246,15 @@ class Transaction:
         pass
 
     async def flush(self):
-        """Flushes any pending edits to the stores."""
+        """Flushes any pending edits to the primary stores (without committing)."""
         raise NotImplementedError
 
     async def commit(self):
-        """Commits the transaction (after flushing any remaining pending edits)."""
+        """Commits the transaction (flushing any remaining pending edits). Syncs to secondaries."""
         raise NotImplementedError
 
     async def rollback(self):
-        """Rolls back uncommitted edits."""
+        """Rolls back uncommitted edits in primary stores."""
         raise NotImplementedError
 
     async def close(self) -> None:
@@ -282,7 +286,6 @@ class Session(ScopeNode):
 
     _tx: Transaction | None = p_runtime(default=None)
     _global_pg_cursor: Optional[psycopg.AsyncCursor] = p_runtime(default=None)
-
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
@@ -324,7 +327,7 @@ class Session(ScopeNode):
     @property
     def has_edits(self) -> bool:
         """Whether this session has any non-session edits."""
-        return self._tx.has_edits
+        return self._tx is not None and self._tx.has_edits
 
     @property
     def is_open(self) -> bool:
@@ -382,15 +385,19 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush(self):
         assert self.is_open, f"cannot flush {self!r} when closed"
+        await self._tx.flush()
+        raise NotImplementedError
 
     @_auto_async_to_sync
-    async def commit(self):
+    async def commit(self) -> Collection[EditData]:
         assert self.is_open, f"cannot commit {self!r} when closed"
+        await self._tx.commit()
+        return self._tx.edits
 
     @_auto_async_to_sync
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
-        raise NotImplementedError  # unclear what this should do
+        await self._tx.rollback()
 
     @_auto_async_to_sync
     async def close(self):
@@ -445,47 +452,56 @@ class Session(ScopeNode):
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.create(n)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.upsert(n)
 
     def update(self, *nodes: Node, properties: tuple[Property, ...]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.update(n, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.move(n)
 
     def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
+        assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._tx.soft_delete(n)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
+        assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._tx.restore(n)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
+        assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
             self._tx.archive(n)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
+        assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._tx.unarchive(n)
 
     def hard_delete_forever(self, *nodes: Node):
         """Irreversibly deletes a node."""
+        assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
             self._tx.delete(n)

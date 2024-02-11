@@ -12,6 +12,7 @@ from bench.language.node import (
     p_parent,
     p_regular,
     p_system,
+    p_kernel,
 )
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
@@ -41,24 +42,25 @@ class Handle(Node):
 class User(ScopeNode):
     """A Bench user."""
 
+    # ordinal: ...?
     # (main_handle is optional because we can create user without handle)
     main_handle: Optional[Handle] = p_system(
-        30, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE
     )
     handles: NodeList[Handle] = p_child(NodeType.HANDLE)
-    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
-    name: Optional[str] = p_regular(32, default=None)
-    text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
-    email: str = p_system(34, defer=True, unique=True, sensitive=True)
+    slug: Optional[str] = p_system(32, unique=True)  # must match main handle
+    name: Optional[str] = p_regular(33, default=None)
+    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    email: str = p_system(35, defer=True, unique=True, sensitive=True)
     main_bench: Optional["Bench"] = p_system(
-        35, array=False, require=False, references=NodeType.BENCH
+        36, array=False, require=False, references=NodeType.BENCH
     )
 
     # auth
-    password_salt: Optional[bytes] = p_system(
+    password_salt: Optional[bytes] = p_kernel(
         40, default=None, defer=True, encrypt=True, sensitive=True
     )
-    password_hash: Optional[bytes] = p_system(
+    password_hash: Optional[bytes] = p_kernel(
         42, default=None, defer=True, encrypt=True, sensitive=True
     )
     last_logged_in_at: Optional[datetime] = p_system(43, default=None)
@@ -75,14 +77,14 @@ class Organization(ScopeNode):
     """A Bench organization with Users as members."""
 
     main_handle: Optional[Handle] = p_system(
-        30, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Organization
     handles: NodeList[Handle] = p_child(NodeType.HANDLE)
-    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
-    name: str = p_regular(32)
-    text: Optional["RichText"] = p_regular(33, default=None, struct=StructType.RICH_TEXT)
+    slug: Optional[str] = p_system(32, unique=True)  # must match main handle
+    name: str = p_regular(33)
+    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
     main_bench: Optional["Bench"] = p_system(
-        35, array=False, require=False, references=NodeType.BENCH
+        36, array=False, require=False, references=NodeType.BENCH
     )
 
     # flags

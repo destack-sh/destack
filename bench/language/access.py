@@ -326,6 +326,7 @@ class PolicyRule(Struct):
     )
     object_properties_is_system: Optional[bool] = p_regular(82, default=None)
     object_properties_is_sensitive: Optional[bool] = p_regular(83, default=None)
+    object_properties_is_kernel: Optional[bool] = p_regular(84, default=None)
     _object_properties_masks: dict[NodeType, bitarray] | None = p_runtime(default=None)
 
     # object_properties, object_nodes, object_fields, ...
@@ -373,6 +374,7 @@ class PolicyRule(Struct):
         for object_properties_key in (
             "object_properties_is_system",
             "object_properties_is_sensitive",
+            "object_properties_is_kernel",
         ):
             value = getattr(self, object_properties_key)
             if value is not None:
@@ -407,6 +409,11 @@ class PolicyRule(Struct):
             all_properties = list(all_properties)
             for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
                 if prop.has_id and prop.is_sensitive == self.object_properties_is_sensitive:
+                    all_properties.append(prop)
+        if self.object_properties_is_kernel is not None:
+            all_properties = list(all_properties)
+            for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
+                if prop.has_id and prop.is_kernel == self.object_properties_is_kernel:
                     all_properties.append(prop)
         if all_properties:
             for prop in all_properties:
@@ -488,6 +495,7 @@ class PolicyRule(Struct):
         properties: tuple[Property, ...] = (),
         properties_is_system: Optional[bool] = None,
         properties_is_sensitive: Optional[bool] = None,
+        properties_is_kernel: Optional[bool] = None,
     ) -> "Self":
         if (
             self.effect == PolicyEffect.ALLOW
@@ -501,6 +509,7 @@ class PolicyRule(Struct):
         self.object_properties = properties  # type: ignore
         self.object_properties_is_system = properties_is_system
         self.object_properties_is_sensitive = properties_is_sensitive
+        self.object_properties_is_kernel = properties_is_kernel
         self._update_object_mask()
         return self
 
@@ -739,6 +748,14 @@ class AccessError(BenchError, ValueError):
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
     Policy("SystemProtection").append(
+        PolicyRule(
+            "CannotReadKernelProperties",
+            text=RichText.plain(
+                "Kernel properties are only readable and writable by the system itself."
+            ),
+        )
+        .deny(AccessKind.READ)
+        .object(properties_is_kernel=True),
         PolicyRule(
             "CannotUpdateSystemProperties",
             text=RichText.plain(
