@@ -1578,9 +1578,6 @@ message StoreData {
   int32 engine = 31;
   string name = 32;
   optional RichTextData text = 34;
-  bool is_host_dedicated = 35;
-  bool is_database_dedicated = 36;
-  bool is_schema_dedicated = 37;
   optional string host = 41;
   optional string database = 42;
   optional string schema = 43;

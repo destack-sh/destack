@@ -325,6 +325,14 @@ export interface SearchNodesRequest {
      * @generated from protobuf field: optional bool count = 10;
      */
     count?: boolean;
+    /**
+     * @generated from protobuf field: optional bool lock_for_update = 11;
+     */
+    lockForUpdate?: boolean;
+    /**
+     * @generated from protobuf field: optional bool skip_locked = 12;
+     */
+    skipLocked?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesResponse
@@ -502,9 +510,9 @@ export interface CommitCompletedTransactionRequest {
 export interface CommitCompletedTransactionResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.CancelCompletedTransactionRequest
+ * @generated from protobuf message symbolx.bench.CancelTransactionRequest
  */
-export interface CancelCompletedTransactionRequest {
+export interface CancelTransactionRequest {
     /**
      * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
@@ -515,9 +523,9 @@ export interface CancelCompletedTransactionRequest {
     transactionId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.CancelCompletedTransactionResponse
+ * @generated from protobuf message symbolx.bench.CancelTransactionResponse
  */
-export interface CancelCompletedTransactionResponse {
+export interface CancelTransactionResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsRequest
@@ -1727,7 +1735,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 8, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 10, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 10, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 11, name: "lock_for_update", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 12, name: "skip_locked", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1774,6 +1784,12 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional bool count */ 10:
                     message.count = reader.bool();
                     break;
+                case /* optional bool lock_for_update */ 11:
+                    message.lockForUpdate = reader.bool();
+                    break;
+                case /* optional bool skip_locked */ 12:
+                    message.skipLocked = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1816,6 +1832,12 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional bool count = 10; */
         if (message.count !== undefined)
             writer.tag(10, WireType.Varint).bool(message.count);
+        /* optional bool lock_for_update = 11; */
+        if (message.lockForUpdate !== undefined)
+            writer.tag(11, WireType.Varint).bool(message.lockForUpdate);
+        /* optional bool skip_locked = 12; */
+        if (message.skipLocked !== undefined)
+            writer.tag(12, WireType.Varint).bool(message.skipLocked);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2469,21 +2491,21 @@ class CommitCompletedTransactionResponse$Type extends MessageType<CommitComplete
  */
 export const CommitCompletedTransactionResponse = new CommitCompletedTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CancelCompletedTransactionRequest$Type extends MessageType<CancelCompletedTransactionRequest> {
+class CancelTransactionRequest$Type extends MessageType<CancelTransactionRequest> {
     constructor() {
-        super("symbolx.bench.CancelCompletedTransactionRequest", [
+        super("symbolx.bench.CancelTransactionRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<CancelCompletedTransactionRequest>): CancelCompletedTransactionRequest {
+    create(value?: PartialMessage<CancelTransactionRequest>): CancelTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.transactionId = "";
         if (value !== undefined)
-            reflectionMergePartial<CancelCompletedTransactionRequest>(this, message, value);
+            reflectionMergePartial<CancelTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelCompletedTransactionRequest): CancelCompletedTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelTransactionRequest): CancelTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2505,7 +2527,7 @@ class CancelCompletedTransactionRequest$Type extends MessageType<CancelCompleted
         }
         return message;
     }
-    internalBinaryWrite(message: CancelCompletedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CancelTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.GraphScope scope = 1; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2519,24 +2541,24 @@ class CancelCompletedTransactionRequest$Type extends MessageType<CancelCompleted
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CancelCompletedTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.CancelTransactionRequest
  */
-export const CancelCompletedTransactionRequest = new CancelCompletedTransactionRequest$Type();
+export const CancelTransactionRequest = new CancelTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CancelCompletedTransactionResponse$Type extends MessageType<CancelCompletedTransactionResponse> {
+class CancelTransactionResponse$Type extends MessageType<CancelTransactionResponse> {
     constructor() {
-        super("symbolx.bench.CancelCompletedTransactionResponse", []);
+        super("symbolx.bench.CancelTransactionResponse", []);
     }
-    create(value?: PartialMessage<CancelCompletedTransactionResponse>): CancelCompletedTransactionResponse {
+    create(value?: PartialMessage<CancelTransactionResponse>): CancelTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CancelCompletedTransactionResponse>(this, message, value);
+            reflectionMergePartial<CancelTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelCompletedTransactionResponse): CancelCompletedTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelTransactionResponse): CancelTransactionResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: CancelCompletedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CancelTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2544,9 +2566,9 @@ class CancelCompletedTransactionResponse$Type extends MessageType<CancelComplete
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CancelCompletedTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.CancelTransactionResponse
  */
-export const CancelCompletedTransactionResponse = new CancelCompletedTransactionResponse$Type();
+export const CancelTransactionResponse = new CancelTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
     constructor() {
@@ -3816,6 +3838,19 @@ class KillRunResponse$Type extends MessageType<KillRunResponse> {
  */
 export const KillRunResponse = new KillRunResponse$Type();
 /**
+ * @generated ServiceType for protobuf service symbolx.bench.GraphIO
+ */
+export const GraphIO = new ServiceType("symbolx.bench.GraphIO", [
+    { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
+    { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
+    { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
+    { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
+    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
+]);
+/**
  * @generated ServiceType for protobuf service symbolx.bench.Supervisor
  */
 export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
@@ -3827,10 +3862,10 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
-    { name: "CommitCompletedTransaction", options: {}, I: CommitCompletedTransactionRequest, O: CommitCompletedTransactionResponse },
-    { name: "CancelCompletedTransaction", options: {}, I: CancelCompletedTransactionRequest, O: CancelCompletedTransactionResponse },
+    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
@@ -3840,10 +3875,10 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
-    { name: "CommitCompletedTransaction", options: {}, I: CommitCompletedTransactionRequest, O: CommitCompletedTransactionResponse },
-    { name: "CancelCompletedTransaction", options: {}, I: CancelCompletedTransactionRequest, O: CancelCompletedTransactionResponse },
+    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },

@@ -3271,18 +3271,6 @@ export interface StoreData {
      */
     text?: RichTextData;
     /**
-     * @generated from protobuf field: bool is_host_dedicated = 35;
-     */
-    isHostDedicated: boolean;
-    /**
-     * @generated from protobuf field: bool is_database_dedicated = 36;
-     */
-    isDatabaseDedicated: boolean;
-    /**
-     * @generated from protobuf field: bool is_schema_dedicated = 37;
-     */
-    isSchemaDedicated: boolean;
-    /**
      * @generated from protobuf field: optional string host = 41;
      */
     host?: string;
@@ -13172,9 +13160,6 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 31, name: "engine", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => RichTextData },
-            { no: 35, name: "is_host_dedicated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 36, name: "is_database_dedicated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 37, name: "is_schema_dedicated", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 41, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "database", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "schema", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -13191,9 +13176,6 @@ class StoreData$Type extends MessageType<StoreData> {
         message.kind = 0;
         message.engine = 0;
         message.name = "";
-        message.isHostDedicated = false;
-        message.isDatabaseDedicated = false;
-        message.isSchemaDedicated = false;
         message.extraCredentials = [];
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
@@ -13242,15 +13224,6 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* optional symbolx.bench.RichTextData text */ 34:
                     message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* bool is_host_dedicated */ 35:
-                    message.isHostDedicated = reader.bool();
-                    break;
-                case /* bool is_database_dedicated */ 36:
-                    message.isDatabaseDedicated = reader.bool();
-                    break;
-                case /* bool is_schema_dedicated */ 37:
-                    message.isSchemaDedicated = reader.bool();
                     break;
                 case /* optional string host */ 41:
                     message.host = reader.string();
@@ -13318,15 +13291,6 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional symbolx.bench.RichTextData text = 34; */
         if (message.text)
             RichTextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_host_dedicated = 35; */
-        if (message.isHostDedicated !== false)
-            writer.tag(35, WireType.Varint).bool(message.isHostDedicated);
-        /* bool is_database_dedicated = 36; */
-        if (message.isDatabaseDedicated !== false)
-            writer.tag(36, WireType.Varint).bool(message.isDatabaseDedicated);
-        /* bool is_schema_dedicated = 37; */
-        if (message.isSchemaDedicated !== false)
-            writer.tag(37, WireType.Varint).bool(message.isSchemaDedicated);
         /* optional string host = 41; */
         if (message.host !== undefined)
             writer.tag(41, WireType.LengthDelimited).string(message.host);

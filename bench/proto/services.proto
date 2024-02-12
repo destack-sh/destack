@@ -105,6 +105,8 @@ message SearchNodesRequest {
   optional string after = 8;
   optional ReadOptionsData options = 9;
   optional bool count = 10;
+  optional bool lock_for_update = 11;
+  optional bool skip_locked = 12;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -164,11 +166,11 @@ message CommitCompletedTransactionRequest {
 message CommitCompletedTransactionResponse {
 }
 
-message CancelCompletedTransactionRequest {
+message CancelTransactionRequest {
   GraphScope scope = 1;
   string transaction_id = 2;
 }
-message CancelCompletedTransactionResponse {
+message CancelTransactionResponse {
 }
 
 message WatchEditsRequest {
@@ -197,6 +199,26 @@ message PingServerResponse {
   repeated ServerData servers = 1;
 }
 
+// Common service definition for global and bench-local :GraphIO
+service GraphIO {
+  // Get nodes in this graph. Error if any node is not found/accessible.
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  // Search nodes in this graph..
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Aggregate nodes in this graph.
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
+  // Commit a new or pending completed transaction to this graph.
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  // Begins a pending transaction.
+  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
+  // Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+  // Rolls back a completed transaction to this graph.
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  // Receive any relevant edits to this graph.
+  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+}
+
 // Global control plane: all the global stuff like Benches, Users, etc..
 // Will probably shard this  at some point.
 // Frontend connects to this directly.
@@ -222,24 +244,16 @@ service Supervisor {
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 
   //
-  // General IO for non-source nodes :BenchIO
+  // General IO for non-source nodes :GraphIO
   //
 
-  // Get global nodes.
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  // Search global nodes.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  // Aggregate global nodes.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Commits edits to global nodes.
+  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-  // Prepares a transaction to commit to global nodes.
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
-  // Commits a prepared transaction to global nodes.
-  rpc CommitCompletedTransaction(CommitCompletedTransactionRequest) returns (CommitCompletedTransactionResponse);
-  // Rolls back a prepared transaction to global nodes.
-  rpc CancelCompletedTransaction(CancelCompletedTransactionRequest) returns (CancelCompletedTransactionResponse);
-  // Subscribes to relevant global edits.
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
 
@@ -315,26 +329,16 @@ message RunProxyBlockResponse {
 // Frontend connects to this directly.
 service BenchHost {
   //
-  // General IO for nodes in this Bench only :BenchIO
+  // General IO for nodes in this Bench only :GraphIO
   //
 
-  // Reads local nodes.
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  // Searches nodes using filters.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  // Aggregate nodes into statistics.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
+  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-  // Begins a pending transaction.
-
-  // Prepares a transaction to commit to this Bench.
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
-  // Commits a prepared transaction to this Bench.
-  rpc CommitCompletedTransaction(CommitCompletedTransactionRequest) returns (CommitCompletedTransactionResponse);
-  // Rolls back a prepared transaction to this Bench.
-  rpc CancelCompletedTransaction(CancelCompletedTransactionRequest) returns (CancelCompletedTransactionResponse);
-  // Receive any relevant edits to this Bench.
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
   //

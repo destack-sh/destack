@@ -749,12 +749,10 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
     Policy("SystemProtection").append(
         PolicyRule(
-            "CannotReadKernelProperties",
-            text=RichText.plain(
-                "Kernel properties are only readable and writable by the system itself."
-            ),
+            "CannotAccessKernelProperties",
+            text=RichText.plain("Kernel properties are inaccessible outside the system itself."),
         )
-        .deny(AccessKind.READ)
+        .deny()
         .object(properties_is_kernel=True),
         PolicyRule(
             "CannotUpdateSystemProperties",
@@ -775,7 +773,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         PolicyRule(
             "CannotEditHandles",
             text=RichText.plain(
-                "Handles (like usernames) are not directly editable, only through special methods."
+                "Handles (like usernames) must be edited through special methods."
                 # (explicitly deny this since handles are owned by the root)
             ),
         )
@@ -795,7 +793,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         PolicyRule(
             "OwnerCanDoAnything",
             text=RichText.plain(
-                "Subjects identified as the owner of a node can always do anything with it."
+                "Anyone identified as the owner of a node can always do everything."
             ),
         )
         .subject(is_owner=True)

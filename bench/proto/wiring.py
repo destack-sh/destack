@@ -260,7 +260,7 @@ def unpack_nodes_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
-    roots: Collection[NodeDataT] = None,
+    roots: Collection[NodeReferenceData] = None,
 ) -> tuple[Node, ...] | list[Node]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
@@ -317,22 +317,6 @@ def unpack_nodes_inline(
         return recovered_roots
     else:
         return unpacked_roots
-
-
-def unpack_node_inline(
-    source_graph: NodeDataGraph,
-    parent: Node | None,
-    session: Session | None = None,
-    exclude: set[NodeType] = None,
-    root: NodeDataT = None,
-) -> Node:
-    """Unpack a node and all its inline descendants"""
-    roots = unpack_nodes_inline(
-        source_graph, parent, session, exclude, roots=[root] if root is not None else None
-    )
-    if len(roots) != 1:
-        raise ValueError(f"expected 1 root, got {len(roots)}")
-    return roots[0]
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:

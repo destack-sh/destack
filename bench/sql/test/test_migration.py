@@ -3,7 +3,7 @@ import pytest
 import structlog
 
 from bench.language.node import NODE_CLASSES
-from bench.sql.client import async_pg_cursor
+from bench.sql.client import get_pg_connection_str, pg_cursor
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES
 from bench.sql.migration import (
     apply_migration_ops,
@@ -12,6 +12,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     migrate_to,
 )
+from bench.system.utils import global_pg_cursor, GLOBAL_STORE
 
 logger = structlog.get_logger(__name__)
 
@@ -19,7 +20,7 @@ logger = structlog.get_logger(__name__)
 @pytest.fixture(scope="function")
 async def blank_test_db(request: pytest.FixtureRequest):
     db_name = f"migrate_test_{request.function.__name__}"
-    async with async_pg_cursor(autocommit=True) as cur:
+    async with global_pg_cursor(autocommit=True) as cur:
         await cur.execute(f"DROP DATABASE IF EXISTS {db_name}")
         await cur.execute(f"CREATE DATABASE {db_name}")
         yield db_name
@@ -27,7 +28,8 @@ async def blank_test_db(request: pytest.FixtureRequest):
 
 @pytest.fixture(scope="function")
 async def blank_test_cur(blank_test_db: str) -> psycopg.AsyncCursor:
-    async with async_pg_cursor(blank_test_db) as cur:
+    connection_str = get_pg_connection_str(GLOBAL_STORE, blank_test_db)
+    async with pg_cursor(connection_str, blank_test_db) as cur:
         yield cur
     await cur.connection.close()
 

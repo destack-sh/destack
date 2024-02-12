@@ -32,7 +32,7 @@ from bench.language.node import (
     p_runtime,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.query import StoreEngine, QueryBase
+from bench.language.query import StoreEngine, QueryBuilder
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
@@ -119,7 +119,7 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-class RecordStoreEngine(StoreEngine[Record, RecordData]):
+class RecordPostgresEngine(StoreEngine[Record, RecordData]):
     def __init__(self, cur: psycopg.AsyncCursor):
         self._cur = cur
 
@@ -259,12 +259,12 @@ class RelationType(enum.StrEnum):
     ManyToOne = "ManyToOne"
 
 
-class RecordList(NodeListBase[Record], QueryBase[Record]):
+class RecordList(NodeListBase[Record], QueryBuilder[Record, RecordData]):
     """A NodeList for remote records."""
 
     def __init__(self, parent: "ScopeNode", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
-        QueryBase.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
+        QueryBuilder.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
 
     def __str__(self):
         return f"from {self._parent._table.name}"

@@ -88,18 +88,16 @@ class Store(Node):
     engine: StoreEngineType = p_system(31)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
-    is_host_dedicated: bool = p_system(35, default=False)
-    is_database_dedicated: bool = p_system(36, default=False)
-    is_schema_dedicated: bool = p_system(37, default=False)
 
     # base: Optional[Store] ...if shared?
-    host: Optional[str] = p_kernel(41, sensitive=True)
-    database: Optional[str] = p_kernel(42, sensitive=True)
-    schema: Optional[str] = p_kernel(43, sensitive=True)
+    host: Optional[str] = p_kernel(41, require=False, default=None, sensitive=True)
+    database: Optional[str] = p_kernel(42, require=None, default=None, sensitive=True)
+    schema: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
     # ('root' here is relative to the dedicated schema/database/host)
     root_credential: Optional[StoreCredential] = p_kernel(
         44,
         require=False,
+        default=None,
         array=False,
         sensitive=True,
         encrypt=True,
@@ -109,12 +107,16 @@ class Store(Node):
     extra_credentials: list[StoreCredential] = p_kernel(
         45,
         require=False,
+        default=None,
         array=True,
         sensitive=True,
         encrypt=True,
         defer=True,
         struct=StructType.STORE_CREDENTIAL,
     )
+
+    def __content_str__(self) -> str:
+        return f"{self.kind.bench_name} ({self.engine.bench_name})"
 
 
 @node(NodeType.DRIVE)

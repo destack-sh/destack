@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 import structlog
 
 from bench.language.node import NODE_CLASSES, Bench
-from bench.system.utils import global_session
+from bench.sql.client import pg_cursor_to_store
+from bench.system.utils import global_session, global_pg_cursor
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
 
 if TYPE_CHECKING:
@@ -59,7 +60,6 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION
-    from bench.sql.client import async_pg_cursor
     from bench.sql.migration import generate_migration_ops, introspect_tables_from_pg
     from bench.sql.schema import VERSION as SQL_VERSION
 
@@ -89,7 +89,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
         log.debug("lang.check_consistency.db")
 
         # check global
-        async with async_pg_cursor() as cur:
+        async with global_pg_cursor() as cur:
             old_global_tables = await introspect_tables_from_pg(cur)
         migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
         if migration_ops:
@@ -98,7 +98,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
         # check local
         async with global_session(read_only=True):
             bench = await Bench.get(slug=check_db_bench)
-        async with async_pg_cursor(local_pg_name=bench.pg_name) as cur:
+        async with pg_cursor_to_store(bench.main_environment.store) as cur:
             old_local_tables = await introspect_tables_from_pg(cur)
         migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
         if migration_ops:

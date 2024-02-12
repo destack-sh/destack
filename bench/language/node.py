@@ -245,6 +245,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "is_computed",
             "is_internal",
             "is_system",
+            "is_kernel",
             "is_ancestor_nearest",
             "is_ancestor_self",
             "is_deferred",
@@ -1757,7 +1758,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         return type(self).__name__
 
     @property
-    def _root(self) -> "Node":
+    def root(self) -> "Node":
         """Current root of this node. May not be *the* "right" root if detached."""
         parent = self
         while parent.parent is not None:
@@ -1771,7 +1772,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     @property
     def _root_graph(self) -> "NodeGraphBase":
-        root = self._root
+        root = self.root
         return cast("ScopeNode", root)._root_graph
 
     def _assign_id(self, package_id: UUID):
@@ -2402,7 +2403,7 @@ class Bench(ScopeNode):
     slug: str = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33)
     text: Optional["RichText"] = p_regular(
-        34, require=False, array=False, struct=StructType.RICH_TEXT
+        34, default=None, require=False, array=False, struct=StructType.RICH_TEXT
     )
     owner: Union["User", "Organization"] = p_system(
         35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
@@ -2519,7 +2520,7 @@ class Package(ScopeNode):
 
     @property
     def _nodes(self) -> Collection[Node]:
-        return self._root.nodes_by_ck.values()
+        return self.root.nodes_by_ck.values()
 
     def __content_str__(self):
         return f"is_active={self.is_active}, blocks={len(self.blocks)}, spaces={len(self.spaces)}"

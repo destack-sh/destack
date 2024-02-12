@@ -11,10 +11,11 @@ from more_itertools import first
 from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
+from bench.language import Store
 from bench.language.const import VERSION, NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE, Bench
+from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Environment
 from bench.language.query import NodeNotFoundError
-from bench.sql.client import _get_pg_connection_str, async_pg_cursor
+from bench.sql.client import pg_cursor_to_store, get_pg_connection_str
 from bench.sql.engine import (
     GLOBAL_TABLES,
     LOCAL_TABLES,
@@ -33,7 +34,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
-from bench.system.utils import global_session
+from bench.system.utils import global_session, global_pg_cursor, GLOBAL_STORE
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
@@ -74,14 +75,11 @@ def regen():
 @_async_to_sync_blocking
 async def makemigrations(
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
-    local_pg_name: Optional[str] = typer.Option(
-        default=None, help="the bench to use as local reference (bypass lookup via bench)"
-    ),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
 ):
-    logger.info("makemigrations", bench=bench, local_pg_name=local_pg_name)
+    logger.info("makemigrations", bench=bench)
     start = time.time()
 
     # defensively check existing migrations for inconsistencies
@@ -96,7 +94,7 @@ async def makemigrations(
             raise RuntimeError(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
-    async with async_pg_cursor() as cur:
+    async with global_pg_cursor() as cur:
         stored_migrations = await read_migrations_from_pg(cur)
     if any(m.applied_at is None for m in stored_migrations):
         # we introspect DB state, so we can't makemigrations if we have unapplied migrations
@@ -109,22 +107,17 @@ async def makemigrations(
         )
 
     # resolve bench into local pg name if needed
-    if not local_pg_name:
-        async with global_session(read_only=True):
-            try:
-                bench = await Bench.get(slug=bench)
-                local_pg_name = bench.pg_name
-            except (NodeNotFoundError, SqlUndefinedObjectError):
-                pass  # initial migration
+    async with global_session(read_only=True):
+        try:
+            bench = await Bench.descendants(Environment, Store).get(slug=bench)
+            async with pg_cursor_to_store(bench.main_environment.store) as cur:
+                old_local_tables = await introspect_tables_from_pg(cur)
+        except (NodeNotFoundError, SqlUndefinedObjectError):
+            old_local_tables = ()  # initial migration
 
     # introspect current/old tables from DB, get new from code
-    async with async_pg_cursor() as cur:
+    async with global_pg_cursor() as cur:
         old_global_tables = await introspect_tables_from_pg(cur)
-    if local_pg_name:
-        async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
-            old_local_tables = await introspect_tables_from_pg(cur)
-    else:
-        old_local_tables = []  # assumes from scratch
 
     # generate migration
     global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
@@ -172,16 +165,16 @@ async def migrate(
     if bench is not None:
         async with global_session(read_only=True):
             if bench != "*":
-                bench = await Bench.get(slug=bench)
-                pg_names = (bench.pg_name,)
+                bench = await Bench.descendants(Environment, Store).get(slug=bench)
+                stores = tuple(e.store for e in bench.environments)
             else:
                 benches = await Bench.tolist()
-                pg_names = tuple(b.pg_name for b in benches)
+                stores = tuple(e.store for b in benches for e in b.environments)
     else:
-        pg_names = (None,)
+        stores = (GLOBAL_STORE,)
 
-    for pg_name in pg_names:
-        async with async_pg_cursor(local_pg_name=pg_name) as cur:
+    for store in stores:
+        async with pg_cursor_to_store(store) as cur:
             await migrate_to(cur=cur, target=target, is_global=bench is None)
             if not dry_run:
                 await cur.connection.commit()
@@ -198,15 +191,17 @@ async def clearmigrations(from_id: int, to_id: int):
     start = time.time()
 
     delete_migrations_in_fs(from_id, to_id)
-    async with async_pg_cursor() as cur:
+    async with global_pg_cursor() as cur:
         await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
         await cur.connection.commit()
     async with global_session(read_only=True):
         benches = await Bench.tolist()
         for bench in benches:
-            async with async_pg_cursor(local_pg_name=bench.pg_name) as cur:
-                await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
-                await cur.connection.commit()
+            stores = tuple(e.store for e in bench.environments)
+            for store in stores:
+                async with pg_cursor_to_store(store) as cur:
+                    await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
+                    await cur.connection.commit()
 
     logger.info("clear_migrations.done", duration=time.time() - start)
 
@@ -217,18 +212,19 @@ async def introspect(bench: str = None):
     """Introspect the current schema of the Postgres instance."""
     logger.info("pg.introspect", bench=bench)
     start = time.perf_counter()
+
     if bench is not None:
         async with global_session(read_only=True):
-            bench = Bench.get(slug=bench)
-            local_pg_name = bench.pg_name
+            bench = Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(slug=bench)
+            async with pg_cursor_to_store(bench.main_environment.store) as cur:
+                tables = await introspect_tables_from_pg(
+                    cur, include_columns=True, include_indexes=True, include_constraints=True
+                )
     else:
-        local_pg_name = None
-
-    # introspect
-    async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
-        tables = await introspect_tables_from_pg(
-            cur, include_columns=True, include_indexes=True, include_constraints=True
-        )
+        async with global_pg_cursor() as cur:
+            tables = await introspect_tables_from_pg(
+                cur, include_columns=True, include_indexes=True, include_constraints=True
+            )
 
     # generate schema
     chunks: list[str] = []
@@ -252,9 +248,9 @@ async def shell(bench: str = None):
     if bench is not None:
         async with global_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
-        connection_str = _get_pg_connection_str(local_pg_name=bench.pg_name)
+        connection_str = get_pg_connection_str(local_pg_name=bench.pg_name)
     else:
-        connection_str = _get_pg_connection_str(local_pg_name=None)
+        connection_str = get_pg_connection_str(local_pg_name=None)
 
     logger.info(
         "shell.psql", bench=bench, connection_str=re.sub(r":[^@]+@", ":*****@", connection_str)
