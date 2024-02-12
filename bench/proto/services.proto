@@ -84,12 +84,9 @@ message CreateBenchResponse {
 }
 
 message GetNodesRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  repeated NodeReferenceData roots = 5;
-  optional ReadOptionsData options = 6;
+  GraphScope scope = 1;
+  repeated NodeReferenceData roots = 2;
+  optional ReadOptionsData options = 3;
 }
 message GetNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -98,19 +95,16 @@ message GetNodesResponse {
 }
 
 message SearchNodesRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  NodeType node_type = 5;
-  repeated NodeReferenceData bases = 6;
-  optional ExpressionData filter = 7;
-  repeated ExpressionData sort = 8;
-  optional int32 first = 9;
-  optional int32 skip = 10;
-  optional string after = 11;
-  optional ReadOptionsData options = 12;
-  optional bool count = 13;
+  GraphScope scope = 1;
+  NodeType node_type = 2;
+  repeated NodeReferenceData bases = 3;
+  optional ExpressionData filter = 4;
+  repeated ExpressionData sort = 5;
+  optional int32 first = 6;
+  optional int32 skip = 7;
+  optional string after = 8;
+  optional ReadOptionsData options = 9;
+  optional bool count = 10;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -123,16 +117,13 @@ message SearchNodesResponse {
 }
 
 message AggregateNodesRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  NodeType node_type = 5;
-  repeated NodeReferenceData bases = 6;
-  optional ExpressionData filter = 7;
-  repeated ExpressionData sort = 8;
-  ExpressionData aggregation = 9;
-  optional ExpressionData global_filter = 10;
+  GraphScope scope = 1;
+  NodeType node_type = 2;
+  repeated NodeReferenceData bases = 3;
+  optional ExpressionData filter = 4;
+  repeated ExpressionData sort = 5;
+  ExpressionData aggregation = 6;
+  optional ExpressionData global_filter = 7;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
@@ -140,38 +131,26 @@ message AggregateNodesResponse {
 }
 
 message CommitTransactionRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  TransactionData transaction = 5;
+  GraphScope scope = 1;
+  TransactionData transaction = 2;
 }
 message CommitTransactionResponse {
   repeated SomeNodeData changed_nodes = 1;
   uint64 epoch = 2;
 }
 
-// TODO @Cleanup: use this?
-message BenchIOScope {
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  optional string transaction_id = 5;
-}
-
 message BeginTransactionRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  TransactionData transaction = 5;
+  GraphScope scope = 1;
+  TransactionData transaction = 2;
+}
+message BeginTransactionResponse {
+  string transaction_id = 1;
+  uint64 epoch = 2;
 }
 
 message CompleteTransactionRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  TransactionData transaction = 5;
+  GraphScope scope = 1;
+  TransactionData transaction = 2;
 }
 message CompleteTransactionResponse {
   repeated SomeNodeData changed_nodes = 1;
@@ -179,38 +158,23 @@ message CompleteTransactionResponse {
 }
 
 message CommitCompletedTransactionRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  string transaction_id = 5;
+  GraphScope scope = 1;
+  string transaction_id = 2;
 }
 message CommitCompletedTransactionResponse {
 }
 
 message CancelCompletedTransactionRequest {
-  // scope
-  optional string bench_id = 1;
-  optional string package_id = 4;
-  // request
-  string transaction_id = 5;
+  GraphScope scope = 1;
+  string transaction_id = 2;
 }
 message CancelCompletedTransactionResponse {
 }
 
-message NotifyEditsRequest {
-  repeated EditData local_edits = 1;
-}
-message NotifyEditsResponse {
-}
-
 message WatchEditsRequest {
-  // scope
-  optional string bench_id = 1;
-  repeated string package_ids = 4;
-  // request
-  repeated NodeType node_types = 5;
-  optional uint64 since_epoch = 6;
+  GraphScope scope = 1;
+  repeated NodeType node_types = 2;
+  optional uint64 since_epoch = 3;
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
@@ -218,14 +182,16 @@ message WatchEditsResponse {
 }
 
 message RestartServerRequest {
-  string bench_id = 1;
+  GraphScope scope = 1;
+  string server_id = 2;
 }
 message RestartServerResponse {
   repeated ServerData servers = 1;
 }
 
 message PingServerRequest {
-  string bench_id = 1;
+  GraphScope scope = 1;
+  string server_id = 2;
 }
 message PingServerResponse {
   repeated ServerData servers = 1;
@@ -360,6 +326,8 @@ service BenchHost {
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  // Begins a pending transaction.
+
   // Prepares a transaction to commit to this Bench.
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   // Commits a prepared transaction to this Bench.
@@ -368,14 +336,6 @@ service BenchHost {
   rpc CancelCompletedTransaction(CancelCompletedTransactionRequest) returns (CancelCompletedTransactionResponse);
   // Receive any relevant edits to this Bench.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-  // Notifies locally bypassed edits to the package subscribers.
-  rpc NotifyEdits(NotifyEditsRequest) returns (NotifyEditsResponse);
-
-  //
-  // Special Bench IO
-  //
-
-  // ...
 
   //
   // Files

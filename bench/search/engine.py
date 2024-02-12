@@ -9,18 +9,17 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language import C, ConditionalOp, Field, Package, QueryEngineType, SortMode, SortOp
-from bench.language.const import BenchType, BlockType, EditType, NodeType
+from bench.language import C, ConditionalOp, Field, Package, SortMode, SortOp
+from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
     ExpressionOps,
-    QueryEngineError,
-    QueryEngineIncapableError,
     S,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
+from bench.language.query import StoreEngineIncapableError
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.search import core as os
@@ -180,7 +179,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
         return {"exists": {"field": key}}
     elif cond.op == ConditionalOp.NOT_EXISTS:
         return {"bool": {"must_not": {"exists": {"field": key}}}}
-    raise QueryEngineIncapableError(QueryEngineType.LOCAL_SEARCH, cond, "unsupported conditional")
+    raise StoreEngineIncapableError(StoreEngineType.OPENSEARCH, cond, "unsupported conditional")
 
 
 OS_SORT_ORDER_BY_BENCH = {
@@ -293,8 +292,8 @@ def os_compile_search(
 
 def _wrap_os_error(
     e: Exception, expr: Expression | list[Expression]
-) -> QueryEngineError | Exception:
-    return QueryEngineError(QueryEngineType.LOCAL_SEARCH, expr, str(e))
+) -> StoreEngineError | Exception:
+    return StoreEngineError(StoreEngineType.LOCAL_SEARCH, expr, str(e))
 
 
 async def os_search(

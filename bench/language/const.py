@@ -8,10 +8,8 @@ from bench.utils.func import IdEnum, bytetuple, cyrb53a
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
-    from bench.language import Bench, Block, Node, Package, Session  # noqa: F401
+    from bench.language import Session, Transaction
 
-# hard-coded, do not change ever :BenchUuidNamespace
-UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 VERSION = "2024.02.10.0"
 UNSET = object()
 EMPTY_LIST: list = []
@@ -150,6 +148,7 @@ class StructType(IdEnum):
 
     SERVER_IMAGE = 630
     SERVER_IMAGE_REQUIREMENT = 631
+    STORE_CREDENTIAL = 632
 
     RICH_TEXT = 660
     RICH_TEXT_SPAN = 661
@@ -404,14 +403,17 @@ class AccessMode(IdEnum):
 class StoreKind(IdEnum):
     RELATIONAL = 1
     SEARCH = 2
-    ANALYTICAL = 3  # would be nice to unify with SEARCH...
+    # would be nice to unify ANALYTICAL with SEARCH (need to eval CH's search capabilities)
+    ANALYTICAL = 3
     # DOCUMENT?
 
 
-class StoreEngine(IdEnum):
-    POSTGRES = 1
-    OPENSEARCH = 20
-    CLICKHOUSE = 30
+class StoreEngineType(IdEnum):
+    INMEMORY = 1
+    REMOTE = 2
+    POSTGRES = 3
+    OPENSEARCH = 4
+    CLICKHOUSE = 5
 
 
 class BadgeType(IdEnum):
@@ -578,7 +580,7 @@ class ConditionalOp(IdEnum):
     NOT = 3
     AND = 4
     OR = 5
-    # comparison
+    # basic comparison
     EQUALS = 10
     NOT_EQUALS = 11
     GREATER_THAN = 12
@@ -617,13 +619,6 @@ class SortOp(IdEnum):
     DESCENDING = 201
 
 
-class QueryEngineType(IdEnum):
-    IN_MEMORY = 1
-    GLOBAL_STORE = 2
-    LOCAL_STORE = 4
-    LOCAL_SEARCH = 5
-
-
 class SortMode(IdEnum):
     MAX = 1
     MIN = 2
@@ -647,12 +642,17 @@ class BenchError(Exception):
 _active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
-_no_validation: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "_no_validation", default=False
-)
 
 
 def active_session() -> "Session":
+    """Gets the currently active Session (error if none)."""
     session = _active_session.get()
     assert session is not None, "no active session"
     return session
+
+
+def active_tx() -> "Transaction":
+    """Gets the currently active Transaction (error if none)."""
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    return session.tx

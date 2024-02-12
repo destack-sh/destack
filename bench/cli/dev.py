@@ -4,7 +4,7 @@ import structlog
 import typer
 
 from bench.language import Bench
-from bench.system.utils import detached_session
+from bench.system.utils import global_session
 
 app = typer.Typer(short_help="local developer helpers")
 
@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 @server.command(name="imitate")
 async def imitate_server(bench: str):
     """'Imitate' the env vars of a server for a Bench in .env.server"""
-    async with detached_session(read_only=True):
+    async with global_session(read_only=True):
         bench: Bench = await Bench.get(slug=bench)
     logger.info("server.imitate", bench=bench)
     env_vars = {

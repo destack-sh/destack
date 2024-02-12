@@ -627,6 +627,10 @@ export interface PolicyRuleData {
      * @generated from protobuf field: optional bool object_properties_is_sensitive = 83;
      */
     objectPropertiesIsSensitive?: boolean;
+    /**
+     * @generated from protobuf field: optional bool object_properties_is_kernel = 84;
+     */
+    objectPropertiesIsKernel?: boolean;
 }
 /**
  * A path of Node/Struct properties.
@@ -958,6 +962,29 @@ export interface SpaceDockItemData {
     hidden: boolean;
 }
 /**
+ * StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, _status: bench.language.const.NodeStatus = None)
+ *
+ * @generated from protobuf message symbolx.bench.StoreCredentialData
+ */
+export interface StoreCredentialData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: int32 type = 30;
+     */
+    type: number;
+    /**
+     * @generated from protobuf field: optional string username = 31;
+     */
+    username?: string;
+    /**
+     * @generated from protobuf field: optional string password = 32;
+     */
+    password?: string;
+}
+/**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
  * (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
  *
@@ -1212,7 +1239,7 @@ export interface BadgeData {
     keyValueHash?: string;
 }
 /**
- * A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
+ * A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
  *
  * @generated from protobuf message symbolx.bench.BenchData
  */
@@ -1258,27 +1285,31 @@ export interface BenchData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
     mainHandlePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: string slug = 31;
+     * @generated from protobuf field: string slug = 32;
      */
     slug: string;
     /**
-     * @generated from protobuf field: string name = 32;
+     * @generated from protobuf field: string name = 33;
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 34;
      */
     text?: RichTextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owner_ptr = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owner_ptr = 35;
      */
     ownerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 36;
+     * @generated from protobuf field: optional string encryption_key = 36;
+     */
+    encryptionKey?: string;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 37;
      */
     policies: PolicyData[];
     /**
@@ -1669,10 +1700,6 @@ export interface DriveData {
      * @generated from protobuf field: optional string host = 40;
      */
     host?: string;
-    /**
-     * @generated from protobuf field: optional string uri = 41;
-     */
-    uri?: string;
 }
 /**
  * An environment isolates resources from the rest of a Bench.
@@ -1889,7 +1916,7 @@ export interface FieldData {
     isOption: boolean;
 }
 /**
- * The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512.
+ * (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.
  *
  * @generated from protobuf message symbolx.bench.FileContentData
  */
@@ -2397,23 +2424,23 @@ export interface OrganizationData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
     mainHandlePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string slug = 31;
+     * @generated from protobuf field: optional string slug = 32;
      */
     slug?: string;
     /**
-     * @generated from protobuf field: string name = 32;
+     * @generated from protobuf field: string name = 33;
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 34;
      */
     text?: RichTextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 36;
      */
     mainBenchPtr?: NodeReferenceData;
 }
@@ -3268,13 +3295,13 @@ export interface StoreData {
      */
     schema?: string;
     /**
-     * @generated from protobuf field: optional string username = 44;
+     * @generated from protobuf field: optional symbolx.bench.StoreCredentialData root_credential = 44;
      */
-    username?: string;
+    rootCredential?: StoreCredentialData;
     /**
-     * @generated from protobuf field: optional string password = 45;
+     * @generated from protobuf field: repeated symbolx.bench.StoreCredentialData extra_credentials = 45;
      */
-    password?: string;
+    extraCredentials: StoreCredentialData[];
 }
 /**
  * An association between a tag and a node (with optional value).
@@ -3453,27 +3480,27 @@ export interface UserData {
      */
     lastChangedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
     mainHandlePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string slug = 31;
+     * @generated from protobuf field: optional string slug = 32;
      */
     slug?: string;
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: optional string name = 33;
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 33;
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 34;
      */
     text?: RichTextData;
     /**
-     * @generated from protobuf field: optional string email = 34;
+     * @generated from protobuf field: optional string email = 35;
      */
     email?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_bench_ptr = 36;
      */
     mainBenchPtr?: NodeReferenceData;
     /**
@@ -4239,6 +4266,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
      */
     SERVER_IMAGE_REQUIREMENT = 631,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STORE_CREDENTIAL = 632;
+     */
+    STORE_CREDENTIAL = 632,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RICH_TEXT = 660;
      */
@@ -5134,31 +5165,6 @@ export enum PrimitiveType {
     INTERVAL = 21
 }
 /**
- * @generated from protobuf enum symbolx.bench.QueryEngineType
- */
-export enum QueryEngineType {
-    /**
-     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_IN_MEMORY = 1;
-     */
-    IN_MEMORY = 1,
-    /**
-     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_GLOBAL_STORE = 2;
-     */
-    GLOBAL_STORE = 2,
-    /**
-     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_LOCAL_STORE = 4;
-     */
-    LOCAL_STORE = 4,
-    /**
-     * @generated from protobuf enum value: QUERY_ENGINE_TYPE_LOCAL_SEARCH = 5;
-     */
-    LOCAL_SEARCH = 5
-}
-/**
  * A type of Read access on nodes.
  *
  * @generated from protobuf enum symbolx.bench.ReadType
@@ -5408,25 +5414,33 @@ export enum SortOp {
     DESCENDING = 201
 }
 /**
- * @generated from protobuf enum symbolx.bench.StoreEngine
+ * @generated from protobuf enum symbolx.bench.StoreEngineType
  */
-export enum StoreEngine {
+export enum StoreEngineType {
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_POSTGRES = 1;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_INMEMORY = 1;
      */
-    POSTGRES = 1,
+    INMEMORY = 1,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_OPENSEARCH = 20;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_REMOTE = 2;
      */
-    OPENSEARCH = 20,
+    REMOTE = 2,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_CLICKHOUSE = 30;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_POSTGRES = 3;
      */
-    CLICKHOUSE = 30
+    POSTGRES = 3,
+    /**
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_OPENSEARCH = 4;
+     */
+    OPENSEARCH = 4,
+    /**
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_CLICKHOUSE = 5;
+     */
+    CLICKHOUSE = 5
 }
 /**
  * @generated from protobuf enum symbolx.bench.StoreKind
@@ -5585,6 +5599,10 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
      */
     SERVER_IMAGE_REQUIREMENT = 631,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STORE_CREDENTIAL = 632;
+     */
+    STORE_CREDENTIAL = 632,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_RICH_TEXT = 660;
      */
@@ -7013,7 +7031,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 80, name: "object_node_types", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 81, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 82, name: "object_properties_is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "object_properties_is_sensitive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 83, name: "object_properties_is_sensitive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "object_properties_is_kernel", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
@@ -7090,6 +7109,9 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* optional bool object_properties_is_sensitive */ 83:
                     message.objectPropertiesIsSensitive = reader.bool();
                     break;
+                case /* optional bool object_properties_is_kernel */ 84:
+                    message.objectPropertiesIsKernel = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -7159,6 +7181,9 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* optional bool object_properties_is_sensitive = 83; */
         if (message.objectPropertiesIsSensitive !== undefined)
             writer.tag(83, WireType.Varint).bool(message.objectPropertiesIsSensitive);
+        /* optional bool object_properties_is_kernel = 84; */
+        if (message.objectPropertiesIsKernel !== undefined)
+            writer.tag(84, WireType.Varint).bool(message.objectPropertiesIsKernel);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -8151,6 +8176,75 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
  */
 export const SpaceDockItemData = new SpaceDockItemData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class StoreCredentialData$Type extends MessageType<StoreCredentialData> {
+    constructor() {
+        super("symbolx.bench.StoreCredentialData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "type", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<StoreCredentialData>): StoreCredentialData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StoreCredentialData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StoreCredentialData): StoreCredentialData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string username */ 31:
+                    message.username = reader.string();
+                    break;
+                case /* optional string password */ 32:
+                    message.password = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StoreCredentialData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string username = 31; */
+        if (message.username !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.username);
+        /* optional string password = 32; */
+        if (message.password !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.password);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.StoreCredentialData
+ */
+export const StoreCredentialData = new StoreCredentialData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
@@ -8713,12 +8807,13 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "text", kind: "message", T: () => RichTextData },
-            { no: 34, name: "owner_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => RichTextData },
+            { no: 35, name: "owner_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "encryption_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 40, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "main_environment_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "main_branch_ptr", kind: "message", T: () => NodeReferenceData }
@@ -8772,22 +8867,25 @@ class BenchData$Type extends MessageType<BenchData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
-                case /* string slug */ 31:
+                case /* string slug */ 32:
                     message.slug = reader.string();
                     break;
-                case /* string name */ 32:
+                case /* string name */ 33:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.RichTextData text */ 33:
+                case /* optional symbolx.bench.RichTextData text */ 34:
                     message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData owner_ptr */ 34:
+                case /* optional symbolx.bench.NodeReferenceData owner_ptr */ 35:
                     message.ownerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownerPtr);
                     break;
-                case /* repeated symbolx.bench.PolicyData policies */ 36:
+                case /* optional string encryption_key */ 36:
+                    message.encryptionKey = reader.string();
+                    break;
+                case /* repeated symbolx.bench.PolicyData policies */ 37:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_package_ptr */ 40:
@@ -8841,24 +8939,27 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* string slug = 31; */
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* string slug = 32; */
         if (message.slug !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.slug);
-        /* string name = 32; */
+            writer.tag(32, WireType.LengthDelimited).string(message.slug);
+        /* string name = 33; */
         if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.RichTextData text = 33; */
+            writer.tag(33, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.RichTextData text = 34; */
         if (message.text)
-            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData owner_ptr = 34; */
+            RichTextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData owner_ptr = 35; */
         if (message.ownerPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownerPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData policies = 36; */
+            NodeReferenceData.internalBinaryWrite(message.ownerPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional string encryption_key = 36; */
+        if (message.encryptionKey !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.encryptionKey);
+        /* repeated symbolx.bench.PolicyData policies = 37; */
         for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_package_ptr = 40; */
         if (message.mainPackagePtr)
             NodeReferenceData.internalBinaryWrite(message.mainPackagePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -9590,8 +9691,7 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => RichTextData },
-            { no: 40, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 40, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DriveData>): DriveData {
@@ -9646,9 +9746,6 @@ class DriveData$Type extends MessageType<DriveData> {
                 case /* optional string host */ 40:
                     message.host = reader.string();
                     break;
-                case /* optional string uri */ 41:
-                    message.uri = reader.string();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -9697,9 +9794,6 @@ class DriveData$Type extends MessageType<DriveData> {
         /* optional string host = 40; */
         if (message.host !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.host);
-        /* optional string uri = 41; */
-        if (message.uri !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.uri);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -11227,11 +11321,11 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "text", kind: "message", T: () => RichTextData },
-            { no: 35, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => RichTextData },
+            { no: 36, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<OrganizationData>): OrganizationData {
@@ -11280,19 +11374,19 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
-                case /* optional string slug */ 31:
+                case /* optional string slug */ 32:
                     message.slug = reader.string();
                     break;
-                case /* string name */ 32:
+                case /* string name */ 33:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.RichTextData text */ 33:
+                case /* optional symbolx.bench.RichTextData text */ 34:
                     message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 35:
+                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 36:
                     message.mainBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBenchPtr);
                     break;
                 default:
@@ -11337,21 +11431,21 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional string slug = 31; */
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional string slug = 32; */
         if (message.slug !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.slug);
-        /* string name = 32; */
+            writer.tag(32, WireType.LengthDelimited).string(message.slug);
+        /* string name = 33; */
         if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.RichTextData text = 33; */
+            writer.tag(33, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.RichTextData text = 34; */
         if (message.text)
-            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 35; */
+            RichTextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 36; */
         if (message.mainBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13084,8 +13178,8 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 41, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "database", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "schema", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 45, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 44, name: "root_credential", kind: "message", T: () => StoreCredentialData },
+            { no: 45, name: "extra_credentials", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => StoreCredentialData }
         ]);
     }
     create(value?: PartialMessage<StoreData>): StoreData {
@@ -13100,6 +13194,7 @@ class StoreData$Type extends MessageType<StoreData> {
         message.isHostDedicated = false;
         message.isDatabaseDedicated = false;
         message.isSchemaDedicated = false;
+        message.extraCredentials = [];
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
         return message;
@@ -13166,11 +13261,11 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* optional string schema */ 43:
                     message.schema = reader.string();
                     break;
-                case /* optional string username */ 44:
-                    message.username = reader.string();
+                case /* optional symbolx.bench.StoreCredentialData root_credential */ 44:
+                    message.rootCredential = StoreCredentialData.internalBinaryRead(reader, reader.uint32(), options, message.rootCredential);
                     break;
-                case /* optional string password */ 45:
-                    message.password = reader.string();
+                case /* repeated symbolx.bench.StoreCredentialData extra_credentials */ 45:
+                    message.extraCredentials.push(StoreCredentialData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13241,12 +13336,12 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional string schema = 43; */
         if (message.schema !== undefined)
             writer.tag(43, WireType.LengthDelimited).string(message.schema);
-        /* optional string username = 44; */
-        if (message.username !== undefined)
-            writer.tag(44, WireType.LengthDelimited).string(message.username);
-        /* optional string password = 45; */
-        if (message.password !== undefined)
-            writer.tag(45, WireType.LengthDelimited).string(message.password);
+        /* optional symbolx.bench.StoreCredentialData root_credential = 44; */
+        if (message.rootCredential)
+            StoreCredentialData.internalBinaryWrite(message.rootCredential, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.StoreCredentialData extra_credentials = 45; */
+        for (let i = 0; i < message.extraCredentials.length; i++)
+            StoreCredentialData.internalBinaryWrite(message.extraCredentials[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13564,12 +13659,12 @@ class UserData$Type extends MessageType<UserData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "text", kind: "message", T: () => RichTextData },
-            { no: 34, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => RichTextData },
+            { no: 35, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 36, name: "main_bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 42, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 43, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
@@ -13624,22 +13719,22 @@ class UserData$Type extends MessageType<UserData> {
                 case /* optional google.protobuf.Timestamp last_changed_at */ 16:
                     message.lastChangedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastChangedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 30:
+                case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
                     break;
-                case /* optional string slug */ 31:
+                case /* optional string slug */ 32:
                     message.slug = reader.string();
                     break;
-                case /* optional string name */ 32:
+                case /* optional string name */ 33:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.RichTextData text */ 33:
+                case /* optional symbolx.bench.RichTextData text */ 34:
                     message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional string email */ 34:
+                case /* optional string email */ 35:
                     message.email = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 35:
+                case /* optional symbolx.bench.NodeReferenceData main_bench_ptr */ 36:
                     message.mainBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBenchPtr);
                     break;
                 case /* optional bytes password_salt */ 40:
@@ -13699,24 +13794,24 @@ class UserData$Type extends MessageType<UserData> {
         /* optional google.protobuf.Timestamp last_changed_at = 16; */
         if (message.lastChangedAt)
             Timestamp.internalBinaryWrite(message.lastChangedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 30; */
+        /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional string slug = 31; */
+            NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional string slug = 32; */
         if (message.slug !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.slug);
-        /* optional string name = 32; */
+            writer.tag(32, WireType.LengthDelimited).string(message.slug);
+        /* optional string name = 33; */
         if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.RichTextData text = 33; */
+            writer.tag(33, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.RichTextData text = 34; */
         if (message.text)
-            RichTextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional string email = 34; */
+            RichTextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string email = 35; */
         if (message.email !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.email);
-        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 35; */
+            writer.tag(35, WireType.LengthDelimited).string(message.email);
+        /* optional symbolx.bench.NodeReferenceData main_bench_ptr = 36; */
         if (message.mainBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainBenchPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional bytes password_salt = 40; */
         if (message.passwordSalt !== undefined)
             writer.tag(40, WireType.LengthDelimited).bytes(message.passwordSalt);

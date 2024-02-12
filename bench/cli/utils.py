@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from bench.language.node import NODE_CLASSES, Bench
-from bench.system.utils import detached_session
+from bench.system.utils import global_session
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
 
 if TYPE_CHECKING:
@@ -96,7 +96,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
 
         # check local
-        async with detached_session(read_only=True):
+        async with global_session(read_only=True):
             bench = await Bench.get(slug=check_db_bench)
         async with async_pg_cursor(local_pg_name=bench.pg_name) as cur:
             old_local_tables = await introspect_tables_from_pg(cur)

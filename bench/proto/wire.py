@@ -160,6 +160,7 @@ class BenchType(betterproto.Enum):
     LOG_ENTRY = 600
     SERVER_IMAGE = 630
     SERVER_IMAGE_REQUIREMENT = 631
+    STORE_CREDENTIAL = 632
     RICH_TEXT = 660
     RICH_TEXT_SPAN = 661
     SPACE_DOCK = 700
@@ -428,14 +429,6 @@ class PrimitiveType(betterproto.Enum):
     INTERVAL = 21
 
 
-class QueryEngineType(betterproto.Enum):
-    UNSPECIFIED = 0
-    IN_MEMORY = 1
-    GLOBAL_STORE = 2
-    LOCAL_STORE = 4
-    LOCAL_SEARCH = 5
-
-
 class ReadType(betterproto.Enum):
     """A type of Read access on nodes."""
 
@@ -517,11 +510,13 @@ class SortOp(betterproto.Enum):
     DESCENDING = 201
 
 
-class StoreEngine(betterproto.Enum):
+class StoreEngineType(betterproto.Enum):
     UNSPECIFIED = 0
-    POSTGRES = 1
-    OPENSEARCH = 20
-    CLICKHOUSE = 30
+    INMEMORY = 1
+    REMOTE = 2
+    POSTGRES = 3
+    OPENSEARCH = 4
+    CLICKHOUSE = 5
 
 
 class StoreKind(betterproto.Enum):
@@ -565,6 +560,7 @@ class StructType(betterproto.Enum):
     LOG_ENTRY = 600
     SERVER_IMAGE = 630
     SERVER_IMAGE_REQUIREMENT = 631
+    STORE_CREDENTIAL = 632
     RICH_TEXT = 660
     RICH_TEXT_SPAN = 661
     SPACE_DOCK = 700
@@ -884,6 +880,7 @@ class PolicyRuleData(betterproto.Message):
     object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(81)
     object_properties_is_system: Optional[bool] = betterproto.bool_field(82, optional=True)
     object_properties_is_sensitive: Optional[bool] = betterproto.bool_field(83, optional=True)
+    object_properties_is_kernel: Optional[bool] = betterproto.bool_field(84, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1069,6 +1066,20 @@ class SpaceDockItemData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class StoreCredentialData(betterproto.Message):
+    """
+    StoreCredential(type: bench.language.resource.StoreCredentialType =
+    <factory>, username: str = <factory>, password: str = <factory>, _status:
+    bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    type: int = betterproto.int32_field(30)
+    username: Optional[str] = betterproto.string_field(31, optional=True)
+    password: Optional[str] = betterproto.string_field(32, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class SubjectData(betterproto.Message):
     """
     The <whoever/whatever> issuing a request. Unknown/ignored attributes are
@@ -1179,8 +1190,8 @@ class BadgeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BenchData(betterproto.Message):
     """
-    A Bench is the AI-native operating system for a new generation of fully
-    integrated, fluid apps.
+    A Bench is an AI-native operating system for a new generation of fully
+    integrated, fluid software.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1193,12 +1204,13 @@ class BenchData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    slug: str = betterproto.string_field(31)
-    name: str = betterproto.string_field(32)
-    text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
-    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(36)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    slug: str = betterproto.string_field(32)
+    name: str = betterproto.string_field(33)
+    text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
+    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    encryption_key: Optional[str] = betterproto.string_field(36, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(37)
     main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     main_environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
         41, optional=True
@@ -1329,7 +1341,6 @@ class DriveData(betterproto.Message):
     name: str = betterproto.string_field(32)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     host: Optional[str] = betterproto.string_field(40, optional=True)
-    uri: Optional[str] = betterproto.string_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1399,8 +1410,7 @@ class FieldData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileContentData(betterproto.Message):
     """
-    The actual file resource ('object') stored in a bucket somewhere. De-duped
-    to 1 per sha512.
+    (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1591,11 +1601,11 @@ class OrganizationData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    slug: Optional[str] = betterproto.string_field(31, optional=True)
-    name: str = betterproto.string_field(32)
-    text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    slug: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(33)
+    text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1893,8 +1903,8 @@ class StoreData(betterproto.Message):
     host: Optional[str] = betterproto.string_field(41, optional=True)
     database: Optional[str] = betterproto.string_field(42, optional=True)
     schema: Optional[str] = betterproto.string_field(43, optional=True)
-    username: Optional[str] = betterproto.string_field(44, optional=True)
-    password: Optional[str] = betterproto.string_field(45, optional=True)
+    root_credential: Optional["StoreCredentialData"] = betterproto.message_field(44, optional=True)
+    extra_credentials: List["StoreCredentialData"] = betterproto.message_field(45)
 
 
 @dataclass(eq=False, repr=False)
@@ -1969,12 +1979,12 @@ class UserData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    slug: Optional[str] = betterproto.string_field(31, optional=True)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
-    text: Optional["RichTextData"] = betterproto.message_field(33, optional=True)
-    email: Optional[str] = betterproto.string_field(34, optional=True)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    slug: Optional[str] = betterproto.string_field(32, optional=True)
+    name: Optional[str] = betterproto.string_field(33, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
+    email: Optional[str] = betterproto.string_field(35, optional=True)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
     password_salt: Optional[bytes] = betterproto.bytes_field(40, optional=True)
     password_hash: Optional[bytes] = betterproto.bytes_field(42, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(43, optional=True)
@@ -2066,6 +2076,15 @@ class RpcMetadata(betterproto.Message):
     badge_link_token: Optional[str] = betterproto.string_field(6, optional=True)
     badge_link_password: Optional[str] = betterproto.string_field(7, optional=True)
     badge_key_value: Optional[str] = betterproto.string_field(8, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class GraphScope(betterproto.Message):
+    """Scope for an operation against the Bench state graph."""
+
+    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
+    package_id: Optional[str] = betterproto.string_field(4, optional=True)
+    transaction_id: Optional[str] = betterproto.string_field(5, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2181,14 +2200,9 @@ class CreateBenchResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetNodesRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    roots: List["NodeReferenceData"] = betterproto.message_field(5)
-    """request"""
-
-    options: Optional["ReadOptionsData"] = betterproto.message_field(6, optional=True)
+    scope: "GraphScope" = betterproto.message_field(1)
+    roots: List["NodeReferenceData"] = betterproto.message_field(2)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2200,21 +2214,16 @@ class GetNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SearchNodesRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    node_type: "NodeType" = betterproto.enum_field(5)
-    """request"""
-
-    bases: List["NodeReferenceData"] = betterproto.message_field(6)
-    filter: Optional["ExpressionData"] = betterproto.message_field(7, optional=True)
-    sort: List["ExpressionData"] = betterproto.message_field(8)
-    first: Optional[int] = betterproto.int32_field(9, optional=True)
-    skip: Optional[int] = betterproto.int32_field(10, optional=True)
-    after: Optional[str] = betterproto.string_field(11, optional=True)
-    options: Optional["ReadOptionsData"] = betterproto.message_field(12, optional=True)
-    count: Optional[bool] = betterproto.bool_field(13, optional=True)
+    scope: "GraphScope" = betterproto.message_field(1)
+    node_type: "NodeType" = betterproto.enum_field(2)
+    bases: List["NodeReferenceData"] = betterproto.message_field(3)
+    filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
+    sort: List["ExpressionData"] = betterproto.message_field(5)
+    first: Optional[int] = betterproto.int32_field(6, optional=True)
+    skip: Optional[int] = betterproto.int32_field(7, optional=True)
+    after: Optional[str] = betterproto.string_field(8, optional=True)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(9, optional=True)
+    count: Optional[bool] = betterproto.bool_field(10, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2230,18 +2239,13 @@ class SearchNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    node_type: "NodeType" = betterproto.enum_field(5)
-    """request"""
-
-    bases: List["NodeReferenceData"] = betterproto.message_field(6)
-    filter: Optional["ExpressionData"] = betterproto.message_field(7, optional=True)
-    sort: List["ExpressionData"] = betterproto.message_field(8)
-    aggregation: "ExpressionData" = betterproto.message_field(9)
-    global_filter: Optional["ExpressionData"] = betterproto.message_field(10, optional=True)
+    scope: "GraphScope" = betterproto.message_field(1)
+    node_type: "NodeType" = betterproto.enum_field(2)
+    bases: List["NodeReferenceData"] = betterproto.message_field(3)
+    filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
+    sort: List["ExpressionData"] = betterproto.message_field(5)
+    aggregation: "ExpressionData" = betterproto.message_field(6)
+    global_filter: Optional["ExpressionData"] = betterproto.message_field(7, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2252,12 +2256,8 @@ class AggregateNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CommitTransactionRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    transaction: "TransactionData" = betterproto.message_field(5)
-    """request"""
+    scope: "GraphScope" = betterproto.message_field(1)
+    transaction: "TransactionData" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2267,13 +2267,21 @@ class CommitTransactionResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CompleteTransactionRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
+class BeginTransactionRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    transaction: "TransactionData" = betterproto.message_field(2)
 
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    transaction: "TransactionData" = betterproto.message_field(5)
-    """request"""
+
+@dataclass(eq=False, repr=False)
+class BeginTransactionResponse(betterproto.Message):
+    transaction_id: str = betterproto.string_field(1)
+    epoch: int = betterproto.uint64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CompleteTransactionRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    transaction: "TransactionData" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2284,12 +2292,8 @@ class CompleteTransactionResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CommitCompletedTransactionRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    transaction_id: str = betterproto.string_field(5)
-    """request"""
+    scope: "GraphScope" = betterproto.message_field(1)
+    transaction_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2299,12 +2303,8 @@ class CommitCompletedTransactionResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CancelCompletedTransactionRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    transaction_id: str = betterproto.string_field(5)
-    """request"""
+    scope: "GraphScope" = betterproto.message_field(1)
+    transaction_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2313,25 +2313,10 @@ class CancelCompletedTransactionResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class NotifyEditsRequest(betterproto.Message):
-    local_edits: List["EditData"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class NotifyEditsResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
 class WatchEditsRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    package_ids: List[str] = betterproto.string_field(4)
-    node_types: List["NodeType"] = betterproto.enum_field(5)
-    """request"""
-
-    since_epoch: Optional[int] = betterproto.uint64_field(6, optional=True)
+    scope: "GraphScope" = betterproto.message_field(1)
+    node_types: List["NodeType"] = betterproto.enum_field(2)
+    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2342,7 +2327,8 @@ class WatchEditsResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RestartServerRequest(betterproto.Message):
-    bench_id: str = betterproto.string_field(1)
+    scope: "GraphScope" = betterproto.message_field(1)
+    server_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2352,7 +2338,8 @@ class RestartServerResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PingServerRequest(betterproto.Message):
-    bench_id: str = betterproto.string_field(1)
+    scope: "GraphScope" = betterproto.message_field(1)
+    server_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -2839,23 +2826,6 @@ class BenchHostStub(betterproto.ServiceStub):
             metadata=metadata,
         ):
             yield response
-
-    async def notify_edits(
-        self,
-        request: "NotifyEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "NotifyEditsResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.BenchHost/NotifyEdits",
-            request,
-            NotifyEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
 
     async def upload_files(
         self,
@@ -3406,11 +3376,6 @@ class BenchHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def notify_edits(
-        self, subject: "Subject", request: "NotifyEditsRequest"
-    ) -> "NotifyEditsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def upload_files(
         self, subject: "Subject", request: "UploadFilesRequest"
     ) -> "UploadFilesResponse":
@@ -3521,13 +3486,6 @@ class BenchHostBase(ServiceBase):
             stream,
             request,
         )
-
-    async def __rpc_notify_edits(
-        self, stream: "grpclib.server.Stream[NotifyEditsRequest, NotifyEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.notify_edits(request)
-        await stream.send_message(response)
 
     async def __rpc_upload_files(
         self, stream: "grpclib.server.Stream[UploadFilesRequest, UploadFilesResponse]"
@@ -3654,12 +3612,6 @@ class BenchHostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
-            ),
-            "/symbolx.bench.BenchHost/NotifyEdits": grpclib.const.Handler(
-                self.__rpc_notify_edits,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                NotifyEditsRequest,
-                NotifyEditsResponse,
             ),
             "/symbolx.bench.BenchHost/UploadFiles": grpclib.const.Handler(
                 self.__rpc_upload_files,
@@ -3823,75 +3775,76 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    DriveData,
-    RunData,
-    LinkData,
-    BadgeData,
-    IdentityData,
-    SessionData,
     HandleData,
-    TriggerData,
-    SpaceData,
-    MembershipData,
-    FileContentData,
-    ViewData,
-    RoleData,
-    EnvironmentData,
-    BenchData,
-    SignalData,
-    PauseData,
-    FieldData,
-    PackageData,
-    UserData,
-    ClientData,
-    RecordData,
-    BlockData,
-    StoreData,
-    CacheData,
-    NotificationData,
-    QueryData,
     OrganizationData,
-    BranchData,
-    TagData,
-    NoticeData,
-    ServerData,
+    StoreData,
+    ViewData,
+    TriggerData,
+    MembershipData,
+    SignalData,
+    PackageData,
+    NotificationData,
+    FieldData,
+    BenchData,
+    RoleData,
+    BlockData,
+    SessionData,
     SkipData,
+    LinkData,
+    ServerData,
+    IdentityData,
+    DriveData,
+    UserData,
+    EnvironmentData,
+    BranchData,
+    QueryData,
+    CacheData,
+    FileContentData,
+    NoticeData,
+    BadgeData,
+    PauseData,
+    ClientData,
+    RunData,
+    RecordData,
+    TagData,
+    SpaceData,
 ]
 AnyStructData = Union[
-    BenchPathData,
-    CodeData,
-    IconData,
-    PolicyData,
-    RichTextSpanData,
-    AccessMatrixData,
-    LogEntryData,
-    ServerImageRequirementData,
-    AccessTraceData,
-    RichTextData,
-    RunCodeFrameData,
-    PropertyReferenceData,
-    FieldPathData,
-    FieldPathSegmentData,
-    ScheduleData,
-    RunErrorData,
-    AggregationBucketData,
     CodeSectionData,
-    AccessZoneData,
-    FileData,
-    NodeReferenceData,
-    PolicyRuleData,
+    AggregationBucketData,
+    AccessMatrixData,
+    StoreCredentialData,
+    RunCodeFrameData,
     ValueSelectionData,
+    RunErrorData,
     SpaceDockData,
-    SubjectData,
-    AccessData,
-    PropertyPathData,
     SpaceDockItemData,
-    ExpressionData,
+    RichTextData,
     ServerImageData,
+    ServerImageRequirementData,
+    PropertyPathData,
+    PropertyReferenceData,
+    AccessZoneData,
+    ReadOptionsData,
+    ExpressionData,
+    RichTextSpanData,
+    PolicyRuleData,
+    ValueReferenceData,
     TypeInfoData,
     AggregationData,
-    ReadOptionsData,
+    LogEntryData,
+    SubjectData,
     RequestData,
+    AccessData,
+    PolicyData,
+    ScheduleData,
+    IconData,
+    FieldPathSegmentData,
+    CodeData,
+    BenchPathData,
     ContextData,
-    ValueReferenceData,
+    FileData,
+    FieldPathData,
+    AccessTraceData,
+    NodeReferenceData,
 ]

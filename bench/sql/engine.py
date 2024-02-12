@@ -23,7 +23,7 @@ import structlog
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Package, QueryEngineType, Session, TypeInfo
+from bench.language import Block, ConditionalOp, Field, Package, StoreEngineType, Session, TypeInfo
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
@@ -444,7 +444,7 @@ def compile_pg_conditional(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise QueryEngineIncapableError(QueryEngineType.LOCAL_STORE, cond, "unsupported conditional")
+    raise StoreEngineIncapableError(StoreEngineType.LOCAL_STORE, cond, "unsupported conditional")
 
 
 def compile_pg_sort(database: Block, sort: Expression) -> SqlNode:

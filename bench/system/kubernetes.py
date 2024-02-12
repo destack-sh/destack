@@ -13,7 +13,6 @@ import structlog
 from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
-from bench import settings
 from bench.language.const import BenchRegion, ServerProfile, ServerStatus
 from bench.utils.utils import get_from_env
 from bench.utils.env import IS_DEBUG
@@ -191,12 +190,6 @@ class Deployment:
             "LOCAL_OS_PORT": get_from_env("GLOBAL_OS_PORT"),
             "LOCAL_OS_USERNAME": bench.os_username,
             "LOCAL_OS_PASSWORD": bench.os_password,
-            # global postgres auth
-            "LOCAL_PG_HOST": get_from_env("USER_PG_HOST"),
-            "LOCAL_PG_NAME": bench.pg_name,
-            "LOCAL_PG_PORT": get_from_env("USER_PG_PORT"),
-            "LOCAL_PG_USERNAME": bench.pg_username,
-            "LOCAL_PG_PASSWORD": bench.pg_password,
         }
         extended_env_vars = [
             *(client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
@@ -237,8 +230,8 @@ class Deployment:
             "deployment": self.name,
             "bench_id": str(self.bench_id),
             "server_set_id": str(self.server_set_id),
-            "region": self.region.lower(),
-            "profile": self.profile.lower(),
+            "region": self.region.name,
+            "profile": self.profile.name,
         }
         template = client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(namespace=namespace, labels=labels),

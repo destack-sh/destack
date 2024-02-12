@@ -699,12 +699,14 @@ def p_property(
 
 
 if TYPE_CHECKING:
-    p_regular = p_internal = p_system = p_property
+    p_regular = p_internal = p_system = p_kernel = p_property
 else:
     p_regular = functools.partial(p_property, internal=False, system=False)
     p_internal = functools.partial(p_property, internal=True, system=False)
     p_system = functools.partial(p_property, internal=True, system=True)
-    p_kernel = functools.partial(p_property, internal=True, system=True, kernel=True)
+    p_kernel = functools.partial(
+        p_property, internal=True, system=True, sensitive=True, kernel=True
+    )
 
 
 def p_runtime(
@@ -2389,7 +2391,7 @@ class Skip(Node):
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """
-    A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
+    A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
     """
 
     parent: None = p_parent(4)
@@ -2405,7 +2407,7 @@ class Bench(ScopeNode):
     owner: Union["User", "Organization"] = p_system(
         35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
-    # status: ...?
+    encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True)
     policies: list["Policy"] | None = p_regular(
         37, default_factory=list, struct=StructType.POLICY, array=True
     )

@@ -33,6 +33,7 @@ import { NodeType } from "./lang";
 import { AccessMatrixData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
+import { GraphScope } from "./common";
 import { BenchData } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { OrganizationData } from "./lang";
@@ -251,23 +252,15 @@ export interface CreateBenchResponse {
  */
 export interface GetNodesRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots = 5;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots = 2;
      */
     roots: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 6;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 3;
      */
     options?: ReadOptionsData;
 }
@@ -293,51 +286,43 @@ export interface GetNodesResponse {
  */
 export interface SearchNodesRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 5;
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 2;
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 6;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 3;
      */
     bases: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 7;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 4;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 8;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 5;
      */
     sort: ExpressionData[];
     /**
-     * @generated from protobuf field: optional int32 first = 9;
+     * @generated from protobuf field: optional int32 first = 6;
      */
     first?: number;
     /**
-     * @generated from protobuf field: optional int32 skip = 10;
+     * @generated from protobuf field: optional int32 skip = 7;
      */
     skip?: number;
     /**
-     * @generated from protobuf field: optional string after = 11;
+     * @generated from protobuf field: optional string after = 8;
      */
     after?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 12;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 9;
      */
     options?: ReadOptionsData;
     /**
-     * @generated from protobuf field: optional bool count = 13;
+     * @generated from protobuf field: optional bool count = 10;
      */
     count?: boolean;
 }
@@ -379,39 +364,31 @@ export interface SearchNodesResponse {
  */
 export interface AggregateNodesRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 5;
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 2;
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 6;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 3;
      */
     bases: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 7;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 4;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 8;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 5;
      */
     sort: ExpressionData[];
     /**
-     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 9;
+     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 6;
      */
     aggregation?: ExpressionData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 10;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 7;
      */
     globalFilter?: ExpressionData;
 }
@@ -433,19 +410,11 @@ export interface AggregateNodesResponse {
  */
 export interface CommitTransactionRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 5;
+     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
      */
     transaction?: TransactionData;
 }
@@ -463,30 +432,48 @@ export interface CommitTransactionResponse {
     epoch: bigint;
 }
 /**
- * @generated from protobuf message symbolx.bench.PrepareTransactionRequest
+ * @generated from protobuf message symbolx.bench.BeginTransactionRequest
  */
-export interface PrepareTransactionRequest {
+export interface BeginTransactionRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 5;
+     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
      */
     transaction?: TransactionData;
 }
 /**
- * @generated from protobuf message symbolx.bench.PrepareTransactionResponse
+ * @generated from protobuf message symbolx.bench.BeginTransactionResponse
  */
-export interface PrepareTransactionResponse {
+export interface BeginTransactionResponse {
+    /**
+     * @generated from protobuf field: string transaction_id = 1;
+     */
+    transactionId: string;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: bigint;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CompleteTransactionRequest
+ */
+export interface CompleteTransactionRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     */
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
+     */
+    transaction?: TransactionData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CompleteTransactionResponse
+ */
+export interface CompleteTransactionResponse {
     /**
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
      */
@@ -497,93 +484,55 @@ export interface PrepareTransactionResponse {
     epoch: bigint;
 }
 /**
- * @generated from protobuf message symbolx.bench.CommitPreparedTransactionRequest
+ * @generated from protobuf message symbolx.bench.CommitCompletedTransactionRequest
  */
-export interface CommitPreparedTransactionRequest {
+export interface CommitCompletedTransactionRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: string transaction_id = 5;
+     * @generated from protobuf field: string transaction_id = 2;
      */
     transactionId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.CommitPreparedTransactionResponse
+ * @generated from protobuf message symbolx.bench.CommitCompletedTransactionResponse
  */
-export interface CommitPreparedTransactionResponse {
+export interface CommitCompletedTransactionResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.CancelPreparedTransactionRequest
+ * @generated from protobuf message symbolx.bench.CancelCompletedTransactionRequest
  */
-export interface CancelPreparedTransactionRequest {
+export interface CancelCompletedTransactionRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
-     */
-    packageId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: string transaction_id = 5;
+     * @generated from protobuf field: string transaction_id = 2;
      */
     transactionId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.CancelPreparedTransactionResponse
+ * @generated from protobuf message symbolx.bench.CancelCompletedTransactionResponse
  */
-export interface CancelPreparedTransactionResponse {
-}
-/**
- * @generated from protobuf message symbolx.bench.NotifyEditsRequest
- */
-export interface NotifyEditsRequest {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData local_edits = 1;
-     */
-    localEdits: EditData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.NotifyEditsResponse
- */
-export interface NotifyEditsResponse {
+export interface CancelCompletedTransactionResponse {
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsRequest
  */
 export interface WatchEditsRequest {
     /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId?: string;
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: repeated string package_ids = 4;
-     */
-    packageIds: string[];
-    /**
-     * request
-     *
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 5;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 2;
      */
     nodeTypes: NodeType[];
     /**
-     * @generated from protobuf field: optional uint64 since_epoch = 6;
+     * @generated from protobuf field: optional uint64 since_epoch = 3;
      */
     sinceEpoch?: bigint;
 }
@@ -605,9 +554,13 @@ export interface WatchEditsResponse {
  */
 export interface RestartServerRequest {
     /**
-     * @generated from protobuf field: string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId: string;
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: string server_id = 2;
+     */
+    serverId: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.RestartServerResponse
@@ -623,9 +576,13 @@ export interface RestartServerResponse {
  */
 export interface PingServerRequest {
     /**
-     * @generated from protobuf field: string bench_id = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
-    benchId: string;
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: string server_id = 2;
+     */
+    serverId: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.PingServerResponse
@@ -1638,10 +1595,9 @@ export const CreateBenchResponse = new CreateBenchResponse$Type();
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
     constructor() {
         super("symbolx.bench.GetNodesRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 6, name: "options", kind: "message", T: () => ReadOptionsData }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 3, name: "options", kind: "message", T: () => ReadOptionsData }
         ]);
     }
     create(value?: PartialMessage<GetNodesRequest>): GetNodesRequest {
@@ -1656,16 +1612,13 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roots */ 5:
+                case /* repeated symbolx.bench.NodeReferenceData roots */ 2:
                     message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 6:
+                case /* optional symbolx.bench.ReadOptionsData options */ 3:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
                 default:
@@ -1680,18 +1633,15 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: GetNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* repeated symbolx.bench.NodeReferenceData roots = 5; */
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roots = 2; */
         for (let i = 0; i < message.roots.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ReadOptionsData options = 6; */
+            NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ReadOptionsData options = 3; */
         if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1768,17 +1718,16 @@ export const GetNodesResponse = new GetNodesResponse$Type();
 class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 6, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 7, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 8, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 9, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 10, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 11, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 12, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 13, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 6, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 8, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "options", kind: "message", T: () => ReadOptionsData },
+            { no: 10, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1795,37 +1744,34 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* symbolx.bench.NodeType node_type */ 5:
+                case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases */ 6:
+                case /* repeated symbolx.bench.NodeReferenceData bases */ 3:
                     message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 7:
+                case /* optional symbolx.bench.ExpressionData filter */ 4:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 8:
+                case /* repeated symbolx.bench.ExpressionData sort */ 5:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 first */ 9:
+                case /* optional int32 first */ 6:
                     message.first = reader.int32();
                     break;
-                case /* optional int32 skip */ 10:
+                case /* optional int32 skip */ 7:
                     message.skip = reader.int32();
                     break;
-                case /* optional string after */ 11:
+                case /* optional string after */ 8:
                     message.after = reader.string();
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 12:
+                case /* optional symbolx.bench.ReadOptionsData options */ 9:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
-                case /* optional bool count */ 13:
+                case /* optional bool count */ 10:
                     message.count = reader.bool();
                     break;
                 default:
@@ -1840,39 +1786,36 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: SearchNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* symbolx.bench.NodeType node_type = 5; */
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
-            writer.tag(5, WireType.Varint).int32(message.nodeType);
-        /* repeated symbolx.bench.NodeReferenceData bases = 6; */
+            writer.tag(2, WireType.Varint).int32(message.nodeType);
+        /* repeated symbolx.bench.NodeReferenceData bases = 3; */
         for (let i = 0; i < message.bases.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 7; */
+            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 4; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 8; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 5; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(8, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 first = 9; */
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 first = 6; */
         if (message.first !== undefined)
-            writer.tag(9, WireType.Varint).int32(message.first);
-        /* optional int32 skip = 10; */
+            writer.tag(6, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 7; */
         if (message.skip !== undefined)
-            writer.tag(10, WireType.Varint).int32(message.skip);
-        /* optional string after = 11; */
+            writer.tag(7, WireType.Varint).int32(message.skip);
+        /* optional string after = 8; */
         if (message.after !== undefined)
-            writer.tag(11, WireType.LengthDelimited).string(message.after);
-        /* optional symbolx.bench.ReadOptionsData options = 12; */
+            writer.tag(8, WireType.LengthDelimited).string(message.after);
+        /* optional symbolx.bench.ReadOptionsData options = 9; */
         if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool count = 13; */
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool count = 10; */
         if (message.count !== undefined)
-            writer.tag(13, WireType.Varint).bool(message.count);
+            writer.tag(10, WireType.Varint).bool(message.count);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1981,14 +1924,13 @@ export const SearchNodesResponse = new SearchNodesResponse$Type();
 class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 6, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 7, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 8, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 9, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 10, name: "global_filter", kind: "message", T: () => ExpressionData }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 6, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 7, name: "global_filter", kind: "message", T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
@@ -2005,28 +1947,25 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* symbolx.bench.NodeType node_type */ 5:
+                case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases */ 6:
+                case /* repeated symbolx.bench.NodeReferenceData bases */ 3:
                     message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 7:
+                case /* optional symbolx.bench.ExpressionData filter */ 4:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 8:
+                case /* repeated symbolx.bench.ExpressionData sort */ 5:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* symbolx.bench.ExpressionData aggregation */ 9:
+                case /* symbolx.bench.ExpressionData aggregation */ 6:
                     message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
-                case /* optional symbolx.bench.ExpressionData global_filter */ 10:
+                case /* optional symbolx.bench.ExpressionData global_filter */ 7:
                     message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
                     break;
                 default:
@@ -2041,30 +1980,27 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: AggregateNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* symbolx.bench.NodeType node_type = 5; */
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
-            writer.tag(5, WireType.Varint).int32(message.nodeType);
-        /* repeated symbolx.bench.NodeReferenceData bases = 6; */
+            writer.tag(2, WireType.Varint).int32(message.nodeType);
+        /* repeated symbolx.bench.NodeReferenceData bases = 3; */
         for (let i = 0; i < message.bases.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 7; */
+            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 4; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 8; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 5; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(8, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ExpressionData aggregation = 9; */
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ExpressionData aggregation = 6; */
         if (message.aggregation)
-            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData global_filter = 10; */
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData global_filter = 7; */
         if (message.globalFilter)
-            ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2133,9 +2069,8 @@ export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest> {
     constructor() {
         super("symbolx.bench.CommitTransactionRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "transaction", kind: "message", T: () => TransactionData }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionRequest>): CommitTransactionRequest {
@@ -2149,13 +2084,10 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* symbolx.bench.TransactionData transaction */ 5:
+                case /* symbolx.bench.TransactionData transaction */ 2:
                     message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
                     break;
                 default:
@@ -2170,15 +2102,12 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         return message;
     }
     internalBinaryWrite(message: CommitTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* symbolx.bench.TransactionData transaction = 5; */
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TransactionData transaction = 2; */
         if (message.transaction)
-            TransactionData.internalBinaryWrite(message.transaction, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2245,32 +2174,28 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
  */
 export const CommitTransactionResponse = new CommitTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PrepareTransactionRequest$Type extends MessageType<PrepareTransactionRequest> {
+class BeginTransactionRequest$Type extends MessageType<BeginTransactionRequest> {
     constructor() {
-        super("symbolx.bench.PrepareTransactionRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "transaction", kind: "message", T: () => TransactionData }
+        super("symbolx.bench.BeginTransactionRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
         ]);
     }
-    create(value?: PartialMessage<PrepareTransactionRequest>): PrepareTransactionRequest {
+    create(value?: PartialMessage<BeginTransactionRequest>): BeginTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<PrepareTransactionRequest>(this, message, value);
+            reflectionMergePartial<BeginTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PrepareTransactionRequest): PrepareTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BeginTransactionRequest): BeginTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* symbolx.bench.TransactionData transaction */ 5:
+                case /* symbolx.bench.TransactionData transaction */ 2:
                     message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
                     break;
                 default:
@@ -2284,16 +2209,13 @@ class PrepareTransactionRequest$Type extends MessageType<PrepareTransactionReque
         }
         return message;
     }
-    internalBinaryWrite(message: PrepareTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* symbolx.bench.TransactionData transaction = 5; */
+    internalBinaryWrite(message: BeginTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TransactionData transaction = 2; */
         if (message.transaction)
-            TransactionData.internalBinaryWrite(message.transaction, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2301,26 +2223,134 @@ class PrepareTransactionRequest$Type extends MessageType<PrepareTransactionReque
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PrepareTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.BeginTransactionRequest
  */
-export const PrepareTransactionRequest = new PrepareTransactionRequest$Type();
+export const BeginTransactionRequest = new BeginTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PrepareTransactionResponse$Type extends MessageType<PrepareTransactionResponse> {
+class BeginTransactionResponse$Type extends MessageType<BeginTransactionResponse> {
     constructor() {
-        super("symbolx.bench.PrepareTransactionResponse", [
+        super("symbolx.bench.BeginTransactionResponse", [
+            { no: 1, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<BeginTransactionResponse>): BeginTransactionResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.transactionId = "";
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<BeginTransactionResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BeginTransactionResponse): BeginTransactionResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string transaction_id */ 1:
+                    message.transactionId = reader.string();
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: BeginTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string transaction_id = 1; */
+        if (message.transactionId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.transactionId);
+        /* uint64 epoch = 2; */
+        if (message.epoch !== 0n)
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.BeginTransactionResponse
+ */
+export const BeginTransactionResponse = new BeginTransactionResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CompleteTransactionRequest$Type extends MessageType<CompleteTransactionRequest> {
+    constructor() {
+        super("symbolx.bench.CompleteTransactionRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
+        ]);
+    }
+    create(value?: PartialMessage<CompleteTransactionRequest>): CompleteTransactionRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CompleteTransactionRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CompleteTransactionRequest): CompleteTransactionRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* symbolx.bench.TransactionData transaction */ 2:
+                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CompleteTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TransactionData transaction = 2; */
+        if (message.transaction)
+            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CompleteTransactionRequest
+ */
+export const CompleteTransactionRequest = new CompleteTransactionRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CompleteTransactionResponse$Type extends MessageType<CompleteTransactionResponse> {
+    constructor() {
+        super("symbolx.bench.CompleteTransactionResponse", [
             { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<PrepareTransactionResponse>): PrepareTransactionResponse {
+    create(value?: PartialMessage<CompleteTransactionResponse>): CompleteTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.changedNodes = [];
         message.epoch = 0n;
         if (value !== undefined)
-            reflectionMergePartial<PrepareTransactionResponse>(this, message, value);
+            reflectionMergePartial<CompleteTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PrepareTransactionResponse): PrepareTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CompleteTransactionResponse): CompleteTransactionResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2342,7 +2372,7 @@ class PrepareTransactionResponse$Type extends MessageType<PrepareTransactionResp
         }
         return message;
     }
-    internalBinaryWrite(message: PrepareTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CompleteTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
         for (let i = 0; i < message.changedNodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2356,37 +2386,33 @@ class PrepareTransactionResponse$Type extends MessageType<PrepareTransactionResp
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PrepareTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.CompleteTransactionResponse
  */
-export const PrepareTransactionResponse = new PrepareTransactionResponse$Type();
+export const CompleteTransactionResponse = new CompleteTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitPreparedTransactionRequest$Type extends MessageType<CommitPreparedTransactionRequest> {
+class CommitCompletedTransactionRequest$Type extends MessageType<CommitCompletedTransactionRequest> {
     constructor() {
-        super("symbolx.bench.CommitPreparedTransactionRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("symbolx.bench.CommitCompletedTransactionRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<CommitPreparedTransactionRequest>): CommitPreparedTransactionRequest {
+    create(value?: PartialMessage<CommitCompletedTransactionRequest>): CommitCompletedTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.transactionId = "";
         if (value !== undefined)
-            reflectionMergePartial<CommitPreparedTransactionRequest>(this, message, value);
+            reflectionMergePartial<CommitCompletedTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitPreparedTransactionRequest): CommitPreparedTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitCompletedTransactionRequest): CommitCompletedTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* string transaction_id */ 5:
+                case /* string transaction_id */ 2:
                     message.transactionId = reader.string();
                     break;
                 default:
@@ -2400,16 +2426,13 @@ class CommitPreparedTransactionRequest$Type extends MessageType<CommitPreparedTr
         }
         return message;
     }
-    internalBinaryWrite(message: CommitPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* string transaction_id = 5; */
+    internalBinaryWrite(message: CommitCompletedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string transaction_id = 2; */
         if (message.transactionId !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.transactionId);
+            writer.tag(2, WireType.LengthDelimited).string(message.transactionId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2417,24 +2440,24 @@ class CommitPreparedTransactionRequest$Type extends MessageType<CommitPreparedTr
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CommitPreparedTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.CommitCompletedTransactionRequest
  */
-export const CommitPreparedTransactionRequest = new CommitPreparedTransactionRequest$Type();
+export const CommitCompletedTransactionRequest = new CommitCompletedTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommitPreparedTransactionResponse$Type extends MessageType<CommitPreparedTransactionResponse> {
+class CommitCompletedTransactionResponse$Type extends MessageType<CommitCompletedTransactionResponse> {
     constructor() {
-        super("symbolx.bench.CommitPreparedTransactionResponse", []);
+        super("symbolx.bench.CommitCompletedTransactionResponse", []);
     }
-    create(value?: PartialMessage<CommitPreparedTransactionResponse>): CommitPreparedTransactionResponse {
+    create(value?: PartialMessage<CommitCompletedTransactionResponse>): CommitCompletedTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CommitPreparedTransactionResponse>(this, message, value);
+            reflectionMergePartial<CommitCompletedTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitPreparedTransactionResponse): CommitPreparedTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitCompletedTransactionResponse): CommitCompletedTransactionResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: CommitPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CommitCompletedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2442,37 +2465,33 @@ class CommitPreparedTransactionResponse$Type extends MessageType<CommitPreparedT
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CommitPreparedTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.CommitCompletedTransactionResponse
  */
-export const CommitPreparedTransactionResponse = new CommitPreparedTransactionResponse$Type();
+export const CommitCompletedTransactionResponse = new CommitCompletedTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CancelPreparedTransactionRequest$Type extends MessageType<CancelPreparedTransactionRequest> {
+class CancelCompletedTransactionRequest$Type extends MessageType<CancelCompletedTransactionRequest> {
     constructor() {
-        super("symbolx.bench.CancelPreparedTransactionRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("symbolx.bench.CancelCompletedTransactionRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<CancelPreparedTransactionRequest>): CancelPreparedTransactionRequest {
+    create(value?: PartialMessage<CancelCompletedTransactionRequest>): CancelCompletedTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.transactionId = "";
         if (value !== undefined)
-            reflectionMergePartial<CancelPreparedTransactionRequest>(this, message, value);
+            reflectionMergePartial<CancelCompletedTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelPreparedTransactionRequest): CancelPreparedTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelCompletedTransactionRequest): CancelCompletedTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string package_id */ 4:
-                    message.packageId = reader.string();
-                    break;
-                case /* string transaction_id */ 5:
+                case /* string transaction_id */ 2:
                     message.transactionId = reader.string();
                     break;
                 default:
@@ -2486,16 +2505,13 @@ class CancelPreparedTransactionRequest$Type extends MessageType<CancelPreparedTr
         }
         return message;
     }
-    internalBinaryWrite(message: CancelPreparedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
-        if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* string transaction_id = 5; */
+    internalBinaryWrite(message: CancelCompletedTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string transaction_id = 2; */
         if (message.transactionId !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.transactionId);
+            writer.tag(2, WireType.LengthDelimited).string(message.transactionId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2503,24 +2519,24 @@ class CancelPreparedTransactionRequest$Type extends MessageType<CancelPreparedTr
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CancelPreparedTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.CancelCompletedTransactionRequest
  */
-export const CancelPreparedTransactionRequest = new CancelPreparedTransactionRequest$Type();
+export const CancelCompletedTransactionRequest = new CancelCompletedTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CancelPreparedTransactionResponse$Type extends MessageType<CancelPreparedTransactionResponse> {
+class CancelCompletedTransactionResponse$Type extends MessageType<CancelCompletedTransactionResponse> {
     constructor() {
-        super("symbolx.bench.CancelPreparedTransactionResponse", []);
+        super("symbolx.bench.CancelCompletedTransactionResponse", []);
     }
-    create(value?: PartialMessage<CancelPreparedTransactionResponse>): CancelPreparedTransactionResponse {
+    create(value?: PartialMessage<CancelCompletedTransactionResponse>): CancelCompletedTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CancelPreparedTransactionResponse>(this, message, value);
+            reflectionMergePartial<CancelCompletedTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelPreparedTransactionResponse): CancelPreparedTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CancelCompletedTransactionResponse): CancelCompletedTransactionResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: CancelPreparedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CancelCompletedTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2528,94 +2544,20 @@ class CancelPreparedTransactionResponse$Type extends MessageType<CancelPreparedT
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CancelPreparedTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.CancelCompletedTransactionResponse
  */
-export const CancelPreparedTransactionResponse = new CancelPreparedTransactionResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class NotifyEditsRequest$Type extends MessageType<NotifyEditsRequest> {
-    constructor() {
-        super("symbolx.bench.NotifyEditsRequest", [
-            { no: 1, name: "local_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
-        ]);
-    }
-    create(value?: PartialMessage<NotifyEditsRequest>): NotifyEditsRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.localEdits = [];
-        if (value !== undefined)
-            reflectionMergePartial<NotifyEditsRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyEditsRequest): NotifyEditsRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.EditData local_edits */ 1:
-                    message.localEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: NotifyEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.EditData local_edits = 1; */
-        for (let i = 0; i < message.localEdits.length; i++)
-            EditData.internalBinaryWrite(message.localEdits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.NotifyEditsRequest
- */
-export const NotifyEditsRequest = new NotifyEditsRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class NotifyEditsResponse$Type extends MessageType<NotifyEditsResponse> {
-    constructor() {
-        super("symbolx.bench.NotifyEditsResponse", []);
-    }
-    create(value?: PartialMessage<NotifyEditsResponse>): NotifyEditsResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<NotifyEditsResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotifyEditsResponse): NotifyEditsResponse {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: NotifyEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.NotifyEditsResponse
- */
-export const NotifyEditsResponse = new NotifyEditsResponse$Type();
+export const CancelCompletedTransactionResponse = new CancelCompletedTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
     constructor() {
         super("symbolx.bench.WatchEditsRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 6, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.packageIds = [];
         message.nodeTypes = [];
         if (value !== undefined)
             reflectionMergePartial<WatchEditsRequest>(this, message, value);
@@ -2626,20 +2568,17 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* repeated string package_ids */ 4:
-                    message.packageIds.push(reader.string());
-                    break;
-                case /* repeated symbolx.bench.NodeType node_types */ 5:
+                case /* repeated symbolx.bench.NodeType node_types */ 2:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.nodeTypes.push(reader.int32());
                     else
                         message.nodeTypes.push(reader.int32());
                     break;
-                case /* optional uint64 since_epoch */ 6:
+                case /* optional uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -2654,22 +2593,19 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         return message;
     }
     internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* repeated string package_ids = 4; */
-        for (let i = 0; i < message.packageIds.length; i++)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageIds[i]);
-        /* repeated symbolx.bench.NodeType node_types = 5; */
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType node_types = 2; */
         if (message.nodeTypes.length) {
-            writer.tag(5, WireType.LengthDelimited).fork();
+            writer.tag(2, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.nodeTypes.length; i++)
                 writer.int32(message.nodeTypes[i]);
             writer.join();
         }
-        /* optional uint64 since_epoch = 6; */
+        /* optional uint64 since_epoch = 3; */
         if (message.sinceEpoch !== undefined)
-            writer.tag(6, WireType.Varint).uint64(message.sinceEpoch);
+            writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2739,12 +2675,13 @@ export const WatchEditsResponse = new WatchEditsResponse$Type();
 class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
     constructor() {
         super("symbolx.bench.RestartServerRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<RestartServerRequest>): RestartServerRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.benchId = "";
+        message.serverId = "";
         if (value !== undefined)
             reflectionMergePartial<RestartServerRequest>(this, message, value);
         return message;
@@ -2754,8 +2691,11 @@ class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* string server_id */ 2:
+                    message.serverId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2769,9 +2709,12 @@ class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
         return message;
     }
     internalBinaryWrite(message: RestartServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string bench_id = 1; */
-        if (message.benchId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string server_id = 2; */
+        if (message.serverId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2833,12 +2776,13 @@ export const RestartServerResponse = new RestartServerResponse$Type();
 class PingServerRequest$Type extends MessageType<PingServerRequest> {
     constructor() {
         super("symbolx.bench.PingServerRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<PingServerRequest>): PingServerRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.benchId = "";
+        message.serverId = "";
         if (value !== undefined)
             reflectionMergePartial<PingServerRequest>(this, message, value);
         return message;
@@ -2848,8 +2792,11 @@ class PingServerRequest$Type extends MessageType<PingServerRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string bench_id */ 1:
-                    message.benchId = reader.string();
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* string server_id */ 2:
+                    message.serverId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2863,9 +2810,12 @@ class PingServerRequest$Type extends MessageType<PingServerRequest> {
         return message;
     }
     internalBinaryWrite(message: PingServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string bench_id = 1; */
-        if (message.benchId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string server_id = 2; */
+        if (message.serverId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3878,9 +3828,9 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
-    { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
-    { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
-    { name: "CancelPreparedTransaction", options: {}, I: CancelPreparedTransactionRequest, O: CancelPreparedTransactionResponse },
+    { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
+    { name: "CommitCompletedTransaction", options: {}, I: CommitCompletedTransactionRequest, O: CommitCompletedTransactionResponse },
+    { name: "CancelCompletedTransaction", options: {}, I: CancelCompletedTransactionRequest, O: CancelCompletedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
@@ -3891,11 +3841,10 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
-    { name: "PrepareTransaction", options: {}, I: PrepareTransactionRequest, O: PrepareTransactionResponse },
-    { name: "CommitPreparedTransaction", options: {}, I: CommitPreparedTransactionRequest, O: CommitPreparedTransactionResponse },
-    { name: "CancelPreparedTransaction", options: {}, I: CancelPreparedTransactionRequest, O: CancelPreparedTransactionResponse },
+    { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
+    { name: "CommitCompletedTransaction", options: {}, I: CommitCompletedTransactionRequest, O: CommitCompletedTransactionResponse },
+    { name: "CancelCompletedTransaction", options: {}, I: CancelCompletedTransactionRequest, O: CancelCompletedTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-    { name: "NotifyEdits", options: {}, I: NotifyEditsRequest, O: NotifyEditsResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
