@@ -18,15 +18,14 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def detached_session(read_only: bool = False, host: BenchHostStub | None = None) -> "Session":
-    """Gets a global session."""
-    from bench.sql.client import async_pg_cursor
+async def global_session(read_only: bool = False, host: BenchHostStub | None = None) -> "Session":
+    from bench.sql.client import async_pg_connection
     from bench.language.const import _active_session
 
     assert _active_session.get() is None, f"already in active session {_active_session.get()}"
 
-    async with async_pg_cursor(local_pg_name=None) as global_cur:
-        session = Session(parent=None, _global_pg_cursor=global_cur, _host=host)
+    async with async_pg_connection(local_pg_name=None) as conn:
+        session = Session(parent=None, _global_pg_connection=conn, _host=host)
         _active_session.set(session)
         try:
             yield session

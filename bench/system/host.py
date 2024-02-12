@@ -17,7 +17,7 @@ from bench.language.const import IN_PACKAGE_NODE_TYPES, SUB_BENCH_NODE_TYPES, No
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Bench, Package
-from bench.language.query import QueryBuilder
+from bench.language.query import QueryBase
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -35,8 +35,6 @@ from bench.proto.wire import (
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
-    NotifyEditsRequest,
-    NotifyEditsResponse,
     NotifyServerLogsRequest,
     CompleteTransactionRequest,
     CompleteTransactionResponse,
@@ -56,9 +54,10 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
+    GraphScope,
 )
 from bench.sql.engine import pg_get_node
-from bench.system.utils import detached_session, get_s3_client, validate_bench_data_many
+from bench.system.utils import global_session, get_s3_client, validate_bench_data_many
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -88,7 +87,7 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         return f"<{self.__class__.__name__} {self}>"
 
     async def start_quick(self) -> None:
-        async with detached_session():
+        async with global_session():
             benches: list[Bench] = await Bench.tolist()
         await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
 
@@ -109,10 +108,10 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
     ) -> Callable:
         @functools.wraps(func)
         async def _multiplexed_rpc(subject: Subject, request: betterproto.Message) -> None:
-            bench_id = getattr(request, "bench_id")
-            if bench_id is None:
+            scope: GraphScope | None = getattr(request, "scope")
+            if scope is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench scope")
-            bench_id = to_uuid(bench_id)
+            bench_id = to_uuid(scope.bench_id)
 
             # get bench host
             host = self._bench_hosts.get(bench_id)
@@ -166,7 +165,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         return self._package
 
     async def start_quick(self) -> None:
-        async with detached_session() as session:
+        async with global_session() as session:
             self._bench: Bench = await pg_get_node(
                 session=session,
                 root_type=NodeType.BENCH,
@@ -207,7 +206,7 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
         sort: list[Expression] = [
             wiring.unpack_struct_interp(s, self._package) for s in request.sort
         ] or None
-        query = QueryBuilder(
+        query = QueryBase(
             node_type=node_type,
             filter=filter,
             sort=sort,
@@ -256,15 +255,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    #
-    # Package-specific stuff
-    #
-
-    async def notify_edits(
-        self, subject: Subject, request: "NotifyEditsRequest"
-    ) -> "NotifyEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #

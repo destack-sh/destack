@@ -33,7 +33,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
-from bench.system.utils import detached_session
+from bench.system.utils import global_session
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
@@ -110,7 +110,7 @@ async def makemigrations(
 
     # resolve bench into local pg name if needed
     if not local_pg_name:
-        async with detached_session(read_only=True):
+        async with global_session(read_only=True):
             try:
                 bench = await Bench.get(slug=bench)
                 local_pg_name = bench.pg_name
@@ -170,7 +170,7 @@ async def migrate(
 
     # resolve local_pg_name (determine local/global migration)
     if bench is not None:
-        async with detached_session(read_only=True):
+        async with global_session(read_only=True):
             if bench != "*":
                 bench = await Bench.get(slug=bench)
                 pg_names = (bench.pg_name,)
@@ -201,7 +201,7 @@ async def clearmigrations(from_id: int, to_id: int):
     async with async_pg_cursor() as cur:
         await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
         await cur.connection.commit()
-    async with detached_session(read_only=True):
+    async with global_session(read_only=True):
         benches = await Bench.tolist()
         for bench in benches:
             async with async_pg_cursor(local_pg_name=bench.pg_name) as cur:
@@ -218,7 +218,7 @@ async def introspect(bench: str = None):
     logger.info("pg.introspect", bench=bench)
     start = time.perf_counter()
     if bench is not None:
-        async with detached_session(read_only=True):
+        async with global_session(read_only=True):
             bench = Bench.get(slug=bench)
             local_pg_name = bench.pg_name
     else:
@@ -250,7 +250,7 @@ async def introspect(bench: str = None):
 async def shell(bench: str = None):
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
-        async with detached_session(read_only=True):
+        async with global_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
         connection_str = _get_pg_connection_str(local_pg_name=bench.pg_name)
     else:

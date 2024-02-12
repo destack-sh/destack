@@ -63,7 +63,7 @@ from bench.sql.engine import (
     pg_write_regular_edits,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
-from bench.system.utils import detached_session
+from bench.system.utils import global_session
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import group_by, to_uuid
 
@@ -103,7 +103,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with detached_session() as session:
+        async with global_session() as session:
             user = User(
                 id=to_uuid(request.id),
                 slug=request.slug,
@@ -131,7 +131,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         if not subject.is_authenticated:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with detached_session() as session:
+        async with global_session() as session:
             user = subject.user
             if not await check_password(
                 request.old_password, user.password_salt, user.password_hash
@@ -152,7 +152,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with detached_session() as session:
+        async with global_session() as session:
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -181,7 +181,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         if subject.client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with detached_session() as session:
+        async with global_session() as session:
             # log out the current or the specified clients
             if request.client_ids:
                 clients = await Client.filter(
@@ -211,7 +211,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
         if not user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with detached_session() as session:
+        async with global_session() as session:
             session.track(user)
             if user.bench:  # can't create secondary benches yet
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "bench already exists")
@@ -370,7 +370,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], SupervisorBase):
                 )
                 if any(str(r.id) not in graph for r in node_references):
                     missing = tuple(r for r in node_references if str(r.id) not in graph)
-                    raise GRPCError(GRPCStatus.NOT_FOUND, f"edit scopes not found: {missing}")
+                    raise GRPCError(GRPCStatus.NOT_FOUND, f"edited scopes not found: {missing}")
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, graph)

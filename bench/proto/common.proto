@@ -35,6 +35,12 @@ message RpcMetadata {
   optional string badge_key_value = 8;
 }
 
+// Scope for an operation against the Bench state graph.
+message GraphScope {
+  optional string bench_id = 1;
+  optional string package_id = 4;
+  optional string transaction_id = 5;
+}
 
 // Edit describes an edit to a Node.
 // (Manually defined here since inline Node properties inside structs aren't supported.)

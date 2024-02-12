@@ -8,12 +8,12 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Badge, Client, User
+from bench.language import Badge, Client, User, Server
 from bench.language.access import Subject
 from bench.language.const import NodeType
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
-from bench.system.utils import detached_session
+from bench.system.utils import global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -88,12 +88,17 @@ def generate_random_username(length: int = 32, lowercase: bool = False) -> str:
 def generate_secret_password(length: int = 48) -> str:
     """URL-safe password."""
     password = secrets.token_urlsafe(length - 4)[: length - 4]
-    # ensure at least one lowercase, uppercase, digit, special character
+    # ensure at least 1 lowercase, 1 uppercase, 1 digit, 1 'special' character
     password += random.choice(string.ascii_lowercase)
     password += random.choice(string.ascii_uppercase)
     password += random.choice(string.digits)
     password += random.choice("!@$^&*()_+-=")
     return password
+
+
+def generate_encryption_key(length: int = 32) -> str:
+    """Encryption key for pgcrypto symmetric encryption."""
+    return secrets.token_hex(length)
 
 
 async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
@@ -105,10 +110,10 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     client_id = to_uuid(metadata.client_id)
     client: Client = (
         await Client.include(User.email, Client.access_token)
-        .ancestors(NodeType.USER, NodeType.SERVER)
+        .ancestors(User, Server)
         .get(id=client_id)
     )
-    if client.access_token != metadata.client_access_token:
+    if metadata.client_access_token != client.access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
     return client
 
@@ -127,7 +132,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
         return badge
     elif metadata.badge_id:
         badge: Badge = await Badge.include(Badge.key_value).get(id=to_uuid(metadata.badge_id))
-        if badge.key_value != metadata.badge_key_value:
+        if metadata.badge_key_value != badge.key_value:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key value")
         return badge
     else:
@@ -135,7 +140,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
 
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
-    async with detached_session(read_only=True):
+    async with global_session(read_only=True):
         try:
             client = await _get_client_from_metadata(metadata)
             badge = await _get_badge_from_metadata(metadata)

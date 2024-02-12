@@ -30,7 +30,7 @@ from bench.utils.casing import Casing, to_casing
 if TYPE_CHECKING:
     from bench.language import Expression, Field, Node, Property, TypeInfo
     from bench.language.field import HasFields
-    from bench.language.query import QueryBuilder
+    from bench.language.query import QueryBase
 
 #
 # Expression language. Primarily for package, search and storage (database).
@@ -557,6 +557,7 @@ _EMPTY_SET = set()
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 FieldOrProperty = Union["Field", "Property", Any]
+NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
 def _require_expression_op(op: ExpressionOp):
@@ -594,6 +595,10 @@ class _TypeExpressionBase:
     @property
     def _as_type(self) -> "TypeInfo":
         raise NotImplementedError(f"{self!r} does not implement type")
+
+    #
+    # Conditional
+    #
 
     # comparison
 
@@ -640,7 +645,7 @@ class _TypeExpressionBase:
     __lt__ = less_than
     __le__ = less_than_or_equals
 
-    # string comparison
+    # string
 
     @_require_expression_op(ConditionalOp.MATCHES)
     def matches(self: Any, value: str) -> "Expression":
@@ -690,7 +695,9 @@ class _TypeExpressionBase:
     def near(self: Any, value: list[float]) -> "Expression":
         return _to_conditional(ConditionalOp.NEAR, self, value=value)
 
-    # sort
+    #
+    # Sort
+    #
 
     @_require_expression_op(SortOp.ASCENDING)
     def asc(self: Any) -> "Expression":
@@ -704,19 +711,25 @@ class _TypeExpressionBase:
 
     descending = desc
 
+    #
+    # Aggregation
+    #
+
+    ...
+
 
 class _NodeExpressionBase:
-    """Basically Query but for the Node class."""
+    """Basically Query but for the Node class. :ReadQueryBase"""
+
+    #
+    # Builder
+    #
 
     @classmethod
     def query(cls: type["Node"]):
-        from bench.language.query import QueryBuilder
+        from bench.language.query import QueryBase
 
-        return QueryBuilder(node_type=cls.metatype)
-
-    @classmethod
-    async def tolist(cls: type["Node"]) -> list[NodeT]:
-        return await cls.query().tolist()
+        return QueryBase(node_type=cls.metatype)
 
     @classmethod
     def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
@@ -725,35 +738,47 @@ class _NodeExpressionBase:
     @classmethod
     def filter(
         cls: type["Node"], filter: "Expression" = None, **kwargs
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    ) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().filter(filter, **kwargs)
 
     @classmethod
     def sort(
         cls: type["Node"], sort: "Expression" = None, *args: str
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    ) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().sort(sort, *args)
 
     @classmethod
-    def include(
-        cls: type["Node"], *properties: FieldOrProperty
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().include(*properties)
 
     @classmethod
-    def exclude(
-        cls: type["Node"], *properties: FieldOrProperty
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    def exclude(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().exclude(*properties)
 
     @classmethod
-    def related(
-        cls: type["Node"], *properties: FieldOrProperty
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
+    def related(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().related(*properties)
 
     @classmethod
-    def first(cls: type["Node"], count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+    def ancestors(cls: type["Node"], *node_types: NodeTypeOrClass) -> "QueryBase[NodeT, NodeDataT]":
+        return cls.query().ancestors(*node_types)
+
+    @classmethod
+    def descendants(
+        cls: type["Node"], *node_types: NodeTypeOrClass
+    ) -> "QueryBase[NodeT, NodeDataT]":
+        return cls.query().descendants(*node_types)
+
+    #
+    # Fetch
+    #
+
+    @classmethod
+    async def tolist(cls: type["Node"]) -> list[NodeT]:
+        return await cls.query().tolist()
+
+    @classmethod
+    def first(cls: type["Node"], count: int) -> "QueryBase[NodeT, NodeDataT]":
         return cls.query().first(count)
 
     @classmethod

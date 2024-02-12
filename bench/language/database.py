@@ -12,7 +12,6 @@ from bench.language.const import (
     UNSET,
     ConditionalOp,
     NodeType,
-    QueryEngineType,
     new_dynamic_node_key,
 )
 from bench.language.expression import C, Expression, coerce_conditional
@@ -33,7 +32,7 @@ from bench.language.node import (
     p_runtime,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.query import StoreEngine, QueryBuilder
+from bench.language.query import StoreEngine, QueryBase
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
@@ -233,7 +232,7 @@ class RecordStoreEngine(StoreEngine[Record, RecordData]):
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
 
-        self._require_engine(QueryEngineType.LOCAL_STORE)
+        self._require_engine(StoreEngineType.LOCAL_STORE)
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         if session._local_edits:
@@ -260,12 +259,12 @@ class RelationType(enum.StrEnum):
     ManyToOne = "ManyToOne"
 
 
-class RecordList(NodeListBase[Record], QueryBuilder[Record]):
+class RecordList(NodeListBase[Record], QueryBase[Record]):
     """A NodeList for remote records."""
 
     def __init__(self, parent: "ScopeNode", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
-        QueryBuilder.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
+        QueryBase.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
 
     def __str__(self):
         return f"from {self._parent._table.name}"

@@ -123,16 +123,16 @@ class Transaction:
     id: UUID = dcfield(default_factory=uuid4)
     is_runtime: bool = dcfield(default=False)
 
-    global_pg_cursor: psycopg.AsyncCursor | None = dcfield(default=None)
-    local_pg_cursors: dict[str, psycopg.AsyncCursor] = dcfield(default_factory=dict)
-    supervisor: Optional["SupervisorStub"] = dcfield(default=None)
-    host: Optional["BenchHostStub"] = dcfield(default=None)
+    global_pg_connection: Optional[psycopg.AsyncConnection] = dcfield(default=None)
+    local_pg_connection: Optional[psycopg.AsyncConnection] = dcfield(default=None)
+    global_host: Optional["SupervisorStub"] = dcfield(default=None)
+    bench_host: Optional["BenchHostStub"] = dcfield(default=None)
 
     edits: list[EditData] = dcfield(default_factory=list)
     pending_edits: list[EditData] = dcfield(default_factory=list)
     _pending_updates_idx: dict[Node, int] = dcfield(default_factory=dict)
 
-    # for syncing databases (should probably generalize into untracked edits concept)
+    # for syncing databases (should probably generalize into' untracked edits')
     _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
         default_factory=lambda: defaultdict(set)
     )
@@ -150,19 +150,6 @@ class Transaction:
         for edit in edits:  # replay edits
             tx._on_edit(edit)
         return tx
-
-    async def get_pg_cursor_to(
-        self, is_local: bool, package: Package | None = None
-    ) -> Optional[psycopg.AsyncCursor]:
-        if not is_local:
-            return self.global_pg_cursor
-        else:
-            assert package is not None, f"no package for local {self!r}"
-            if package.pg_name not in self.local_pg_cursors:
-                pg_pool = await get_pg_connection_pool(package.pg_name)
-                pg_connection = await pg_pool.getconn(timeout=3)
-                self.local_pg_cursors[package.pg_name] = pg_connection.cursor()
-            return self.local_pg_cursors[package.pg_name]
 
     #
     # Edits
@@ -250,14 +237,14 @@ class Transaction:
         raise NotImplementedError
 
     async def commit(self):
-        """Commits the transaction (flushing any remaining pending edits). Syncs to secondaries."""
+        """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
         raise NotImplementedError
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
         raise NotImplementedError
 
-    async def close(self) -> None:
+    async def close(self):
         """Closes the transaction and associated cursors, rolling back uncommitted edits."""
         if self.global_pg_cursor:
             await self.global_pg_cursor.connection.rollback()
@@ -284,8 +271,10 @@ class Session(ScopeNode):
     closed_at: Optional[datetime] = p_system(33, default=None)
     is_runtime: bool = p_system(34, default=False)
 
+    # transaction
     _tx: Transaction | None = p_runtime(default=None)
-    _global_pg_cursor: Optional[psycopg.AsyncCursor] = p_runtime(default=None)
+    _global_pg_connection: Optional[psycopg.AsyncConnection] = p_runtime(default=None)
+    _local_pg_connection: Optional[psycopg.AsyncConnection] = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)

@@ -132,6 +132,7 @@ enum BenchType {
   BENCH_TYPE_LOG_ENTRY = 600;
   BENCH_TYPE_SERVER_IMAGE = 630;
   BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
+  BENCH_TYPE_STORE_CREDENTIAL = 632;
   BENCH_TYPE_RICH_TEXT = 660;
   BENCH_TYPE_RICH_TEXT_SPAN = 661;
   BENCH_TYPE_SPACE_DOCK = 700;
@@ -392,14 +393,6 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_INTERVAL = 21;
 }
 
-enum QueryEngineType {
-  QUERY_ENGINE_TYPE_UNSPECIFIED = 0;
-  QUERY_ENGINE_TYPE_IN_MEMORY = 1;
-  QUERY_ENGINE_TYPE_GLOBAL_STORE = 2;
-  QUERY_ENGINE_TYPE_LOCAL_STORE = 4;
-  QUERY_ENGINE_TYPE_LOCAL_SEARCH = 5;
-}
-
 // A type of Read access on nodes.
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
@@ -479,11 +472,13 @@ enum SortOp {
   SORT_OP_DESCENDING = 201;
 }
 
-enum StoreEngine {
-  STORE_ENGINE_UNSPECIFIED = 0;
-  STORE_ENGINE_POSTGRES = 1;
-  STORE_ENGINE_OPENSEARCH = 20;
-  STORE_ENGINE_CLICKHOUSE = 30;
+enum StoreEngineType {
+  STORE_ENGINE_TYPE_UNSPECIFIED = 0;
+  STORE_ENGINE_TYPE_INMEMORY = 1;
+  STORE_ENGINE_TYPE_REMOTE = 2;
+  STORE_ENGINE_TYPE_POSTGRES = 3;
+  STORE_ENGINE_TYPE_OPENSEARCH = 4;
+  STORE_ENGINE_TYPE_CLICKHOUSE = 5;
 }
 
 enum StoreKind {
@@ -527,6 +522,7 @@ enum StructType {
   STRUCT_TYPE_LOG_ENTRY = 600;
   STRUCT_TYPE_SERVER_IMAGE = 630;
   STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
+  STRUCT_TYPE_STORE_CREDENTIAL = 632;
   STRUCT_TYPE_RICH_TEXT = 660;
   STRUCT_TYPE_RICH_TEXT_SPAN = 661;
   STRUCT_TYPE_SPACE_DOCK = 700;
@@ -784,6 +780,7 @@ message PolicyRuleData {
   repeated PropertyReferenceData object_properties_ptr = 81;
   optional bool object_properties_is_system = 82;
   optional bool object_properties_is_sensitive = 83;
+  optional bool object_properties_is_kernel = 84;
 }
 
 // A path of Node/Struct properties.
@@ -899,6 +896,14 @@ message SpaceDockItemData {
   bool hidden = 31;
 }
 
+// StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, _status: bench.language.const.NodeStatus = None)
+message StoreCredentialData {
+  BenchType metatype = 1;
+  int32 type = 30;
+  optional string username = 31;
+  optional string password = 32;
+}
+
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
 // (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message SubjectData {
@@ -994,7 +999,7 @@ message BadgeData {
   optional string key_value_hash = 51;
 }
 
-// A Bench is the AI-native operating system for a new generation of fully integrated, fluid apps.
+// A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
@@ -1006,12 +1011,13 @@ message BenchData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData main_handle_ptr = 30;
-  string slug = 31;
-  string name = 32;
-  optional RichTextData text = 33;
-  optional NodeReferenceData owner_ptr = 34;
-  repeated PolicyData policies = 36;
+  optional NodeReferenceData main_handle_ptr = 31;
+  string slug = 32;
+  string name = 33;
+  optional RichTextData text = 34;
+  optional NodeReferenceData owner_ptr = 35;
+  optional string encryption_key = 36;
+  repeated PolicyData policies = 37;
   optional NodeReferenceData main_package_ptr = 40;
   optional NodeReferenceData main_environment_ptr = 41;
   optional NodeReferenceData main_branch_ptr = 42;
@@ -1121,7 +1127,6 @@ message DriveData {
   string name = 32;
   optional RichTextData text = 34;
   optional string host = 40;
-  optional string uri = 41;
 }
 
 // An environment isolates resources from the rest of a Bench.
@@ -1182,7 +1187,7 @@ message FieldData {
   bool is_option = 62;
 }
 
-// The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512.
+// (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.
 message FileContentData {
   BenchType metatype = 1;
   string id = 2;
@@ -1332,11 +1337,11 @@ message OrganizationData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData main_handle_ptr = 30;
-  optional string slug = 31;
-  string name = 32;
-  optional RichTextData text = 33;
-  optional NodeReferenceData main_bench_ptr = 35;
+  optional NodeReferenceData main_handle_ptr = 31;
+  optional string slug = 32;
+  string name = 33;
+  optional RichTextData text = 34;
+  optional NodeReferenceData main_bench_ptr = 36;
 }
 
 // A package is a semi-isolated version of a Bench containing all the source and data.
@@ -1579,8 +1584,8 @@ message StoreData {
   optional string host = 41;
   optional string database = 42;
   optional string schema = 43;
-  optional string username = 44;
-  optional string password = 45;
+  optional StoreCredentialData root_credential = 44;
+  repeated StoreCredentialData extra_credentials = 45;
 }
 
 // An association between a tag and a node (with optional value).
@@ -1632,12 +1637,12 @@ message UserData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodeReferenceData main_handle_ptr = 30;
-  optional string slug = 31;
-  optional string name = 32;
-  optional RichTextData text = 33;
-  optional string email = 34;
-  optional NodeReferenceData main_bench_ptr = 35;
+  optional NodeReferenceData main_handle_ptr = 31;
+  optional string slug = 32;
+  optional string name = 33;
+  optional RichTextData text = 34;
+  optional string email = 35;
+  optional NodeReferenceData main_bench_ptr = 36;
   optional bytes password_salt = 40;
   optional bytes password_hash = 42;
   optional google.protobuf.Timestamp last_logged_in_at = 43;

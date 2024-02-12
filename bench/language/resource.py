@@ -11,7 +11,7 @@ from bench.language.const import (
     StoreKind,
     FileStatus,
     PrimitiveType,
-    StoreEngine,
+    StoreEngineType,
 )
 from bench.language.node import (
     Bench,
@@ -23,6 +23,7 @@ from bench.language.node import (
     p_internal,
     p_regular,
     p_system,
+    p_kernel,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -64,6 +65,17 @@ class ServerImageRequirement(Struct):
     version: str = p_regular(31)
 
 
+class StoreCredentialType(IdEnum):
+    ROOT = 1
+
+
+@struct(StructType.STORE_CREDENTIAL)
+class StoreCredential(Struct):
+    type: StoreCredentialType = p_regular(30)
+    username: str = p_regular(31, sensitive=True)
+    password: str = p_regular(32, sensitive=True)
+
+
 @node(NodeType.STORE)
 class Store(Node):
     """
@@ -73,7 +85,7 @@ class Store(Node):
 
     parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
     kind: StoreKind = p_system(30)
-    engine: StoreEngine = p_system(31)
+    engine: StoreEngineType = p_system(31)
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
     is_host_dedicated: bool = p_system(35, default=False)
@@ -81,11 +93,28 @@ class Store(Node):
     is_schema_dedicated: bool = p_system(37, default=False)
 
     # base: Optional[Store] ...if shared?
-    host: Optional[str] = p_system(41, sensitive=True, defer=True)
-    database: Optional[str] = p_system(42, sensitive=True, defer=True)
-    schema: Optional[str] = p_system(43, sensitive=True, defer=True)
-    username: Optional[str] = p_system(44, sensitive=True, encrypt=True, defer=True)
-    password: Optional[str] = p_system(45, sensitive=True, encrypt=True, defer=True)
+    host: Optional[str] = p_kernel(41, sensitive=True)
+    database: Optional[str] = p_kernel(42, sensitive=True)
+    schema: Optional[str] = p_kernel(43, sensitive=True)
+    # ('root' here is relative to the dedicated schema/database/host)
+    root_credential: Optional[StoreCredential] = p_kernel(
+        44,
+        require=False,
+        array=False,
+        sensitive=True,
+        encrypt=True,
+        defer=True,
+        struct=StructType.STORE_CREDENTIAL,
+    )
+    extra_credentials: list[StoreCredential] = p_kernel(
+        45,
+        require=False,
+        array=True,
+        sensitive=True,
+        encrypt=True,
+        defer=True,
+        struct=StructType.STORE_CREDENTIAL,
+    )
 
 
 @node(NodeType.DRIVE)
@@ -100,8 +129,7 @@ class Drive(Node):
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
 
-    host: Optional[str] = p_system(40, unique=True)
-    uri: Optional[str] = p_system(41, unique=True)
+    host: Optional[str] = p_kernel(40, unique=True)
 
 
 class FileRetentionMode(IdEnum):
@@ -110,17 +138,17 @@ class FileRetentionMode(IdEnum):
     TIMED = 3  # delete after a certain time
 
 
-@node(NodeType.FILE_CONTENT)
+@node(NodeType.FILE_CONTENT, unique_together=(("parent_drive_id", "sha512"),))
 class FileContent(Node):
-    """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
+    """(A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512."""
 
     parent: Drive = p_parent(4, NodeType.DRIVE, is_system=True)
     sha512: str = p_internal(30)
     content_length: int = p_internal(31, primitive_type=PrimitiveType.INT64)
     content_type: str = p_internal(32)
     status: FileStatus = p_internal(33)
-    retention: FileRetentionMode = p_internal(34)
-    expires_at: Optional[datetime] = p_internal(35)
+    retention: FileRetentionMode = p_regular(34)
+    expires_at: Optional[datetime] = p_regular(35)
 
 
 CacheKey = str | bytes
