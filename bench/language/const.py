@@ -4,6 +4,7 @@ import typing
 from typing import Optional
 from uuid import UUID
 
+from bench.proto.wire import GraphScope
 from bench.utils.func import IdEnum, bytetuple, cyrb53a
 from bench.utils.utils import frozendict
 
@@ -15,6 +16,7 @@ UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
+EMPTY_SCOPE = GraphScope()
 
 
 #

@@ -593,6 +593,8 @@ class NodeList(NodeListBase[NodeT]):
             return last_ok, None
 
     def append(self, n: NodeT, after: NodeT = None, before: NodeT = None) -> tuple[NodeT, ...]:
+        from bench.language.node import Node
+
         assert isinstance(n, Node), f"cannot append {n!r} to {self!r}"
         if n.parent is not None:
             raise ValueError(f"cannot attach {n!r} to {self!r}: attached to {n.parent!r}")
@@ -603,11 +605,9 @@ class NodeList(NodeListBase[NodeT]):
             for n in n._walk_rec():
                 if n.id is None:
                     n._assign_id(package_id)
-        # update parent after updating ids (the above walks graph, which is effectd here)
         n.parent = self._parent
-        # validate node now that it has a parent (while in session)
         if self._parent._session is not None:
-            n._validate_self(n.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
+            n._validate_self(n.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
         # add node to parent graph
         if n.__has_scope__ and n._local_graph is not None:

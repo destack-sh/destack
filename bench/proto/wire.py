@@ -1897,9 +1897,6 @@ class StoreData(betterproto.Message):
     engine: int = betterproto.int32_field(31)
     name: str = betterproto.string_field(32)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
-    is_host_dedicated: bool = betterproto.bool_field(35)
-    is_database_dedicated: bool = betterproto.bool_field(36)
-    is_schema_dedicated: bool = betterproto.bool_field(37)
     host: Optional[str] = betterproto.string_field(41, optional=True)
     database: Optional[str] = betterproto.string_field(42, optional=True)
     schema: Optional[str] = betterproto.string_field(43, optional=True)
@@ -2099,8 +2096,7 @@ class EditData(betterproto.Message):
     node: "SomeNodeData" = betterproto.message_field(3)
     properties: List[int] = betterproto.sint32_field(4)
     origin: "ClientOrigin" = betterproto.message_field(5)
-    package_id: Optional[str] = betterproto.string_field(6, optional=True)
-    """Specify package id for routing (if node is in a Package)."""
+    scope: "GraphScope" = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -2224,6 +2220,8 @@ class SearchNodesRequest(betterproto.Message):
     after: Optional[str] = betterproto.string_field(8, optional=True)
     options: Optional["ReadOptionsData"] = betterproto.message_field(9, optional=True)
     count: Optional[bool] = betterproto.bool_field(10, optional=True)
+    lock_for_update: Optional[bool] = betterproto.bool_field(11, optional=True)
+    skip_locked: Optional[bool] = betterproto.bool_field(12, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2302,13 +2300,13 @@ class CommitCompletedTransactionResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CancelCompletedTransactionRequest(betterproto.Message):
+class CancelTransactionRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     transaction_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class CancelCompletedTransactionResponse(betterproto.Message):
+class CancelTransactionResponse(betterproto.Message):
     pass
 
 
@@ -2465,6 +2463,145 @@ class KillRunResponse(betterproto.Message):
     run: "RunData" = betterproto.message_field(1)
 
 
+class GraphIoStub(betterproto.ServiceStub):
+    async def get_nodes(
+        self,
+        request: "GetNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "GetNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/GetNodes",
+            request,
+            GetNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def search_nodes(
+        self,
+        request: "SearchNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SearchNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/SearchNodes",
+            request,
+            SearchNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def aggregate_nodes(
+        self,
+        request: "AggregateNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "AggregateNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/AggregateNodes",
+            request,
+            AggregateNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def commit_transaction(
+        self,
+        request: "CommitTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CommitTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/CommitTransaction",
+            request,
+            CommitTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def begin_transaction(
+        self,
+        request: "BeginTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "BeginTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/BeginTransaction",
+            request,
+            BeginTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def complete_transaction(
+        self,
+        request: "CompleteTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CompleteTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/CompleteTransaction",
+            request,
+            CompleteTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def cancel_transaction(
+        self,
+        request: "CancelTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CancelTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GraphIO/CancelTransaction",
+            request,
+            CancelTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def watch_edits(
+        self,
+        request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.GraphIO/WatchEdits",
+            request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+
 class SupervisorStub(betterproto.ServiceStub):
     async def signup_user(
         self,
@@ -2602,6 +2739,23 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def begin_transaction(
+        self,
+        request: "BeginTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "BeginTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/BeginTransaction",
+            request,
+            BeginTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def commit_transaction(
         self,
         request: "CommitTransactionRequest",
@@ -2636,35 +2790,18 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def commit_completed_transaction(
+    async def cancel_transaction(
         self,
-        request: "CommitCompletedTransactionRequest",
+        request: "CancelTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CommitCompletedTransactionResponse":
+    ) -> "CancelTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CommitCompletedTransaction",
+            "/symbolx.bench.Supervisor/CancelTransaction",
             request,
-            CommitCompletedTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def cancel_completed_transaction(
-        self,
-        request: "CancelCompletedTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "CancelCompletedTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CancelCompletedTransaction",
-            request,
-            CancelCompletedTransactionResponse,
+            CancelTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2741,6 +2878,23 @@ class BenchHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def begin_transaction(
+        self,
+        request: "BeginTransactionRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "BeginTransactionResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.BenchHost/BeginTransaction",
+            request,
+            BeginTransactionResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def commit_transaction(
         self,
         request: "CommitTransactionRequest",
@@ -2775,35 +2929,18 @@ class BenchHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def commit_completed_transaction(
+    async def cancel_transaction(
         self,
-        request: "CommitCompletedTransactionRequest",
+        request: "CancelTransactionRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CommitCompletedTransactionResponse":
+    ) -> "CancelTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CommitCompletedTransaction",
+            "/symbolx.bench.BenchHost/CancelTransaction",
             request,
-            CommitCompletedTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def cancel_completed_transaction(
-        self,
-        request: "CancelCompletedTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "CancelCompletedTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CancelCompletedTransaction",
-            request,
-            CancelCompletedTransactionResponse,
+            CancelTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3088,6 +3225,163 @@ class ServerProcessStub(betterproto.ServiceStub):
         )
 
 
+class GraphIoBase(ServiceBase):
+    async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def search_nodes(
+        self, subject: "Subject", request: "SearchNodesRequest"
+    ) -> "SearchNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def aggregate_nodes(
+        self, subject: "Subject", request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def commit_transaction(
+        self, subject: "Subject", request: "CommitTransactionRequest"
+    ) -> "CommitTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def begin_transaction(
+        self, subject: "Subject", request: "BeginTransactionRequest"
+    ) -> "BeginTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def complete_transaction(
+        self, subject: "Subject", request: "CompleteTransactionRequest"
+    ) -> "CompleteTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def cancel_transaction(
+        self, subject: "Subject", request: "CancelTransactionRequest"
+    ) -> "CancelTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_edits(
+        self, subject: "Subject", request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
+
+    async def __rpc_get_nodes(
+        self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.get_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_search_nodes(
+        self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.search_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_aggregate_nodes(
+        self,
+        stream: "grpclib.server.Stream[AggregateNodesRequest, AggregateNodesResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.aggregate_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_commit_transaction(
+        self,
+        stream: "grpclib.server.Stream[CommitTransactionRequest, CommitTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.commit_transaction(request)
+        await stream.send_message(response)
+
+    async def __rpc_begin_transaction(
+        self,
+        stream: "grpclib.server.Stream[BeginTransactionRequest, BeginTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.begin_transaction(request)
+        await stream.send_message(response)
+
+    async def __rpc_complete_transaction(
+        self,
+        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.complete_transaction(request)
+        await stream.send_message(response)
+
+    async def __rpc_cancel_transaction(
+        self,
+        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.cancel_transaction(request)
+        await stream.send_message(response)
+
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/symbolx.bench.GraphIO/GetNodes": grpclib.const.Handler(
+                self.__rpc_get_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                GetNodesRequest,
+                GetNodesResponse,
+            ),
+            "/symbolx.bench.GraphIO/SearchNodes": grpclib.const.Handler(
+                self.__rpc_search_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SearchNodesRequest,
+                SearchNodesResponse,
+            ),
+            "/symbolx.bench.GraphIO/AggregateNodes": grpclib.const.Handler(
+                self.__rpc_aggregate_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AggregateNodesRequest,
+                AggregateNodesResponse,
+            ),
+            "/symbolx.bench.GraphIO/CommitTransaction": grpclib.const.Handler(
+                self.__rpc_commit_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CommitTransactionRequest,
+                CommitTransactionResponse,
+            ),
+            "/symbolx.bench.GraphIO/BeginTransaction": grpclib.const.Handler(
+                self.__rpc_begin_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                BeginTransactionRequest,
+                BeginTransactionResponse,
+            ),
+            "/symbolx.bench.GraphIO/CompleteTransaction": grpclib.const.Handler(
+                self.__rpc_complete_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CompleteTransactionRequest,
+                CompleteTransactionResponse,
+            ),
+            "/symbolx.bench.GraphIO/CancelTransaction": grpclib.const.Handler(
+                self.__rpc_cancel_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CancelTransactionRequest,
+                CancelTransactionResponse,
+            ),
+            "/symbolx.bench.GraphIO/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
+            ),
+        }
+
+
 class SupervisorBase(ServiceBase):
     async def signup_user(
         self, subject: "Subject", request: "SignupUserRequest"
@@ -3127,6 +3421,11 @@ class SupervisorBase(ServiceBase):
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def begin_transaction(
+        self, subject: "Subject", request: "BeginTransactionRequest"
+    ) -> "BeginTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -3137,14 +3436,9 @@ class SupervisorBase(ServiceBase):
     ) -> "CompleteTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def commit_completed_transaction(
-        self, subject: "Subject", request: "CommitCompletedTransactionRequest"
-    ) -> "CommitCompletedTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def cancel_completed_transaction(
-        self, subject: "Subject", request: "CancelCompletedTransactionRequest"
-    ) -> "CancelCompletedTransactionResponse":
+    async def cancel_transaction(
+        self, subject: "Subject", request: "CancelTransactionRequest"
+    ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -3211,6 +3505,14 @@ class SupervisorBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_begin_transaction(
+        self,
+        stream: "grpclib.server.Stream[BeginTransactionRequest, BeginTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.begin_transaction(request)
+        await stream.send_message(response)
+
     async def __rpc_commit_transaction(
         self,
         stream: "grpclib.server.Stream[CommitTransactionRequest, CommitTransactionResponse]",
@@ -3227,20 +3529,12 @@ class SupervisorBase(ServiceBase):
         response = await self.complete_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_commit_completed_transaction(
+    async def __rpc_cancel_transaction(
         self,
-        stream: "grpclib.server.Stream[CommitCompletedTransactionRequest, CommitCompletedTransactionResponse]",
+        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.commit_completed_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_cancel_completed_transaction(
-        self,
-        stream: "grpclib.server.Stream[CancelCompletedTransactionRequest, CancelCompletedTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.cancel_completed_transaction(request)
+        response = await self.cancel_transaction(request)
         await stream.send_message(response)
 
     async def __rpc_watch_edits(
@@ -3303,6 +3597,12 @@ class SupervisorBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
+            "/symbolx.bench.Supervisor/BeginTransaction": grpclib.const.Handler(
+                self.__rpc_begin_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                BeginTransactionRequest,
+                BeginTransactionResponse,
+            ),
             "/symbolx.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -3315,17 +3615,11 @@ class SupervisorBase(ServiceBase):
                 CompleteTransactionRequest,
                 CompleteTransactionResponse,
             ),
-            "/symbolx.bench.Supervisor/CommitCompletedTransaction": grpclib.const.Handler(
-                self.__rpc_commit_completed_transaction,
+            "/symbolx.bench.Supervisor/CancelTransaction": grpclib.const.Handler(
+                self.__rpc_cancel_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CommitCompletedTransactionRequest,
-                CommitCompletedTransactionResponse,
-            ),
-            "/symbolx.bench.Supervisor/CancelCompletedTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_completed_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CancelCompletedTransactionRequest,
-                CancelCompletedTransactionResponse,
+                CancelTransactionRequest,
+                CancelTransactionResponse,
             ),
             "/symbolx.bench.Supervisor/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
@@ -3350,6 +3644,11 @@ class BenchHostBase(ServiceBase):
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def begin_transaction(
+        self, subject: "Subject", request: "BeginTransactionRequest"
+    ) -> "BeginTransactionResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -3360,14 +3659,9 @@ class BenchHostBase(ServiceBase):
     ) -> "CompleteTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def commit_completed_transaction(
-        self, subject: "Subject", request: "CommitCompletedTransactionRequest"
-    ) -> "CommitCompletedTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def cancel_completed_transaction(
-        self, subject: "Subject", request: "CancelCompletedTransactionRequest"
-    ) -> "CancelCompletedTransactionResponse":
+    async def cancel_transaction(
+        self, subject: "Subject", request: "CancelTransactionRequest"
+    ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -3445,6 +3739,14 @@ class BenchHostBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_begin_transaction(
+        self,
+        stream: "grpclib.server.Stream[BeginTransactionRequest, BeginTransactionResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.begin_transaction(request)
+        await stream.send_message(response)
+
     async def __rpc_commit_transaction(
         self,
         stream: "grpclib.server.Stream[CommitTransactionRequest, CommitTransactionResponse]",
@@ -3461,20 +3763,12 @@ class BenchHostBase(ServiceBase):
         response = await self.complete_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_commit_completed_transaction(
+    async def __rpc_cancel_transaction(
         self,
-        stream: "grpclib.server.Stream[CommitCompletedTransactionRequest, CommitCompletedTransactionResponse]",
+        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.commit_completed_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_cancel_completed_transaction(
-        self,
-        stream: "grpclib.server.Stream[CancelCompletedTransactionRequest, CancelCompletedTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.cancel_completed_transaction(request)
+        response = await self.cancel_transaction(request)
         await stream.send_message(response)
 
     async def __rpc_watch_edits(
@@ -3583,6 +3877,12 @@ class BenchHostBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
+            "/symbolx.bench.BenchHost/BeginTransaction": grpclib.const.Handler(
+                self.__rpc_begin_transaction,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                BeginTransactionRequest,
+                BeginTransactionResponse,
+            ),
             "/symbolx.bench.BenchHost/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -3595,17 +3895,11 @@ class BenchHostBase(ServiceBase):
                 CompleteTransactionRequest,
                 CompleteTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/CommitCompletedTransaction": grpclib.const.Handler(
-                self.__rpc_commit_completed_transaction,
+            "/symbolx.bench.BenchHost/CancelTransaction": grpclib.const.Handler(
+                self.__rpc_cancel_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CommitCompletedTransactionRequest,
-                CommitCompletedTransactionResponse,
-            ),
-            "/symbolx.bench.BenchHost/CancelCompletedTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_completed_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CancelCompletedTransactionRequest,
-                CancelCompletedTransactionResponse,
+                CancelTransactionRequest,
+                CancelTransactionResponse,
             ),
             "/symbolx.bench.BenchHost/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
@@ -3775,76 +4069,76 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    HandleData,
-    OrganizationData,
-    StoreData,
+    RoleData,
+    FieldData,
     ViewData,
     TriggerData,
-    MembershipData,
-    SignalData,
-    PackageData,
-    NotificationData,
-    FieldData,
-    BenchData,
-    RoleData,
-    BlockData,
-    SessionData,
-    SkipData,
-    LinkData,
-    ServerData,
-    IdentityData,
-    DriveData,
-    UserData,
-    EnvironmentData,
-    BranchData,
-    QueryData,
-    CacheData,
-    FileContentData,
-    NoticeData,
-    BadgeData,
-    PauseData,
-    ClientData,
-    RunData,
     RecordData,
-    TagData,
+    LinkData,
+    SkipData,
+    NoticeData,
+    SessionData,
+    QueryData,
+    BlockData,
+    EnvironmentData,
+    OrganizationData,
+    IdentityData,
+    ClientData,
+    BadgeData,
+    NotificationData,
+    RunData,
+    BranchData,
+    PackageData,
+    DriveData,
+    SignalData,
+    BenchData,
+    CacheData,
     SpaceData,
+    StoreData,
+    PauseData,
+    HandleData,
+    UserData,
+    ServerData,
+    TagData,
+    MembershipData,
+    FileContentData,
 ]
 AnyStructData = Union[
-    CodeSectionData,
-    AggregationBucketData,
     AccessMatrixData,
-    StoreCredentialData,
-    RunCodeFrameData,
-    ValueSelectionData,
-    RunErrorData,
-    SpaceDockData,
-    SpaceDockItemData,
     RichTextData,
-    ServerImageData,
-    ServerImageRequirementData,
-    PropertyPathData,
-    PropertyReferenceData,
-    AccessZoneData,
-    ReadOptionsData,
-    ExpressionData,
-    RichTextSpanData,
-    PolicyRuleData,
-    ValueReferenceData,
-    TypeInfoData,
-    AggregationData,
-    LogEntryData,
-    SubjectData,
-    RequestData,
-    AccessData,
-    PolicyData,
-    ScheduleData,
+    RunErrorData,
     IconData,
-    FieldPathSegmentData,
-    CodeData,
-    BenchPathData,
-    ContextData,
-    FileData,
-    FieldPathData,
+    SpaceDockItemData,
     AccessTraceData,
+    ServerImageRequirementData,
+    FileData,
+    StoreCredentialData,
+    CodeSectionData,
+    RichTextSpanData,
+    AggregationBucketData,
+    BenchPathData,
+    ValueReferenceData,
+    ValueSelectionData,
+    RunCodeFrameData,
+    ScheduleData,
+    FieldPathData,
+    PropertyReferenceData,
+    PolicyData,
+    LogEntryData,
+    AccessZoneData,
+    ExpressionData,
+    RequestData,
+    AggregationData,
+    ReadOptionsData,
+    SubjectData,
+    CodeData,
+    FieldPathSegmentData,
+    SpaceDockData,
+    TypeInfoData,
+    ContextData,
+    AccessData,
     NodeReferenceData,
+    PropertyPathData,
+    PolicyRuleData,
+    ServerImageData,
 ]

@@ -23,7 +23,7 @@ import structlog
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Package, StoreEngineType, Session, TypeInfo
+from bench.language import Block, ConditionalOp, Field, Package, StoreEngineType, TypeInfo, Store
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
@@ -38,15 +38,16 @@ from bench.language.node import (
     Property,
     get_node_id,
 )
+from bench.language.query import StoreEngineIncapableError
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import (
-    GLOBAL_PG_CRYPTO_KEY,
-    UNIVERSAL_RO_PASSWORD,
-    UNIVERSAL_RO_USERNAME,
-    async_pg_cursor,
+    current_pg_crypto_key,
+    pg_cursor_to_store,
+    pg_cursor,
+    get_pg_connection_str,
 )
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
@@ -311,7 +312,7 @@ def map_database_to_pg_table(database: Block) -> Table:
     )
 
 
-async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None:
+async def update_dynamic_local_pg_schema(package: Package) -> None:
     """Updates the dynamic local record Postgres tables for a package's databases."""
     from bench.sql.migration import (
         MigrationOpKind,
@@ -320,7 +321,8 @@ async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None
         introspect_tables_from_pg,
     )
 
-    log = logger.bind(pg_name=pg_name, package=package)
+    store = package.environment.store
+    log = logger.bind(store=store, package=package)
     databases: list[Block] = [
         cast(Block, s)
         for s in package._nodes
@@ -330,7 +332,7 @@ async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     try:
-        async with async_pg_cursor(pg_name, autocommit=False) as cur:
+        async with pg_cursor_to_store(store, autocommit=False) as cur:
             # introspect and update schema
             old_tables = await introspect_tables_from_pg(cur, table_prefix="bench_record_")
             new_tables = [map_database_to_pg_table(d) for d in databases]
@@ -345,7 +347,7 @@ async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None
             await apply_migration_ops(cur, migration_ops)
     except Exception as e:
         log.exception("pg.update_schema.failed", e=e)
-        raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
+        raise RuntimeError(f"failed to update {store} schema: {e}") from e
 
 
 class SqlError(BenchError):
@@ -444,7 +446,7 @@ def compile_pg_conditional(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise StoreEngineIncapableError(StoreEngineType.LOCAL_STORE, cond, "unsupported conditional")
+    raise StoreEngineIncapableError(StoreEngineType.POSTGRES, cond, "unsupported conditional")
 
 
 def compile_pg_sort(database: Block, sort: Expression) -> SqlNode:
@@ -583,7 +585,7 @@ def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
         original = value
         # first decrypt with pgp_sym_decrypt_bytea
         value = sql.SQL("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value), sql.Literal(GLOBAL_PG_CRYPTO_KEY)
+            sql_node_to_sql(value), sql.Literal(current_pg_crypto_key())
         )
         # then convert from bytea to the correct type
         if column._unencrypted_type == PrimitiveType.BYTES:
@@ -670,7 +672,7 @@ async def pg_select(
         statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
     logger.debug("pg.select", table=table, query=sql_to_str(cur, statement))
     if any(c.is_encrypted for c in columns):
-        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": current_pg_crypto_key()}
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
@@ -744,7 +746,7 @@ async def pg_insert(
     logger.debug("pg.insert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY} for row in rows)
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
     else:
         templated_values = rows
     try:
@@ -805,7 +807,7 @@ async def pg_upsert(
     logger.debug("pg.upsert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY} for row in rows)
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
     else:
         templated_values = rows
     try:
@@ -844,7 +846,7 @@ async def pg_update_static(
     logger.debug("pg.update_static", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        template_values = {**static_value, "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+        template_values = {**static_value, "PG_CRYPTO_KEY": current_pg_crypto_key()}
     else:
         template_values = static_value
     try:
@@ -907,7 +909,11 @@ async def pg_update_dynamic(
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple(
-            {**row, "pk": row.get(table._primary_key.name), "PG_CRYPTO_KEY": GLOBAL_PG_CRYPTO_KEY}
+            {
+                **row,
+                "pk": row.get(table._primary_key.name),
+                "PG_CRYPTO_KEY": current_pg_crypto_key(),
+            }
             for row in dynamic_values
         )
     else:
@@ -1335,74 +1341,12 @@ async def pg_search_nodes_data_graph(
         return roots, graph
 
 
-async def pg_get_nodes(
-    session: Session,
-    root_type: NodeType,
-    root_ids: tuple[UUID, ...],
-    options: ReadOptions,
-    parent: Node | None = None,
-) -> tuple[NodeT, ...]:
-    """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
-    root_cls = NODE_CLASS_BY_TYPE[root_type]
-    cur = session._tx.pg_cursor_to()
-    source_graph = await pg_get_node_data_graph(cur, root_type, root_ids, options)
-    if source_graph is None:
-        raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
-    roots = tuple(source_graph.get(str(id)) for id in root_ids)
-    return wiring.unpack_nodes_inline(source_graph, parent=parent, session=session, roots=roots)
-
-
-async def pg_get_node(
-    session: Session,
-    root_type: NodeType,
-    root_id: UUID,
-    options: ReadOptions,
-    parent: Node | None = None,
-) -> NodeT:
-    """Reads a 'regular' node from the given PG database and unpacks it into the session."""
-    roots = await pg_get_nodes(session, root_type, (root_id,), options, parent)
-    if len(roots) != 1:
-        raise ValueError(f"could not find root {root_type.name}:{root_id} (in {session!r})")
-    return roots[0]
-
-
-async def pg_search_nodes(
-    session: Session,
-    node_type: NodeType,
-    *,
-    options: ReadOptions,
-    filter: Expression | None = None,
-    sort: Collection[Expression] | None = None,
-    first: int | None = None,
-    skip: int | None = None,
-    after: str | None = None,
-    parent: Node | None = None,
-) -> tuple[tuple[NodeT, ...], list[str] | tuple[str, ...], str | None]:
-    """Searches 'regular' nodes from the given PG database and unpacks them into the session."""
-    node_cls = NODE_CLASS_BY_TYPE[node_type]
-    cur = session.local_pg_cursor if node_cls.__is_local__ else session.global_pg_cursor
-    roots, graph = await pg_search_nodes_data_graph(
-        cur=cur,
-        node_type=node_type,
-        options=options,
-        filter=filter,
-        sort=sort,
-        first=first,
-        skip=skip,
-        after=after,
-    )
-    if not graph:
-        return (), (), None
-    nodes = wiring.unpack_nodes_inline(graph, parent=parent, session=session, roots=roots.nodes)
-    return nodes, roots.cursors, roots.start_cursor
-
-
 # TODO @Performance: use psycopg3 pipelining to batch edits?
 
 
 async def pg_write_regular_edits(
     cur: psycopg.AsyncCursor,
-    edits: list[EditData],
+    edits: list[EditData] | tuple[EditData, ...],
     *,
     return_nodes: bool = False,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]]
@@ -2020,99 +1964,57 @@ else:
 USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
 
 
-async def create_local_pg_database(
-    *, pg_name: str, pg_username: str, pg_password: str, is_public: bool, upsert: bool
-) -> None:
+async def create_local_pg_database(*, store: Store, upsert: bool) -> None:
     """
     Creates the local Postgres database and corresponding roles/user for a bench.
     """
-    log = logger.bind(pg_name=pg_name, upsert=upsert)
+    log = logger.bind(store=store, upsert=upsert)
     log.info("pg.create_db")
 
     # create database from the default one (if not exists)
-    async with async_pg_cursor("postgres", autocommit=True) as cur:
-        await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (pg_name,))
+    async with pg_cursor(get_pg_connection_str(store, "postgres"), autocommit=True) as cur:
+        await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (store.database,))
         exists = bool(await cur.fetchone())
         if not exists:
             log.info("pg.create_db.create")
-            await cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(pg_name)))
+            await cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(store.database)))
         else:
             log.info("pg.create_db.already_exists")
 
     # connect to local database and setup auth
-    async with async_pg_cursor(pg_name, autocommit=False) as cur:
-        # create 'owner' user (if not exists)
-        log.info("pg.create_db.create_owner", username=pg_username)
-        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (pg_username,))
+    async with pg_cursor_to_store(store, autocommit=False) as cur:
+        # create 'root' user (if not exists)
+        root = store.root_credential
+        log.info("pg.create_db.create_root", username=root.username)
+        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (root.username,))
         exists = bool(await cur.fetchone())
         if not exists:
-            log.info("pg.create_db.create_owner.create", username=pg_username)
+            log.info("pg.create_db.create_root.create", username=root.username)
             await cur.execute(
                 sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
-                    sql.Identifier(pg_username), sql.Literal(pg_password)
+                    sql.Identifier(root.username), sql.Literal(root.password)
                 ),
             )
         else:
-            log.info("pg.create_db.create_owner.already_exists", username=pg_username)
-        # grant full regular CRUD access to 'owner' user (no trigger or such)
-        log.info("pg.create_db.create_owner.grant")
+            log.info("pg.create_db.create_root.already_exists", username=root.username)
+        # grant full regular CRUD access to 'root' user (no trigger or such)
+        log.info("pg.create_db.create_root.grant")
         # grant new
         await cur.execute(
             sql.SQL("GRANT {} ON ALL TABLES IN SCHEMA public TO {}").format(
                 sql.SQL(USER_PRIVILEGES),
-                sql.Identifier(pg_username),
+                sql.Identifier(root.username),
             )
         )
         # alter default privileges (to apply to all new tables)
         await cur.execute(
             sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {} ON TABLES TO {}").format(
                 sql.SQL(USER_PRIVILEGES),
-                sql.Identifier(pg_username),
+                sql.Identifier(root.username),
             )
         )
 
-        # if public, add global read only user (if not exists)
-        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (UNIVERSAL_RO_USERNAME,))
-        exists = bool(await cur.fetchone())
-        if is_public:
-            if not exists:
-                log.info("pg.create_db.create_global_ro.create")
-                await cur.execute(
-                    sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
-                        sql.Identifier(UNIVERSAL_RO_USERNAME), sql.Literal(UNIVERSAL_RO_PASSWORD)
-                    ),
-                )
-            # grant read only
-            log.info("pg.create_db.create_global_ro.grant")
-            await cur.execute(
-                sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(
-                    sql.Identifier(UNIVERSAL_RO_USERNAME),
-                )
-            )
-        elif exists:
-            log.info("pg.create_db.create_global_ro.remove")
-            await cur.execute(
-                sql.SQL("REVOKE ALL ON SCHEMA PUBLIC FROM {}").format(
-                    sql.Identifier(UNIVERSAL_RO_USERNAME)
-                )
-            )
-
     log.info("pg.create_db.done")
-
-
-async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
-    """
-    Deletes the local Postgres database and corresponding roles/user for a bench.
-    """
-    log = logger.bind(pg_name=pg_name)
-    log.info("pg.delete_db")
-
-    # connect to default database and drop the database
-    async with async_pg_cursor("postgres", autocommit=True) as cur:
-        log.info("pg.delete_db.drop", username=pg_username)
-        await cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(pg_name)))
-
-    log.info("pg.delete_db.done")
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {

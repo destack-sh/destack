@@ -11,52 +11,33 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Expression, NodeReference, Organization, Transaction, User
-from bench.language.access import ReadOptions, Subject, adapt_read_options
-from bench.language.const import IN_PACKAGE_NODE_TYPES, SUB_BENCH_NODE_TYPES, NodeType
+from bench.language import Organization, User
+from bench.language.access import ReadOptions, Subject
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Bench, Package
-from bench.language.query import QueryBase
-from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
-    AggregateNodesRequest,
-    AggregateNodesResponse,
     BenchHostBase,
     BenchHostStub,
-    CancelCompletedTransactionRequest,
-    CancelCompletedTransactionResponse,
-    CommitCompletedTransactionRequest,
-    CommitCompletedTransactionResponse,
-    CommitTransactionRequest,
-    CommitTransactionResponse,
     DownloadFilesRequest,
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
     NotifyServerLogsRequest,
-    CompleteTransactionRequest,
-    CompleteTransactionResponse,
-    GetNodesRequest,
-    GetNodesResponse,
     RunProxyBlockRequest,
     RunProxyBlockResponse,
     SearchLogsRequest,
     SearchLogsResponse,
-    SearchNodesRequest,
-    SearchNodesResponse,
     StartRunRequest,
     StartRunResponse,
     UploadFilesRequest,
     UploadFilesResponse,
-    WatchEditsRequest,
-    WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
     GraphScope,
 )
-from bench.sql.engine import pg_get_node
 from bench.system.utils import global_session, get_s3_client, validate_bench_data_many
 from bench.utils.func import to_uuid
 
@@ -180,82 +161,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             #     descendant_types=LOADED_SOURCE_TYPES,
             #     parent=self.bench,
             # )
-
-    #
-    # General IO for this Bench :BenchIO
-    #
-
-    async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
-        roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
-        if any(root.type not in SUB_BENCH_NODE_TYPES for root in roots):
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
-        options: ReadOptions = (
-            wiring.unpack_struct_interp_maybe(request.options, self._package)
-            or ReadOptions.default()
-        )
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def search_nodes(
-        self, subject: Subject, request: "SearchNodesRequest"
-    ) -> "SearchNodesResponse":
-        node_type = wiring.unpack_enum(NodeType, request.node_type)
-        if node_type not in SUB_BENCH_NODE_TYPES:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
-        adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
-        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
-        sort: list[Expression] = [
-            wiring.unpack_struct_interp(s, self._package) for s in request.sort
-        ] or None
-        query = QueryBase(
-            node_type=node_type,
-            filter=filter,
-            sort=sort,
-            options=adapted_options,
-            first=request.first,
-            skip=request.skip,
-        )
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def aggregate_nodes(
-        self, subject: Subject, request: "AggregateNodesRequest"
-    ) -> "AggregateNodesResponse":
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.type)
-        if node_type not in SUB_BENCH_NODE_TYPES:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "bench IO can't read global")
-        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter, self._package)
-        sort: list[Expression] = [
-            wiring.unpack_struct_interp(s, self._package) for s in request.sort
-        ] or None
-        aggregation: Expression = wiring.unpack_struct_interp(request.aggregation, self._package)
-
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def commit_transaction(
-        self, subject: Subject, request: "CommitTransactionRequest"
-    ) -> "CommitTransactionResponse":
-        tx = Transaction.from_existing(request.transaction.edits)
-        # ...?
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def complete_transaction(
-        self, subject: Subject, request: "CompleteTransactionRequest"
-    ) -> "CompleteTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def commit_completed_transaction(
-        self, subject: Subject, request: "CommitCompletedTransactionRequest"
-    ) -> "CommitCompletedTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def cancel_completed_transaction(
-        self, subject: Subject, request: "CancelCompletedTransactionRequest"
-    ) -> "CancelCompletedTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def watch_edits(
-        self, subject: Subject, request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Files

@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
+import functools
 from typing import Optional
 from uuid import UUID
 
@@ -9,34 +9,64 @@ from botocore.config import Config
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Session
+from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
+from bench.language.const import ABOVE_SOURCE_NODE_TYPES
+from bench.language.query import PostgresEngine
+from bench.language.resource import StoreCredential, StoreCredentialType
 from bench.proto.wire import AnyNodeData, AnyStructData, BenchHostStub
+from bench.sql.client import pg_cursor_to_store
 from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
+GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST", default=None)
+GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", default=None)
+GLOBAL_PG_PORT = get_from_env("GLOBAL_PG_PORT", default=5432, type_cast=int)
+GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", default=None)
+GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", default=None)
+
+USER_PG_HOST = get_from_env("USER_PG_HOST", optional=True)
+USER_PG_NAME = get_from_env("USER_PG_NAME", optional=True)
+USER_PG_PORT = get_from_env("USER_PG_PORT", default=5432, type_cast=int, optional=True)
+USER_PG_USERNAME = get_from_env("USER_PG_USERNAME", optional=True)
+USER_PG_PASSWORD = get_from_env("USER_PG_PASSWORD", optional=True)
+
+GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
+SYSTEM_BENCH = Bench(name="system", slug="system", encryption_key=GLOBAL_PG_CRYPTO_KEY)
+GLOBAL_STORE = Store(
+    name="global",
+    kind=StoreKind.RELATIONAL,
+    engine=StoreEngineType.POSTGRES,
+    parent=SYSTEM_BENCH,
+    host=GLOBAL_PG_HOST,
+    database=GLOBAL_PG_NAME,
+    root_credential=StoreCredential(
+        type=StoreCredentialType.ROOT,
+        username=GLOBAL_PG_USERNAME,
+        password=GLOBAL_PG_PASSWORD,
+    ),
+)
+GLOBAL_POSTGRES_ENGINE = PostgresEngine(
+    GLOBAL_STORE, scope=None, node_types=ABOVE_SOURCE_NODE_TYPES
+)
+
+global_pg_cursor = functools.partial(pg_cursor_to_store, store=GLOBAL_STORE)
+
 
 @asynccontextmanager
 async def global_session(read_only: bool = False, host: BenchHostStub | None = None) -> "Session":
-    from bench.sql.client import async_pg_connection
     from bench.language.const import _active_session
 
     assert _active_session.get() is None, f"already in active session {_active_session.get()}"
 
-    async with async_pg_connection(local_pg_name=None) as conn:
-        session = Session(parent=None, _global_pg_connection=conn, _host=host)
-        _active_session.set(session)
-        try:
-            yield session
-            if session.has_edits:
-                if read_only:
-                    raise RuntimeError(f"read_only session {session!r} has edits")
-                logger.warning("session.discard", session=session)
-                await session.rollback()
-        finally:
-            session.closed_at = datetime.utcnow()  # pretend close to prevent further use
-            _active_session.set(None)
+    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _host=host) as session:
+        yield session
+        if session.has_edits:
+            if read_only:
+                raise RuntimeError(f"read_only session {session!r} has edits")
+            logger.warning("session.discard", session=session)
+            await session.rollback()
 
 
 def validate_bench_data(

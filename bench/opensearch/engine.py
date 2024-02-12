@@ -19,11 +19,11 @@ from bench.language.expression import (
     S,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
-from bench.language.query import StoreEngineIncapableError
+from bench.language.query import StoreEngineIncapableError, StoreEngineError
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
-from bench.search import core as os
-from bench.search.client import get_os_errors, os_client
+from bench.opensearch import core as os
+from bench.opensearch.client import get_os_errors, os_client
 from bench.sql.core import PrimitiveType
 
 logger = structlog.get_logger(__name__)
@@ -293,7 +293,7 @@ def os_compile_search(
 def _wrap_os_error(
     e: Exception, expr: Expression | list[Expression]
 ) -> StoreEngineError | Exception:
-    return StoreEngineError(StoreEngineType.LOCAL_SEARCH, expr, str(e))
+    return StoreEngineError(StoreEngineType.OPENSEARCH, expr, reason=str(e))
 
 
 async def os_search(
@@ -512,7 +512,6 @@ DEFAULT_FIELDS = {
 }
 GLOBAL_INDEX_SHARDS = 5
 GLOBAL_INDEX_REPLICAS = 1
-GLOBAL_READ_ONLY_ROLE = "global-ro"
 BENCH_INDEX_SHARDS = 1
 BENCH_INDEX_REPLICAS = 0
 BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
@@ -599,26 +598,6 @@ async def create_global_os_index(upsert: bool = False) -> None:
     )
 
 
-async def create_global_os_role() -> None:
-    # creates a global role (that doesn't do anything yet)
-    # every user has this role to read public indices
-    rep = await os_client.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
-    if rep.get("status") == "NOT_FOUND":
-        rep = await os_client.security.create_role(
-            role=GLOBAL_READ_ONLY_ROLE,
-            body={
-                "cluster_permissions": [],
-                "index_permissions": [],
-                "tenant_permissions": [],
-            },
-        )
-        if rep.get("error"):
-            raise RuntimeError(f"failed to create global-ro role: {rep['error']}")
-        logger.info("os.create_global_role", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
-    else:
-        logger.info("os.global_role_exists", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
-
-
 async def create_local_os_index(
     *, os_name: str, os_username: str, os_password: str, is_public: bool, upsert: bool
 ) -> None:
@@ -635,57 +614,6 @@ async def create_local_os_index(
         documents=LOCAL_DOCUMENTS,
         upsert=upsert,
     )
-
-    # get global read only role to modify
-    rep = await os_client.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
-    role = rep.get(GLOBAL_READ_ONLY_ROLE)
-    assert role is not None, f"failed to get role {GLOBAL_READ_ONLY_ROLE}: {rep}"
-    if is_public:
-        # TODO @Robustness: fix race condition between read and patch global role
-        #  (unfortunately the 'add' op doesn't seem to be actually additive?)
-        # grant read access to global read only role
-        log.info("os.grant_global_read_access")
-        rep = await os_client.security.patch_role(
-            role=GLOBAL_READ_ONLY_ROLE,
-            body=[
-                {
-                    "op": "add",
-                    "path": "/index_permissions",
-                    "value": [
-                        *(r for r in role["index_permissions"] if r["index_patterns"] != [os_name]),
-                        {
-                            "index_patterns": [os_name],
-                            "fls": [],
-                            "masked_fields": [],
-                            "allowed_actions": ["read"],
-                        },
-                    ],
-                }
-            ],
-        )
-        if rep.get("error"):
-            raise RuntimeError(f"failed to grant read access to global-ro: {rep['error']}")
-        log.info("os.grant_global_read_access.done")
-    else:
-        # revoke read access from global read only role (if exists)
-        log.info("os.revoke_global_read_access")
-
-        # find index permission for this bench
-        permission_idx = -1
-        for i, index_permission in enumerate(role["index_permissions"]):
-            if index_permission["index_patterns"] == [os_name]:
-                permission_idx = i
-                break
-        if permission_idx >= 0:
-            rep = await os_client.security.patch_role(
-                role=GLOBAL_READ_ONLY_ROLE,
-                body={"op": "remove", "path": f"/index_permissions/{permission_idx}"},
-            )
-            if rep.get("error"):
-                raise RuntimeError(f"failed to revoke read access from global-ro: {rep['error']}")
-            log.info("os.revoke_global_read_access.done")
-        else:
-            log.info("os.revoke_global_read_access.not_found")
 
     # create write access role for bench owner
     log.info("os.create_owner_role")
@@ -726,7 +654,7 @@ async def create_local_os_index(
         username=os_username,
         body={
             "password": os_password,
-            "opendistro_security_roles": [owner_role_name, GLOBAL_READ_ONLY_ROLE],
+            "opendistro_security_roles": [owner_role_name],
         },
     )
     if rep.get("error"):
@@ -780,35 +708,6 @@ async def os_write_edits(module: Package, edits: list[EditData], *, refresh: boo
             raise ValueError(f"unexpected edit type: {edit!r}")
 
     await _flush()  # flush all remaining edits
-
-
-async def os_sync_databases(module: Package, databases: list[HasDatabase]) -> None:
-    """
-    Mirrors the given databases to OpenSearch, replacing any existing data.
-    Obviously not scalable yet because it just selects everything in one go (no streaming).
-    TODO @Robustness: race condition in syncing database because OS has no transactions?
-    """
-    from bench.sql.engine import async_pg_cursor, pg_select_records_data
-
-    log = logger.bind(module=module, databases=databases)
-
-    all_records: list[wire.RecordData] = []
-    async with async_pg_cursor(module.pg_name) as cur:
-        for database in databases:
-            where = C(ConditionalOp.EQUALS, field_key="block_key", value=database.dynamic_key) & ~C(
-                ConditionalOp.EXISTS, field_key="deleted_at"
-            )
-            records_data, _, _ = await pg_select_records_data(cur, database, where=where)
-            all_records.extend(records_data)
-
-    log.debug("os.write_edits.flush", records=len(all_records))
-    # wipe all databases by query
-    filter = [
-        {"term": {TYPE_DISCRIMINATOR_KEY: BenchType.RECORD}},
-        {"terms": {"block_key": [d.key for d in databases]}},
-    ]
-    await os_client.delete_by_query(module.os_name, body={"query": {"bool": {"filter": filter}}})
-    await os_write_records(module, all_records)
 
 
 async def os_write_records(module: Package, records: list[wire.RecordData]) -> None:

@@ -14,10 +14,11 @@ from typing import (
     Collection,
     cast,
     ClassVar,
+    Callable,
 )
+from uuid import UUID
 
 from asgiref.sync import async_to_sync
-from opensearchpy import AsyncOpenSearch
 import psycopg
 
 from bench.language.const import (
@@ -27,21 +28,23 @@ from bench.language.const import (
     AggregationOp,
     StoreEngineType,
     active_tx,
+    ExpressionKind,
 )
-from bench.language.graph import NodeDataGraph
+from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import node, Node, p_parent, p_regular, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
-    BenchHostStub,
-    SupervisorStub,
     NodeReferenceData,
     AggregationData,
     EditData,
+    GraphIoStub,
+    GraphScope,
 )
-from bench.utils.func import _auto_async_to_sync
+from bench.utils.func import _auto_async_to_sync, bytetuple
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Block, ReadOptions
+    from bench.language import Expression, Block, ReadOptions, Session, Store
+    from bench.sql.client import _PgStoreConnection
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -72,11 +75,23 @@ class Query(Node):
     def node_cls(self) -> type[Node]:
         return NODE_CLASS_BY_TYPE[self.node_type]
 
+    def query(self) -> "QueryBuilder":
+        return QueryBuilder(
+            node_type=self.node_type,
+            base=self.base,
+            filter=self.filter,
+            sort=self.sort,
+            first=None,
+            skip=None,
+            aggregation=None,
+            options=None,
+        )
+
     # ... ReadQueryBase methods
 
 
 class QueryError(BenchError, ValueError):
-    def __init__(self, query: "QueryBase", cause: Exception | None = None):
+    def __init__(self, query: "QueryBuilder", cause: Exception | None = None):
         super().__init__(repr(query))
         self.query = query
         self.cause = cause
@@ -93,8 +108,8 @@ class MultipleNodesFoundError(QueryError):
 class StoreEngineError(BenchError, ValueError):
     def __init__(
         self,
-        engine: Union["StoreEngine", StoreEngineType],
-        query: "QueryBase" = None,
+        engine: Union["StoreEngine", "StoreConnection", StoreEngineType],
+        query: "QueryBuilder" = None,
         expr: Union["Expression", list["Expression"]] = None,
         reason: str = None,
     ):
@@ -111,56 +126,52 @@ class StoreEngineIncapableError(StoreEngineError):
     pass
 
 
-class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
-    """Read the nodes matching a query. :ReadQueryBase"""
+class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
+    """Build or modify a query. :ReadQueryBase"""
 
-    #
-    # Builder
-    #
-
-    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBase[NodeT, NodeDataT]":
+    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBuilder[NodeT, NodeDataT]":
         raise NotImplementedError
 
     def sort(
         self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
-    ) -> "QueryBase[NodeT, NodeDataT]":
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         raise NotImplementedError
 
-    def first(self, count: int) -> "QueryBase[NodeT, NodeDataT]":
+    def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Returns the first N results."""
         raise NotImplementedError
 
-    def skip(self, count: int) -> "QueryBase[NodeT, NodeDataT]":
+    def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Skips the first N results."""
         raise NotImplementedError
 
-    def after(self, cursor: str) -> "QueryBase[NodeT, NodeDataT]":
+    def after(self, cursor: str) -> "QueryBuilder[NodeT, NodeDataT]":
         """Paginate using an opaque cursor."""
         raise NotImplementedError
 
-    def include(self, *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         raise NotImplementedError
 
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
         raise NotImplementedError
 
-    def related(self, *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def related(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given related properties in the results."""
         raise NotImplementedError
 
-    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBase[NodeT, NodeDataT]":
+    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given ancestors in the results."""
         raise NotImplementedError
 
-    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBase[NodeT, NodeDataT]":
+    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
         raise NotImplementedError
 
-    #
-    # Fetch
-    #
+
+class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
+    """Fetch the nodes matching a query. :ReadQueryBase"""
 
     async def __aiter__(self):
         raise NotImplementedError
@@ -187,7 +198,7 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
         raise NotImplementedError
 
 
-class WriteQueryBase(abc.ABC, Generic[NodeT]):
+class WriteQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     """Modify all matching nodes."""
 
     def update(self, **kwargs) -> None:
@@ -199,7 +210,12 @@ class WriteQueryBase(abc.ABC, Generic[NodeT]):
         raise NotImplementedError
 
 
-class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBase[NodeT]):
+class QueryBuilder(
+    Generic[NodeT, NodeDataT],
+    MakeQueryBase[NodeT, NodeDataT],
+    ReadQueryBase[NodeT, NodeDataT],
+    WriteQueryBase[NodeT, NodeDataT],
+):
     def __init__(
         self,
         node_type: NodeType,
@@ -208,6 +224,8 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         sort: list["Expression"] | None = None,
         first: int | None = None,
         skip: int | None = None,
+        after: str | None = None,
+        aggregation: Optional["Expression"] = None,
         options: Optional["ReadOptions"] = None,
     ):
         from bench.language.node import NODE_CLASS_BY_TYPE, Node
@@ -219,22 +237,28 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         self._sort = sort
         self._first = first
         self._skip = skip
+        self._after = after
+        self._aggregation = aggregation
         self._options = options
 
     def __str__(self):
         args_strs = []
         if self._base:
             args_strs.append(self._base.absolute_path)
-        for k in ("filter", "sort", "first", "skip"):
+        for k in ("filter", "sort", "first", "skip", "aggregation"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
             if v is not None:
                 args_strs.append(f"{k}={v}")
-        if args_strs:
-            args_str = ", ".join(args_strs)
+        if self._aggregation:
+            query_type = self._aggregation.op.bench_name
         else:
-            args_str = "[*]"
+            query_type = "Fetch"
+        if args_strs:
+            args_str = f"{query_type} {', '.join(args_strs)}"
+        else:
+            args_str = f"{query_type} [*]"
         return args_str
 
     def __repr__(self):
@@ -249,13 +273,14 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
 
     def copy(self):
         """Clones the query (the properties are immutable)."""
-        return QueryBase(
+        return QueryBuilder(
             node_type=self._node_type,
             base=self._base,
             filter=self._filter,
             sort=self._sort,
             first=self._first,
             skip=self._skip,
+            aggregation=self._aggregation,
             options=self._options,
             # cache is not copied on purpose as it shouldn't propagate
         )
@@ -268,7 +293,7 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         else:
             return self._options.copy()
 
-    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBase[NodeT]":
+    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBuilder[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
         from bench.language.expression import coerce_conditional
 
@@ -279,7 +304,7 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
 
     def sort(
         self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
-    ) -> "QueryBase[NodeT]":
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""
         from bench.language.expression import coerce_sort
 
@@ -288,37 +313,49 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         copy._sort = sort
         return copy
 
-    def first(self, count: int) -> "QueryBase[NodeT]":
+    def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Returns the first N results."""
         copy = self.copy()
         copy._first = count
         return copy
 
-    def skip(self, count: int) -> "QueryBase[NodeT]":
+    def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Skips the first N results."""
         copy = self.copy()
         copy._skip = count
         return copy
 
-    def include(self, *properties: FieldOrProperty) -> "QueryBase":
+    def after(self, cursor: str) -> "QueryBuilder":
+        copy = self.copy()
+        copy._after = cursor
+        return copy
+
+    def aggregate(self, aggregation: "Expression") -> "QueryBuilder":
+        if aggregation.kind != ExpressionKind.AGGREGATION:
+            raise ValueError(f"expected aggregation expression, got {aggregation!r}")
+        copy = self.copy()
+        copy._aggregation = aggregation
+        return copy
+
+    def include(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.include_properties.extend(properties)
         return copy
 
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBase":
+    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.exclude_properties.extend(*properties)
         return copy
 
-    def related(self, *properties: FieldOrProperty) -> "QueryBase":
+    def related(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.related_properties.extend(*properties)
         return copy
 
-    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBase":
+    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.ancestor_types = tuple(
@@ -326,7 +363,7 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         )
         return copy
 
-    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBase":
+    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.descendant_types = tuple(
@@ -338,7 +375,7 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
     # Fetch
     #
 
-    def __getitem__(self, item: slice) -> Union["QueryBase[NodeT]", NodeT]:
+    def __getitem__(self, item: slice) -> Union["QueryBuilder[NodeT, NodeDataT]", NodeT]:
         if isinstance(item, slice):
             if item.stop is None:
                 return self.skip(item.start or 0)
@@ -348,10 +385,6 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
                 return self.first(item.stop)
         else:
             raise TypeError(f"expected slice into {self!r}, got {type(item)}: {item}")
-
-    @_auto_async_to_sync
-    async def tolist(self) -> list[NodeT]:
-        return await self.fetch()
 
     async def __aiter__(self):
         return iter(await self.fetch())
@@ -368,7 +401,7 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        results = await self.filter(filter).tolist()
+        results = await self.filter(filter).fetch()
         if len(results) == 1:
             return results[0]
         else:
@@ -378,41 +411,66 @@ class QueryBase(Generic[NodeT], ReadQueryBase[NodeT, AnyNodeData], WriteQueryBas
             else:
                 raise MultipleNodesFoundError(combined_query)
 
+    @_auto_async_to_sync
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
-        raise NotImplementedError("nocheckin: Query.fetch")
+        from bench.proto.wiring import unpack_nodes_inline
+
+        tx = active_tx()
+        connection = await tx.get_store(base=self._base, node_type=self._node_type)
+        result = await connection.fetch(self, FetchOptions())
+        source_graph = NodeDataGraph(result.nodes)
+        roots = unpack_nodes_inline(
+            source_graph, parent=self._base, session=tx.session, roots=result.roots
+        )
+        return roots
+
+    tolist = fetch
 
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
-        from bench.language.expression import coerce_conditional
+        from bench.language.expression import coerce_conditional, A
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        query = self.filter(filter)
-        tx = active_tx()
-
-        raise NotImplementedError("nocheckin: Query.count")
+        query = self.filter(filter) if filter is not None else self
+        query = query.aggregate(A(AggregationOp.COUNT))
+        connection = await active_tx().get_store(base=query._base, node_type=query._node_type)
+        result = await connection.aggregate(query)
+        return result.aggregation.count
 
     @_auto_async_to_sync
     async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
-        from bench.language.expression import coerce_conditional
+        from bench.language.expression import coerce_conditional, A
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        query = self.filter(filter)
-        tx = active_tx()
-        raise NotImplementedError("nocheckin: Query.exists")
+        query = self.filter(filter) if filter is not None else self
+        query = query.aggregate(A(AggregationOp.EXISTS))
+        connection = await active_tx().get_store(base=query._base, node_type=query._node_type)
+        result = await connection.aggregate(query)
+        return result.aggregation.exists
 
     #
     # Write
     #
 
-    def update(self, **kwargs) -> None:
+    @_auto_async_to_sync
+    async def update(self, **kwargs) -> None:
         """Update the properties of all matching nodes."""
-        raise NotImplementedError
+        connection = await active_tx().get_store(base=self._base, node_type=self._node_type)
+        await connection.update(self, **kwargs)
 
-    def delete(self) -> None:
+    @_auto_async_to_sync
+    async def delete(self) -> None:
         """Removes and deletes all matching nodes from the query's parent."""
-        raise NotImplementedError
+        connection = await active_tx().get_store(base=self._base, node_type=self._node_type)
+        await connection.delete(self)
+
+
+class FetchOptions(NamedTuple):
+    count: bool = False
+    lock_for_update: bool = False
+    skip_locked: bool = False
 
 
 class FetchResult(NamedTuple):
@@ -427,10 +485,20 @@ class AggregateResult(NamedTuple):
     aggregation: AggregationData
 
 
+QueryPredicate = Callable[[NodeType], bool]
+
+
 class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
-    """A store engine backing specific types of queries for a session-like scope."""
+    """A store engine providing connections to operate on that backend with certain queries."""
 
     type: ClassVar[StoreEngineType]
+
+    def __init__(self, store: "Store", scope: GraphScope | None, node_types: bytetuple[NodeType]):
+        if store.engine != self.type:
+            raise ValueError(f"store {store!r} has engine {store.engine}, not {self.type}")
+        self.store = store
+        self.node_types = node_types
+        self.scope = scope
 
     def __repr__(self):
         self_str = str(self)
@@ -439,58 +507,125 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
         else:
             return f"<{self.__class__.__name__} ({self.type.bench_name})>"
 
-    async def open(self):
-        pass
+    @property
+    def id(self) -> int | str | UUID:
+        return hash(self)
 
-    async def close(self):
-        pass
+    def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
+        if scope.bench_id is not None and (
+            self.scope is None or self.scope.bench_id != scope.bench_id
+        ):
+            return False
+        if node_type not in self.node_types:
+            return False
+        return True
+
+    async def connect(self, session: "Session") -> "StoreConnection[NodeT, NodeDataT]":
+        """Opens the store engine for a session."""
+        raise NotImplementedError
+
+
+StoreEngineT = TypeVar("StoreEngineT", bound=StoreEngine)
+
+
+class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
+    def __init__(self, engine: "StoreEngineT[NodeT, NodeDataT]", session: "Session"):
+        self.engine = engine
+        self.session = session
+
+    @property
+    def type(self) -> StoreEngineType:
+        return self.engine.type
+
+    def __str__(self):
+        return f"session={self.session}"
+
+    def __repr__(self):
+        self_str = str(self)
+        if self_str:
+            return f"<{self.__class__.__name__} {self}>"
+        else:
+            return f"<{self.__class__.__name__}>"
 
     #
     # Read
     #
 
-    async def fetch(self, query: "QueryBase[NodeT, NodeDataT]", count: bool) -> FetchResult:
+    async def fetch(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
+    ) -> FetchResult:
+        """Read the nodes given the fetch query in the current transaction context (if any)."""
         raise StoreEngineIncapableError(self, query, reason="fetch unsupported")
 
-    async def aggregate(
-        self, query: "QueryBase[NodeT, NodeDataT]", aggregation: "Expression"
-    ) -> AggregateResult:
+    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
+        """Read the nodes given the aggregate query in the current transaction context (if any)."""
         raise StoreEngineIncapableError(self, query, reason="exists unsupported")
 
     #
     # Write
     #
 
-    async def update(self, query: "QueryBase[NodeT, NodeDataT]", **kwargs) -> list[EditData]:
-        raise StoreEngineIncapableError(self, query, reason="update unsupported")
-
-    async def delete(self, query: "QueryBase[NodeT, NodeDataT]") -> list[EditData]:
+    async def delete(self, query: "QueryBuilder[NodeT, NodeDataT]") -> list[EditData]:
+        """
+        Removes and deletes all matching nodes from the query's parent.
+        Begins a transaction context if not already in one.
+        """
         raise StoreEngineIncapableError(self, query, reason="delete unsupported")
 
+    async def update(self, query: "QueryBuilder[NodeT, NodeDataT]", **kwargs) -> list[EditData]:
+        """
+        Update the properties of all matching nodes (in transaction, if any).
+        Begins a transaction context if not already in one.
+        """
+        raise StoreEngineIncapableError(self, query, reason="update unsupported")
+
     #
-    # Transactions
+    # Transaction management
+    # The methods closely mirror :GraphIO service methods for universal 2PCs.
     #
 
-    async def flush(self, edits: Collection[EditData]) -> None:
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
+        """Flushes edits in the current transaction context. If not in a transaction, begins one."""
         raise StoreEngineIncapableError(self, reason="flush unsupported")
 
-    async def commit(self, edits: Collection[EditData]) -> None:
+    async def complete(self) -> None:
+        """Completes the current transaction context. No further operations are allowed."""
+        raise StoreEngineIncapableError(self, reason="complete unsupported")
+
+    async def cancel(self) -> None:
+        """Cancels the current transaction context. No further operations are allowed."""
+        raise StoreEngineIncapableError(self, reason="cancel unsupported")
+
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
+        """Commits the flushed pending and given edits in the current transaction context."""
         raise StoreEngineIncapableError(self, reason="commit unsupported")
 
-    async def rollback(self, edits: Collection[EditData]) -> None:
-        raise StoreEngineIncapableError(self, reason="rollback unsupported")
+    async def close(self):
+        """Closes this connection to all further operations."""
+        pass
 
 
-class RemoteStoreEngine(StoreEngine[NodeT, NodeDataT]):
+class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     type = StoreEngineType.REMOTE
 
-    def __init__(self, remote: Union["BenchHostStub", "SupervisorStub"]):
+    def __init__(
+        self,
+        store: "Store",
+        scope: GraphScope,
+        node_types: bytetuple[NodeType],
+        remote: GraphIoStub,
+    ):
+        super().__init__(store, node_types)
         self._remote = remote
 
     def __str__(self):
-        return f"remote={self._remote}"
+        return f"remote={self._remote}, store={self.store}"
 
-    async def fetch(self, query: "QueryBase[NodeT, NodeDataT]", count: bool) -> FetchResult:
+
+class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
+    async def fetch(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
+    ) -> FetchResult:
         from bench.proto import wire, wiring
 
         request = wire.SearchNodesRequest(
@@ -499,9 +634,9 @@ class RemoteStoreEngine(StoreEngine[NodeT, NodeDataT]):
             sort=[wiring.pack_struct(s) for s in query._sort] if query._sort else None,
             limit=query._first,
             options=wiring.pack_struct_maybe(query._options),
-            count=count,
+            count=options.count,
         )
-        response = await self._remote.search_nodes(request)
+        response = await self.engine._remote.search_nodes(request)
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
             roots=response.rootsy,
@@ -509,48 +644,68 @@ class RemoteStoreEngine(StoreEngine[NodeT, NodeDataT]):
             start_cursor=response.start_cursor,
         )
 
-    async def aggregate(
-        self, query: "QueryBase[NodeT, NodeDataT]", aggregation: "Expression"
-    ) -> AggregateResult:
+    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.proto import wire, wiring
 
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter),
             limit=query._first,
-            aggregation=aggregation._to_data(),
+            aggregation=query._aggregation._to_data(),
         )
-        response = await self._remote.aggregate_nodes(request)
+        response = await self.engine._remote.aggregate_nodes(request)
         return AggregateResult(response.aggregation)
 
 
-class InMemoryStoreEngine(StoreEngine):
+class InMemoryGraphEngine(StoreEngine):
     type = StoreEngineType.INMEMORY
 
-    def __init__(self, graph: NodeDataGraph):
-        self._graph = graph
+    def __init__(
+        self,
+        store: "Store",
+        scope: GraphScope,
+        node_types: bytetuple[NodeType],
+        node_graph: Optional[NodeGraph],
+        source_graph: NodeDataGraph,
+    ):
+        super().__init__(store, scope, node_types)
+        self.node_graph = node_graph
+        self.source_graph = source_graph
 
     def __str__(self):
-        return f"graph={self._graph}"
+        return f"node_graph={self.node_graph!r}, source_graph={self.source_graph!r}, store={self.store}"
 
 
-class PostgresStoreEngine(StoreEngine):
+class PostgresEngine(StoreEngine):
     type = StoreEngineType.POSTGRES
 
-    def __init__(self, connection: psycopg.AsyncConnection):
-        self._conn = connection
-        self._cur: psycopg.AsyncCursor | None = None
-
     def __str__(self):
-        return f"connection={self._conn}"
+        return f"store={self.store!r}"
 
-    async def open(self):
-        self._cur = self._conn.cursor()
+    async def connect(self, session: "Session") -> "PostgresConnection":
+        from bench.sql.client import get_pg_store_connection
+
+        conn = await get_pg_store_connection(self.store)
+        cur = await conn.open()
+        return PostgresConnection(self, session, conn, cur)
+
+
+class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
+    def __init__(
+        self,
+        engine: "PostgresEngine",
+        session: "Session",
+        conn: "_PgStoreConnection",
+        cur: psycopg.AsyncCursor,
+    ):
+        super().__init__(engine, session)
+        self._conn = conn
+        self._cur = cur
 
     async def close(self):
-        await self._cur.close()
+        await self._conn.close()
 
-    async def fetch(self, query: "QueryBase[NodeT, NodeDataT]", count: bool) -> FetchResult:
+    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]", count: bool) -> FetchResult:
         from bench.sql.engine import pg_search_nodes_data_graph, pg_count, compile_pg_conditional
         from bench.language import NodeReference
 
@@ -579,28 +734,35 @@ class PostgresStoreEngine(StoreEngine):
             total=total,
         )
 
-    async def aggregate(
-        self, query: "QueryBase[NodeT, NodeDataT]", aggregation: "Expression"
-    ) -> AggregateResult:
+    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import compile_pg_conditional, pg_exists, pg_count
 
-        if aggregation.op == AggregationOp.EXISTS:
+        if query._aggregation.op == AggregationOp.EXISTS:
             filter = compile_pg_conditional(query._node_cls, query._filter)
             exists = await pg_exists(self._cur, query._node_cls.__table__, filter)
             return AggregateResult(AggregationData(exists=exists))
-        elif aggregation.op == AggregationOp.COUNT:
+        elif query._aggregation.op == AggregationOp.COUNT:
             filter = compile_pg_conditional(query._node_cls, query._filter)
             count = await pg_count(self._cur, query._node_cls.__table__, filter)
             return AggregateResult(AggregationData(count=count))
         else:
-            raise StoreEngineIncapableError(self, query, expr=aggregation, reason="unsupported")
+            raise StoreEngineIncapableError(
+                self, query, expr=query._aggregation, reason="unsupported"
+            )
+
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
+        from bench.sql.engine import pg_write_regular_edits
+
+        await pg_write_regular_edits(self._cur, edits)
+
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
+        if edits:
+            await self.flush(edits)
+        await self._cur.connection.commit()
+
+    async def cancel(self) -> None:
+        await self._cur.connection.rollback()
 
 
 class OpensearchStoreEngine(StoreEngine):
     type = StoreEngineType.OPENSEARCH
-
-    def __init__(self, client: AsyncOpenSearch):
-        self._client = client
-
-    def __str__(self):
-        return f"client={self._client}"

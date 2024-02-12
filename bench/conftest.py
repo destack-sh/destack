@@ -1,4 +1,3 @@
-import asyncio
 import os
 from typing import TYPE_CHECKING
 
@@ -35,21 +34,28 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True, scope="session")
 async def prepared_test_db():
     from bench.language.node import NODE_CLASSES
-    from bench.sql.client import async_pg_cursor
     from bench.sql.migration import (
         EXTENSIONS,
         apply_migration_ops,
         generate_migration_ops,
         introspect_tables_from_pg,
     )
+    from bench.system.utils import GLOBAL_STORE, GLOBAL_PG_NAME, global_pg_cursor
+    from bench.sql.client import pg_cursor, get_pg_connection_str
 
-    # create database (connect to bench since we can't drop active db)
-    async with async_pg_cursor("bench", autocommit=True) as cur:
+    # ensure that default global_db_cursor points to test
+    #  (means environment info was set up correctly)
+    assert GLOBAL_PG_NAME == "test"
+
+    # reset test database (connect to bench since we can't drop active db)
+    #  (reconstruct default connection str here because GLOBAL_PG_NAME is different in test)
+    default_connection_str = get_pg_connection_str(GLOBAL_STORE, "bench")
+    async with pg_cursor(default_connection_str, autocommit=True) as cur:
         await cur.execute("DROP DATABASE IF EXISTS test")
         await cur.execute("CREATE DATABASE test")
 
     # migrate to current schema
-    async with async_pg_cursor("test") as cur:
+    async with global_pg_cursor() as cur:
         for extension in EXTENSIONS:
             await cur.execute(f"CREATE EXTENSION IF NOT EXISTS {extension}")
         blank_tables = await introspect_tables_from_pg(cur)
@@ -58,17 +64,14 @@ async def prepared_test_db():
         await apply_migration_ops(cur, blank_ops)
         await cur.connection.commit()
 
-    # ensure it's set as global db
-    from bench.sql.client import GLOBAL_PG_NAME
-
-    assert GLOBAL_PG_NAME == "test", f"GLOBAL_PG_NAME={GLOBAL_PG_NAME}"
-
 
 @pytest.fixture(scope="function")
 async def test_cur() -> psycopg.AsyncCursor:
-    from bench.sql.client import async_pg_cursor
+    from bench.sql.client import pg_cursor
+    from bench.sql.client import get_pg_connection_str
+    from bench.system.utils import GLOBAL_STORE
 
-    async with async_pg_cursor("test") as cur:
+    async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
         yield cur
 
 

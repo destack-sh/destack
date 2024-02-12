@@ -60,7 +60,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         else:
             raise RuntimeError(f"loopback stub not ready for {self!r}")
 
-    async def _log_and_check_access(self, request: Request):
+    async def log_and_check_access(self, request: Request):
         """Logs accesses for the audit log (soon). Raises if access was denied."""
         if request.decision == PolicyEffect.ALLOW:
             logger.debug("access.allow", request=request)

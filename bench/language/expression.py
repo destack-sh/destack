@@ -30,7 +30,7 @@ from bench.utils.casing import Casing, to_casing
 if TYPE_CHECKING:
     from bench.language import Expression, Field, Node, Property, TypeInfo
     from bench.language.field import HasFields
-    from bench.language.query import QueryBase
+    from bench.language.query import QueryBuilder
 
 #
 # Expression language. Primarily for package, search and storage (database).
@@ -727,9 +727,9 @@ class _NodeExpressionBase:
 
     @classmethod
     def query(cls: type["Node"]):
-        from bench.language.query import QueryBase
+        from bench.language.query import QueryBuilder
 
-        return QueryBase(node_type=cls.metatype)
+        return QueryBuilder(node_type=cls.metatype)
 
     @classmethod
     def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
@@ -738,35 +738,43 @@ class _NodeExpressionBase:
     @classmethod
     def filter(
         cls: type["Node"], filter: "Expression" = None, **kwargs
-    ) -> "QueryBase[NodeT, NodeDataT]":
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().filter(filter, **kwargs)
 
     @classmethod
     def sort(
         cls: type["Node"], sort: "Expression" = None, *args: str
-    ) -> "QueryBase[NodeT, NodeDataT]":
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().sort(sort, *args)
 
     @classmethod
-    def include(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def include(
+        cls: type["Node"], *properties: FieldOrProperty
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().include(*properties)
 
     @classmethod
-    def exclude(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def exclude(
+        cls: type["Node"], *properties: FieldOrProperty
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().exclude(*properties)
 
     @classmethod
-    def related(cls: type["Node"], *properties: FieldOrProperty) -> "QueryBase[NodeT, NodeDataT]":
+    def related(
+        cls: type["Node"], *properties: FieldOrProperty
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().related(*properties)
 
     @classmethod
-    def ancestors(cls: type["Node"], *node_types: NodeTypeOrClass) -> "QueryBase[NodeT, NodeDataT]":
+    def ancestors(
+        cls: type["Node"], *node_types: NodeTypeOrClass
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().ancestors(*node_types)
 
     @classmethod
     def descendants(
         cls: type["Node"], *node_types: NodeTypeOrClass
-    ) -> "QueryBase[NodeT, NodeDataT]":
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().descendants(*node_types)
 
     #
@@ -778,7 +786,7 @@ class _NodeExpressionBase:
         return await cls.query().tolist()
 
     @classmethod
-    def first(cls: type["Node"], count: int) -> "QueryBase[NodeT, NodeDataT]":
+    def first(cls: type["Node"], count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().first(count)
 
     @classmethod

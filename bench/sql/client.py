@@ -1,52 +1,33 @@
 from contextlib import asynccontextmanager
+import contextvars
 from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from bench.utils.utils import get_from_env
-
-UNIVERSAL_RO_USERNAME = "global-ro"
-UNIVERSAL_RO_PASSWORD = "global-ro"
-
-GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST", default=None)
-GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", default=None)
-GLOBAL_PG_PORT = get_from_env("GLOBAL_PG_PORT", default=5432, type_cast=int)
-GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", default=None)
-GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", default=None)
-GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
-
-LOCAL_PG_HOST = get_from_env("LOCAL_PG_HOST", alt="USER_PG_HOST")
-LOCAL_PG_NAME = get_from_env("LOCAL_PG_NAME", optional=True)
-LOCAL_PG_PORT = get_from_env("LOCAL_PG_PORT", default=5432, type_cast=int, alt="USER_PG_PORT")
-LOCAL_PG_USERNAME = get_from_env("LOCAL_PG_USERNAME", alt="USER_PG_USERNAME")
-LOCAL_PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
+from bench.language import Store, StoreEngineType
 
 # TODO @Robustness: figure out how to fix the psycopg pool warning
 #  (what we're doing should be fine according to docs and the warning)
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 
-
-def _get_pg_connection_str(local_pg_name: str | None) -> str:
-    if local_pg_name is None:
-        # global database
-        return f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}:{GLOBAL_PG_PORT}/{GLOBAL_PG_NAME}"
-    else:
-        # local database
-        username, password = LOCAL_PG_USERNAME, LOCAL_PG_PASSWORD
-        if LOCAL_PG_NAME and local_pg_name != LOCAL_PG_NAME:
-            username, password = UNIVERSAL_RO_USERNAME, UNIVERSAL_RO_PASSWORD
-        return f"postgresql://{username}:{password}@{LOCAL_PG_HOST}:{LOCAL_PG_PORT}/{local_pg_name}"
-
-
 _connection_pools: dict[str, AsyncConnectionPool] = {}
+_current_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "current_pg_crypto_key", default=None
+)
 
 
-async def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
-    if local_pg_name not in _connection_pools:
+def current_pg_crypto_key() -> str:
+    key = _current_pg_crypto_key.get()
+    assert key is not None, "no active pg_crypto_key set"
+    return key
+
+
+async def get_pg_connection_pool(connection_str: str | None) -> AsyncConnectionPool:
+    if connection_str not in _connection_pools:
         pool = AsyncConnectionPool(
-            _get_pg_connection_str(local_pg_name),
+            connection_str,
             min_size=1,
             max_size=4,
             max_idle=60 * 60,
@@ -55,12 +36,19 @@ async def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPo
             kwargs={"row_factory": dict_row},
         )
         await pool.open()
-        _connection_pools[local_pg_name] = pool
-    return _connection_pools[local_pg_name]
+        _connection_pools[connection_str] = pool
+    return _connection_pools[connection_str]
+
+
+def get_pg_connection_str(store: Store, database: str = None) -> str:
+    assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
+    assert store.root_credential is not None, f"store {store!r} has no root_credential"
+
+    return f"postgresql://{store.root_credential.username}:{store.root_credential.password}@{store.host}/{database or store.database}"
 
 
 @asynccontextmanager
-async def async_pg_connection(
+async def pg_connection(
     local_pg_name: str | None = None, autocommit: bool = False
 ) -> psycopg.AsyncConnection[dict[str, Any]]:
     """Gets a psycopg cursor to the given database"""
@@ -72,10 +60,56 @@ async def async_pg_connection(
 
 
 @asynccontextmanager
-async def async_pg_cursor(
-    local_pg_name: str | None = None, autocommit: bool = False
+async def pg_cursor(
+    connection_str: str, autocommit: bool = False
 ) -> psycopg.AsyncCursor[dict[str, Any]]:
-    """Gets a psycopg cursor to the given database"""
-    async with async_pg_connection(local_pg_name, autocommit=autocommit) as conn:
+    pool = await get_pg_connection_pool(connection_str)
+    async with pool.connection() as conn:
+        if conn.autocommit != autocommit:
+            await conn.set_autocommit(autocommit)
         async with conn.cursor() as cur:
             yield cur
+
+
+class _PgStoreConnection:
+    __slots__ = ("store", "autocommit", "_reset_token")
+
+    def __init__(self, store: Store, autocommit: bool = False):
+        assert (
+            store.parent.encryption_key
+        ), f"store {store!r} parent {store.parent!r} has no encryption_key"
+        self.store = store
+        self.autocommit = autocommit
+        self._reset_token: Any | None = None
+
+    async def open(self) -> psycopg.AsyncCursor:
+        connection_str = get_pg_connection_str(self.store)
+        pool = await get_pg_connection_pool(connection_str)
+        conn = await pool.getconn()
+        if conn.autocommit != self.autocommit:
+            await conn.set_autocommit(self.autocommit)
+        self._reset_token = _current_pg_crypto_key.set(self.store.parent.encryption_key)
+        return conn.cursor()
+
+    async def close(self) -> None:
+        if self._reset_token is not None:
+            _current_pg_crypto_key.reset(self._reset_token)
+            self._reset_token = None
+
+    async def __aenter__(self) -> psycopg.AsyncCursor:
+        return await self.open()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.close()
+
+
+@asynccontextmanager
+async def pg_cursor_to_store(
+    store: Store, autocommit: bool = False
+) -> psycopg.AsyncCursor[dict[str, Any]]:
+    async with _PgStoreConnection(store, autocommit=autocommit) as cur:
+        yield cur
+
+
+async def get_pg_store_connection(store: Store, autocommit: bool = False) -> _PgStoreConnection:
+    return _PgStoreConnection(store, autocommit=autocommit)

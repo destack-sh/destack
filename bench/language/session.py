@@ -17,7 +17,6 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import psycopg
 import structlog
 
 from bench.language.const import (
@@ -28,6 +27,9 @@ from bench.language.const import (
     StructType,
     TriggerType,
     _active_session,
+    StoreEngineType,
+    BenchError,
+    EMPTY_SCOPE,
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
@@ -49,13 +51,13 @@ from bench.language.node import (
     Property,
 )
 from bench.language.run import Run, RunError
-from bench.search.client import get_os_errors, os_client
-from bench.proto.wire import BenchHostStub, SupervisorStub, EditData
-from bench.sql.client import get_pg_connection_pool
+from bench.opensearch.client import get_os_errors, os_client
+from bench.proto.wire import BenchHostStub, SupervisorStub, EditData, GraphScope
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync
+from bench.utils.func import _auto_async_to_sync, uuid_to_str
 from bench.utils.env import IS_DEBUG
+from bench.language.query import StoreEngine, StoreConnection
 
 if TYPE_CHECKING:
     from bench.language import Block, Server, Trigger
@@ -121,16 +123,14 @@ class Transaction:
     """
 
     id: UUID = dcfield(default_factory=uuid4)
-    is_runtime: bool = dcfield(default=False)
-
-    global_pg_connection: Optional[psycopg.AsyncConnection] = dcfield(default=None)
-    local_pg_connection: Optional[psycopg.AsyncConnection] = dcfield(default=None)
-    global_host: Optional["SupervisorStub"] = dcfield(default=None)
-    bench_host: Optional["BenchHostStub"] = dcfield(default=None)
+    session: "Session" = dcfield(default=None)
+    _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
-    pending_edits: list[EditData] = dcfield(default_factory=list)
-    _pending_updates_idx: dict[Node, int] = dcfield(default_factory=dict)
+    _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
+        default_factory=lambda: defaultdict(list)
+    )
+    _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
 
     # for syncing databases (should probably generalize into' untracked edits')
     _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
@@ -145,17 +145,43 @@ class Transaction:
     @staticmethod
     def from_existing(edits: Collection[EditData]):
         tx = Transaction()
-        tx.edits.extend(edits)
-        tx.pending_edits.extend(edits)
         for edit in edits:  # replay edits
-            tx._on_edit(edit)
+            tx._add_pending_edit(edit)
         return tx
+
+    async def get_store(self, base: Node | None, node_type: NodeType) -> StoreConnection:
+        root = base.root if base is not None else None
+        scope = GraphScope(
+            bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
+        )
+
+        for engine in self.session._engines:
+            if engine.supports(scope, node_type):
+                return await self.get_store_connection(engine)
+
+        raise BenchError(f"no engine for [base={base!r}, node={node_type}] in {self.session!r}")
+
+    async def get_store_connection(self, engine: StoreEngine) -> StoreConnection:
+        connection = self._connections_by_engine_id.get(engine.id)
+        # match, get or create connection
+        if connection is None:
+            connection = await engine.connect(self.session)
+            self._connections_by_engine_id[engine.id] = connection
+        return connection
+
+    def get_engine_for_edit(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
+        for engine in self.session._engines:
+            if engine.supports(scope, node_type):
+                return engine
+        raise BenchError(
+            f"no engine for edit [scope={scope!r}, node_type={node_type}] in {self.session!r}"
+        )
 
     #
     # Edits
     #
 
-    def _make_edit(self, type: EditType, n: Node):
+    def _make_edit(self, type: EditType, n: Node) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         from bench.proto import wiring
 
@@ -165,62 +191,85 @@ class Transaction:
             properties = n._updated_properties.search(True)
         else:
             properties = None
+        if n.__is_in_bench__:
+            scope = GraphScope(
+                bench_id=uuid_to_str(n.bench.id) if n.bench is not None else None,
+                package_id=uuid_to_str(n.package_id) if n.package is not None else None,
+            )
+        else:
+            scope = EMPTY_SCOPE
         edit = EditData(
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
             properties=properties,
+            scope=scope,
         )
-        self.edits.append(edit)
-        self.pending_edits.append(edit)
+        return edit
 
-    def _on_edit(self, edit: EditData):
+    def _add_pending_edit(self, edit: EditData) -> StoreEngine:
         if edit.node_type == NodeType.FIELD:
             self._schema_changed = True
 
+        engine = self.get_engine_for_edit(edit.scope, edit.node_type)
+        self.edits.append(edit)
+        self._pending_edits_by_engine_id[engine.id].append(edit)
+        return engine
+
     def create(self, n: Node):
-        self._make_edit(EditType.CREATE, n)
+        edit = self._make_edit(EditType.CREATE, n)
+        self._add_pending_edit(edit)
 
     def upsert(self, n: Node):
-        self._make_edit(EditType.UPSERT, n)
+        edit = self._make_edit(EditType.UPSERT, n)
+        self._add_pending_edit(edit)
 
     def update(self, n: Node, properties: tuple[Property, ...]):
         from bench.proto import wiring
 
-        current_update_idx = self._pending_updates_idx.get(n)
-        if current_update_idx is not None:
-            # update edit in place to avoid re-packing everything for successive updates
-            #  (this is almost always correct in user code as package nodes ref with ck, not ids,
-            #   in our own code, we just flush if we need a create first)
-            update = self.pending_edits[current_update_idx]
-            update.properties = n._updated_properties.search(True)
-            node_data = wiring.unwrap_some_node(update.node)
-            for prop in properties:
-                if prop.reference_wired_ptr:
-                    prop = prop.reference_wired_ptr
-                value = getattr(struct, prop.name)
-                value = wiring._pack_struct_prop(prop, value, ignore_array=False)
-                setattr(node_data, prop.name, value)
-        else:
-            self._make_edit(EditType.UPDATE, n)
+        engine_id, current_update_idx = self._pending_updates_idx.get(n)
+        if current_update_idx is None:
+            # new update
+            edit = self._make_edit(EditType.UPDATE, n)
+            engine = self._add_pending_edit(edit)
+            self._pending_updates_idx[n] = engine.id, len(self.edits) - 1
+            return
+
+        # update existing edit in place
+        #  (to avoid re-packing everything for successive updates)
+        edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
+        edit.properties = n._updated_properties.search(True)
+        node_data = wiring.unwrap_some_node(edit.node)
+        for prop in properties:
+            if prop.reference_wired_ptr:
+                prop = prop.reference_wired_ptr
+            value = getattr(struct, prop.name)
+            value = wiring._pack_struct_prop(prop, value, ignore_array=False)
+            setattr(node_data, prop.name, value)
 
     def move(self, n: Node):
-        self._make_edit(EditType.MOVE, n)
+        edit = self._make_edit(EditType.MOVE, n)
+        self._add_pending_edit(edit)
 
     def soft_delete(self, n: Node):
-        self._make_edit(EditType.SOFT_DELETE, n)
+        edit = self._make_edit(EditType.SOFT_DELETE, n)
+        self._add_pending_edit(edit)
 
     def restore(self, n: Node):
-        self._make_edit(EditType.RESTORE, n)
+        edit = self._make_edit(EditType.RESTORE, n)
+        self._add_pending_edit(edit)
 
     def archive(self, n: Node):
-        self._make_edit(EditType.ARCHIVE, n)
+        edit = self._make_edit(EditType.ARCHIVE, n)
+        self._add_pending_edit(edit)
 
     def unarchive(self, n: Node):
-        self._make_edit(EditType.UNARCHIVE, n)
+        edit = self._make_edit(EditType.UNARCHIVE, n)
+        self._add_pending_edit(edit)
 
     def delete(self, n: Node):
-        self._make_edit(EditType.DELETE, n)
+        edit = self._make_edit(EditType.DELETE, n)
+        self._add_pending_edit(edit)
 
     def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
         self._changed_record_ids_by_base_id[database.id].update(record_ids)
@@ -232,29 +281,52 @@ class Transaction:
     async def open(self):
         pass
 
-    async def flush(self):
-        """Flushes any pending edits to the primary stores (without committing)."""
-        raise NotImplementedError
+    async def flush(self, *only_engine_types: StoreEngineType):
+        """
+        Flushes any pending edits to the primary stores (without committing).
+        If specific engines are given, only flushes to those engines.
+        """
+
+        if only_engine_types:
+            engines = [e for e in self.session._engines if e.type in only_engine_types]
+        else:
+            engines = self.session._engines
+        log = logger.bind(edits=len(self.edits), engines=len(engines), transaction=self)
+        for engine in engines:
+            pending_edits = self._pending_edits_by_engine_id[engine.id]
+            if pending_edits:
+                connection = await self.get_store_connection(engine)
+                log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
+                await connection.flush(pending_edits)
+                pending_edits.clear()
 
     async def commit(self):
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
-        raise NotImplementedError
+        log = logger.bind(edits=len(self.edits), transaction=self)
+
+        # TODO @Robustness!: use 2PC in Transaction.commit
+        #  (if there are more than 2 engines to commit to)
+        for engine in self.session._engines:
+            pending_edits = self._pending_edits_by_engine_id[engine.id]
+            if pending_edits or engine.id in self._connections_by_engine_id:
+                connection = await self.get_store_connection(engine)
+                log.debug("transaction.commit", engine=engine, committed=len(pending_edits))
+                await connection.commit(pending_edits)
+                pending_edits.clear()
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
-        raise NotImplementedError
+        raise NotImplementedError("not yet supported")
 
     async def close(self):
-        """Closes the transaction and associated cursors, rolling back uncommitted edits."""
-        if self.global_pg_cursor:
-            await self.global_pg_cursor.connection.rollback()
-        for pg_name, pg_cursor in self.local_pg_cursors.items():
-            await pg_cursor.connection.rollback()
-            pg_pool = await get_pg_connection_pool(pg_name)
-            await pg_pool.putconn(pg_cursor.connection)
+        """Closes the transaction and associated store engines, rolling back uncommitted edits."""
+        for connection in self._connections_by_engine_id.values():
+            if connection is not None:
+                await connection.close()
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
+_runtime_tracing_lock: threading.Lock = threading.Lock()
 
 
 @node(NodeType.SESSION, index_in_search=True, local=True)
@@ -273,18 +345,16 @@ class Session(ScopeNode):
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
-    _global_pg_connection: Optional[psycopg.AsyncConnection] = p_runtime(default=None)
-    _local_pg_connection: Optional[psycopg.AsyncConnection] = p_runtime(default=None)
+    _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     # runtime
-    _stacktrace: list[Run] | None = p_runtime(default_factory=list)
+    _stacktrace: list[Run] | None = p_runtime(default=None)
     _runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
     _pending_runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
     _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
-    _runtime_tracing_lock: threading.Lock = p_runtime(default_factory=threading.Lock)
 
     # logs
     _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
@@ -295,13 +365,13 @@ class Session(ScopeNode):
 
     def __content_str__(self):
         if self.closed_at:
-            status = "closed"
+            status_str = "closed"
         elif self.opened_at:
-            status = "open"
+            status_str = "open"
         else:
-            status = "pending"
+            status_str = "pending"
         return (
-            f"{status}, "
+            f"{status_str}, "
             f"{self._tx or '<no tx>'}, "
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
         )
@@ -366,7 +436,7 @@ class Session(ScopeNode):
             self._stacktrace = []
 
         # open transaction
-        self._tx = Transaction(is_runtiem=self.is_runtime)
+        self._tx = Transaction(session=self)
 
         self.opened_at = utcnow_with_tz()
         logger.debug("session.open.done")
@@ -375,7 +445,6 @@ class Session(ScopeNode):
     async def flush(self):
         assert self.is_open, f"cannot flush {self!r} when closed"
         await self._tx.flush()
-        raise NotImplementedError
 
     @_auto_async_to_sync
     async def commit(self) -> Collection[EditData]:
@@ -410,6 +479,13 @@ class Session(ScopeNode):
 
         if self.pending_nodes:
             logger.warn("session.close.dangling", dangling=self.pending_nodes)
+
+    async def __aenter__(self):
+        await self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
 
     #
     # Tracking
@@ -521,7 +597,7 @@ class Session(ScopeNode):
     async def _flush_logs(self) -> None:
         """Flushes pending logs to OS."""
 
-        from bench.search.engine import pack_struct
+        from bench.opensearch.engine import pack_struct
         from bench.proto import wiring
 
         with self._runtime_tracing_lock:

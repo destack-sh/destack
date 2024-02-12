@@ -57,6 +57,7 @@ from .node import (
     ScopeNode,
     Struct,
     _complete_bench_setup,
+    Environment,
 )
 from .notice import Notice, NoticeError, NoticeType
 from .projection import NodeVisitor
@@ -103,6 +104,7 @@ __all__ = [
     "Context",
     "Drive",
     "Expression",
+    "Environment",
     "Field",
     "FieldPath",
     "File",

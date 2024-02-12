@@ -29,26 +29,7 @@ import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
 import type { UploadFilesResponse } from "./services";
 import type { UploadFilesRequest } from "./services";
-import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
-import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { Supervisor } from "./services";
-import type { WatchEditsResponse } from "./services";
-import type { WatchEditsRequest } from "./services";
-import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
-import type { CancelCompletedTransactionResponse } from "./services";
-import type { CancelCompletedTransactionRequest } from "./services";
-import type { CommitCompletedTransactionResponse } from "./services";
-import type { CommitCompletedTransactionRequest } from "./services";
-import type { CompleteTransactionResponse } from "./services";
-import type { CompleteTransactionRequest } from "./services";
-import type { CommitTransactionResponse } from "./services";
-import type { CommitTransactionRequest } from "./services";
-import type { AggregateNodesResponse } from "./services";
-import type { AggregateNodesRequest } from "./services";
-import type { SearchNodesResponse } from "./services";
-import type { SearchNodesRequest } from "./services";
-import type { GetNodesResponse } from "./services";
-import type { GetNodesRequest } from "./services";
 import type { CreateBenchResponse } from "./services";
 import type { CreateBenchRequest } from "./services";
 import type { LogoutUserResponse } from "./services";
@@ -57,11 +38,170 @@ import type { LoginUserResponse } from "./services";
 import type { LoginUserRequest } from "./services";
 import type { ChangeUserPasswordResponse } from "./services";
 import type { ChangeUserPasswordRequest } from "./services";
-import { stackIntercept } from "@protobuf-ts/runtime-rpc";
 import type { SignupUserResponse } from "./services";
 import type { SignupUserRequest } from "./services";
+import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
+import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
+import { GraphIO } from "./services";
+import type { WatchEditsResponse } from "./services";
+import type { WatchEditsRequest } from "./services";
+import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
+import type { CancelTransactionResponse } from "./services";
+import type { CancelTransactionRequest } from "./services";
+import type { CompleteTransactionResponse } from "./services";
+import type { CompleteTransactionRequest } from "./services";
+import type { BeginTransactionResponse } from "./services";
+import type { BeginTransactionRequest } from "./services";
+import type { CommitTransactionResponse } from "./services";
+import type { CommitTransactionRequest } from "./services";
+import type { AggregateNodesResponse } from "./services";
+import type { AggregateNodesRequest } from "./services";
+import type { SearchNodesResponse } from "./services";
+import type { SearchNodesRequest } from "./services";
+import { stackIntercept } from "@protobuf-ts/runtime-rpc";
+import type { GetNodesResponse } from "./services";
+import type { GetNodesRequest } from "./services";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
+/**
+ * Common service definition for global and bench-local :GraphIO
+ *
+ * @generated from protobuf service symbolx.bench.GraphIO
+ */
+export interface IGraphIOClient {
+    /**
+     * Get nodes in this graph. Error if any node is not found/accessible.
+     *
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
+     */
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse>;
+    /**
+     * Search nodes in this graph..
+     *
+     * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
+     */
+    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
+    /**
+     * Aggregate nodes in this graph.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
+    /**
+     * Commit a new or pending completed transaction to this graph.
+     *
+     * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
+     */
+    commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
+    /**
+     * Begins a pending transaction.
+     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
+    /**
+     * Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
+     *
+     * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
+     */
+    completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse>;
+    /**
+     * Rolls back a completed transaction to this graph.
+     *
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
+     */
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
+    /**
+     * Receive any relevant edits to this graph.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+}
+/**
+ * Common service definition for global and bench-local :GraphIO
+ *
+ * @generated from protobuf service symbolx.bench.GraphIO
+ */
+export class GraphIOClient implements IGraphIOClient, ServiceInfo {
+    typeName = GraphIO.typeName;
+    methods = GraphIO.methods;
+    options = GraphIO.options;
+    constructor(private readonly _transport: RpcTransport) {
+    }
+    /**
+     * Get nodes in this graph. Error if any node is not found/accessible.
+     *
+     * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
+     */
+    getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse> {
+        const method = this.methods[0], opt = this._transport.mergeOptions(options);
+        return stackIntercept<GetNodesRequest, GetNodesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Search nodes in this graph..
+     *
+     * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
+     */
+    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
+        const method = this.methods[1], opt = this._transport.mergeOptions(options);
+        return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Aggregate nodes in this graph.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Commit a new or pending completed transaction to this graph.
+     *
+     * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
+     */
+    commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Begins a pending transaction.
+     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
+     *
+     * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
+     */
+    completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Rolls back a completed transaction to this graph.
+     *
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
+     */
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Receive any relevant edits to this graph.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+    }
+}
 /**
  * Global control plane: all the global stuff like Benches, Users, etc..
  * Will probably shard this  at some point.
@@ -109,54 +249,38 @@ export interface ISupervisorClient {
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     // 
-    // General IO for non-source nodes :BenchIO
+    // General IO for non-source nodes :GraphIO
     // 
 
     /**
-     * Get global nodes.
-     *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
     getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse>;
     /**
-     * Search global nodes.
-     *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
     /**
-     * Aggregate global nodes.
-     *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * Commits edits to global nodes.
-     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
     /**
-     * Prepares a transaction to commit to global nodes.
-     *
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse>;
     /**
-     * Commits a prepared transaction to global nodes.
-     *
-     * @generated from protobuf rpc: CommitCompletedTransaction(symbolx.bench.CommitCompletedTransactionRequest) returns (symbolx.bench.CommitCompletedTransactionResponse);
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
-    commitCompletedTransaction(input: CommitCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse>;
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
     /**
-     * Rolls back a prepared transaction to global nodes.
-     *
-     * @generated from protobuf rpc: CancelCompletedTransaction(symbolx.bench.CancelCompletedTransactionRequest) returns (symbolx.bench.CancelCompletedTransactionResponse);
-     */
-    cancelCompletedTransaction(input: CancelCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse>;
-    /**
-     * Subscribes to relevant global edits.
-     *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
@@ -228,12 +352,10 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // General IO for non-source nodes :BenchIO
+    // General IO for non-source nodes :GraphIO
     // 
 
     /**
-     * Get global nodes.
-     *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
     getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse> {
@@ -241,8 +363,6 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<GetNodesRequest, GetNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Search global nodes.
-     *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
@@ -250,8 +370,6 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Aggregate global nodes.
-     *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
@@ -259,44 +377,34 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits edits to global nodes.
-     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Prepares a transaction to commit to global nodes.
-     *
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits a prepared transaction to global nodes.
-     *
-     * @generated from protobuf rpc: CommitCompletedTransaction(symbolx.bench.CommitCompletedTransactionRequest) returns (symbolx.bench.CommitCompletedTransactionResponse);
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
-    commitCompletedTransaction(input: CommitCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Rolls back a prepared transaction to global nodes.
-     *
-     * @generated from protobuf rpc: CancelCompletedTransaction(symbolx.bench.CancelCompletedTransactionRequest) returns (symbolx.bench.CancelCompletedTransactionResponse);
-     */
-    cancelCompletedTransaction(input: CancelCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse> {
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
         const method = this.methods[11], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Subscribes to relevant global edits.
-     *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
@@ -310,59 +418,41 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
  * Frontend connects to this directly.
  *
  *
- * General IO for nodes in this Bench only :BenchIO
+ * General IO for nodes in this Bench only :GraphIO
  *
  *
  * @generated from protobuf service symbolx.bench.BenchHost
  */
 export interface IBenchHostClient {
     /**
-     * Reads local nodes.
-     *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
     getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse>;
     /**
-     * Searches nodes using filters.
-     *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
     /**
-     * Aggregate nodes into statistics.
-     *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
-     *
-     * Begins a pending transaction.
-     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
     /**
-     * Prepares a transaction to commit to this Bench.
-     *
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse>;
     /**
-     * Commits a prepared transaction to this Bench.
-     *
-     * @generated from protobuf rpc: CommitCompletedTransaction(symbolx.bench.CommitCompletedTransactionRequest) returns (symbolx.bench.CommitCompletedTransactionResponse);
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
-    commitCompletedTransaction(input: CommitCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse>;
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
     /**
-     * Rolls back a prepared transaction to this Bench.
-     *
-     * @generated from protobuf rpc: CancelCompletedTransaction(symbolx.bench.CancelCompletedTransactionRequest) returns (symbolx.bench.CancelCompletedTransactionResponse);
-     */
-    cancelCompletedTransaction(input: CancelCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse>;
-    /**
-     * Receive any relevant edits to this Bench.
-     *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
@@ -445,7 +535,7 @@ export interface IBenchHostClient {
  * Frontend connects to this directly.
  *
  *
- * General IO for nodes in this Bench only :BenchIO
+ * General IO for nodes in this Bench only :GraphIO
  *
  *
  * @generated from protobuf service symbolx.bench.BenchHost
@@ -457,8 +547,6 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Reads local nodes.
-     *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
     getNodes(input: GetNodesRequest, options?: RpcOptions): UnaryCall<GetNodesRequest, GetNodesResponse> {
@@ -466,8 +554,6 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<GetNodesRequest, GetNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Searches nodes using filters.
-     *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
@@ -475,8 +561,6 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Aggregate nodes into statistics.
-     *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
@@ -484,46 +568,34 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits a set of edits to this Bench. Optionally forward locally bypassed edits.
-     *
-     * Begins a pending transaction.
-     *
+     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     */
+    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Prepares a transaction to commit to this Bench.
-     *
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits a prepared transaction to this Bench.
-     *
-     * @generated from protobuf rpc: CommitCompletedTransaction(symbolx.bench.CommitCompletedTransactionRequest) returns (symbolx.bench.CommitCompletedTransactionResponse);
+     * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
-    commitCompletedTransaction(input: CommitCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitCompletedTransactionRequest, CommitCompletedTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Rolls back a prepared transaction to this Bench.
-     *
-     * @generated from protobuf rpc: CancelCompletedTransaction(symbolx.bench.CancelCompletedTransactionRequest) returns (symbolx.bench.CancelCompletedTransactionResponse);
-     */
-    cancelCompletedTransaction(input: CancelCompletedTransactionRequest, options?: RpcOptions): UnaryCall<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse> {
+    cancelTransaction(input: CancelTransactionRequest, options?: RpcOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
         const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CancelCompletedTransactionRequest, CancelCompletedTransactionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Receive any relevant edits to this Bench.
-     *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
