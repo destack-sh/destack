@@ -124,6 +124,7 @@ class Transaction:
 
     id: UUID = dcfield(default_factory=uuid4)
     session: "Session" = dcfield(default=None)
+    is_read_only: bool = dcfield(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
@@ -142,6 +143,10 @@ class Transaction:
     def has_edits(self) -> bool:
         return len(self.edits) > 0 or len(self._changed_record_ids_by_base_id) > 0
 
+    @property
+    def has_pending_edits(self) -> bool:
+        return any(self._pending_edits_by_engine_id.values())
+
     @staticmethod
     def from_existing(edits: Collection[EditData]):
         tx = Transaction()
@@ -149,27 +154,27 @@ class Transaction:
             tx._add_pending_edit(edit)
         return tx
 
-    async def get_store(self, base: Node | None, node_type: NodeType) -> StoreConnection:
+    async def connect_store_to(self, base: Node | None, node_type: NodeType) -> StoreConnection:
         root = base.root if base is not None else None
-        scope = GraphScope(
-            bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
-        )
-
+        if root is not None:
+            scope = GraphScope(
+                bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
+            )
+        else:
+            scope = EMPTY_SCOPE
         for engine in self.session._engines:
             if engine.supports(scope, node_type):
-                return await self.get_store_connection(engine)
-
+                return await self._get_engine_connection(engine)
         raise BenchError(f"no engine for [base={base!r}, node={node_type}] in {self.session!r}")
 
-    async def get_store_connection(self, engine: StoreEngine) -> StoreConnection:
+    async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
         connection = self._connections_by_engine_id.get(engine.id)
-        # match, get or create connection
         if connection is None:
             connection = await engine.connect(self.session)
             self._connections_by_engine_id[engine.id] = connection
         return connection
 
-    def get_engine_for_edit(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
+    def _get_engine_for_edit(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
         for engine in self.session._engines:
             if engine.supports(scope, node_type):
                 return engine
@@ -183,6 +188,9 @@ class Transaction:
 
     def _make_edit(self, type: EditType, n: Node) -> EditData:
         """Creates an edit and adds it to the pending edits."""
+        if self.is_read_only:
+            raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
+
         from bench.proto import wiring
 
         # TODO @Performance: pack only edited node properties
@@ -211,7 +219,7 @@ class Transaction:
         if edit.node_type == NodeType.FIELD:
             self._schema_changed = True
 
-        engine = self.get_engine_for_edit(edit.scope, edit.node_type)
+        engine = self._get_engine_for_edit(edit.scope, edit.node_type)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         return engine
@@ -227,8 +235,8 @@ class Transaction:
     def update(self, n: Node, properties: tuple[Property, ...]):
         from bench.proto import wiring
 
-        engine_id, current_update_idx = self._pending_updates_idx.get(n)
-        if current_update_idx is None:
+        edit = self._pending_updates_idx.get(n)
+        if edit is None:
             # new update
             edit = self._make_edit(EditType.UPDATE, n)
             engine = self._add_pending_edit(edit)
@@ -237,13 +245,14 @@ class Transaction:
 
         # update existing edit in place
         #  (to avoid re-packing everything for successive updates)
+        engine_id, current_update_idx = edit
         edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
         edit.properties = n._updated_properties.search(True)
         node_data = wiring.unwrap_some_node(edit.node)
         for prop in properties:
             if prop.reference_wired_ptr:
                 prop = prop.reference_wired_ptr
-            value = getattr(struct, prop.name)
+            value = getattr(n, prop.name)
             value = wiring._pack_struct_prop(prop, value, ignore_array=False)
             setattr(node_data, prop.name, value)
 
@@ -293,9 +302,9 @@ class Transaction:
             engines = self.session._engines
         log = logger.bind(edits=len(self.edits), engines=len(engines), transaction=self)
         for engine in engines:
-            pending_edits = self._pending_edits_by_engine_id[engine.id]
+            pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits:
-                connection = await self.get_store_connection(engine)
+                connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
                 await connection.flush(pending_edits)
                 pending_edits.clear()
@@ -307,10 +316,10 @@ class Transaction:
         # TODO @Robustness!: use 2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
         for engine in self.session._engines:
-            pending_edits = self._pending_edits_by_engine_id[engine.id]
+            pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits or engine.id in self._connections_by_engine_id:
-                connection = await self.get_store_connection(engine)
-                log.debug("transaction.commit", engine=engine, committed=len(pending_edits))
+                connection = await self._get_engine_connection(engine)
+                log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
                 await connection.commit(pending_edits)
                 pending_edits.clear()
 
@@ -342,6 +351,7 @@ class Session(ScopeNode):
     opened_at: Optional[datetime] = p_system(32, default=None)
     closed_at: Optional[datetime] = p_system(33, default=None)
     is_runtime: bool = p_system(34, default=False)
+    is_read_only: bool = p_system(35, default=False)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -380,13 +390,23 @@ class Session(ScopeNode):
         self._session = self
 
     @property
-    def pending_nodes(self) -> tuple[Node, ...]:
+    def dangling_nodes(self) -> tuple[Node, ...]:
         return tuple(n for n in self._dangling_nodes_by_ck.values() if not n.parent)
+
+    @property
+    def tx(self) -> Transaction:
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        return self._tx
 
     @property
     def has_edits(self) -> bool:
         """Whether this session has any non-session edits."""
         return self._tx is not None and self._tx.has_edits
+
+    @property
+    def has_pending_edits(self):
+        """Whether this session has any pending (unflushed) edits."""
+        return self._tx is not None and self._tx.has_pending_edits
 
     @property
     def is_open(self) -> bool:
@@ -436,7 +456,7 @@ class Session(ScopeNode):
             self._stacktrace = []
 
         # open transaction
-        self._tx = Transaction(session=self)
+        self._tx = Transaction(session=self, is_read_only=self.is_read_only)
 
         self.opened_at = utcnow_with_tz()
         logger.debug("session.open.done")
@@ -477,8 +497,8 @@ class Session(ScopeNode):
             self._stderr_collector.stop()
             self._flush_session_loop.cancel()
 
-        if self.pending_nodes:
-            logger.warn("session.close.dangling", dangling=self.pending_nodes)
+        if self.dangling_nodes:
+            logger.warn("session.close.dangling", dangling=self.dangling_nodes)
 
     async def __aenter__(self):
         await self.open()

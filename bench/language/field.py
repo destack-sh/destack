@@ -14,6 +14,7 @@ from bench.language.const import (
     NodeVisibility,
     StructType,
     new_dynamic_node_key,
+    BenchError,
 )
 from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
@@ -45,7 +46,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class TypeError(TypeError):
+class TypeError(BenchError, TypeError):
     def __init__(
         self,
         value: Any,

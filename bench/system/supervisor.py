@@ -34,7 +34,8 @@ logger = structlog.get_logger(__name__)
 
 class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBase):
     def __init__(self):
-        super().__init__(loopback_stub_to=SupervisorStub)
+        BenchServiceBase.__init__(self, loopback_stub_to=SupervisorStub)
+        GraphIoService.__init__(self)
 
     def __str__(self):
         return "<global>"
@@ -80,7 +81,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
 
         return SignupUserResponse(
-            user=user._to_data(), access_token=client.access_token, epoch=self._epoch
+            user=user._to_data(), access_token=client.access_token, epoch=self.epoch
         )
 
     async def change_user_password(
@@ -102,7 +103,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
 
-        return ChangeUserPasswordResponse(user=user._to_data(), epoch=self._epoch)
+        return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
     async def login_user(
         self, subject: Subject, request: "LoginUserRequest"
@@ -130,7 +131,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user=user._to_data(),
             client=client._to_data(),
             access_token=client.access_token,
-            epoch=self._epoch,
+            epoch=self.epoch,
         )
 
     async def logout_user(
