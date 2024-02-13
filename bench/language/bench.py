@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Collection, Optional, Union
 
-from bench.language import Node
+from bench.language.node import Node
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeDataGraph, NodeList
 from bench.language.node import node, p_child, p_kernel, p_parent, p_regular, p_runtime, p_system
