@@ -11,11 +11,11 @@ from more_itertools import first
 from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
-from bench.language import Store
+from bench.language import Bench, Environment, Store
 from bench.language.const import VERSION, NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE, Bench, Environment
+from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.query import NodeNotFoundError
-from bench.sql.client import pg_cursor_to_store, get_pg_connection_str
+from bench.sql.client import get_pg_connection_str, pg_cursor_to_store
 from bench.sql.engine import (
     GLOBAL_TABLES,
     LOCAL_TABLES,
@@ -34,7 +34,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
-from bench.system.utils import global_session, global_pg_cursor, GLOBAL_STORE
+from bench.system.utils import GLOBAL_STORE, global_pg_cursor, global_session
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)

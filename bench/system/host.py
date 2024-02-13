@@ -11,18 +11,18 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Organization, User
+from bench.language import Bench, Organization, Package, User
 from bench.language.access import ReadOptions, Subject
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
-from bench.language.node import Bench, Package
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     BenchHostBase,
     BenchHostStub,
     DownloadFilesRequest,
     DownloadFilesResponse,
+    GraphScope,
     KillRunRequest,
     KillRunResponse,
     NotifyServerLogsRequest,
@@ -36,9 +36,8 @@ from bench.proto.wire import (
     UploadFilesResponse,
     WatchLogsRequest,
     WatchLogsResponse,
-    GraphScope,
 )
-from bench.system.utils import global_session, get_s3_client, validate_bench_data_many
+from bench.system.utils import get_s3_client, global_session, validate_bench_data_many
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")

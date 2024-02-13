@@ -28,13 +28,12 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import (
+    _COMPLETED_SETUP,
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
-    Bench,
-    Package,
-    Property,
     Node,
+    Property,
     Struct,
     _on_completing_setup,
     iter_properties,
@@ -47,7 +46,6 @@ from bench.language.node import (
     p_runtime,
     p_system,
     struct,
-    _COMPLETED_SETUP,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -58,7 +56,15 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
-    from bench.language import Block, Client, Expression, NodeReference, Organization
+    from bench.language import (
+        Bench,
+        Block,
+        Client,
+        Expression,
+        NodeReference,
+        Organization,
+        Package,
+    )
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -94,7 +100,7 @@ class Badge(Node):
     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
-    parent: Union[Package, "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union["Package", "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     type: BadgeType = p_regular(30)
     name: Optional[str] = p_regular(31)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
@@ -855,6 +861,8 @@ def adapt_read_options(
     Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
     """
+
+    from bench.language.bench import Bench
 
     options: ReadOptions = options.copy()
 

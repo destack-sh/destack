@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.10.0"
+VERSION = "2024.02.13.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -33,23 +33,23 @@ class NodeType(IdEnum):
     BRANCH = 4
     # source
     PACKAGE = 20
-    BLOCK = 21
-    TRIGGER = 22
-    TAG = 23
-    FIELD = 24
-    RECORD = 25  # (local)
-    QUERY = 26
-    VIEW = 27
-    # STEP = 28
+    DEPENDENCY = 21
+    UPGRADE = 22
+    BLOCK = 23
+    TRIGGER = 24
+    TAG = 25
+    FIELD = 26
+    RECORD = 27  # (local)
+    QUERY = 28
+    VIEW = 29
+    # STEP = 30
     # CONNECTION? (also for Flow)
-    NOTICE = 29
+    NOTICE = 32
     LINK = 35
     SKIP = 36
     # COMMENT = ...
     # REACTION = ...
     SPACE = 40
-    # DEPENDENCY = ...
-    # UPGRADE = ...
     # LOCK?
 
     # session

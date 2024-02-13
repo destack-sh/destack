@@ -1,33 +1,35 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language import RichText
 from bench.language.const import (
+    FileStatus,
     NodeType,
-    StructType,
+    PrimitiveType,
     ServerProfile,
     ServerStatus,
-    StoreKind,
-    FileStatus,
-    PrimitiveType,
     StoreEngineType,
+    StoreKind,
+    StructType,
 )
 from bench.language.node import (
-    Bench,
     Node,
     Struct,
     node,
-    p_parent,
-    struct,
     p_internal,
+    p_kernel,
+    p_parent,
     p_regular,
     p_system,
-    p_kernel,
+    struct,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync, IdEnum
+from bench.utils.func import IdEnum, _auto_async_to_sync
+
+if TYPE_CHECKING:
+    from bench.language import Bench
 
 
 @node(NodeType.SERVER)

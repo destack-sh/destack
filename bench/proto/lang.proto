@@ -71,14 +71,16 @@ enum BenchType {
   BENCH_TYPE_ENVIRONMENT = 3;
   BENCH_TYPE_BRANCH = 4;
   BENCH_TYPE_PACKAGE = 20;
-  BENCH_TYPE_BLOCK = 21;
-  BENCH_TYPE_TRIGGER = 22;
-  BENCH_TYPE_TAG = 23;
-  BENCH_TYPE_FIELD = 24;
-  BENCH_TYPE_RECORD = 25;
-  BENCH_TYPE_QUERY = 26;
-  BENCH_TYPE_VIEW = 27;
-  BENCH_TYPE_NOTICE = 29;
+  BENCH_TYPE_DEPENDENCY = 21;
+  BENCH_TYPE_UPGRADE = 22;
+  BENCH_TYPE_BLOCK = 23;
+  BENCH_TYPE_TRIGGER = 24;
+  BENCH_TYPE_TAG = 25;
+  BENCH_TYPE_FIELD = 26;
+  BENCH_TYPE_RECORD = 27;
+  BENCH_TYPE_QUERY = 28;
+  BENCH_TYPE_VIEW = 29;
+  BENCH_TYPE_NOTICE = 32;
   BENCH_TYPE_LINK = 35;
   BENCH_TYPE_SKIP = 36;
   BENCH_TYPE_SPACE = 40;
@@ -318,14 +320,16 @@ enum NodeType {
   NODE_TYPE_ENVIRONMENT = 3;
   NODE_TYPE_BRANCH = 4;
   NODE_TYPE_PACKAGE = 20;
-  NODE_TYPE_BLOCK = 21;
-  NODE_TYPE_TRIGGER = 22;
-  NODE_TYPE_TAG = 23;
-  NODE_TYPE_FIELD = 24;
-  NODE_TYPE_RECORD = 25;
-  NODE_TYPE_QUERY = 26;
-  NODE_TYPE_VIEW = 27;
-  NODE_TYPE_NOTICE = 29;
+  NODE_TYPE_DEPENDENCY = 21;
+  NODE_TYPE_UPGRADE = 22;
+  NODE_TYPE_BLOCK = 23;
+  NODE_TYPE_TRIGGER = 24;
+  NODE_TYPE_TAG = 25;
+  NODE_TYPE_FIELD = 26;
+  NODE_TYPE_RECORD = 27;
+  NODE_TYPE_QUERY = 28;
+  NODE_TYPE_VIEW = 29;
+  NODE_TYPE_NOTICE = 32;
   NODE_TYPE_LINK = 35;
   NODE_TYPE_SKIP = 36;
   NODE_TYPE_SPACE = 40;
@@ -1109,6 +1113,24 @@ message ClientData {
   optional NodeReferenceData main_space_ptr = 40;
 }
 
+// A dependency on another Bench (pointing to a specific Package).
+// If scopes are given, only those blocks (and their
+message DependencyData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int32 source = 8;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  NodeReferenceData dependency_ptr = 30;
+  repeated NodeReferenceData scopes_ptr = 31;
+}
+
 // A drive for file-like storage in a Bench.
 // Virtualizes simple bucket-style access to some S3-like storage.
 message DriveData {
@@ -1611,6 +1633,23 @@ message TriggerData {
   optional NodeReferenceData signal_ptr = 34;
 }
 
+// An 'upgrade' to a Package, marking changes made to the containing Package.
+message UpgradeData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int32 source = 8;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional string name = 32;
+  optional RichTextData text = 34;
+}
+
 // A Bench user.
 message UserData {
   BenchType metatype = 1;
@@ -1659,35 +1698,37 @@ message SomeNodeData {
     EnvironmentData environment = 2;
     BranchData branch = 3;
     PackageData package = 4;
-    BlockData block = 5;
-    TriggerData trigger = 6;
-    TagData tag = 7;
-    FieldData field = 8;
-    RecordData record = 9;
-    QueryData query = 10;
-    ViewData view = 11;
-    NoticeData notice = 12;
-    LinkData link = 13;
-    SkipData skip = 14;
-    SpaceData space = 15;
-    SessionData session = 16;
-    RunData run = 17;
-    PauseData pause = 18;
-    SignalData signal = 19;
-    BadgeData badge = 20;
-    RoleData role = 21;
-    IdentityData identity = 22;
-    ServerData server = 23;
-    StoreData store = 24;
-    DriveData drive = 25;
-    CacheData cache = 26;
-    FileContentData file_content = 27;
-    HandleData handle = 28;
-    UserData user = 29;
-    OrganizationData organization = 30;
-    ClientData client = 31;
-    NotificationData notification = 32;
-    MembershipData membership = 33;
+    DependencyData dependency = 5;
+    UpgradeData upgrade = 6;
+    BlockData block = 7;
+    TriggerData trigger = 8;
+    TagData tag = 9;
+    FieldData field = 10;
+    RecordData record = 11;
+    QueryData query = 12;
+    ViewData view = 13;
+    NoticeData notice = 14;
+    LinkData link = 15;
+    SkipData skip = 16;
+    SpaceData space = 17;
+    SessionData session = 18;
+    RunData run = 19;
+    PauseData pause = 20;
+    SignalData signal = 21;
+    BadgeData badge = 22;
+    RoleData role = 23;
+    IdentityData identity = 24;
+    ServerData server = 25;
+    StoreData store = 26;
+    DriveData drive = 27;
+    CacheData cache = 28;
+    FileContentData file_content = 29;
+    HandleData handle = 30;
+    UserData user = 31;
+    OrganizationData organization = 32;
+    ClientData client = 33;
+    NotificationData notification = 34;
+    MembershipData membership = 35;
   };
 }
 
