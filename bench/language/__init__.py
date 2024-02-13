@@ -1,21 +1,19 @@
-from .code_ import CodeSection, Code
-from .path import BenchPath
-from .query import Query
-from .text import RichTextSpan, RichText
 from ..sql.core import PrimitiveType
 from .access import (
+    Access,
     AccessError,
-    Request,
     Badge,
     Identity,
     Policy,
     PolicyRule,
     ReadOptions,
-    Access,
+    Request,
     Role,
     Subject,
 )
+from .bench import Bench, Branch, Dependency, Environment, Package, Upgrade
 from .block import Block
+from .code_ import Code, CodeSection
 from .const import (
     VERSION,
     AccessType,
@@ -26,14 +24,15 @@ from .const import (
     PolicyEffect,
     ScheduleType,
     SortMode,
-    StoreKind,
-    StoreEngineType,
     SortOp,
+    StoreEngineType,
+    StoreKind,
     TriggerType,
 )
 from .database import Record
 from .expression import (
     A,
+    Aggregation,
     C,
     Expression,
     FieldPath,
@@ -43,46 +42,28 @@ from .expression import (
     S,
     ValueReference,
     ValueSelection,
-    Aggregation,
 )
 from .field import Field, HasFields, TypeInfo
 from .file import File
 from .icon import Icon
-from .node import (
-    Bench,
-    Link,
-    Node,
-    Package,
-    Property,
-    Node,
-    Struct,
-    _complete_bench_setup,
-    Environment,
-)
+from .node import Link, Node, Property, Struct, _complete_bench_setup
 from .notice import Notice, NoticeError, NoticeType
+from .path import BenchPath
 from .projection import NodeVisitor
+from .query import Query
 from .render import render
+from .resource import Cache, Drive, FileContent, Server, ServerImage, ServerImageRequirement, Store
 from .run import Pause, Run, RunError
-from .session import LogEntry, Session, Context, Transaction
-from .signal import Signal
+from .session import Context, LogEntry, Session, Signal, Transaction
 from .tag import Tag
 from .task import TaskError
+from .text import RichText, RichTextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
 from .view import Space, SpaceDock, View, ViewType
-from .resource import (
-    ServerImageRequirement,
-    Server,
-    ServerImage,
-    Cache,
-    Drive,
-    Store,
-    FileContent,
-)
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
-
 __all__ = [
     "A",
     "Access",
@@ -95,6 +76,7 @@ __all__ = [
     "BenchPath",
     "Block",
     "BlockType",
+    "Branch",
     "C",
     "Cache",
     "Client",
@@ -102,9 +84,10 @@ __all__ = [
     "CodeSection",
     "ConditionalOp",
     "Context",
+    "Dependency",
     "Drive",
-    "Expression",
     "Environment",
+    "Expression",
     "Field",
     "FieldPath",
     "File",
@@ -117,12 +100,14 @@ __all__ = [
     "Link",
     "LogEntry",
     "Node",
+    "Node",
     "NodeReference",
     "NodeVisitor",
     "Notice",
     "NoticeError",
     "NoticeType",
     "Organization",
+    "Package",
     "Package",
     "Pause",
     "Policy",
@@ -144,7 +129,6 @@ __all__ = [
     "RunError",
     "S",
     "ScheduleType",
-    "Node",
     "Server",
     "ServerImage",
     "ServerImageRequirement",
@@ -155,8 +139,8 @@ __all__ = [
     "Space",
     "SpaceDock",
     "Store",
-    "StoreKind",
     "StoreEngineType",
+    "StoreKind",
     "Struct",
     "Subject",
     "Tag",
@@ -165,6 +149,7 @@ __all__ = [
     "TriggerType",
     "TypeInfo",
     "User",
+    "Upgrade",
     "ValidationError",
     "ValueReference",
     "ValueSelection",

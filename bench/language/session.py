@@ -1,67 +1,78 @@
 import asyncio
 import dataclasses
-from dataclasses import dataclass
 import sys
 import threading
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Collection,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
 
 from bench.language.const import (
+    EMPTY_SCOPE,
+    BenchError,
     EditType,
     NodeTrackingLevel,
     NodeType,
     RunStatus,
+    StoreEngineType,
     StructType,
     TriggerType,
     _active_session,
-    StoreEngineType,
-    BenchError,
-    EMPTY_SCOPE,
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
     UNSET,
-    Package,
     Node,
+    Property,
     Struct,
+    _Passthrough,
     get_node_id,
     node,
     p_internal,
     p_parent,
     p_runtime,
-    struct,
     p_system,
-    Bench,
-    Environment,
-    Branch,
-    Property,
+    struct,
 )
+from bench.language.query import StoreConnection, StoreEngine
 from bench.language.run import Run, RunError
+from bench.language.value import HasValue
 from bench.opensearch.client import get_os_errors, os_client
-from bench.proto.wire import BenchHostStub, SupervisorStub, EditData, GraphScope
+from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync, uuid_to_str
 from bench.utils.env import IS_DEBUG
-from bench.language.query import StoreEngine, StoreConnection
+from bench.utils.func import _auto_async_to_sync, uuid_to_str
 
 if TYPE_CHECKING:
-    from bench.language import Block, Server, Trigger
+    from bench.language import Bench, Block, Branch, Environment, Package, Server, Trigger
 
 logger = structlog.get_logger(__name__)
+
+
+@node(
+    NodeType.SIGNAL, passthrough=(("value", _Passthrough.Full),), index_in_search=True, local=True
+)
+class Signal(HasValue):
+    """A signal received in this Bench. May be emitted by a Bench or an external source."""
+
+    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    type: Optional["Block"] = p_internal(
+        30, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
+    )
+    value_packed: Any | None = p_internal(
+        31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
+    )
+    # sender_run: Optional["Run"] = p_system(32, require=False, array=False, references=NodeType.RUN)
+    # sender_block: Optional["Block"] = p_system(
+    #     33, require=False, array=False, references=NodeType.BLOCK
+    # )
 
 
 @struct(StructType.LOG_ENTRY, index_in_search=True)
@@ -69,8 +80,8 @@ class LogEntry(Struct):
     """An entry. In a log."""
 
     id: UUID = p_internal(2, default_factory=uuid4)
-    package: Package = p_internal(5, require=True, array=False, references=NodeType.PACKAGE)
-    bench: Package = p_internal(6, require=True, array=False, references=NodeType.BENCH)
+    package: "Package" = p_internal(5, require=True, array=False, references=NodeType.PACKAGE)
+    bench: "Package" = p_internal(6, require=True, array=False, references=NodeType.BENCH)
     created_at: datetime = p_internal(32, default_factory=utcnow_with_tz)
     stream: str = p_internal(33)
     session: "Session" = p_internal(34, require=False, array=True, references=NodeType.SESSION)
@@ -89,14 +100,14 @@ class Context(Struct):
     """A semi-magical value that accumulates context down the graph (starting with system context)."""
 
     # system
-    bench: Optional[Bench] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional[Environment] = p_internal(
+    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
+    environment: Optional["Environment"] = p_internal(
         31, require=False, array=False, references=NodeType.ENVIRONMENT
     )
-    branch: Optional[Branch] = p_internal(
+    branch: Optional["Branch"] = p_internal(
         32, require=False, array=False, references=NodeType.BRANCH
     )
-    package: Optional[Package] = p_internal(
+    package: Optional["Package"] = p_internal(
         33, require=False, array=False, references=NodeType.PACKAGE
     )
     module: Optional["Block"] = p_internal(
@@ -343,7 +354,7 @@ class Session(Node):
     A managed session for interacting with Bench nodes and (if on a Server) running them.
     """
 
-    parent: Package = p_parent(4, NodeType.PACKAGE, is_system=True)
+    parent: "Package" = p_parent(4, NodeType.PACKAGE, is_system=True)
     server: Optional["Server"] = p_system(
         31, require=False, array=False, references=NodeType.SERVER
     )

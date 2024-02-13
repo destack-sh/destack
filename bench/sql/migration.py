@@ -31,12 +31,12 @@ from bench.sql.core import (
     TableObject,
 )
 from bench.sql.engine import SqlUndefinedObjectError, pg_delete, pg_select, pg_select_raw, pg_upsert
+from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition
 from bench.utils.utils import format_python
-from bench.utils.env import REPOSITORY_PATH
 
-MIGRATIONS_PATH = REPOSITORY_PATH / "bench/sql/migrations"
-MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/sql/migrations/0000_template.py"
+MIGRATIONS_PATH = REPOSITORY_PATH / "bench/migrations"
+MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
 
 EXTENSIONS = ("pgcrypto",)
 

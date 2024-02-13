@@ -14,8 +14,8 @@ from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
 from bench.language.const import BenchRegion, ServerProfile, ServerStatus
-from bench.utils.utils import get_from_env
 from bench.utils.env import IS_DEBUG
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -179,7 +179,7 @@ class Deployment:
     def name(self):
         return f"{SERVER_APP_LABEL}-{self.bench_id}-{self.server_set_id.hex[:6]}"
 
-    def to_k8(self: "Deployment", bench: "models.Bench") -> client.V1Deployment:
+    def to_k8(self: "Deployment", bench: "Bench") -> client.V1Deployment:
         namespace = settings.KUBERNETES_SERVER_NAMESPACE
         env_vars: dict[str, str] = {
             "SERVER_BENCH_ID": str(self.bench_id),

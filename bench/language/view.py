@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.const import NodeType, StructType
 from bench.language.node import (
     Node,
-    Package,
-    Node,
     Struct,
     node,
     node_component,
@@ -15,11 +13,11 @@ from bench.language.node import (
     struct,
 )
 from bench.language.validation import enum_validator
-from bench.utils.func import IdEnum
 from bench.utils.casing import IdentifierType
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Policy, RichText
+    from bench.language import Block, Icon, Package, Policy, RichText
 
 
 class ViewType(IdEnum):
@@ -78,7 +76,7 @@ class PageViewMode(IdEnum):
 class Space(HasViews):
     """A space for a user to interact with the Bench."""
 
-    parent: Package = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_parent(4, NodeType.PACKAGE)
 
     name: str = p_regular(31)
     text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)

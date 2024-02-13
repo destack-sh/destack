@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.10.0"
+VERSION = "2024.02.13.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -99,14 +92,16 @@ class BenchType(betterproto.Enum):
     ENVIRONMENT = 3
     BRANCH = 4
     PACKAGE = 20
-    BLOCK = 21
-    TRIGGER = 22
-    TAG = 23
-    FIELD = 24
-    RECORD = 25
-    QUERY = 26
-    VIEW = 27
-    NOTICE = 29
+    DEPENDENCY = 21
+    UPGRADE = 22
+    BLOCK = 23
+    TRIGGER = 24
+    TAG = 25
+    FIELD = 26
+    RECORD = 27
+    QUERY = 28
+    VIEW = 29
+    NOTICE = 32
     LINK = 35
     SKIP = 36
     SPACE = 40
@@ -349,14 +344,16 @@ class NodeType(betterproto.Enum):
     ENVIRONMENT = 3
     BRANCH = 4
     PACKAGE = 20
-    BLOCK = 21
-    TRIGGER = 22
-    TAG = 23
-    FIELD = 24
-    RECORD = 25
-    QUERY = 26
-    VIEW = 27
-    NOTICE = 29
+    DEPENDENCY = 21
+    UPGRADE = 22
+    BLOCK = 23
+    TRIGGER = 24
+    TAG = 25
+    FIELD = 26
+    RECORD = 27
+    QUERY = 28
+    VIEW = 29
+    NOTICE = 32
     LINK = 35
     SKIP = 36
     SPACE = 40
@@ -1321,6 +1318,28 @@ class ClientData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class DependencyData(betterproto.Message):
+    """
+    A dependency on another Bench (pointing to a specific Package). If scopes
+    are given, only those blocks (and their
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    source: int = betterproto.int32_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    dependency_ptr: "NodeReferenceData" = betterproto.message_field(30)
+    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
+
+
+@dataclass(eq=False, repr=False)
 class DriveData(betterproto.Message):
     """
     A drive for file-like storage in a Bench. Virtualizes simple bucket-style
@@ -1956,6 +1975,27 @@ class TriggerData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class UpgradeData(betterproto.Message):
+    """
+    An 'upgrade' to a Package, marking changes made to the containing Package.
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    source: int = betterproto.int32_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    name: Optional[str] = betterproto.string_field(32, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class UserData(betterproto.Message):
     """A Bench user."""
 
@@ -2007,35 +2047,37 @@ class SomeNodeData(betterproto.Message):
     environment: "EnvironmentData" = betterproto.message_field(2, group="node")
     branch: "BranchData" = betterproto.message_field(3, group="node")
     package: "PackageData" = betterproto.message_field(4, group="node")
-    block: "BlockData" = betterproto.message_field(5, group="node")
-    trigger: "TriggerData" = betterproto.message_field(6, group="node")
-    tag: "TagData" = betterproto.message_field(7, group="node")
-    field: "FieldData" = betterproto.message_field(8, group="node")
-    record: "RecordData" = betterproto.message_field(9, group="node")
-    query: "QueryData" = betterproto.message_field(10, group="node")
-    view: "ViewData" = betterproto.message_field(11, group="node")
-    notice: "NoticeData" = betterproto.message_field(12, group="node")
-    link: "LinkData" = betterproto.message_field(13, group="node")
-    skip: "SkipData" = betterproto.message_field(14, group="node")
-    space: "SpaceData" = betterproto.message_field(15, group="node")
-    session: "SessionData" = betterproto.message_field(16, group="node")
-    run: "RunData" = betterproto.message_field(17, group="node")
-    pause: "PauseData" = betterproto.message_field(18, group="node")
-    signal: "SignalData" = betterproto.message_field(19, group="node")
-    badge: "BadgeData" = betterproto.message_field(20, group="node")
-    role: "RoleData" = betterproto.message_field(21, group="node")
-    identity: "IdentityData" = betterproto.message_field(22, group="node")
-    server: "ServerData" = betterproto.message_field(23, group="node")
-    store: "StoreData" = betterproto.message_field(24, group="node")
-    drive: "DriveData" = betterproto.message_field(25, group="node")
-    cache: "CacheData" = betterproto.message_field(26, group="node")
-    file_content: "FileContentData" = betterproto.message_field(27, group="node")
-    handle: "HandleData" = betterproto.message_field(28, group="node")
-    user: "UserData" = betterproto.message_field(29, group="node")
-    organization: "OrganizationData" = betterproto.message_field(30, group="node")
-    client: "ClientData" = betterproto.message_field(31, group="node")
-    notification: "NotificationData" = betterproto.message_field(32, group="node")
-    membership: "MembershipData" = betterproto.message_field(33, group="node")
+    dependency: "DependencyData" = betterproto.message_field(5, group="node")
+    upgrade: "UpgradeData" = betterproto.message_field(6, group="node")
+    block: "BlockData" = betterproto.message_field(7, group="node")
+    trigger: "TriggerData" = betterproto.message_field(8, group="node")
+    tag: "TagData" = betterproto.message_field(9, group="node")
+    field: "FieldData" = betterproto.message_field(10, group="node")
+    record: "RecordData" = betterproto.message_field(11, group="node")
+    query: "QueryData" = betterproto.message_field(12, group="node")
+    view: "ViewData" = betterproto.message_field(13, group="node")
+    notice: "NoticeData" = betterproto.message_field(14, group="node")
+    link: "LinkData" = betterproto.message_field(15, group="node")
+    skip: "SkipData" = betterproto.message_field(16, group="node")
+    space: "SpaceData" = betterproto.message_field(17, group="node")
+    session: "SessionData" = betterproto.message_field(18, group="node")
+    run: "RunData" = betterproto.message_field(19, group="node")
+    pause: "PauseData" = betterproto.message_field(20, group="node")
+    signal: "SignalData" = betterproto.message_field(21, group="node")
+    badge: "BadgeData" = betterproto.message_field(22, group="node")
+    role: "RoleData" = betterproto.message_field(23, group="node")
+    identity: "IdentityData" = betterproto.message_field(24, group="node")
+    server: "ServerData" = betterproto.message_field(25, group="node")
+    store: "StoreData" = betterproto.message_field(26, group="node")
+    drive: "DriveData" = betterproto.message_field(27, group="node")
+    cache: "CacheData" = betterproto.message_field(28, group="node")
+    file_content: "FileContentData" = betterproto.message_field(29, group="node")
+    handle: "HandleData" = betterproto.message_field(30, group="node")
+    user: "UserData" = betterproto.message_field(31, group="node")
+    organization: "OrganizationData" = betterproto.message_field(32, group="node")
+    client: "ClientData" = betterproto.message_field(33, group="node")
+    notification: "NotificationData" = betterproto.message_field(34, group="node")
+    membership: "MembershipData" = betterproto.message_field(35, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4055,81 +4097,83 @@ class ServerProcessBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
 
+import bench.proto.monkey  # noqa
+
 AnyNodeData = Union[
-    RunData,
-    BlockData,
-    FieldData,
-    MembershipData,
-    NoticeData,
-    ClientData,
-    HandleData,
-    SpaceData,
-    EnvironmentData,
-    SessionData,
-    BenchData,
-    CacheData,
-    DriveData,
-    SkipData,
-    BadgeData,
+    UpgradeData,
     PauseData,
-    QueryData,
-    TagData,
-    ServerData,
-    ViewData,
     TriggerData,
-    IdentityData,
-    LinkData,
-    UserData,
-    FileContentData,
-    PackageData,
-    StoreData,
-    RecordData,
+    DependencyData,
+    SkipData,
+    RunData,
     RoleData,
+    HandleData,
+    BenchData,
+    BlockData,
+    TagData,
+    CacheData,
+    MembershipData,
+    DriveData,
+    BadgeData,
+    SpaceData,
+    RecordData,
+    ViewData,
+    ClientData,
+    ServerData,
     SignalData,
+    SessionData,
     BranchData,
     OrganizationData,
+    UserData,
+    PackageData,
+    NoticeData,
+    FileContentData,
+    LinkData,
+    FieldData,
     NotificationData,
+    IdentityData,
+    StoreData,
+    EnvironmentData,
+    QueryData,
 ]
 AnyStructData = Union[
-    AccessMatrixData,
-    PropertyPathData,
-    ServerImageRequirementData,
-    ValueReferenceData,
-    StoreCredentialData,
-    RunCodeFrameData,
-    CodeData,
     AccessTraceData,
-    TypeInfoData,
-    ExpressionData,
-    PolicyRuleData,
-    AccessData,
-    RunErrorData,
-    AggregationData,
-    NodeReferenceData,
-    ContextData,
-    PolicyData,
-    RichTextData,
-    SubjectData,
-    SpaceDockData,
-    FileData,
-    FieldPathSegmentData,
-    RequestData,
-    ScheduleData,
-    LogEntryData,
-    PropertyReferenceData,
-    CodeSectionData,
-    IconData,
-    ServerImageData,
-    RichTextSpanData,
-    ValueSelectionData,
-    AccessZoneData,
     BenchPathData,
     FieldPathData,
+    ExpressionData,
+    FileData,
+    AggregationData,
+    RunCodeFrameData,
+    ServerImageRequirementData,
+    TypeInfoData,
+    StoreCredentialData,
+    AccessZoneData,
     SpaceDockItemData,
-    AggregationBucketData,
+    RunErrorData,
+    ContextData,
+    AccessData,
+    PolicyData,
+    ValueSelectionData,
+    NodeReferenceData,
+    ScheduleData,
+    PolicyRuleData,
+    PropertyPathData,
+    SpaceDockData,
+    RequestData,
+    FieldPathSegmentData,
     ReadOptionsData,
+    RichTextData,
+    AggregationBucketData,
+    ServerImageData,
+    SubjectData,
+    CodeData,
+    IconData,
+    AccessMatrixData,
+    ValueReferenceData,
+    CodeSectionData,
+    LogEntryData,
+    RichTextSpanData,
+    PropertyReferenceData,
 ]

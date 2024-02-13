@@ -1,15 +1,14 @@
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.node import Package
-from bench.language.const import NoticeKind, NodeType, StructType, BenchError
+from bench.language.const import BenchError, NodeType, NoticeKind, StructType
 from bench.language.expression import FieldPath, Property
 from bench.language.node import Node, node, p_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language.block import Block
+    from bench.language import Block, Package
 
 
 class NoticeType(IdEnum):
@@ -21,7 +20,7 @@ class NoticeType(IdEnum):
     MISMATCHED_BASE = 3
 
     # warnings
-    AMBIGUOUS_DEFINITION = 100
+    AMBIGUOUS_NAME = 100
 
     # information
 
