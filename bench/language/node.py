@@ -643,7 +643,7 @@ def _add_property_expression_base():
     from bench.language.expression import _TypeExpressionBase
 
     for name, attr in _TypeExpressionBase.__dict__.items():
-        if isinstance(attr, Property):
+        if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 
 
@@ -1597,7 +1597,7 @@ class Struct(abc.ABC):
             value = getattr(self, prop.name)
             if value is None:
                 if prop.is_required:
-                    on_invalid(self, f"{prop.name}: is required", [prop])
+                    on_invalid(self, f"{prop.name} is required", [prop])
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_invalid)
                 valid = prop.validate(value, handler)
@@ -1714,7 +1714,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
-        # init ck/id
+        # init ck/id/timestamps
         if self.__is_in_package__:
             if self.ck is None:
                 self.ck = uuid4()
@@ -1724,9 +1724,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         elif self.id is None:
             self.id = uuid4()
             self._is_new = True
-        # init tracking
         if self.created_at is None:
-            # init cru timestamps
             now = utcnow_with_tz()
             self.created_at = now
             self.updated_at = now
@@ -1739,6 +1737,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         if self._status is None:
             self._status = NodeStatus.INTERP if self._session is not None else NodeStatus.SOURCE
         self._init_self()
+        # track if in session
         if self._status == NodeStatus.INTERP and self._session is not None:
             on_notice = on_notice_raise if self.scope is None else self.scope._on_notice
             self._interp_self(self, on_notice=on_notice)
@@ -1956,45 +1955,53 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     def __setattr__(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
-        if self._status != NodeStatus.TRACKED:
-            return object.__setattr__(self, key, value)
-
+        is_tracked = self._status == NodeStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.reference_kind == NodeReferenceKind.CHILD:
-                return getattr(self, key).set(value)  # has its own set
+                attr = getattr(self, key)
+                if attr is None:  # initial set
+                    return object.__setattr__(self, key, value)
+                else:
+                    return attr.set(value)  # has its own set
             elif prop.is_runtime_only:  # untracked
                 return object.__setattr__(self, key, value)
 
-            # validated set
-            prev = getattr(self, key)
-            object.__setattr__(self, key, value)
-            try:
-                self._validate_self([prop], on_invalid=on_invalid_raise)
-            except ValidationError:  # reset on error
-                object.__setattr__(self, key, prev)
-                raise
+            if is_tracked:
+                # validated set
+                prev = getattr(self, key)
+                object.__setattr__(self, key, value)
+                try:
+                    self._validate_self([prop], on_invalid=on_invalid_raise)
+                    self._updated_self((prop,))
+                except ValidationError:  # reset on error
+                    object.__setattr__(self, key, prev)
+                    raise
+            else:
+                object.__setattr__(self, key, value)
 
-            if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
+            if prop.reference_wired_ptr:
+                # update reference pointer  :NodeReferences
                 from bench.language.expression import NodeReference
 
                 object.__setattr__(
                     self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
                 )
-            if not self._is_new:  # update in session
+            if self._session is not None and not self._is_new:
+                # update in session
                 if self._updated_properties is None:
                     self._updated_properties = bitarray(self.__max_property_id__ + 1)
                 self._updated_properties[prop.id] = True
-                self._session.update(self, (prop,))
-            self._updated_self((prop,))
+                self._session.update(self, properties=(prop,))
             return
 
-        # also try first full passthrough target (if any)
-        for target, mode in self.__passthrough_targets__:
-            target = getattr(self, target)
-            if mode == _Passthrough.Full:
-                setattr(target, key, value)
-                return  # success
+        if is_tracked:
+            # also try first full passthrough target (if any)
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    setattr(target, key, value)
+                    return  # success
 
         # report set error with additional info
         candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
@@ -2201,10 +2208,9 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 def _add_node_expression_base():
     from bench.language.expression import _NodeExpressionBase
 
-    for name, method in _NodeExpressionBase.__dict__.items():
-        if name.startswith("_"):
-            continue
-        setattr(Node, name, method)
+    for name, attr in _NodeExpressionBase.__dict__.items():
+        if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
+            setattr(Node, name, attr)
 
 
 def _make_rec_method(
@@ -2237,7 +2243,6 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    last_changed_at: Optional[datetime] = p_internal(16, default=None)
     notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
     # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
     _graph: Union["NodeGraphBase", None] = p_runtime(default=None)

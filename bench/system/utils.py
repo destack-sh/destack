@@ -62,11 +62,6 @@ async def global_session(read_only: bool = False, host: BenchHostStub | None = N
 
     async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _host=host) as session:
         yield session
-        if session.has_edits:
-            if read_only:
-                raise RuntimeError(f"read_only session {session!r} has edits")
-            logger.warning("session.discard", session=session)
-            await session.rollback()
 
 
 def validate_bench_data(

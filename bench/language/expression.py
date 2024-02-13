@@ -405,7 +405,7 @@ def coerce_conditional(
         raise TypeError(f"cannot specify both {expr} and {kwargs}")
     if expr is not None:
         if not isinstance(expr, Expression) or expr.kind != ExpressionKind.CONDITIONAL:
-            raise TypeError(f"expected Conditional, got {expr!r}")
+            raise TypeError(f"expected Conditional, got {expr!r} ({type(expr)})")
         return expr
 
     clauses = []

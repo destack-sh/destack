@@ -657,4 +657,4 @@ def active_tx() -> "Transaction":
     """Gets the currently active Transaction (error if none)."""
     session = _active_session.get()
     assert session is not None, "no active session"
-    return session.tx
+    return session._tx

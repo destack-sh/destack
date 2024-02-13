@@ -1852,7 +1852,6 @@ def pg_unpack_record_data_row(database: Block, row: RowOut) -> wire.RecordData:
         updated_at=row["updated_at"],
         deleted_at=row["deleted_at"],
         last_edited_at=row["last_edited_at"],
-        last_changed_at=row["last_edited_at"],
         revision=row["revision"],
         parent_id=database.id,
         value=value_packed,
