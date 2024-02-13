@@ -357,12 +357,12 @@ class AccessKind(IdEnum):
     RUN = 30
 
     @property
-    def from_id(self):
-        return ACCESS_CLASS_BY_KIND[self].get_min_id()
+    def from_ord(self) -> int:
+        return ACCESS_CLASS_BY_KIND[self].get_min_ord()
 
     @property
-    def to_id(self):
-        return ACCESS_CLASS_BY_KIND[self].get_max_id()
+    def to_ord(self) -> int:
+        return ACCESS_CLASS_BY_KIND[self].get_max_ord()
 
 
 if typing.TYPE_CHECKING:

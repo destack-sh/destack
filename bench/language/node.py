@@ -182,6 +182,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
     # basics
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
+    ord: int | None = None  # unstable ordinal for bit-packing
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
     component: type["Struct"] | type["Node"] | None = None  # source component class
@@ -261,9 +262,10 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "struct_type",
             "reference_kind",
             "reference_types",
+            "ord",
         ):
             v = getattr(self, k)
-            if v is UNSET or not v:
+            if v is UNSET or (not v and v is not 0):
                 continue
             elif k == "id":
                 non_default.append(str(v))
@@ -281,7 +283,13 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         return f"<{self.__class__.__name__} {str(self)}{attrs_str}>"
 
     def clone(self):
-        return dataclasses.replace(self, component=None)
+        return dataclasses.replace(
+            self,
+            component=None,
+            # clear contributed properties
+            reference_wired_ptr=None,
+            reference_stored_ptrs=None,
+        )
 
     @property
     def _as_type(self) -> "TypeInfo":
@@ -370,7 +378,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     def reference_ptrs(self) -> Iterable["Property"]:
         if self.reference_wired_ptr is not None:
             yield self.reference_wired_ptr
-        if self.reference_stored_ptrs:
+        if self.reference_stored_ptrs is not None:
             yield from self.reference_stored_ptrs
 
     @property
@@ -402,6 +410,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         for k in dataclasses.fields(self):
             if k.name in (
                 "id",
+                "ord",
                 "component",
                 "ignore_conflicts",
                 "reference_wired_ptr",
@@ -476,7 +485,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             raise ValueError(f"encrypted properties should be sensitive {self!r}")
         if self.is_encrypted and not self.is_deferred:
             raise ValueError(f"encrypted properties should be deferred {self!r}")
-        if self.type and self.type in STRUCT_TYPES and self.is_deferred:
+        if self.type and not issubclass(self.component, Node) and self.is_deferred:
             raise ValueError(f"cannot defer properties in structs {self!r}")
         if (
             self.id is not None
@@ -517,8 +526,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             )
             self.reference_stored_ptrs = (property_ptr,)
             self.reference_wired_ptr = property_ptr
-            self.is_wired = False
-            self.is_stored = False
             self.is_runtime = True
             return (property_ptr,)
 
@@ -609,10 +616,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 stored_ptr_props.append(stored_prop)
             self.reference_stored_ptrs = tuple(stored_ptr_props)
 
-        # the runtime resolved pointer is not stored/wired directly
-        self.is_wired = False
-        self.is_stored = False
-
         return tuple(self.reference_ptrs)
 
     def new(self) -> Any:
@@ -623,20 +626,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             return self.default_factory()
         else:
             raise ValueError(f"no default for {self!r}")
-
-    def copy(self, value: Any) -> Any:
-        """Copies a non-None value of this property"""
-        if self.is_graph_reference:
-            raise ValueError(f"cannot copy relation {self!r}")
-        elif self.reference_types:
-            return value  # identity
-        elif self.custom_copy is not None:
-            return self.custom_copy(value)
-        # auto-copy if it's trivial (primitives, immutable, enum, ...)
-        elif isinstance(value, (type(None), bool, int, float, str, UUID, datetime, enum.Enum)):
-            return value
-        else:
-            raise ValueError(f"cannot copy {self!r}")
 
     def validate(self, value: Any, on_notice: "PropertyValidationHandler") -> bool | None:
         """Validates a non-None value of this property"""
@@ -947,6 +936,37 @@ def _process_struct_base_cls(
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
         declared_properties[name] = prop
+    cls.__declared_properties__ = frozendict(declared_properties)
+    cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
+
+    # collect properties from all components (static and dynamic, least to most specific)
+    is_node_base = cls.__name__ in ("Node",)
+    is_struct_base = cls.__name__ == "Struct"
+    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
+    reserved_properties: set[str | int] = set(reserved or ())
+    for component in chain(reversed(static_components), reversed(dynamic_components)):
+        for name, prop in component.__own_properties__.items():
+            existing = properties_by_name.get(name, None)
+            # override parent & id with more specific values
+            if existing is None or name.startswith("parent") or existing.id is UNSET:
+                if prop.is_runtime_only or component not in dynamic_components:
+                    prop = prop.clone()
+                    prop.component = cls
+                    properties_by_name[name] = prop
+                else:
+                    pass  # ignore
+            elif not prop._equals_type(existing):
+                if existing.ignore_conflicts:
+                    continue
+                raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
+            if not is_node and prop.is_graph_reference:
+                raise ValueError(f"non-node {cls} has node-only relation {prop}")
+        reserved_properties.update(component.__reserved_properties__)
+    cls.__reserved_properties__ = frozenset(reserved_properties)
+
+    # contribute extra properties
+    for prop in tuple(properties_by_name.values()):
+        prop: Property
         # collect any extra contributed properties
         if prop.struct_type == StructType.PROPERTY_REFERENCE or prop.reference_kind in (
             NodeReferenceKind.PARENT,
@@ -961,34 +981,8 @@ def _process_struct_base_cls(
                 properties_by_name[p.name] = p
                 if not p.is_computed:
                     setattr(cls, p.name, p)
-    cls.__declared_properties__ = frozendict(declared_properties)
-    cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
-    # collect properties from all components (static and dynamic, least to most specific)
-    is_node_base = cls.__name__ in ("Node",)
-    is_struct_base = cls.__name__ == "Struct"
-    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
-    cls.__properties__ = {**properties_by_name}  # start with own properties
-    reserved_properties: set[str | int] = set(reserved or ())
-    for component in chain(reversed(static_components), reversed(dynamic_components)):
-        for name, prop in component.__own_properties__.items():
-            existing = properties_by_name.get(name, None)
-            # override parent & id with more specific values
-            if existing is None or name.startswith("parent") or existing.id is UNSET:
-                if prop.is_runtime_only or component not in dynamic_components:
-                    prop = prop.clone()
-                    prop.component = cls
-                    properties_by_name[name] = prop
-            elif not prop._equals_type(existing):
-                if existing.ignore_conflicts:
-                    continue
-                raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-            if not is_node and prop.is_graph_reference:
-                raise ValueError(f"non-node {cls} has node-only relation {prop}")
-        reserved_properties.update(component.__reserved_properties__)
-    cls.__reserved_properties__ = frozenset(reserved_properties)
-
-    # create class (map to dataclass)
+    # create class (map properties to dataclass fields)
     # TODO @Cleanup: the ck/package/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
         # remove 'bench'/'package' ancestor property if not actually a descendant :MagicNodeProps
@@ -1071,15 +1065,23 @@ def _process_struct_base_cls(
     )
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
-    cls.__max_property_id__ = max(p.id for p in props if p.id is not None and p.id is not UNSET)
-    cls.__properties_mask__ = bitarray(cls.__max_property_id__ + 1)
-    for p in props:
-        if p.id and p.id is not UNSET:
-            cls.__properties_mask__[p.id] = True
+    cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
+    for i, prop in enumerate(cls.__properties_in_order__):
+        prop.ord = i
+        if prop.reference_wired_ptr:
+            prop.reference_wired_ptr.ord = i
+        for p in prop.reference_stored_ptrs or ():
+            p.ord = i
+        if prop.reference_source:
+            prop.reference_source.ord = i
+    cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
+    cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
+    cls.__properties_mask__ = bitarray(cls.__max_property_ord__ + 1)
+    cls.__properties_mask__.setall(True)
 
     # TODO @Performance!: use slots for Struct/Node and in wire types (StructData/NodeData/...)
     #  Using slots for our structs bit trickier than it seems because
-    #   1) we use dynamic props in Blocks
+    #   1) we use dynamic props in Blocks (for now?)
     #   2) lack of betterproto support (unclear how challenging it would be to add)
 
     # transform class
@@ -1444,7 +1446,9 @@ class Struct(abc.ABC):
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
-    __max_property_id__: ClassVar[int] = None
+    __properties_in_order__: ClassVar[tuple[Property, ...]]
+    __properties_id_in_order__: ClassVar[tuple[int, ...]]
+    __max_property_ord__: ClassVar[int] = None
     __properties_mask__: ClassVar[bitarray] = None
 
     __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS (only for logs really)
@@ -1475,6 +1479,28 @@ class Struct(abc.ABC):
             return f"<{self.__class__.__name__} @ {id(self)}>"
 
     @classmethod
+    def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
+        return tuple(cls.__properties_id_in_order__[i] for i in mask.search(True))
+
+    @classmethod
+    def _unmask_properties(cls, mask: bitarray) -> tuple[Property, ...]:
+        return tuple(cls.__properties_in_order__[i] for i in mask.search(True))
+
+    @classmethod
+    def _mask_properties(cls, properties: Collection[Property]) -> bitarray:
+        mask = bitarray(cls.__max_property_ord__ + 1)
+        for prop in properties:
+            mask[prop.ord] = True
+        return mask
+
+    @classmethod
+    def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
+        prop = cls._get_property(ptr)
+        if prop is None:
+            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
+        return prop
+
+    @classmethod
     def _get_property(cls, ptr: "PropertyReference") -> Property | None:
         if not ptr.references_type:
             return cls.__properties_by_id__.get(ptr.id, None)
@@ -1483,13 +1509,6 @@ class Struct(abc.ABC):
                 if prop.id == ptr.id and prop.reference_types[0] == ptr.references_type:
                     return prop
             return None
-
-    @classmethod
-    def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
-        prop = cls._get_property(ptr)
-        if prop is None:
-            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
-        return prop
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -2011,8 +2030,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             if self._session is not None and not self._is_new:
                 # update in session
                 if self._updated_properties is None:
-                    self._updated_properties = bitarray(self.__max_property_id__ + 1)
-                self._updated_properties[prop.id] = True
+                    self._updated_properties = bitarray(self.__max_property_ord__ + 1)
+                self._updated_properties[prop.ord] = True
                 self._session.update(self, properties=(prop,))
             return
 
@@ -2454,6 +2473,12 @@ FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 
+_COMPLETED_SETUP = False
+
+
+def _is_setup_complete() -> bool:
+    return _COMPLETED_SETUP
+
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
@@ -2483,6 +2508,15 @@ def _complete_bench_setup():
         is_node = issubclass(cls, Node)
         for name, prop in cls.__properties__.items():
             prop: Property
+
+            if prop.reference_wired_ptr or prop.reference_stored_ptrs:
+                # Properties with reference ptrs (like Node.parent -> parent_ptr/parent_id)
+                #  aren't stored directly, we just use is_wired/is_stored to indicate what
+                #  the contributed properties should do. Now that they're all contributed,
+                #  we can set them to False, so they don't get indexed.
+                prop.is_wired = False
+                prop.is_stored = False
+
             # finalize type info
             prop._finalize()
 
@@ -2595,6 +2629,9 @@ def _complete_bench_setup():
                 prop.py_type_stripped, (IdEnum, enum.IntEnum, enum.IntFlag)
             ):
                 raise ValueError(f"{prop!r} is not a valid proto enum")
+
+    global _COMPLETED_SETUP
+    _COMPLETED_SETUP = True
 
     # run completion hooks
     for hook in _custom_completion_hooks:

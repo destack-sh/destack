@@ -73,7 +73,15 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            client: Client = wiring.unpack_node(request.client, parent=user, session=session)
+            client = Client(
+                id=to_uuid(request.client.id),
+                parent=user,
+                name=request.client.name,
+                device_name=request.client.device_name,
+                browser_name=request.client.browser_name,
+                last_seen_at=utcnow_with_tz(),
+                _is_new=True,  # also force create
+            )
             client.access_token = generate_access_token()
             session.create(user, client)
             await session.flush()
@@ -121,9 +129,18 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
 
-            client: Client = wiring.unpack_node(request.client, parent=user, session=session)
-            client.logged_in_at = client.last_seen_at = utcnow_with_tz()
-            client.access_token = generate_access_token()
+            now = utcnow_with_tz()
+            client = Client(
+                id=to_uuid(request.client.id),
+                parent=user,
+                name=request.client.name,
+                device_name=request.client.device_name,
+                browser_name=request.client.browser_name,
+                last_seen_at=now,
+                logged_in_at=now,
+                access_token=generate_access_token(),
+                _is_new=True,  # force create
+            )
             session.upsert(client)
             await session.commit()
 

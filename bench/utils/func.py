@@ -346,7 +346,7 @@ class IdEnum(enum.IntEnum):
     def __new__(cls, id: int):
         obj = int.__new__(cls, id)
         obj._value_ = id
-        obj.ord = len(cls) + 1  # start at 1 for use with bytetuple
+        obj.ord = len(cls)
         obj.id = id
 
         # check id
@@ -376,6 +376,16 @@ class IdEnum(enum.IntEnum):
             _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
         return _MAX_ID_BY_ENUM[cls]
 
+    @classmethod
+    def get_min_ord(cls) -> int:
+        """Get the minimum ord."""
+        return 0
+
+    @classmethod
+    def get_max_ord(cls) -> int:
+        """Get the maximum ord."""
+        return len(cls)
+
     @staticmethod
     def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
         return IdEnum(name, {t.name: t.id for e in enums for t in e})
@@ -388,7 +398,7 @@ EnumT = TypeVar("EnumT", bound=IdEnum)
 class bytetuple(typing.Generic[EnumT]):
     """
     Tuple with a bitarray for fast membership check.
-    nocheckin: use ordinals instead of ids in bytetuples
+    We accept only IdEnum instances because we use its ordinals for a compact bitarray.
     """
 
     def __init__(self, *items, enum_cls: type[EnumT] = None):
@@ -400,18 +410,16 @@ class bytetuple(typing.Generic[EnumT]):
             enum_cls = items[0].__class__
         assert issubclass(enum_cls, IdEnum), f"invalid enum_cls: {enum_cls} ({items})"
         self.enum_cls = enum_cls
-        self.bits = bitarray(enum_cls.get_max_id() + 1)
-        self.bits.setall(False)
+        self.bits = bitarray(enum_cls.get_max_ord() + 1)
         for arg in items:
-            self.bits[arg.id] = True
+            self.bits[arg.ord] = True
 
     def __bool__(self):
         return bool(self.tuple)
 
-    def __contains__(self, item: EnumT | int):
-        # assert isinstance(item, self.enum_cls), f"bad {item!r} ({type(item)}, want {self.enum_cls})"
-        id = item if isinstance(item, int) else item.id
-        return self.bits[id]
+    def __contains__(self, item: EnumT):
+        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        return self.bits[item.ord]
 
     def __and__(self, other: "bytetuple"):
         assert isinstance(other, bytetuple), f"invalid type: {type(other)}"

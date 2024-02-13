@@ -754,7 +754,7 @@ export interface RichTextData {
     spans: RichTextSpanData[];
 }
 /**
- * RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, reference_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+ * RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, _status: bench.language.const.NodeStatus = None, reference_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.RichTextSpanData
  */
@@ -797,7 +797,7 @@ export interface RichTextSpanData {
     isCode: boolean;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, node_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -828,7 +828,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, node_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -2228,7 +2228,7 @@ export interface BaseNodeData {
     archivedAt?: Timestamp;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3307,7 +3307,7 @@ export interface TagData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */

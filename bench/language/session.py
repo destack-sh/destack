@@ -34,7 +34,6 @@ from bench.language.const import (
 from bench.language.field import TypeInfo
 from bench.language.node import (
     UNSET,
-    Node,
     Package,
     Node,
     Struct,
@@ -196,7 +195,7 @@ class Transaction:
         # TODO @Performance: pack only edited node properties
         node_data = n._to_data()
         if n._updated_properties:
-            properties = n._updated_properties.search(True)
+            properties = n._unmask_properties_ids(n._updated_properties)
         else:
             properties = None
         if n.__is_in_bench__:
@@ -247,7 +246,7 @@ class Transaction:
         #  (to avoid re-packing everything for successive updates)
         engine_id, current_update_idx = edit
         edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
-        edit.properties = n._updated_properties.search(True)
+        edit.properties = n._unmask_properties_ids(n._updated_properties)
         node_data = wiring.unwrap_some_node(edit.node)
         for prop in properties:
             if prop.reference_wired_ptr:

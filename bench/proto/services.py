@@ -24,7 +24,7 @@ from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
-from bench.sql.engine import SqlAlreadyExistsError
+from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.system.auth import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEBUG, IS_TEST
@@ -104,7 +104,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     @final
     def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message."""
-        pass  # nocheckin: _validate_request
+        pass  # TODO @Robustness!: BenchServiceBase.validate_request
 
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
@@ -159,6 +159,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status_map: Mapping[type, GRPCStatus] = {
                     NodeNotFoundError: GRPCStatus.NOT_FOUND,
+                    SqlNotExistsError: GRPCStatus.NOT_FOUND,
                     SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
                     AccessError: GRPCStatus.PERMISSION_DENIED,
                 }
