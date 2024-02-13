@@ -11,7 +11,6 @@ from typing import (
     Generic,
     Self,
     NamedTuple,
-    Collection,
     cast,
     ClassVar,
     Callable,
@@ -710,13 +709,17 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
         await self._conn.close()
 
     async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]", count: bool) -> FetchResult:
-        from bench.sql.engine import pg_search_nodes_data_graph, pg_count, compile_pg_conditional
-        from bench.language import NodeReference
+        from bench.sql.engine import (
+            pg_search_nodes_data_graph,
+            pg_count,
+            compile_pg_conditional_maybe,
+        )
+        from bench.language import NodeReference, ReadOptions
 
         roots, graph = await pg_search_nodes_data_graph(
             cur=self._cur,
             node_type=query._node_type,
-            options=query._options,
+            options=query._options or ReadOptions(),
             filter=query._filter,
             sort=query._sort,
             first=query._first,
@@ -726,7 +729,7 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
             total = await pg_count(
                 cur=self._cur,
                 table=query._node_cls.__table__,
-                where=compile_pg_conditional(query._node_cls, query._filter),
+                where=(compile_pg_conditional_maybe(query._node_cls, query._filter)),
             )
         else:
             total = None
@@ -739,15 +742,18 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
         )
 
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        from bench.sql.engine import compile_pg_conditional, pg_exists, pg_count
+        from bench.sql.engine import compile_pg_conditional_maybe, pg_exists, pg_count
 
         if query._aggregation.op == AggregationOp.EXISTS:
-            filter = compile_pg_conditional(query._node_cls, query._filter)
-            exists = await pg_exists(self._cur, query._node_cls.__table__, filter)
+            exists = await pg_exists(
+                self._cur,
+                query._node_cls.__table__,
+                compile_pg_conditional_maybe(query._node_cls, query._filter),
+            )
             return AggregateResult(AggregationData(exists=exists))
         elif query._aggregation.op == AggregationOp.COUNT:
-            filter = compile_pg_conditional(query._node_cls, query._filter)
-            count = await pg_count(self._cur, query._node_cls.__table__, filter)
+            where = compile_pg_conditional_maybe(query._node_cls, query._filter)
+            count = await pg_count(self._cur, query._node_cls.__table__, where)
             return AggregateResult(AggregationData(count=count))
         else:
             raise StoreEngineIncapableError(

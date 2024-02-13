@@ -5,7 +5,6 @@ from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
-    Node,
     node,
     p_child,
     p_internal,
@@ -26,7 +25,12 @@ if TYPE_CHECKING:
     roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     identifier=IdentifierType.VARIABLE,
     constraints=(
-        Constraint("bench_slug_is_slug", ConstraintType.CHECK, condition="(slug ~ '^[a-z0-9-]+$')"),
+        Constraint(
+            "bench_slug_is_slug",
+            ConstraintType.CHECK,
+            # ::casts are to match the introspected postgres format
+            condition="((slug)::text ~ '^[a-z0-9-]+$'::text)",
+        ),
     ),
 )
 class Handle(Node):
@@ -42,7 +46,7 @@ class Handle(Node):
 class User(Node):
     """A Bench user."""
 
-    # ordinal: ...?
+    # ordinal/number: ...?
     # (main_handle is optional because we can create user without handle)
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE

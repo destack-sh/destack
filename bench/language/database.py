@@ -198,7 +198,11 @@ class RecordPostgresEngine(StoreEngine[Record, RecordData]):
     async def update(self, **value) -> int:
         """Updates all results with the given values."""
         from bench.language.value import check_type, pack_value
-        from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
+        from bench.sql.engine import (
+            compile_pg_conditional,
+            pg_update_constant,
+            pg_wrap_record_value,
+        )
 
         if not value:
             raise ValueError(f"no values given to update {self!r}")
@@ -217,7 +221,7 @@ class RecordPostgresEngine(StoreEngine[Record, RecordData]):
         now = utcnow_with_tz()
         value["revision"] = sql.SQL("revision + 1")
         value["updated_at"] = now
-        updated_rows = await pg_update_static(
+        updated_rows = await pg_update_constant(
             cur=await self._database._get_pg_cursor(),
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),

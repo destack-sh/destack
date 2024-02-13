@@ -3,6 +3,7 @@ from uuid import UUID
 
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+import structlog
 
 from bench.language import Subject, NodeReference, ReadOptions, Expression, Aggregation
 from bench.language.access import (
@@ -11,10 +12,10 @@ from bench.language.access import (
     evaluate_and_adapt_read,
     get_edited_scopes,
     evaluate_edit,
-    Access,
     Request,
+    AccessError,
 )
-from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp
+from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp, PolicyEffect
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.query import StoreEngine
@@ -49,6 +50,8 @@ from bench.sql.engine import (
 from bench.system.utils import global_pg_cursor
 from bench.utils.func import group_by
 
+logger = structlog.get_logger(__name__)
+
 
 class GraphIoService(GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
@@ -57,13 +60,17 @@ class GraphIoService(GraphIoBase):
         self.epoch: int = 0
 
     def contribute_edits(self, edits: list[EditData]):
-        raise NotImplementedError("nocheckin: GraphIOService._contribute_edits")
+        # nocheckin: track and buffer edits for recent epochs
+        raise NotImplementedError
 
     def get_engines_for(self, subject: Subject, scope: GraphScope) -> tuple[StoreEngine, ...]:
+        # nocheckin: use Session/Transaction for GraphIoService
         raise NotImplementedError
 
-    def log_and_check_access(self, request: Request):
-        raise NotImplementedError
+    async def log_and_check_request(self, request: Request):
+        logger.debug(f"request.{request.decision.name.lower()}", request=request)
+        if request.decision == PolicyEffect.DENY:
+            raise AccessError(request)
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
@@ -93,10 +100,10 @@ class GraphIoService(GraphIoBase):
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         access = generate_access_matrix(subject, graph)
-        access, adapted_nodes = evaluate_and_adapt_read(
+        evaluated_request, adapted_nodes = evaluate_and_adapt_read(
             access, graph, required_nodes=request.roots, adapt_nodes_in_place=True
         )
-        await self.log_and_check_access(access)
+        await self.log_and_check_request(evaluated_request)
 
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -140,10 +147,10 @@ class GraphIoService(GraphIoBase):
             else:
                 count = None
         access = generate_access_matrix(subject, graph)
-        access, adapted_nodes = evaluate_and_adapt_read(
+        evaluated_request, adapted_nodes = evaluate_and_adapt_read(
             access, graph, adapt_nodes_in_place=True, required_nodes=request.bases
         )
-        await self.log_and_check_access(access)
+        await self.log_and_check_request(evaluated_request)
 
         return SearchNodesResponse(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
@@ -207,7 +214,7 @@ class GraphIoService(GraphIoBase):
                 _ = await pg_get_node_data_graph(
                     cur=cur,
                     root_type=node_type,
-                    root_ids=tuple(r.id for r in node_references),
+                    roots=tuple(r.id for r in node_references),
                     options=adapted_options,
                     _graph=graph,  # accumulate into graph
                 )
@@ -217,8 +224,8 @@ class GraphIoService(GraphIoBase):
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, graph)
-            access = evaluate_edit(matrix, graph, request.transaction.edits)
-            await self.log_and_check_access(access)
+            evaluated_request = evaluate_edit(matrix, graph, request.transaction.edits)
+            await self.log_and_check_request(evaluated_request)
 
             # apply the edits
             changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
@@ -244,5 +251,4 @@ class GraphIoService(GraphIoBase):
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        # nocheckin: track and buffer edits for recent epochs
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

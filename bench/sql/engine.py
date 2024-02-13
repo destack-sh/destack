@@ -402,9 +402,18 @@ def _compile_expression_ref(
         raise TypeError(f"unexpected expression ref: {expr!r}")
 
 
+def compile_pg_conditional_maybe(
+    node: Union[type[Node], Block],
+    cond: Optional[Expression],
+) -> SqlNode:
+    if cond is None:
+        return sql.SQL("TRUE")
+    return compile_pg_conditional(node, cond)
+
+
 def compile_pg_conditional(
     node: Union[type[Node], Block],
-    cond: Expression | None,
+    cond: Expression,
 ) -> SqlNode:
     if cond.op == ConditionalOp.TRUE:
         return sql.SQL("TRUE")
@@ -818,7 +827,7 @@ async def pg_upsert(
         return await _pg_fetchall_from_many(cur, len(rows))
 
 
-async def pg_update_static(
+async def pg_update_constant(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
@@ -843,7 +852,7 @@ async def pg_update_static(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.update_static", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.update_constant", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         template_values = {**static_value, "PG_CRYPTO_KEY": current_pg_crypto_key()}
@@ -857,7 +866,7 @@ async def pg_update_static(
         return await cur.fetchall()
 
 
-async def pg_update_dynamic(
+async def pg_update_variable(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
@@ -901,7 +910,7 @@ async def pg_update_dynamic(
             )
         )
     logger.debug(
-        "pg.update_dynamic",
+        "pg.update_variable",
         table=table,
         query=sql_to_str(cur, statement),
         rows=len(dynamic_values),
@@ -984,8 +993,8 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.is_array and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        value = value.to_robust_dict(prop.struct_type)
-        return wiring.pack_json_value(value)
+        value = value.to_robust_dict()
+        return Jsonb(value)
     elif prop.is_enum:
         return value.value
     elif prop.primitive_type == PrimitiveType.UUID:
@@ -1477,7 +1486,7 @@ async def _pg_write_regular_edit_batch(
             "revision": sql.SQL("revision + 1"),
             "updated_at": now,
         }
-        rows = await pg_update_dynamic(
+        rows = await pg_update_variable(
             cur=cur,
             table=table,
             static_values=static_values,
@@ -1511,7 +1520,7 @@ async def _pg_write_regular_edit_batch(
             op=PostgresConditionalOp.EQ,
             right=sql.SQL("ANY({})").format(sql.Literal(nodes_ids)),
         )
-        rows = await pg_update_static(
+        rows = await pg_update_constant(
             cur=cur,
             table=table,
             where=where,
@@ -1676,7 +1685,7 @@ async def _pg_write_record_edit_batch(
             "revision": sql.SQL("revision + 1"),
             "updated_at": now,
         }
-        rows = await pg_update_dynamic(
+        rows = await pg_update_variable(
             cur=cur,
             table=table,
             static_values=static_values,
@@ -1710,7 +1719,7 @@ async def _pg_write_record_edit_batch(
             PostgresConditionalOp.EQ,
             sql.SQL("ANY({})").format(sql.Literal(records_ids)),
         )
-        rows = await pg_update_static(
+        rows = await pg_update_constant(
             cur=cur,
             table=table,
             where=where,

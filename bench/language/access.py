@@ -7,7 +7,6 @@ from bitarray import bitarray
 
 from bench.language.const import (
     ACCESS_CLASSES,
-    ACCESS_KINDS,
     IN_BENCH_NODE_TYPES,
     NODE_TYPES,
     PUBLIC_NODE_TYPES,
@@ -791,7 +790,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             ),
         )
         .subject(is_owner=True)
-        .allow(*ACCESS_KINDS),
+        .allow(),
     ),
     Policy("StaffAccess").append(
         PolicyRule(
@@ -1055,12 +1054,15 @@ def evaluate_access(
                 if rule.matches_verb(verb) and rule._object_node_types_mask[object_node_type]:
                     if trace:
                         matched_rules.append(rule)
-                    rule_properties_mask = rule._object_properties_masks.get(
-                        object_node_type, object_node_cls.__properties_mask__
-                    )
                     if rule.effect == PolicyEffect.ALLOW:
+                        rule_properties_mask = rule._object_properties_masks.get(
+                            object_node_type, object_node_cls.__properties_mask__
+                        )
                         allowed_properties |= rule_properties_mask & unset_properties
                     else:
+                        rule_properties_mask = rule._object_properties_masks.get(
+                            object_node_type, bitarray(object_node_cls.__max_property_id__ + 1)
+                        )
                         allowed_properties &= ~(rule_properties_mask & unset_properties)
                     unset_properties = unset_properties & ~rule_properties_mask
                     if not unset_properties.any():

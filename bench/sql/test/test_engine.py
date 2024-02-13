@@ -15,8 +15,8 @@ from bench.sql.engine import (
     pg_delete,
     pg_insert,
     pg_select,
-    pg_update_dynamic,
-    pg_update_static,
+    pg_update_variable,
+    pg_update_constant,
     pg_upsert,
 )
 from bench.sql.migration import force_create_tables
@@ -129,7 +129,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     # update with dynamic values
     update_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(1, 4))
     target_rows = target_rows[:1] + list(update_rows) + target_rows[4:]
-    db_rows = await pg_update_dynamic(
+    db_rows = await pg_update_variable(
         cur=test_cur,
         table=table,
         dynamic_columns=table.columns,
@@ -148,7 +148,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         if not column.is_primary_key and not column.is_array and i % 2 == 0
     }
     target_rows = [{**row, **static_value} for row in target_rows]
-    db_rows = await pg_update_static(
+    db_rows = await pg_update_constant(
         test_cur, table, static_value=_pg_adapt_row(table, static_value), returning=table.columns
     )
     db_rows.sort(key=lambda r: r["id"])

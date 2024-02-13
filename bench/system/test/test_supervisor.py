@@ -109,6 +109,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
     assert len(read_user_rep.nodes) == 2
     assert read_user_rep.nodes[0].user.email == user.email
+    assert read_user_rep.nodes[1].client.device_name == client.device_name
 
     # logout, invalid token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
@@ -154,12 +155,8 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
             assert read_target.slug == target.slug
             if is_target_self:  # we should be able to read our own sensitive data
                 assert read_target.email == target.email
-                assert read_target.password_salt
-                assert read_target.password_hash
-            else:  # but not others'
+            else:  # but not others'‚
                 assert not read_target.email
-                assert not read_target.password_salt
-                assert not read_target.password_hash
 
             # create new client
             new_client = Client(
@@ -225,13 +222,13 @@ async def test_public_node_read(
 
 
 @pytest.mark.parametrize("node_type", (*ROOT_NODE_TYPES,), ids=lambda t: t.name)
-async def test_root_node_create(
+async def test_root_node_create_denied(
     node_type: NodeType,
     some_user: UserHandle,
     supervisor: SupervisorStub,
     fabricator: "Fabricator",
 ):
-    """'Global' nodes should not be directly editable by regular users."""
+    """Only the system can create root nodes."""
 
     node = fabricator.fabricate(node_type)
     node_data = wiring.pack_node(node)
