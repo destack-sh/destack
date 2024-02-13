@@ -9,7 +9,7 @@ from bench.language.node import (
     Node,
     NodeStatus,
     Property,
-    ScopeNode,
+    Node,
     node_component,
     p_internal,
     p_runtime,
@@ -66,10 +66,10 @@ class HasValue(Node):
                 if isinstance(n, Node):
                     visitor.visit_reference(n)
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+    def _clear_inner(self, scope: Optional["Node"] = None):
         self.value = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         if self.value_packed is None:
             return
         if self.value is None:
@@ -253,7 +253,7 @@ def is_instance_value_flat(value: Any, type: "TypeInfo") -> bool:
 def unpack_value_flat(
     value: Any,
     type: "TypeInfo",
-    scope: ScopeNode,
+    scope: Node,
     on_notice: "NoticeHandler",
     ignore_array: bool = False,
 ) -> Any:
@@ -273,7 +273,7 @@ def pack_value_flat(value: Any, type: "TypeInfo") -> Any:
 def unpack_value(
     value: Any,
     type: "TypeInfo",
-    scope: ScopeNode,
+    scope: Node,
     session: Optional["Session"] = None,
     ignore_array: bool = False,
     ignore_outer: bool = False,

@@ -1010,7 +1010,6 @@ message BenchData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 31;
   string slug = 32;
   string name = 33;
@@ -1036,7 +1035,6 @@ message BlockData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   int32 type = 30;
   optional string name = 32;
   optional string order_key = 33;
@@ -1072,7 +1070,6 @@ message BranchData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 32;
   optional RichTextData text = 34;
   optional NodeReferenceData main_package_ptr = 35;
@@ -1140,7 +1137,6 @@ message EnvironmentData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 32;
   optional RichTextData text = 34;
   repeated PolicyData policies = 35;
@@ -1164,7 +1160,6 @@ message FieldData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional string name = 30;
   optional string order_key = 31;
   optional string dynamic_key = 32;
@@ -1235,7 +1230,6 @@ message IdentityData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData type_ptr = 30;
 }
 
@@ -1270,7 +1264,6 @@ message MembershipData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData user_ptr = 30;
   bool is_owner = 31;
 }
@@ -1290,7 +1283,7 @@ message BaseNodeData {
   optional google.protobuf.Timestamp archived_at = 14;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1336,7 +1329,6 @@ message OrganizationData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   string name = 33;
@@ -1355,7 +1347,6 @@ message PackageData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional string slug = 33;
   optional RichTextData text = 34;
   repeated PolicyData policies = 35;
@@ -1449,7 +1440,6 @@ message RunData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   NodeReferenceData session_ptr = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData server_ptr = 32;
@@ -1500,11 +1490,11 @@ message SessionData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData server_ptr = 31;
   optional google.protobuf.Timestamp opened_at = 32;
   optional google.protobuf.Timestamp closed_at = 33;
   bool is_runtime = 34;
+  bool is_read_only = 35;
 }
 
 // A signal received in this Bench. May be emitted by a Bench or an external source.
@@ -1554,7 +1544,6 @@ message SpaceData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   string name = 31;
   optional RichTextData text = 32;
   string order_key = 33;
@@ -1602,7 +1591,7 @@ message TagData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1633,7 +1622,6 @@ message UserData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   optional string name = 33;
@@ -1660,7 +1648,6 @@ message ViewData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp last_changed_at = 16;
   int32 type = 30;
   optional string name = 31;
   optional IconData icon = 32;

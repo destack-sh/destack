@@ -405,6 +405,9 @@ class bytetuple(typing.Generic[EnumT]):
         for arg in items:
             self.bits[arg.id] = True
 
+    def __bool__(self):
+        return bool(self.tuple)
+
     def __contains__(self, item: EnumT | int):
         id = item if isinstance(item, int) else item.id
         return self.bits[id]

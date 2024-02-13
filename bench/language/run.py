@@ -21,7 +21,7 @@ from bench.language.const import (
 from bench.language.node import (
     Node,
     NodeStatus,
-    ScopeNode,
+    Node,
     Struct,
     node,
     node_component,
@@ -87,7 +87,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 
 
 @node(NodeType.RUN, index_in_search=True, local=True)
-class Run(ScopeNode, HasValue):
+class Run(HasValue):
     """
     A 'run' of a block (in a session).
     """

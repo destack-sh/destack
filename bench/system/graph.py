@@ -84,7 +84,7 @@ class GraphIoService(GraphIoBase):
                 _ = await pg_get_node_data_graph(
                     cur=cur,
                     root_type=node_type,
-                    root_ids=tuple(r.id for r in root_node_references),
+                    roots=tuple(r.id for r in root_node_references),
                     options=adapted_options,
                     _graph=graph,  # accumulate into graph
                 )
@@ -127,7 +127,7 @@ class GraphIoService(GraphIoBase):
                 node_type=node_type,
                 filter=combined_filter,
                 sort=sort,
-                first=request.limit,
+                first=request.first,
                 after=request.after,
                 options=adapted_options,
             )
@@ -217,12 +217,12 @@ class GraphIoService(GraphIoBase):
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, graph)
-            access = evaluate_edit(matrix, graph, request.edits)
+            access = evaluate_edit(matrix, graph, request.transaction.edits)
             await self.log_and_check_access(access)
 
             # apply the edits
             changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
-                cur=cur, edits=request.edits, return_nodes=True
+                cur=cur, edits=request.transaction.edits, return_nodes=True
             )
             await cur.connection.commit()
 

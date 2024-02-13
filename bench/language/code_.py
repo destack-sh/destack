@@ -10,7 +10,7 @@ from more_itertools import first, last
 
 from bench.language.const import StructType
 from bench.language.field import TypedDict
-from bench.language.node import ScopeNode, p_runtime, struct, Struct, p_regular
+from bench.language.node import Node, p_runtime, struct, Struct, p_regular
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
@@ -47,13 +47,13 @@ class Code(Struct):
     _block_references: dict[str, "Block"] | None = p_runtime(default=None)
     _cached_exports: dict[str, Any] | None = p_runtime(default=None)
 
-    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
+    def _clear_inner(self, scope: Optional[Node] = None) -> None:
         self._transform = None
         self._block_references = None
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
+    def _interp_inner(self, scope: Node, on_notice: "NoticeHandler") -> None:
         self._is_async = "await " in self.code
         self._block_references = {}
         self._code_export_references = {}

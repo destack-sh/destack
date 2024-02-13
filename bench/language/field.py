@@ -18,11 +18,10 @@ from bench.language.const import (
 )
 from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
-    Node,
     NodeList,
     NRel,
     Property,
-    ScopeNode,
+    Node,
     Struct,
     node,
     node_component,
@@ -158,7 +157,7 @@ class TypeInfo(Struct):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
             raise NotImplementedError(f"aliases not yet supported for {self!r}")
         else:
@@ -239,7 +238,7 @@ class TypeInfo(Struct):
 
 
 @node(NodeType.FIELD)
-class Field(ScopeNode, HasValue, TypeInfo, _TypeExpressionBase):
+class Field(HasValue, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
@@ -329,11 +328,11 @@ class HasFields(Node):
         if self._is_new and self.dynamic_key is None:
             self.dynamic_key = new_dynamic_node_key(self.ck)
 
-    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
+    def _clear_inner(self, scope: Optional[Node] = None) -> None:
         self._did_resolve_bases = False
         self._as_type = None
 
-    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
+    def _interp_inner(self, scope: Node, on_notice: "NoticeHandler") -> None:
         self._resolve_fields([], on_notice)
         self._as_type = TypeInfo(base_type=self)
 
@@ -349,7 +348,7 @@ class HasFields(Node):
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
-            on_notice(type=NoticeType.CIRCULAR_BASE, subject=self, path=path)
+            on_notice(self, NoticeType.CIRCULAR_BASE, path=path)
             self._did_resolve_bases = True
             return
 

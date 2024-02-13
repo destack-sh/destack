@@ -36,7 +36,7 @@ from bench.language.node import (
     UNSET,
     Node,
     Package,
-    ScopeNode,
+    Node,
     Struct,
     get_node_id,
     node,
@@ -339,7 +339,7 @@ _runtime_tracing_lock: threading.Lock = threading.Lock()
 
 
 @node(NodeType.SESSION, index_in_search=True, local=True)
-class Session(ScopeNode):
+class Session(Node):
     """
     A managed session for interacting with Bench nodes and (if on a Server) running them.
     """

@@ -22,7 +22,7 @@ from bench.language.node import (
     NodeStatus,
     NRel,
     Property,
-    ScopeNode,
+    Node,
     _Passthrough,
     node,
     node_component,
@@ -262,7 +262,7 @@ class RelationType(enum.StrEnum):
 class RecordList(NodeListBase[Record], QueryBuilder[Record, RecordData]):
     """A NodeList for remote records."""
 
-    def __init__(self, parent: "ScopeNode", property: Property):
+    def __init__(self, parent: "Node", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
         QueryBuilder.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
 
@@ -306,10 +306,10 @@ class HasDatabase(Node):
         if self._is_new and self.dynamic_key is None:
             self.dynamic_key = self._derive_dynamic_key()
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None) -> None:
+    def _clear_inner(self, scope: Optional["Node"] = None) -> None:
         self._table = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler") -> None:
         from bench.sql.engine import map_database_to_pg_table
 
         if self.ephemeral:

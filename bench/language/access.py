@@ -33,15 +33,14 @@ from bench.language.node import (
     CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     Bench,
-    Node,
     Package,
     Property,
-    ScopeNode,
+    Node,
     Struct,
     _on_completing_setup,
     iter_properties,
     node,
-    on_notice_raise,
+    on_warning_raise,
     p_child,
     p_internal,
     p_parent,
@@ -130,7 +129,7 @@ class Role(Node):
 
 
 @node(NodeType.IDENTITY)
-class Identity(ScopeNode):
+class Identity(Node):
     """
     Attach an identity to a block, member or user (only the user itself can do that).
     Identity policies are delegated to the parent and its descendants.
@@ -208,23 +207,18 @@ class ReadOptions(Struct):
         if self.select_properties:
             # select specific properties
             return tuple(p for p in self.select_properties if p.type == node_type)
-
-        # select default properties +/- include/exclude
-        # (a bit ugly but the tuples are very small)
-        properties = DEFAULT_SELECTED_PROPERTIES.get(node_type, ())
-        if self.include_properties is not None and any(
-            p.type == node_type for p in self.include_properties
-        ):
-            properties = properties + tuple(
-                p for p in self.include_properties if p.type == node_type
-            )
-        if self.exclude_properties is not None and any(
-            p.type == node_type for p in self.exclude_properties
-        ):
-            properties = tuple(
-                p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
-            )
-        return properties
+        else:
+            # select default properties +/- include/exclude
+            properties = DEFAULT_SELECTED_PROPERTIES.get(node_type, ())
+            if self.include_properties:
+                properties = properties + tuple(
+                    p for p in self.include_properties if p.type == node_type
+                )
+            if self.exclude_properties:
+                properties = tuple(
+                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+                )
+            return properties
 
     def filter(self, node_type: NodeType, filter: Optional["Expression"] = None) -> "Expression":
         from bench.sql.engine import DEFAULT_GLOBAL_FILTER
@@ -386,13 +380,13 @@ class PolicyRule(Struct):
 
         return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+    def _clear_inner(self, scope: Optional["Node"] = None):
         self._verb_mask = None
         self._object_node_types_mask = None
         if self._object_properties_masks is not None:
             self._object_properties_masks.clear()
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         self._update_verb_mask()
         self._update_object_mask()
 
@@ -849,7 +843,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
 @_on_completing_setup
 def _interp_system_policies():
     for policy in SYSTEM_POLICIES:
-        policy._interp_rec(None, on_notice_raise)
+        policy._interp_rec(None, on_warning_raise)
 
 
 def adapt_read_options(

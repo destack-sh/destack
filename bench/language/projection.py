@@ -3,7 +3,7 @@ from uuid import UUID
 
 from bench.language.const import NodeType, SortOp
 from bench.language.expression import S
-from bench.language.node import Node, ScopeNode
+from bench.language.node import Node, Node
 
 if TYPE_CHECKING:
     from bench.language.block import IsTyped
@@ -38,7 +38,7 @@ class Projection:
      - How do we make projections reproducible and inspectable in the editor?
     """
 
-    def __init__(self, scope: ScopeNode):
+    def __init__(self, scope: Node):
         self.scope = scope
         self._nodes_by_ck: dict[UUID, Node] = {}  # in order of discovery
 

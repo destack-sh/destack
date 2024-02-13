@@ -78,13 +78,21 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def test_tables(test_cur):
-    await force_create_tables(test_cur, _TEST_TABLES)
+async def test_tables():
+    from bench.sql.client import pg_cursor
+    from bench.sql.client import get_pg_connection_str
+    from bench.system.utils import GLOBAL_STORE
+
+    async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
+        await force_create_tables(cur, _TEST_TABLES)
 
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
 async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
+    from bench.sql.client import _current_pg_crypto_key
+
     random.seed(42)
+    _current_pg_crypto_key.set(random.randbytes(32).hex())
 
     def _generate_row(id: int) -> Mapping[str, any]:
         row = {"id": id}

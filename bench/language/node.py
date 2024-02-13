@@ -18,7 +18,6 @@ from typing import (
     Collection,
     Iterable,
     Iterator,
-    Mapping,
     Optional,
     TypeVar,
     Union,
@@ -33,7 +32,6 @@ from bitarray import bitarray
 from cachetools import cached
 
 from bench.language.const import (
-    EMPTY_DICT,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
@@ -42,7 +40,6 @@ from bench.language.const import (
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
     BenchType,
-    BlockType,
     NodeRelationType,
     NodeStatus,
     NodeTrackingLevel,
@@ -51,6 +48,7 @@ from bench.language.const import (
     StructType,
     _active_session,
     NodeSource,
+    NoticeKind,
 )
 from bench.language.graph import (
     DetachedNodeGraph,
@@ -130,19 +128,29 @@ def _on_completing_setup(func: Callable = None):
     return func
 
 
-def on_notice_raise(
+def on_warning_raise(
     subject: "Node",
     type: "NoticeType",
     message: Optional[str] = None,
     path: Optional["FieldPath"] = None,
     properties: list["Property"] | None = None,
+    min_level: NoticeKind = NoticeKind.WARNING,
 ):
     from bench.language.notice import Notice, NoticeError
 
-    notice = Notice.from_subject(
-        subject=subject, type=type, message=message, path=path, properties=properties
-    )
-    raise NoticeError(notice)
+    if type.kind >= min_level:
+        notice = Notice(
+            parent=subject,
+            type=type,
+            kind=type.kind,
+            message=message,
+            path=path,
+            properties=properties,
+        )
+        raise NoticeError(notice)
+
+
+on_error_raise = functools.partial(on_warning_raise, min_level=NoticeKind.ERROR)
 
 
 def get_node_id(package_id: UUID, ck: UUID):
@@ -475,7 +483,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             and self.id is not UNSET
             and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is user level fine)
             and self.component.__name__ not in ("Node", "Struct")
-            and self.id not in ScopeNode.__properties_by_id__
+            and self.id not in Node.__properties_by_id__
         ):
             # cannot define system properties with id < 30
             raise ValueError(f"invalid id: {self.id} for {self!r}")
@@ -831,12 +839,11 @@ NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 _COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], Any] = {}
-_COMPONENT_CALL_ORDER: list[str] = ["Node", "ScopeNode"]  # ... the rest
+_COMPONENT_CALL_ORDER: tuple[str, ...] = ("Node",)  # ... the rest
 
 
-@cached(cache={})
 def _sort_components_in_call_order(
-    components: list[type["Node"]],
+    components: Collection[type["Node"]],
 ) -> list[type["Node"]]:
     """Sorts components by call order. Nodes without call order are left as-is."""
     sorted_components = []
@@ -853,13 +860,13 @@ def _sort_components_in_call_order(
 @cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
 def _get_component_methods(
     components: Collection[type["Node"]], method: _ComponentMethod, concrete_key: str
-) -> list[Any]:
+) -> tuple[Callable, ...]:
     """Get the actually implemented methods in the given components in call order."""
     methods = []
     for component in _sort_components_in_call_order(components):
         if _COMPONENT_METHODS.get((method, component), None) is not None:
             methods.append(getattr(component, method.inner))
-    return methods
+    return tuple(methods)
 
 
 METATYPE_PROPERTY = Property(
@@ -892,11 +899,11 @@ def _process_struct_base_cls(
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined in non-base classes
-    CORE_TYPES = ("Struct", "Node", "ScopeNode")
+    CORE_TYPES = ("Struct", "Node")
     if cls.__name__ not in CORE_TYPES:
         for name in _FORBIDDEN_COMPONENT_METHODS:
             meth = getattr(cls, name, None)
-            good_meths = (getattr(cls, name, None) for cls in (Struct, Node, ScopeNode))
+            good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
             if meth is not None and meth not in good_meths:
                 raise ValueError(f"forbidden method {name} defined in {cls}")
 
@@ -958,7 +965,7 @@ def _process_struct_base_cls(
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all components (static and dynamic, least to most specific)
-    is_node_base = cls.__name__ in ("Node", "ScopeNode")
+    is_node_base = cls.__name__ in ("Node",)
     is_struct_base = cls.__name__ == "Struct"
     is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
     cls.__properties__ = {**properties_by_name}  # start with own properties
@@ -1158,12 +1165,8 @@ def node_component(
         list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
         for prop in properties.values():
             if prop.reference_kind == NodeReferenceKind.CHILD:
-                if (
-                    cls.__name__ != "ScopeNode"
-                    and not issubclass(cls, ScopeNode)
-                    and node_type is not None
-                ):
-                    raise ValueError(f"{cls} is not a ScopeNode for {prop}")
+                if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
+                    raise ValueError(f"{cls} is not a Node for {prop}")
                 list_properties[prop.name] = prop
                 for ref_t in prop.reference_types:
                     list_properties_by_child[ref_t].append(prop)
@@ -1529,7 +1532,7 @@ class Struct(abc.ABC):
                 else:
                     self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+    def _clear_inner(self, scope: Optional["Node"] = None):
         # clear node references :NodeReferences
         scope_graph = scope._graph if scope is not None else None
         for prop in self.__reference_properties__.values():
@@ -1540,7 +1543,7 @@ class Struct(abc.ABC):
             # TODO @Broken?: reset node references in clear for real (if still needed)
             # setattr(self, prop.name, None)
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
         # resolve node references :NodeReferences
@@ -1567,18 +1570,14 @@ class Struct(abc.ABC):
                     for p in ptr:
                         resolved = scope.lookup(p.id or p.ck)
                         if resolved is None:
-                            on_notice(
-                                type=NoticeType.MISSING_REFERENCE, subject=self, properties=(prop,)
-                            )
+                            on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
                         resolved.append(resolved)
                     setattr(self, prop.name, resolved)
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = scope.lookup(ptr.id or ptr.ck)
                     if resolved is None:
-                        on_notice(
-                            type=NoticeType.MISSING_REFERENCE, subject=self, properties=(prop,)
-                        )
+                        on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
                     setattr(self, prop.name, resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor"):
@@ -1645,7 +1644,30 @@ class Struct(abc.ABC):
 
         return pack_struct(self)
 
-    _on_notice = on_notice_raise  # struct doesn't have a scope (yet?), so raise :StructScope
+
+def _make_rec_method(
+    method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
+):
+    """Creates method that calls _method_self for self and all descendants"""
+
+    @functools.wraps(wraps)
+    def rec_method(self: "Node", *args, **kwargs):
+        # graph has only host and inlined nodes, so this ignores out-of-line descendants (like records)
+        descendants = self._root_graph.collect_descendants(self, recursive=True)
+        method_name = method.self
+        if custom_kwargs:
+            for node in descendants:
+                node_kwargs = custom_kwargs(node)
+                getattr(node, method_name)(*args, **kwargs, **node_kwargs)
+            node_kwargs = custom_kwargs(self)
+            getattr(self, method_name)(*args, **kwargs, **node_kwargs)
+        else:
+            for node in descendants:
+                getattr(node, method_name)(*args, **kwargs)
+            getattr(self, method_name)(*args, **kwargs)
+
+    rec_method.__name__ = method.rec
+    return rec_method
 
 
 @node_component
@@ -1667,7 +1689,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     __list_properties_by_child__: ClassVar[dict[NodeType, tuple[Property, ...]]] = defaultdict(list)
     __parent_property__: ClassVar[Property] = None
 
-    __has_scope__: ClassVar[bool] = False  # can have node children
     __roots__: ClassVar[bytetuple[NodeType]] = UNSET
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
@@ -1707,6 +1728,10 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
+    notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
+
+    # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
+    _graph: Union["NodeGraphBase", None] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: NodeStatus = p_runtime(default=None)
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
@@ -1739,8 +1764,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         self._init_self()
         # track if in session
         if self._status == NodeStatus.INTERP and self._session is not None:
-            on_notice = on_notice_raise if self.scope is None else self.scope._on_notice
-            self._interp_self(self, on_notice=on_notice)
+            self._interp_self(self, on_notice=self._on_notice)
             self._track_self(self._session)
 
     @property
@@ -1765,14 +1789,11 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         return parent
 
     @property
-    def _root_scope(self) -> "ScopeNode":
-        assert self.scope is not None, f"{self!r} has no parent"
-        return self.scope._root_scope
-
-    @property
     def _root_graph(self) -> "NodeGraphBase":
         root = self.root
-        return cast("ScopeNode", root)._root_graph
+        graph = root._graph
+        assert graph is not None, f"no graph for root {root!r} (from {self!r})"
+        return graph
 
     def _assign_id(self, package_id: UUID):
         assert package_id, f"cannot assign id to {self!r} without a package id"
@@ -1818,7 +1839,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             return True
 
     @property
-    def scope(self) -> Optional["ScopeNode"]:
+    def scope(self) -> Optional["Node"]:
         return self.parent
 
     @property
@@ -1941,12 +1962,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     def delete(self):
         """Soft delete this node."""
-        assert not self.is_soft_deleted, f"{self!r} is already soft deleted"
+        assert not self.is_soft_deleted, f"{self!r} is already deleted"
         raise NotImplementedError
 
     def restore(self):
         """Restore this node from soft deletion."""
-        assert self.is_soft_deleted, f"{self!r} is not soft deleted"
+        assert self.is_soft_deleted, f"{self!r} is not deleted"
         raise NotImplementedError
 
     def hard_delete_forever(self):
@@ -2005,8 +2026,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
         # report set error with additional info
         candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-        if isinstance(self, ScopeNode):
-            candidates.update(cast(ScopeNode, self)._get_children_by_ident())
+        if isinstance(self, Node):
+            candidates.update(cast(Node, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
@@ -2050,8 +2071,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             # public methods
             **{m: None for m in dir(self) if not m.startswith("_")},
         }
-        if isinstance(self, ScopeNode):
-            candidates.update(cast(ScopeNode, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
@@ -2068,13 +2087,38 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     # abstract :ComponentMethods in addition to Struct
 
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+    def _on_notice(
+        self,
+        subject: "Node",
+        type: "NoticeType",
+        message: Optional[str] = None,
+        path: Optional["FieldPath"] = None,
+        properties: Optional[list[Property] | tuple[Property, ...]] = None,
+    ) -> None:
+        subject.notices.create(type=type, message=message, path=path, properties=properties)
+
+    def _to_data_wrapped(self) -> SomeNodeData:
+        """To wire format, wrapped in the generic any node container."""
+        from bench.proto.wiring import pack_node, wrap_some_node
+
+        return wrap_some_node(pack_node(self))
+
+    def _init_inner(self) -> None:
+        if self.parent is None:
+            # if we're not in a graph, start a new one
+            if NodeType.BENCH in self.__roots__:
+                self._graph = DetachedNodeGraph()
+            else:
+                self._graph = NodeGraph()
+            self._graph.add(self)
+
+    def _clear_inner(self, scope: Optional["Node"] = None):
         """Clear this node."""
         # clear all structs recursive
         for s in self._walk_structs():
             s._clear_rec()
 
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         """Interp this node."""
         # interp all structs recursive
         for s in self._walk_structs():
@@ -2122,7 +2166,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     def _init_self(self):
         # init lists
         existing_lists: dict[str, Any] | None = None
-        if self.__has_scope__:
+        if len(self.__list_properties__) > 0:
             for name, prop in self.__list_properties__.items():
                 existing = getattr(self, name, None)
                 node_list = prop.list_type(self, prop)
@@ -2141,7 +2185,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             meth(self)
 
         # keep manually set node lists if passed in
-        if self.__has_scope__ and existing_lists:
+        if existing_lists:
             was_interp = self._status >= NodeStatus.INTERP
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
@@ -2162,46 +2206,31 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NodeStatus.TRACKED)
     _untrack_self = _make_self_method(_ComponentMethod.untrack, _untrack_inner, NodeStatus.INTERP)
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
+    _visit_self = _make_self_method(_ComponentMethod.visit, Struct._visit_inner)
 
-    @final
-    def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
-        """
-        Copies this node without any descendants.
-        All non-relational properties are copied using NodeProperty.copy, relations are reset.
-        """
-        props = {}
-        for name, prop in self.__properties__.items():
-            if prop.is_graph_reference or prop.is_computed:
-                continue
-            props[name] = prop.copy(getattr(self, name))
-        if keep_parent:
-            props["parent"] = self.parent
-        if reset_id:
-            props["id"] = None
-            props["ck"] = uuid.uuid4()
-        copy = self.__class__(**props)
-        return copy
+    def _walk_rec(self) -> Iterable["Node"]:
+        yield self
+        if self.metatype in HAS_CHILD_NODE_TYPES:
+            yield from self._root_graph.collect_descendants(self, recursive=True)
 
-    def _walk_rec(self) -> Collection["Node"]:
-        """
-        Walks this node and all descendants in breadth-first order.
-        """
-        return [self]
-
-    def _on_notice(
-        self, subject: "Node", type: "NoticeType", message: str = None, **kwargs
-    ) -> None:
-        if self.parent is None:
-            on_notice_raise(subject=subject, type=type, message=message, **kwargs)
-        else:
-            # only scope nodes can host notices, forward to parent
-            self.parent._on_notice(subject=self, type=type, message=message, **kwargs)
-
-    def _to_data_wrapped(self) -> SomeNodeData:
-        """To wire format, wrapped in the generic any node container."""
-        from bench.proto.wiring import pack_node, wrap_some_node
-
-        return wrap_some_node(pack_node(self))
+    _clear_rec = _make_rec_method(
+        _ComponentMethod.clear, _clear_self, custom_kwargs=lambda n: dict(scope=n)
+    )
+    _interp_rec = _make_rec_method(
+        _ComponentMethod.interp,
+        _interp_self,
+        custom_kwargs=lambda n: dict(scope=n, on_notice=n._on_notice),
+    )
+    _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
+    _validate_rec = _make_rec_method(
+        _ComponentMethod.validate,
+        Struct._validate_self,
+        custom_kwargs=lambda n: dict(
+            properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
+        ),
+    )
+    _track_rec = _make_rec_method(_ComponentMethod.track, _track_self)
+    _untrack_rec = _make_rec_method(_ComponentMethod.untrack, _untrack_self)
 
 
 @_on_completing_setup
@@ -2211,150 +2240,6 @@ def _add_node_expression_base():
     for name, attr in _NodeExpressionBase.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Node, name, attr)
-
-
-def _make_rec_method(
-    method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
-):
-    """Creates method that calls _method_self for self and all descendants"""
-
-    @functools.wraps(wraps)
-    def rec_method(self: "ScopeNode", *args, **kwargs):
-        # graph has only host and inlined nodes, so this ignores out-of-line descendants (like records)
-        descendants = self._root_graph.collect_descendants(self, recursive=True)
-        method_name = method.self
-        if custom_kwargs:
-            for node in descendants:
-                node_kwargs = custom_kwargs(node)
-                getattr(node, method_name)(*args, **kwargs, **node_kwargs)
-            node_kwargs = custom_kwargs(self)
-            getattr(self, method_name)(*args, **kwargs, **node_kwargs)
-        else:
-            for node in descendants:
-                getattr(node, method_name)(*args, **kwargs)
-            getattr(self, method_name)(*args, **kwargs)
-
-    rec_method.__name__ = method.rec
-    return rec_method
-
-
-@node_component
-class ScopeNode(Node):
-    """A scope for hosting and looking up nodes. Required for any node with children."""
-
-    __has_scope__: ClassVar[bool] = True
-    notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
-    # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
-    _graph: Union["NodeGraphBase", None] = p_runtime(default=None)
-
-    @property
-    def scope(self) -> "ScopeNode":
-        return self
-
-    def _init_inner(self) -> None:
-        if self.parent is None:
-            # if we're not in a graph, start a new one
-            if NodeType.BENCH in self.__roots__:
-                self._graph = DetachedNodeGraph()
-            else:
-                self._graph = NodeGraph()
-            self._graph.add(self)
-
-    _clear_rec = _make_rec_method(
-        _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
-    )
-    _interp_rec = _make_rec_method(
-        _ComponentMethod.interp,
-        Node._interp_self,
-        custom_kwargs=lambda n: dict(scope=n.scope, on_notice=n._on_notice),
-    )
-    _visit_rec = _make_rec_method(_ComponentMethod.visit, Node._visit_self)
-    _validate_rec = _make_rec_method(
-        _ComponentMethod.validate,
-        Node._validate_self,
-        custom_kwargs=lambda n: dict(
-            properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
-        ),
-    )
-    _track_rec = _make_rec_method(_ComponentMethod.track, Node._track_self)
-    _untrack_rec = _make_rec_method(_ComponentMethod.untrack, Node._untrack_self)
-
-    def _get_children_by_ident(self) -> Mapping[str, Node]:
-        roo = self._root_scope
-        if roo is None or roo._graph is None:
-            return EMPTY_DICT
-        seen_by_ident = {}
-        for child in roo._graph.collect_descendants(self):
-            seen_by_ident[child.py_ident] = child
-        return seen_by_ident
-
-    def _interp_inner(self, scope: "ScopeNode", on_notice: "NoticeHandler") -> None:
-        # check for ambiguous node definitions by name/ident
-        from bench.language.notice import NoticeType
-
-        children = scope._root_graph.collect_descendants(self)
-        if not children:
-            return  # nothing to index
-        seen_by_ident = {}
-        for child in children:
-            ident = getattr(child, "ident", None)
-            if ident:
-                if ident in seen_by_ident:
-                    on_notice(
-                        type=NoticeType.AMBIGUOUS_DEFINITION, subject=child, path=child.node_path
-                    )
-                seen_by_ident[ident] = child
-
-    def _walk_rec(self) -> Iterable["Node"]:
-        yield self
-        yield from self._root_graph.collect_descendants(self, recursive=True)
-
-    @property
-    def _root_scope(self) -> "ScopeNode":
-        """The root of the 'local' node graph (usually package, but maybe a detached root node)"""
-        parent = self
-        while parent.parent is not None:
-            parent = parent.parent
-        return parent
-
-    @property
-    def _root_graph(self) -> Union["NodeGraphBase"]:
-        """The graph at the current node root."""
-        graph = self._root_scope._graph
-        assert graph is not None, f"no local graph for {self!r} in {self._root_scope!r}"
-        return graph
-
-    def lookup(
-        self,
-        path: Union["BenchPath", UUID, str],
-        node_t: NodeType | BlockType | type[NodeT] | None = None,
-    ) -> NodeT | None:
-        """Lookup a node by path. Return None if not found."""
-        if isinstance(path, UUID):
-            if self._graph is not None:
-                return self._graph.get(path)
-            else:
-                return self._root_scope.lookup(path, node_t=node_t)
-
-        raise NotImplementedError("lookup by path not implemented")
-
-    def resolve(
-        self,
-        path: Union["BenchPath", UUID, str],
-        node_t: type[NodeT] | None = None,
-    ) -> NodeT:
-        result = self.lookup(path, node_t=node_t)
-        if result is None:
-            raise LookupError(f"{path} not found in {self!r}")
-        return result
-
-    def _on_notice(self, subject: "Node", type: "NoticeType", message: str = None, **kwargs):
-        from bench.language.notice import Notice
-
-        if not subject.is_attached:
-            return  # no way to derive notice id, so just ignore?
-        notice = Notice.from_subject(subject, type, message, **kwargs)
-        notice.subject.notices.append(notice)
 
 
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
@@ -2373,7 +2258,7 @@ class Link(Node):
     The reference may be indirect through a value somewhere (which should point to a node).
     """
 
-    parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    parent: Node = p_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
     )
@@ -2387,7 +2272,7 @@ class Link(Node):
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 
-    parent: ScopeNode = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    parent: Node = p_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
@@ -2395,7 +2280,7 @@ class Skip(Node):
 
 
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
-class Bench(ScopeNode):
+class Bench(Node):
     """
     A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
     """
@@ -2440,7 +2325,7 @@ class Bench(ScopeNode):
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
-class Environment(ScopeNode):
+class Environment(Node):
     """An environment isolates resources from the rest of a Bench."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
@@ -2462,7 +2347,7 @@ class Environment(ScopeNode):
 
 
 @node(NodeType.BRANCH, identifier=IdentifierType.VARIABLE)
-class Branch(ScopeNode):
+class Branch(Node):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
@@ -2483,7 +2368,7 @@ class Branch(ScopeNode):
     identifier=IdentifierType.VARIABLE,
     unique_together=(("parent_bench_id", "slug"),),
 )
-class Package(ScopeNode):
+class Package(Node):
     """A package is a semi-isolated version of a Bench containing all the source and data."""
 
     parent: Bench = p_parent(4, NodeType.BENCH)
@@ -2563,6 +2448,7 @@ STRUCT_CLASSES: frozenset[type[Struct]] = frozenset()
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+HAS_CHILD_NODE_TYPES: set[NodeType] = set()
 FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
@@ -2667,12 +2553,14 @@ def _complete_bench_setup():
             new_children.extend(child_types[new_child] - descendant_types[node_type])
 
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
-    global FERTILE_CHILD_NODE_TYPES
+    global HAS_CHILD_NODE_TYPES, FERTILE_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
         ANCESTOR_NODE_TYPES[node_type] = bytetuple(ancestor_types[node_type], enum_cls=NodeType)
         DESCENDANT_NODE_TYPES[node_type] = bytetuple(descendant_types[node_type], enum_cls=NodeType)
         PARENT_NODE_TYPES[node_type] = bytetuple(parent_types[node_type], enum_cls=NodeType)
         CHILD_NODE_TYPES[node_type] = bytetuple(child_types[node_type], enum_cls=NodeType)
+        if child_types[node_type]:
+            HAS_CHILD_NODE_TYPES.add(node_type)
         FERTILE_CHILD_NODE_TYPES[node_type] = bytetuple(
             fertile_child_types[node_type], enum_cls=NodeType
         )
