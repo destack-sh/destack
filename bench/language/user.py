@@ -5,7 +5,7 @@ from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
-    ScopeNode,
+    Node,
     node,
     p_child,
     p_internal,
@@ -39,7 +39,7 @@ class Handle(Node):
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
-class User(ScopeNode):
+class User(Node):
     """A Bench user."""
 
     # ordinal: ...?
@@ -73,7 +73,7 @@ class User(ScopeNode):
 
 
 @node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
-class Organization(ScopeNode):
+class Organization(Node):
     """A Bench organization with Users as members."""
 
     main_handle: Optional[Handle] = p_system(
@@ -92,7 +92,7 @@ class Organization(ScopeNode):
 
 
 @node(NodeType.MEMBERSHIP)
-class Membership(ScopeNode):
+class Membership(Node):
     """A membership to a Bench or Organization."""
 
     parent: Union["Bench", "Organization"] = p_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)

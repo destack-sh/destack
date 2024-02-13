@@ -4,7 +4,7 @@ from bench.language.const import NodeType, StructType
 from bench.language.node import (
     Node,
     Package,
-    ScopeNode,
+    Node,
     Struct,
     node,
     node_component,
@@ -56,7 +56,7 @@ class HasViews(Node):
 
 
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
-class View(ScopeNode, HasViews):
+class View(HasViews):
     """A view of a user interface in a Bench."""
 
     parent: Union["Space", "View", "Block"] = p_parent(
@@ -75,7 +75,7 @@ class PageViewMode(IdEnum):
 
 
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
-class Space(ScopeNode, HasViews):
+class Space(HasViews):
     """A space for a user to interact with the Bench."""
 
     parent: Package = p_parent(4, NodeType.PACKAGE)

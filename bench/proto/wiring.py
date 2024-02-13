@@ -19,9 +19,9 @@ from bench.language.node import (
     NodeGraph,
     NodeStatus,
     Property,
-    ScopeNode,
+    Node,
     Struct,
-    on_notice_raise,
+    on_warning_raise,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.session import Session
@@ -194,8 +194,8 @@ def unpack_struct_maybe(struct_data: StructDataT | None) -> StructT | None:
 
 def unpack_struct_interp(
     struct_data: StructDataT,
-    scope: ScopeNode | None = None,
-    on_notice: NoticeHandler = on_notice_raise,
+    scope: Node | None = None,
+    on_notice: NoticeHandler = on_warning_raise,
 ) -> StructT:
     struct = unpack_struct(struct_data)
     struct._interp_rec(scope=scope, on_notice=on_notice)
@@ -204,8 +204,8 @@ def unpack_struct_interp(
 
 def unpack_struct_interp_maybe(
     struct_data: StructDataT | None,
-    scope: ScopeNode | None = None,
-    on_notice: NoticeHandler = on_notice_raise,
+    scope: Node | None = None,
+    on_notice: NoticeHandler = on_warning_raise,
 ) -> StructT | None:
     if struct_data is None:
         return None
@@ -298,7 +298,7 @@ def unpack_nodes_inline(
         root = unpacked_graph.find_root()
         if root is None:
             raise ValueError(f"no root found in {unpacked_graph!r}")
-        if isinstance(root, ScopeNode):
+        if isinstance(root, Node):
             root._root_graph.set(unpacked_graph.nodes)
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here

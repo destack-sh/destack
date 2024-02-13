@@ -12,7 +12,7 @@ import structlog
 
 from bench.language.const import NodeType, RunErrorKind, RunStatus
 from bench.language.field import Field, TypedDict
-from bench.language.node import Node, ScopeNode, node_component, p_runtime
+from bench.language.node import Node, Node, node_component, p_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
 from bench.language.session import Run
@@ -35,11 +35,11 @@ class HasTask(Node):
     def _is_async(self):
         return True
 
-    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
+    def _clear_inner(self, scope: Optional[Node] = None) -> None:
         self._root_models = None
         self._randomize = False
 
-    def _interp_inner(self, scope: ScopeNode, on_notice: "NoticeHandler") -> None:
+    def _interp_inner(self, scope: Node, on_notice: "NoticeHandler") -> None:
         from . import symbolx_lib
 
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")

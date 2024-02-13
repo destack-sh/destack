@@ -22,7 +22,6 @@ BENCH_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "main_handle_id",
             PrimitiveType.UUID,
@@ -47,6 +46,7 @@ BENCH_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("encryption_key", PrimitiveType.STRING, is_encrypted=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column(
             "main_package_id",
@@ -98,7 +98,6 @@ ENVIRONMENT_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
@@ -162,7 +161,6 @@ BRANCH_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column(
@@ -203,7 +201,6 @@ PACKAGE_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("slug", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
@@ -284,7 +281,6 @@ BLOCK_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="2"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
@@ -432,7 +428,6 @@ FIELD_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
@@ -547,7 +542,6 @@ VIEW_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
@@ -748,7 +742,6 @@ SPACE_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING),
@@ -780,11 +773,11 @@ SESSION_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("is_runtime", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_read_only", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -824,7 +817,6 @@ RUN_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "session_id",
             PrimitiveType.UUID,
@@ -1074,7 +1066,6 @@ IDENTITY_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
@@ -1150,14 +1141,17 @@ STORE_TABLE = Table(
         Column("engine", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("is_host_dedicated", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_database_dedicated", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_schema_dedicated", PrimitiveType.BOOLEAN, default="false"),
         Column("host", PrimitiveType.STRING, is_nullable=True),
         Column("database", PrimitiveType.STRING, is_nullable=True),
         Column("schema", PrimitiveType.STRING, is_nullable=True),
-        Column("username", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("root_credential", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column(
+            "extra_credentials",
+            PrimitiveType.JSON,
+            is_array=True,
+            is_nullable=True,
+            is_encrypted=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
@@ -1191,11 +1185,9 @@ DRIVE_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("host", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("uri", PrimitiveType.STRING, is_unique=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_host", IndexType.BTREE, ("host",), is_unique=True),
-        Index("bench_idx_uri", IndexType.BTREE, ("uri",), is_unique=True),
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
         Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
@@ -1203,7 +1195,6 @@ DRIVE_TABLE = Table(
         Constraint(
             "bench_idx_host", ConstraintType.UNIQUE, columns=("host",), index="bench_idx_host"
         ),
-        Constraint("bench_idx_uri", ConstraintType.UNIQUE, columns=("uri",), index="bench_idx_uri"),
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
@@ -1266,10 +1257,22 @@ FILE_CONTENT_TABLE = Table(
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
+        Index(
+            "bench_idx_parent_drive_id_sha512",
+            IndexType.BTREE,
+            ("parent_drive_id", "sha512"),
+            is_unique=True,
+        ),
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
         Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
+        Constraint(
+            "bench_idx_parent_drive_id_sha512",
+            ConstraintType.UNIQUE,
+            columns=("parent_drive_id", "sha512"),
+            index="bench_idx_parent_drive_id_sha512",
+        ),
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
@@ -1337,7 +1340,6 @@ USER_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "main_handle_id",
             PrimitiveType.UUID,
@@ -1387,7 +1389,6 @@ ORGANIZATION_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "main_handle_id",
             PrimitiveType.UUID,
@@ -1522,7 +1523,6 @@ MEMBERSHIP_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("last_changed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "user_id",
             PrimitiveType.UUID,

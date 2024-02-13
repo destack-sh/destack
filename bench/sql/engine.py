@@ -1193,9 +1193,7 @@ async def pg_get_node_data_graph(
 
     if isinstance(roots[0], UUID):
         # select "roots"
-        root_filter = options.filter(
-            root_type, C(ConditionalOp.IN, property=Node.id, value=tuple(r.id for r in roots))
-        )
+        root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=roots))
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=root_type,
@@ -1305,7 +1303,6 @@ async def pg_search_nodes_data_graph(
 
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
         roots = await pg_select_nodes_data(
             cur=cur,
             node_type=node_type,
@@ -1314,7 +1311,7 @@ async def pg_search_nodes_data_graph(
             first=first,
             skip=skip,
             after=after,
-            properties=(node_cls.__properties__["id"],),
+            properties=options.select(node_type),
         )
         if not roots.nodes:
             return roots, NodeDataGraph()

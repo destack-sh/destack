@@ -1203,7 +1203,6 @@ class BenchData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: str = betterproto.string_field(32)
     name: str = betterproto.string_field(33)
@@ -1236,7 +1235,6 @@ class BlockData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     type: int = betterproto.int32_field(30)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     order_key: Optional[str] = betterproto.string_field(33, optional=True)
@@ -1278,7 +1276,6 @@ class BranchData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
@@ -1356,7 +1353,6 @@ class EnvironmentData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
@@ -1382,7 +1378,6 @@ class FieldData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1465,7 +1460,6 @@ class IdentityData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     type_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
@@ -1506,7 +1500,6 @@ class MembershipData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     user_ptr: "NodeReferenceData" = betterproto.message_field(30)
     is_owner: bool = betterproto.bool_field(31)
 
@@ -1545,7 +1538,9 @@ class NoticeData(betterproto.Message):
     <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime =
     None, updated_at: datetime.datetime = None, deleted_at:
     Optional[datetime.datetime] = None, archived_at:
-    Optional[datetime.datetime] = None, _session:
+    Optional[datetime.datetime] = None, notices:
+    bench.language.graph.NodeList['Notice'] = None, _graph:
+    Optional[ForwardRef('NodeGraphBase')] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
     _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
@@ -1600,7 +1595,6 @@ class OrganizationData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: Optional[str] = betterproto.string_field(32, optional=True)
     name: str = betterproto.string_field(33)
@@ -1624,7 +1618,6 @@ class PackageData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
@@ -1735,7 +1728,6 @@ class RunData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     session_ptr: "NodeReferenceData" = betterproto.message_field(30)
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1801,11 +1793,11 @@ class SessionData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     opened_at: Optional[datetime] = betterproto.message_field(32, optional=True)
     closed_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     is_runtime: bool = betterproto.bool_field(34)
+    is_read_only: bool = betterproto.bool_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -1869,7 +1861,6 @@ class SpaceData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     name: str = betterproto.string_field(31)
     text: Optional["RichTextData"] = betterproto.message_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
@@ -1937,7 +1928,9 @@ class TriggerData(betterproto.Message):
     = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>,
     revision: int = 0, created_at: datetime.datetime = None, updated_at:
     datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
-    archived_at: Optional[datetime.datetime] = None, _session:
+    archived_at: Optional[datetime.datetime] = None, notices:
+    bench.language.graph.NodeList['Notice'] = None, _graph:
+    Optional[ForwardRef('NodeGraphBase')] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
     _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
@@ -1975,7 +1968,6 @@ class UserData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: Optional[str] = betterproto.string_field(32, optional=True)
     name: Optional[str] = betterproto.string_field(33, optional=True)
@@ -2004,7 +1996,6 @@ class ViewData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     type: int = betterproto.int32_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(32, optional=True)
@@ -4069,76 +4060,76 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    RoleData,
+    SpaceData,
+    BenchData,
+    NotificationData,
+    UserData,
+    FileContentData,
+    BranchData,
+    TagData,
+    StoreData,
+    PackageData,
     FieldData,
+    RoleData,
+    QueryData,
+    ServerData,
+    SessionData,
+    OrganizationData,
     ViewData,
     TriggerData,
-    RecordData,
-    LinkData,
-    SkipData,
-    NoticeData,
-    SessionData,
-    QueryData,
-    BlockData,
-    EnvironmentData,
-    OrganizationData,
     IdentityData,
-    ClientData,
-    BadgeData,
-    NotificationData,
     RunData,
-    BranchData,
-    PackageData,
-    DriveData,
-    SignalData,
-    BenchData,
-    CacheData,
-    SpaceData,
-    StoreData,
-    PauseData,
-    HandleData,
-    UserData,
-    ServerData,
-    TagData,
     MembershipData,
-    FileContentData,
+    ClientData,
+    LinkData,
+    RecordData,
+    PauseData,
+    NoticeData,
+    HandleData,
+    SkipData,
+    BlockData,
+    SignalData,
+    CacheData,
+    DriveData,
+    BadgeData,
+    EnvironmentData,
 ]
 AnyStructData = Union[
+    AggregationData,
     AccessMatrixData,
-    RichTextData,
+    ScheduleData,
     RunErrorData,
-    IconData,
     SpaceDockItemData,
+    RichTextData,
+    ValueReferenceData,
+    FieldPathData,
+    ReadOptionsData,
+    PolicyData,
+    ServerImageData,
+    NodeReferenceData,
+    RichTextSpanData,
     AccessTraceData,
+    BenchPathData,
+    LogEntryData,
+    PolicyRuleData,
+    AccessZoneData,
+    TypeInfoData,
+    CodeSectionData,
+    IconData,
+    PropertyReferenceData,
+    AggregationBucketData,
+    ContextData,
+    CodeData,
+    SpaceDockData,
     ServerImageRequirementData,
     FileData,
-    StoreCredentialData,
-    CodeSectionData,
-    RichTextSpanData,
-    AggregationBucketData,
-    BenchPathData,
-    ValueReferenceData,
     ValueSelectionData,
-    RunCodeFrameData,
-    ScheduleData,
-    FieldPathData,
-    PropertyReferenceData,
-    PolicyData,
-    LogEntryData,
-    AccessZoneData,
-    ExpressionData,
-    RequestData,
-    AggregationData,
-    ReadOptionsData,
     SubjectData,
-    CodeData,
     FieldPathSegmentData,
-    SpaceDockData,
-    TypeInfoData,
-    ContextData,
     AccessData,
-    NodeReferenceData,
+    RunCodeFrameData,
+    StoreCredentialData,
     PropertyPathData,
-    PolicyRuleData,
-    ServerImageData,
+    RequestData,
+    ExpressionData,
 ]

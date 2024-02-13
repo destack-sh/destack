@@ -10,7 +10,7 @@ from bench.language.node import (
     Node,
     NodeList,
     NRel,
-    ScopeNode,
+    Node,
     _Passthrough,
     node,
     node_component,
@@ -120,7 +120,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Block(ScopeNode, HasValue):
+class Block(HasValue):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)

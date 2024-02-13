@@ -21,7 +21,7 @@ from bench.utils.fractional import generate_key_between, generate_n_keys_between
 from bench.utils.func import nextn
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, ScopeNode
+    from bench.language import Node, Property, Node
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -188,16 +188,15 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             self.nodes_by_id.pop(node.id, None)
             self.nodes_by_ck.pop(node.ck, None)
 
-            if node.__has_scope__:
-                for child_type in CHILD_NODE_TYPES[node.metatype]:
-                    children = self.nodes_by_parent_id_and_type.pop((node.id, child_type), ())
-                    if len(children) > 0:
-                        if CHILD_NODE_TYPES[child_type]:
-                            queue.extend(children)
-                        else:
-                            for child in children:
-                                self.nodes_by_id.pop(child.id, None)
-                                self.nodes_by_ck.pop(child.ck, None)
+            for child_type in CHILD_NODE_TYPES[node.metatype]:
+                children = self.nodes_by_parent_id_and_type.pop((node.id, child_type), ())
+                if len(children) > 0:
+                    if CHILD_NODE_TYPES[child_type]:
+                        queue.extend(children)
+                    else:
+                        for child in children:
+                            self.nodes_by_id.pop(child.id, None)
+                            self.nodes_by_ck.pop(child.ck, None)
 
     def find_roots(self) -> tuple[NodeDataT, ...]:
         return tuple(
@@ -215,7 +214,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         from bench.language.node import CHILD_NODE_TYPES
 
         assert isinstance(node.id, UUID), f"expected Node, got {node!r}"
-        if not node.__has_scope__:
+        if not CHILD_NODE_TYPES[node.metatype]:
             return ()
         if not recursive:
             if child_node_type is not None:  # best case
@@ -460,7 +459,9 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
         assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
-        if not node.__has_scope__:
+        from bench.language.node import CHILD_NODE_TYPES
+
+        if not CHILD_NODE_TYPES[node.metatype]:
             return ()
         node_ck = node.ck
         if not recursive:
@@ -499,7 +500,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
 
     __slots__ = ("_parent", "_property")
 
-    def __init__(self, parent: "ScopeNode", property: "Property"):
+    def __init__(self, parent: "Node", property: "Property"):
         self._parent = parent
         self._property = property
 
@@ -553,7 +554,7 @@ class NodeList(NodeListBase[NodeT]):
     # TODO @Cleanup @Architecture: use ReadQuery/WriteQuery in NodeList (with InMemoryGraphEngine to query)
     __slots__ = ("_child_node_type", "_flags")
 
-    def __init__(self, parent: "ScopeNode", property: "Property"):
+    def __init__(self, parent: "Node", property: "Property"):
         super().__init__(parent, property)
         assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_types[0]
@@ -610,12 +611,12 @@ class NodeList(NodeListBase[NodeT]):
             n._validate_self(n.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
         # add node to parent graph
-        if n.__has_scope__ and n._local_graph is not None:
+        if n._graph is not None:
             # subsume if previously detached (ignores out of line nodes)
-            added = n._local_graph.collect_descendants(n, recursive=True)
-            n._local_graph.update(n)  # parent updated
-            self._parent._root_graph.add_graph(n._local_graph)
-            n._local_graph = None
+            added = n._graph.collect_descendants(n, recursive=True)
+            n._graph.update(n)  # parent updated
+            self._parent._root_graph.add_graph(n._graph)
+            n._graph = None
         else:
             added = (n,)
             self._parent._root_graph.add(n)

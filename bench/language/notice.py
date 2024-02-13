@@ -79,7 +79,7 @@ class Notice(Node):
 class NoticeHandler:
     def __call__(
         self,
-        subject: "Node",
+        subject: Node,
         type: NoticeType,
         message: Optional[str] = None,
         path: Optional[FieldPath] = None,

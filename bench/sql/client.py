@@ -97,7 +97,6 @@ class _PgStoreConnection:
         self.autocommit = autocommit
         self._pool: AsyncConnectionPool | None = None
         self._conn: psycopg.AsyncConnection | None = None
-        self._reset_token: Any | None = None
 
     async def open(self) -> psycopg.AsyncCursor:
         connection_str = get_pg_connection_str(self.store)
@@ -109,12 +108,10 @@ class _PgStoreConnection:
             raise
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
-        self._reset_token = _current_pg_crypto_key.set(self.store.parent.encryption_key)
+        _current_pg_crypto_key.set(self.store.parent.encryption_key)
         return self._conn.cursor()
 
     async def close(self) -> None:
-        if self._reset_token is not None:
-            _current_pg_crypto_key.reset(self._reset_token)
         if self._conn is not None:
             await self._pool.putconn(self._conn)
 
