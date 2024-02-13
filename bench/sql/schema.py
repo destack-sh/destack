@@ -1319,7 +1319,11 @@ HANDLE_TABLE = Table(
         Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
-        Constraint("bench_slug_is_slug", ConstraintType.CHECK, condition="(slug ~ '^[a-z0-9-]+$')"),
+        Constraint(
+            "bench_slug_is_slug",
+            ConstraintType.CHECK,
+            condition="((slug)::text ~ '^[a-z0-9-]+$'::text)",
+        ),
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
         ),

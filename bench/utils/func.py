@@ -388,7 +388,7 @@ EnumT = TypeVar("EnumT", bound=IdEnum)
 class bytetuple(typing.Generic[EnumT]):
     """
     Tuple with a bitarray for fast membership check.
-    @TODO Performance!: use ordinals instead of ids in bytetuples
+    nocheckin: use ordinals instead of ids in bytetuples
     """
 
     def __init__(self, *items, enum_cls: type[EnumT] = None):
@@ -409,6 +409,7 @@ class bytetuple(typing.Generic[EnumT]):
         return bool(self.tuple)
 
     def __contains__(self, item: EnumT | int):
+        # assert isinstance(item, self.enum_cls), f"bad {item!r} ({type(item)}, want {self.enum_cls})"
         id = item if isinstance(item, int) else item.id
         return self.bits[id]
 

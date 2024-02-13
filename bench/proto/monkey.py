@@ -84,6 +84,7 @@ class _PatchedMessage(BetterprotoMessage):
             "package_id",
             "package_ptr",
             "parent_ptr",
+            "node_type",
             "epoch",
         ):
             value = getattr(self, field_name, None)
