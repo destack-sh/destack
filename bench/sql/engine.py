@@ -16,6 +16,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from bitarray import bitarray
 import cachetools
 import psycopg
 import pytz
@@ -363,6 +364,10 @@ class SqlViolation(SqlError):
 
 
 class SqlAlreadyExistsError(SqlError):
+    pass
+
+
+class SqlNotExistsError(SqlError):
     pass
 
 
@@ -1363,19 +1368,20 @@ async def pg_write_regular_edits(
         return None
 
     # batch operations by edit kind and node type
-    current_updated_properties: list[int] = list(edits[0].properties or ())
-    current_batch: list[EditData] = []
+    cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
+    cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
+    cur_batch: list[EditData] = []
     all_returned_nodes: list[AnyNodeData] = [] if return_nodes else None
     for i in range(len(edits)):
         edit = edits[i]
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
-        current_batch.append(edit)
+        cur_batch.append(edit)
 
-        # collect edited properties
+        # collect updated properties
         if edit.properties is not None:
-            for prop in edit.properties:
-                if prop not in current_updated_properties:
-                    current_updated_properties.append(prop)
+            for prop_id in edit.properties:
+                prop_ord = cur_node_cls.__properties_by_id__[prop_id].ord
+                cur_updated_properties[prop_ord] = True
 
         # new op or end, flush batch
         if (
@@ -1389,16 +1395,18 @@ async def pg_write_regular_edits(
                 cur=cur,
                 edit_kind=edit_kind,
                 node_type=node_type,
-                batch=current_batch,
+                batch=cur_batch,
                 return_nodes=return_nodes,
-                updated_properties=current_updated_properties,
+                updated_properties=cur_node_cls._unmask_properties_ids(cur_updated_properties),
                 selected_properties=select_properties_by_type[node_type],
             )
             if batch_changed_nodes:
                 all_returned_nodes.extend(batch_changed_nodes)
             # start new batch
-            current_updated_properties.clear()
-            current_batch.clear()
+            if next_edit is not None:
+                cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, next_edit.node_type)]
+                cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
+                cur_batch.clear()
 
     if return_nodes:
         return all_returned_nodes
@@ -1458,27 +1466,29 @@ async def _pg_write_regular_edit_batch(
         dynamic_columns: list[Column] = [table._primary_key]  # always 'dynamic', never updated
         for prop_id in updated_properties:
             prop = node_cls.__properties_by_id__[prop_id]
-            if prop.reference_stored_ptrs:
+            if prop.reference_stored_ptrs is not None:
                 dynamic_columns.extend(p.column for p in prop.reference_stored_ptrs)
             else:
                 dynamic_columns.append(prop.column)
-        for edit in batch:
-            node = wiring.unwrap_some_node(edit.node)
+        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
+        for edit, node in zip(batch, nodes):
             row = {"id": node.id}
             for prop_id in updated_properties:
                 prop = node_cls.__properties_by_id__[prop_id]
                 if prop_id in edit.properties:  # this is pretty inefficient
-                    if prop.reference_stored_ptrs:
+                    # property is changed in edit
+                    if prop.reference_stored_ptrs is not None:
                         value = getattr(node, prop.reference_wired_ptr.name)
                         # unravel set reference properties (into stored columns) :RavelReferences
                         for p in prop.reference_stored_ptrs:
-                            _pg_pack_node_reference_column_into_row(prop.name, p, row, value)
+                            _pg_pack_node_reference_column_into_row(p.name, p, row, value)
                     else:
                         value = getattr(node, prop.name)
                         value = _pack_struct_data_prop(prop, value, ignore_array=False)
                         row[prop.name] = value
                 else:
-                    value = sql.Identifier(prop.column.name)  # keep old value
+                    # property is unchanged, keep old value
+                    value = sql.Identifier(prop.column.name)
                     row[prop.name] = value
             dynamic_values.append(row)
         # and update cru
@@ -1492,8 +1502,11 @@ async def _pg_write_regular_edit_batch(
             static_values=static_values,
             dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
-            returning=selected_columns if return_nodes else None,
+            returning=selected_columns if return_nodes else (table._primary_key,),
         )
+        if len(rows) != len(batch) or any(r is None for r in rows):
+            missing_rows = set(node.id for node in nodes) - {row["id"] for row in rows if row}
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
         if return_nodes:
             return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
         else:
@@ -1525,8 +1538,11 @@ async def _pg_write_regular_edit_batch(
             table=table,
             where=where,
             static_value=row,
-            returning=selected_columns,
+            returning=selected_columns if return_nodes else (table._primary_key,),
         )
+        if len(rows) != len(batch) or any(r is None for r in rows):
+            missing_rows = set(nodes_ids) - {row["id"] for row in rows if row}
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
         if return_nodes:
             return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
         else:
@@ -1543,8 +1559,11 @@ async def _pg_write_regular_edit_batch(
             cur=cur,
             table=table,
             where=where,
-            returning=selected_columns,
+            returning=selected_columns if return_nodes else (table._primary_key,),
         )
+        if len(rows) != len(batch) or any(r is None for r in rows):
+            missing_rows = set(nodes_ids) - {row["id"] for row in rows if row}
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
         if return_nodes:
             return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
         else:

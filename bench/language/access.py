@@ -47,6 +47,7 @@ from bench.language.node import (
     p_runtime,
     p_system,
     struct,
+    _COMPLETED_SETUP,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -408,23 +409,22 @@ class PolicyRule(Struct):
             for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
                 if prop.has_id and prop.is_kernel == self.object_properties_is_kernel:
                     all_properties.append(prop)
-        if all_properties:
-            for prop in all_properties:
-                if prop.type not in self._object_properties_masks:
-                    self._object_properties_masks[prop.type] = bitarray(
-                        prop.component.__max_property_id__ + 1
-                    )
-                self._object_properties_masks[prop.type][prop.id] = True
+        for prop in all_properties:
+            if prop.type not in self._object_properties_masks:
+                self._object_properties_masks[prop.type] = bitarray(
+                    prop.component.__max_property_ord__ + 1
+                )
+            self._object_properties_masks[prop.type][prop.ord] = True
 
     def _update_verb_mask(self):
-        self._verb_mask = bitarray(AccessType.get_max_id())
+        self._verb_mask = bitarray(AccessType.get_max_ord())
         if not self.verbs and not self.verb_kinds:
-            self._verb_mask[AccessType.get_min_id() : AccessType.get_max_id()] = True
+            self._verb_mask[AccessType.get_min_ord() : AccessType.get_max_ord()] = True
         else:
             for verb in self.verbs or ():
-                self._verb_mask[verb.id] = True
+                self._verb_mask[verb.ord] = True
             for verb_kind in self.verb_kinds or ():
-                self._verb_mask[verb_kind.from_id : verb_kind.to_id + 1] = True
+                self._verb_mask[verb_kind.from_ord : verb_kind.to_ord + 1] = True
 
     def matches_subject(self, subject: "Subject", object_owner: Owner) -> bool:
         if not self.subject_is_delegated:
@@ -447,7 +447,7 @@ class PolicyRule(Struct):
         return True  # no mismatch -> match
 
     def matches_verb(self, verb: AccessType) -> bool:
-        return self._verb_mask[verb.id]
+        return self._verb_mask[verb.ord]
 
     #
     # Builder-style methods
@@ -458,7 +458,8 @@ class PolicyRule(Struct):
         self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
-        self._update_verb_mask()
+        if _COMPLETED_SETUP:
+            self._update_verb_mask()
         return self
 
     def deny(self, *verbs: AccessType | AccessKind) -> "Self":
@@ -466,7 +467,8 @@ class PolicyRule(Struct):
         self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
-        self._update_verb_mask()
+        if _COMPLETED_SETUP:
+            self._update_verb_mask()
         return self
 
     def subject(
@@ -503,7 +505,8 @@ class PolicyRule(Struct):
         self.object_properties_is_system = properties_is_system
         self.object_properties_is_sensitive = properties_is_sensitive
         self.object_properties_is_kernel = properties_is_kernel
-        self._update_object_mask()
+        if _COMPLETED_SETUP:
+            self._update_object_mask()
         return self
 
 
@@ -688,23 +691,23 @@ class Request(Struct):
 
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
-    mask = bitarray(cls.get_max_id() + 1)
+    mask = bitarray(cls.get_max_ord() + 1)
     if not values:
         mask.setall(True)
     else:
         for value in values:
-            mask[value.id] = True
+            mask[value.ord] = True
     return mask
 
 
 def _properties_to_mask(values: list[Property], node_type: NodeType) -> bitarray:
     """Set the given properties in a mask. No values == all values == wildcard!"""
-    mask = bitarray(NODE_CLASS_BY_TYPE[node_type].__max_property_id__)
+    mask = bitarray(NODE_CLASS_BY_TYPE[node_type].__max_property_ord__)
     if not values:
         mask.setall(True)
     else:
         for value in values:
-            mask[value.id] = True
+            mask[value.ord] = True
     return mask
 
 
@@ -713,7 +716,7 @@ def _mask_to_properties(mask: bitarray, node_type: NodeType) -> tuple[Property, 
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     if mask == node_cls.__properties_mask__:
         return ()
-    properties = tuple(node_cls.__properties_by_id__[prop_id] for prop_id in mask.search(True))
+    properties = node_cls._unmask_properties(mask)
     return properties
 
 
@@ -1051,7 +1054,7 @@ def evaluate_access(
         current_zone = base_zone
         while unset_properties.any():
             for rule in current_zone.rules:
-                if rule.matches_verb(verb) and rule._object_node_types_mask[object_node_type]:
+                if rule.matches_verb(verb) and rule._object_node_types_mask[object_node_type.ord]:
                     if trace:
                         matched_rules.append(rule)
                     if rule.effect == PolicyEffect.ALLOW:
@@ -1061,7 +1064,7 @@ def evaluate_access(
                         allowed_properties |= rule_properties_mask & unset_properties
                     else:
                         rule_properties_mask = rule._object_properties_masks.get(
-                            object_node_type, bitarray(object_node_cls.__max_property_id__ + 1)
+                            object_node_type, bitarray(object_node_cls.__max_property_ord__ + 1)
                         )
                         allowed_properties &= ~(rule_properties_mask & unset_properties)
                     unset_properties = unset_properties & ~rule_properties_mask
@@ -1161,9 +1164,9 @@ def evaluate_and_adapt_read(
                 # TODO @Performance: avoid copying properties that we'll prune anyway
                 node = wiring.copy_struct_data(node)
             pruned_properties = object_properties & (object_properties ^ adapted_properties)
-            for pruned_prop_id in pruned_properties.search(True):
-                prop_name = node_cls.__properties_name_by_id__[pruned_prop_id]
-                setattr(node, prop_name, None)
+            for pruned_prop_ord in pruned_properties.search(True):
+                prop = node_cls.__properties_in_order__[pruned_prop_ord]
+                setattr(node, prop.name, None)
             visible_nodes.append(node)
 
     # add any required skipped nodes back in (as Skips)
@@ -1236,7 +1239,7 @@ def evaluate_edit(
 
         # and evaluate it
         object_properties = (
-            _ints_to_mask(edit.properties, node_cls.__max_property_id__ + 1)
+            _ints_to_mask(edit.properties, node_cls.__max_property_ord__ + 1)
             & node_cls.__properties_mask__
         )
         _, access = evaluate_access(
