@@ -80,7 +80,7 @@ class NodeType(IdEnum):
 
     MEMBERSHIP = 240
     # INVITE = ...
-    # FRIENDSHIP/FOLLOW/...?
+    # FRIENDSHIP/FOLLOW/AFFILIATION...?
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))

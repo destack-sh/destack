@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.language import RichText
+from bench.language.text import RichText
 from bench.language.const import (
     FileStatus,
     NodeType,

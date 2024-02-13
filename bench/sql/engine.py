@@ -1198,6 +1198,7 @@ async def pg_get_node_data_graph(
     """
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
+    'Root' here is the base level, we get ancestor/descendants relative to the 'roots'.
     """
 
     visited_graph = _graph if _graph is not None else NodeDataGraph()
@@ -1205,8 +1206,8 @@ async def pg_get_node_data_graph(
     if not roots:
         return visited_graph
 
+    # select roots
     if isinstance(roots[0], UUID):
-        # select "roots"
         root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=roots))
         roots = await pg_select_nodes_data(
             cur=cur,
@@ -1217,9 +1218,8 @@ async def pg_get_node_data_graph(
         if not roots.nodes:
             return None
         root_nodes = roots.nodes
-    else:
+    else:  # already got them
         root_nodes = cast(tuple[AnyNodeData, ...], roots)
-
     for node in root_nodes:
         visited_graph.add(node)
 
@@ -1258,7 +1258,7 @@ async def pg_get_node_data_graph(
             current_parents = next_parents
 
     # select descendants (recursively)
-    # nocheckin @Performance!: recurse read nodes up?/down in SQL
+    # TODO @Performance!: recurse read nodes up?/down in SQL
     #  (take advantage of the ancestry graph to optimize this)
     if options.descendant_types:
         current_parents: list[wire.AnyNodeData] = root_nodes
