@@ -2,7 +2,7 @@ import psycopg
 import pytest
 import structlog
 
-from bench.language.node import NODE_CLASSES
+from bench.language.setup import NODE_CLASSES
 from bench.sql.client import get_pg_connection_str, pg_cursor
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES
 from bench.sql.migration import (

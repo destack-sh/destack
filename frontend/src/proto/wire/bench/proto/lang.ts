@@ -175,9 +175,9 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
- * A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
- * Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
- * Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
+ * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+ * Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
+ * Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
  *
  * flotothemoon/Mirror/Notion/Databases/Landscape
  * ^ bench      ^ blocks
@@ -202,17 +202,17 @@ export interface AggregationBucketData {
  * ../../../../Graphs
  * ^ parents
  *
- * NOT YET SUPPORTED:
- * / -> package root (=Package)
- * $ -> module root (=Block)
- * $User -> module-unique node (=Block|View)
- * ~ -> source module root ($ but for templated)
- * [<expr like ck=...>] -> dynamic Expression filter
- *
  * symbolx@2024-01-01/Library/Common/Utils/DateUtils
  * ^ bench ^ package  ^ blocks
  * symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
  * ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+ *
+ * NOT YET SUPPORTED:
+ * / -> package root (=Package)
+ * $ -> module root (=Block|Package)
+ * $User -> module-unique node (=Block|View)
+ * ~ -> source module root (like $ but for templated)
+ * [<expr like ck=...>] -> dynamic Expression filter
  *
  * ''
  * ERROR (invalid, empty path)
@@ -2313,7 +2313,7 @@ export interface BaseNodeData {
     archivedAt?: Timestamp;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3365,7 +3365,7 @@ export interface StoreData {
     extraCredentials: StoreCredentialData[];
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -4856,39 +4856,29 @@ export enum IdEnum {
     UNSPECIFIED = 0
 }
 /**
- * Parent relation between node and descendants.
- *
- * @generated from protobuf enum symbolx.bench.NodeRelationType
+ * @generated from protobuf enum symbolx.bench.NodeReferenceKind
  */
-export enum NodeRelationType {
+export enum NodeReferenceKind {
     /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_DEFAULT = 0;
+     * @generated from protobuf enum value: NODE_REFERENCE_KIND_UNSPECIFIED = 0;
      */
-    DEFAULT = 0,
+    UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_STORED_CUSTOM = 1;
+     * @generated from protobuf enum value: NODE_REFERENCE_KIND_PARENT = 1;
      */
-    STORED_CUSTOM = 1,
+    PARENT = 1,
     /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_CUMULATIVE = 2;
+     * @generated from protobuf enum value: NODE_REFERENCE_KIND_ANCESTOR = 2;
      */
-    CUMULATIVE = 2,
+    ANCESTOR = 2,
     /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_NAMED = 4;
+     * @generated from protobuf enum value: NODE_REFERENCE_KIND_REGULAR = 3;
      */
-    NAMED = 4,
+    REGULAR = 3,
     /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_SCOPED = 8;
+     * @generated from protobuf enum value: NODE_REFERENCE_KIND_CHILD = 4;
      */
-    SCOPED = 8,
-    /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_KEYED = 16;
-     */
-    KEYED = 16,
-    /**
-     * @generated from protobuf enum value: NODE_RELATION_TYPE_ORDERED = 32;
-     */
-    ORDERED = 32
+    CHILD = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeSource
@@ -4916,34 +4906,42 @@ export enum NodeSource {
  */
 export enum NodeStatus {
     /**
-     * @generated from protobuf enum value: NODE_STATUS_SOURCE = 0;
+     * @generated from protobuf enum value: NODE_STATUS_UNSPECIFIED = 0;
      */
-    SOURCE = 0,
+    UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_STATUS_INTERP = 1;
+     * @generated from protobuf enum value: NODE_STATUS_SOURCE = 1;
      */
-    INTERP = 1,
+    SOURCE = 1,
     /**
-     * @generated from protobuf enum value: NODE_STATUS_TRACKED = 2;
+     * @generated from protobuf enum value: NODE_STATUS_INTERP = 2;
      */
-    TRACKED = 2
+    INTERP = 2,
+    /**
+     * @generated from protobuf enum value: NODE_STATUS_TRACKED = 3;
+     */
+    TRACKED = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeTrackingLevel
  */
 export enum NodeTrackingLevel {
     /**
-     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_NONE = 0;
+     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_UNSPECIFIED = 0;
      */
-    NONE = 0,
+    UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_ANONYMOUS = 1;
+     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_NONE = 1;
      */
-    ANONYMOUS = 1,
+    NONE = 1,
     /**
-     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_FULL = 2;
+     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_ANONYMOUS = 2;
      */
-    FULL = 2
+    ANONYMOUS = 2,
+    /**
+     * @generated from protobuf enum value: NODE_TRACKING_LEVEL_FULL = 3;
+     */
+    FULL = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeType

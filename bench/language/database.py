@@ -5,23 +5,25 @@ import structlog
 
 from bench.language.const import UNSET, ConditionalOp, NodeType, new_dynamic_node_key, AggregationOp
 from bench.language.expression import C
+from bench.language.graph import NodeListBase
 from bench.language.node import (
     Node,
     NodeList,
-    NodeListBase,
     NodeStatus,
     NRel,
-    Property,
     _Passthrough,
     node,
     node_component,
-    p_child,
-    p_internal,
-    p_parent,
+)
+from bench.language.property import (
+    Property,
     p_runtime,
-    p_secret_value_packed,
-    p_value_packed,
+    p_parent,
+    p_child,
     p_value_runtime,
+    p_value_packed,
+    p_secret_value_packed,
+    p_internal,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.query import (

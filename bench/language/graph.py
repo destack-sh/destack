@@ -14,6 +14,7 @@ from typing import (
 from uuid import UUID
 
 from bench.language.const import NodeStatus, NodeType, NRel
+from bench.language.setup import CHILD_NODE_TYPES
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData
@@ -176,8 +177,6 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                 self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
 
     def remove(self, node: NodeT):
-        from bench.language.node import CHILD_NODE_TYPES
-
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
 
         queue = deque([node])
@@ -211,8 +210,6 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         child_node_type: NodeType | None = None,
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
-        from bench.language.node import CHILD_NODE_TYPES
-
         assert isinstance(node.id, UUID), f"expected Node, got {node!r}"
         if not CHILD_NODE_TYPES[node.metatype]:
             return ()
@@ -335,8 +332,6 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     def collect_descendants(
         self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
-        from bench.language.node import CHILD_NODE_TYPES
-
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
         if not recursive:
             if child_node_type is not None:
@@ -372,8 +367,6 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
 
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the graph in breadth-first order"""
-        from bench.language.node import CHILD_NODE_TYPES
-
         if roots is not None and len(roots) == 0:
             return
         queue = deque(roots or self.find_roots())
@@ -459,8 +452,6 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         recursive: bool = False,
     ) -> tuple["NodeT", ...] | list["NodeT"]:
         assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
-        from bench.language.node import CHILD_NODE_TYPES
-
         if not CHILD_NODE_TYPES[node.metatype]:
             return ()
         node_ck = node.ck

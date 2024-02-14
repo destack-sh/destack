@@ -33,7 +33,7 @@ def pytest_collection_modifyitems(items):
 
 @pytest.fixture(autouse=True, scope="session")
 async def prepared_test_db():
-    from bench.language.node import NODE_CLASSES
+    from bench.language.setup import NODE_CLASSES
     from bench.sql.migration import (
         EXTENSIONS,
         apply_migration_ops,

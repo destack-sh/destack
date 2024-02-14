@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.const import StructType
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, p_regular, struct
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct
+from bench.language.property import p_regular
 
 if TYPE_CHECKING:
     from bench.language import FieldPath

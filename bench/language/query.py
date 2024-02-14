@@ -30,7 +30,8 @@ from bench.language.const import (
     active_tx,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, node, p_parent, p_regular
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
+from bench.language.property import p_parent, p_regular
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,

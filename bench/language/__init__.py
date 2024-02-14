@@ -1,3 +1,4 @@
+from .setup import _complete_bench_setup
 from ..sql.core import PrimitiveType
 from .access import (
     Access,
@@ -45,7 +46,8 @@ from .expression import (
 )
 from .field import Field, TypeInfo
 from .file import File, Icon
-from .node import Link, Node, Property, Struct, _complete_bench_setup
+from .node import Link, Node, Struct
+from .property import Property
 from .notice import Notice, NoticeError, NoticeType
 from .path import BenchPath
 from .projection import NodeVisitor
@@ -118,7 +120,6 @@ __all__ = [
     "PolicyEffect",
     "PolicyRule",
     "PrimitiveType",
-    "Property",
     "PropertyPath",
     "PropertyReference",
     "Query",

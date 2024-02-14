@@ -17,13 +17,9 @@ from bench.language.node import (
     Node,
     Struct,
     node,
-    p_internal,
-    p_kernel,
-    p_parent,
-    p_regular,
-    p_system,
     struct,
 )
+from bench.language.property import p_parent, p_regular, p_internal, p_system, p_kernel
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum, _auto_async_to_sync

@@ -19,16 +19,18 @@ from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
     Node,
     NodeList,
-    Property,
     Struct,
     node,
-    p_internal,
-    p_parent,
-    p_regular,
-    p_runtime,
-    p_value_packed,
-    p_value_runtime,
     struct,
+)
+from bench.language.property import (
+    Property,
+    p_runtime,
+    p_parent,
+    p_value_runtime,
+    p_value_packed,
+    p_regular,
+    p_internal,
 )
 from bench.language.validation import validate_name
 from bench.sql.core import PrimitiveType

@@ -4,7 +4,7 @@ import typer
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.language import Bench
 from bench.language.const import NODE_TYPES
-from bench.language.node import CHILD_NODE_TYPES
+from bench.language.setup import CHILD_NODE_TYPES
 from bench.system.utils import global_session
 
 app = typer.Typer(short_help="some language-level utilities")

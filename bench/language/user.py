@@ -6,13 +6,8 @@ from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
     node,
-    p_child,
-    p_internal,
-    p_parent,
-    p_regular,
-    p_system,
-    p_kernel,
 )
+from bench.language.property import p_parent, p_child, p_regular, p_internal, p_system, p_kernel
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 

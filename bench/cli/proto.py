@@ -8,8 +8,8 @@ import structlog
 import typer
 
 from bench.cli.utils import _shell
-from bench.language import VERSION
-from bench.language.node import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES, Node
+from bench.language import VERSION, Node
+from bench.language.setup import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
 from bench.proto.engine import generate_proto_schema
 
 TARGET_PY_DIR = "bench/proto/wire"

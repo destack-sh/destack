@@ -34,22 +34,24 @@ from bench.language.graph import NodeList
 from bench.language.node import (
     UNSET,
     Node,
-    Property,
     Struct,
     _Passthrough,
     get_node_id,
     node,
     node_component,
+    struct,
+)
+from bench.language.property import (
+    Property,
+    p_runtime,
+    p_parent,
     p_ancestor,
     p_child,
-    p_internal,
-    p_parent,
-    p_runtime,
-    p_secret_value_packed,
-    p_system,
-    p_value_packed,
     p_value_runtime,
-    struct,
+    p_value_packed,
+    p_secret_value_packed,
+    p_internal,
+    p_system,
 )
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.value import HasValues

@@ -12,19 +12,17 @@ from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from bench.language.const import BenchType, NodeType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import (
-    BENCH_CLASS_BY_TYPE,
-    METATYPE_PROPERTY,
     NODE_CLASS_BY_TYPE,
-    Node,
     NodeGraph,
     NodeStatus,
-    Property,
     Node,
     Struct,
-    on_warning_raise,
 )
-from bench.language.notice import NoticeHandler
+from bench.language.property import METATYPE_PROPERTY
+from bench.language import Property
+from bench.language.notice import NoticeHandler, on_warning_raise
 from bench.language.session import Session
+from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import PrimitiveType

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 
 import structlog
 
-from bench.language.node import Node, NodeStatus, Property, node_component
+from bench.language.node import Node, NodeStatus, node_component, Property
 from bench.language.notice import NoticeHandler
 from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType

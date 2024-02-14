@@ -1,9 +1,12 @@
+import functools
+
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
-from bench.language.expression import FieldPath, Property
-from bench.language.node import Node, node, p_parent, p_regular
+from bench.language.expression import FieldPath
+from bench.language.node import Node, node, Property
+from bench.language.property import p_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.func import IdEnum
 
@@ -85,3 +88,26 @@ class NoticeHandler:
         properties: Optional[list[Property] | tuple[Property, ...]] = None,
     ):
         pass
+
+
+def on_warning_raise(
+    subject: "Node",
+    type: "NoticeType",
+    message: Optional[str] = None,
+    path: Optional["FieldPath"] = None,
+    properties: list["Property"] | None = None,
+    min_level: NoticeKind = NoticeKind.WARNING,
+):
+    if type.kind >= min_level:
+        notice = Notice(
+            parent=subject,
+            type=type,
+            kind=type.kind,
+            message=message,
+            path=path,
+            properties=properties,
+        )
+        raise NoticeError(notice)
+
+
+on_error_raise = functools.partial(on_warning_raise, min_level=NoticeKind.ERROR)

@@ -9,7 +9,8 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.const import StructType
-from bench.language.node import Node, Struct, p_regular, p_runtime, struct
+from bench.language.node import Node, Struct, struct
+from bench.language.property import p_runtime, p_regular
 from bench.language.value import TypedDict
 from bench.utils.utils import get_from_env
 
