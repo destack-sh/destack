@@ -170,14 +170,11 @@ class Transaction:
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
 
     # for syncing databases (should probably generalize into' untracked edits')
-    _changed_record_ids_by_base_id: dict[UUID, set[UUID]] = dcfield(
-        default_factory=lambda: defaultdict(set)
-    )
     _schema_changed: bool = dcfield(default=False)
 
     @property
     def has_edits(self) -> bool:
-        return len(self.edits) > 0 or len(self._changed_record_ids_by_base_id) > 0
+        return len(self.edits) > 0
 
     @property
     def has_pending_edits(self) -> bool:
@@ -790,15 +787,6 @@ class Session(Node):
             self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
-    def _update_cached_info(self):
-        for run in self.stacktrace:
-            run.value.cached_at = min(
-                r.value.cached_at for r in run.walk_descendants() if r.value.cached_at
-            )
-            run.value.cached_duration = sum(
-                r.value.cached_duration for r in run.walk_descendants() if r.value.cached_duration
-            )
-
     def _create_run(
         self,
         block: Optional["Block"] = None,
@@ -912,11 +900,6 @@ class Run(HasValues):
     @property
     def active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
-
-    def walk_descendants(self):
-        yield self
-        for child in self.runs:
-            yield from child.walk_descendants()
 
 
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)

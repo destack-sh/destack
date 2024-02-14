@@ -3,7 +3,6 @@ import dataclasses
 import enum
 import functools
 import inspect
-import math
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -27,6 +26,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+import math
 import structlog
 from bitarray import bitarray
 from cachetools import cached
@@ -195,9 +195,9 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     # value
     is_value_runtime: bool = False  # for user 'value' properties
     is_value_packed: bool = False  # for packed value properties (the underlying value)
-    value_packed_id: int | None = None  # the packed value
-    secret_value_packed_id: int | None = None  # the secret packed value (optional)
-    value_type_info_id: int | None = None  # the type info for the value
+    value_packed_ptr: Union[int, "Property", None] = None  # the packed value
+    secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
+    value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
     value_type_info_getter: Callable[["NodeT"], "TypeInfo"] | None = None  # type info getter
 
     # node references
@@ -476,11 +476,15 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
             assert HasValues in self.component.__static_components__, f"{self!r} is not HasValues"
             if self.value_type_info_id is not None:
-                prop = self.component.__properties_by_id__.get(self.value_type_info_id)
-                if prop is None:
-                    raise ValueError(
-                        f"invalid value_type_info_id: {self.value_type_info_id} for {self!r}"
-                    )
+                self.value_type_info_ptr = self.component.__properties_by_id__[
+                    self.value_type_info_id
+                ]
+            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
+            self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+            if self.secret_value_packed_ptr is not None:
+                self.secret_value_packed_ptr = self.component.__properties_by_id__[
+                    self.secret_value_packed_ptr
+                ]
 
         # sanity check some stuff
         if self.is_encrypted and not self.is_sensitive:
@@ -794,9 +798,9 @@ def p_value_runtime(
         is_required=False,
         is_value_runtime=True,
         default=None,
-        value_packed_id=value_packed_id,
-        secret_value_packed_id=secret_value_packed_id,
-        value_type_info_id=value_type_info_id,
+        value_packed_ptr=value_packed_id,
+        secret_value_packed_ptr=secret_value_packed_id,
+        value_type_info_ptr=value_type_info_id,
         value_type_info_getter=value_type_info_getter,
     )
 
@@ -843,6 +847,17 @@ else:
     p_kernel = functools.partial(
         p_property, internal=True, system=True, sensitive=True, kernel=True
     )
+
+_PROPERTY_SPECIFIERS = (
+    p_property,
+    p_runtime,
+    p_parent,
+    p_ancestor,
+    p_child,
+    p_value_runtime,
+    p_value_packed,
+    p_secret_value_packed,
+)
 
 
 class _ComponentMethod(enum.Enum):
@@ -1152,7 +1167,6 @@ def _process_struct_base_cls(
     return cls, properties_by_name
 
 
-@dataclass_transform()
 def struct_component(
     cls: Optional[type] = None,
     struct_type: StructType = None,
@@ -1163,6 +1177,7 @@ def struct_component(
     Mark a class as a struct component (or concrete struct for a StructType).
     """
 
+    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
         cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved, is_final=is_final)
 
@@ -1187,6 +1202,7 @@ def struct(
     index_in_search: bool = False,
     identifier: IdentifierType | None = None,
 ):
+    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
         cls = struct_component(cls, struct_type=struct_type, reserved=reserved, is_final=True)
         cls.__is_indexed_in_search__ = index_in_search
@@ -1196,7 +1212,6 @@ def struct(
     return decorate
 
 
-@dataclass_transform()
 def node_component(
     cls: Optional[type] = None,
     node_type: NodeType = None,
@@ -1211,6 +1226,7 @@ def node_component(
     Mark a class as a node component (or concrete node for a NodeType).
     """
 
+    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
         cls, properties = _process_struct_base_cls(
             cls=cls,
@@ -1278,6 +1294,7 @@ def node(
     in_bench = node_type in IN_BENCH_NODE_TYPES
     sub_bench = node_type in SUB_BENCH_NODE_TYPES
 
+    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
         cls = node_component(
             cls,
@@ -2349,7 +2366,7 @@ class Link(Node):
     order_key: Optional[str] = p_internal(32, default=None)
 
 
-@node(NodeType.SKIP)
+@node(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 

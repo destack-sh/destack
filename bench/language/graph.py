@@ -606,13 +606,14 @@ class NodeList(NodeListBase[NodeT]):
             for n in n._walk_rec():
                 if n.id is None:
                     n._assign_id(package_id)
+
         n.parent = self._parent
         if self._parent._session is not None:
             n._validate_self(n.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
         # add node to parent graph
         if n._graph is not None:
-            # subsume if previously detached (ignores out of line nodes)
+            # subsume if previously detached
             added = n._graph.collect_descendants(n, recursive=True)
             n._graph.update(n)  # parent updated
             self._parent._root_graph.add_graph(n._graph)
@@ -624,6 +625,7 @@ class NodeList(NodeListBase[NodeT]):
         # assign order key to ordered nodes
         if self._flags & NRel.ORDERED and n.order_key is None:
             n.order_key = generate_key_between(*self._ok_bounds(after, before))
+
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
             self._parent._session.create(*added)
