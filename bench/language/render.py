@@ -60,7 +60,7 @@ def render_prop(node: Node, name: str, value: Any) -> str:
     Render a non-relational prop (may be a reference, but not a parent/child relation).
     TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
-    from bench.language.value import HasValue
+    from bench.language.value import HasValues
 
     if value is None:
         return repr(None)
@@ -84,7 +84,7 @@ def render_prop(node: Node, name: str, value: Any) -> str:
         else:
             value = value.replace('"', '\\"')
             return repr(value)
-    elif name == "value" and HasValue in node._components and isinstance(value, Mapping):
+    elif name == "value" and HasValues in node._components and isinstance(value, Mapping):
         value = render_value(
             value,
             node.metatype_of_value,

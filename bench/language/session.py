@@ -2,23 +2,27 @@ import asyncio
 import dataclasses
 import sys
 import threading
+import traceback
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
+from asgiref.sync import async_to_sync, sync_to_async
 
 from bench.language.const import (
     EMPTY_SCOPE,
+    TERMINAL_RUN_STATUSES,
     BenchError,
     EditType,
+    NodeStatus,
     NodeTrackingLevel,
     NodeType,
+    RunErrorKind,
     RunStatus,
     StoreEngineType,
     StructType,
@@ -26,6 +30,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.field import TypeInfo
+from bench.language.graph import NodeList
 from bench.language.node import (
     UNSET,
     Node,
@@ -34,15 +39,20 @@ from bench.language.node import (
     _Passthrough,
     get_node_id,
     node,
+    node_component,
+    p_ancestor,
+    p_child,
     p_internal,
     p_parent,
     p_runtime,
+    p_secret_value_packed,
     p_system,
+    p_value_packed,
+    p_value_runtime,
     struct,
 )
 from bench.language.query import StoreConnection, StoreEngine
-from bench.language.run import Run, RunError
-from bench.language.value import HasValue
+from bench.language.value import HasValues
 from bench.opensearch.client import get_os_errors, os_client
 from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
@@ -51,7 +61,19 @@ from bench.utils.env import IS_DEBUG
 from bench.utils.func import _auto_async_to_sync, uuid_to_str
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Branch, Environment, Package, Server, Trigger
+    from bench.language import (
+        Bench,
+        BenchError,
+        Block,
+        Branch,
+        Environment,
+        Node,
+        Package,
+        PrimitiveType,
+        Server,
+        Struct,
+        Trigger,
+    )
 
 logger = structlog.get_logger(__name__)
 
@@ -59,20 +81,22 @@ logger = structlog.get_logger(__name__)
 @node(
     NodeType.SIGNAL, passthrough=(("value", _Passthrough.Full),), index_in_search=True, local=True
 )
-class Signal(HasValue):
+class Signal(HasValues):
     """A signal received in this Bench. May be emitted by a Bench or an external source."""
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
     type: Optional["Block"] = p_internal(
         30, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    value_packed: Any | None = p_internal(
-        31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
+    object: Optional["Block"] = p_internal(
+        31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    # sender_run: Optional["Run"] = p_system(32, require=False, array=False, references=NodeType.RUN)
-    # sender_block: Optional["Block"] = p_system(
-    #     33, require=False, array=False, references=NodeType.BLOCK
-    # )
+    sender: Optional["Block"] = p_internal(
+        32, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
+    )
+    value_packed: Any | None = p_value_packed(33)
+    secret_value_packed: Any | None = p_secret_value_packed(34)
+    value = p_value_runtime(33, 34, type=30)
 
 
 @struct(StructType.LOG_ENTRY, index_in_search=True)
@@ -117,7 +141,9 @@ class Context(Struct):
     # log: ...
 
     # custom
-    # value: ...
+    # value_packed: Any = p_value_packed(40)
+    # secret_value_packed: Any = p_secret_value_packed(41)
+    # value: Any = p_value_runtime(40, 41)
 
 
 dcfield = dataclasses.field
@@ -371,9 +397,9 @@ class Session(Node):
     _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     # runtime
-    _stacktrace: list[Run] | None = p_runtime(default=None)
-    _runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
-    _pending_runs_by_id: dict[UUID, Run] | None = p_runtime(default=None)
+    _stacktrace: list["Run"] | None = p_runtime(default=None)
+    _runs_by_id: dict[UUID, "Run"] | None = p_runtime(default=None)
+    _pending_runs_by_id: dict[UUID, "Run"] | None = p_runtime(default=None)
     _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
 
     # logs
@@ -618,12 +644,6 @@ class Session(Node):
     def stacktrace(self):
         return self._stacktrace
 
-    @property
-    def current_run(self) -> Optional[Run]:
-        if self._stacktrace:
-            return self._stacktrace[-1]
-        return None
-
     async def _flush_logs(self) -> None:
         """Flushes pending logs to OS."""
 
@@ -648,7 +668,7 @@ class Session(Node):
         await self._host.notify_logs(logs)
         logger.debug("session.write_logs.done", logs=len(logs))
 
-    def _track_run(self, run: Run):
+    def _track_run(self, run: "Run"):
         # replace if already exists by id (runs are updated)
         self._runs_by_id[run.id] = run
         self._pending_runs_by_id[run.id] = run
@@ -657,7 +677,7 @@ class Session(Node):
         self._pending_logs.append(log)
         self._cached_logs.append(log)
 
-    def _pop_stacktrace(self) -> Run:
+    def _pop_stacktrace(self) -> "Run":
         run = self._stacktrace.pop()
         self._update_stacktrace_ancestors()
         # update cached info in parent(s)
@@ -832,6 +852,263 @@ class Session(Node):
         return run
 
 
+# We track the active root in a contextvar but not children
+#  because they may be in different contexts, and we cannot reset across contexts.
+# This will need to be expanded when we get to parallel runs.
+@node(NodeType.RUN, index_in_search=True, local=True)
+class Run(HasValues):
+    """
+    A 'run' of a block (in a session).
+    """
+
+    # NOTE we don't 'track' runs in sessions yet
+    #  (because we don't edit them outside of the source session,
+    #   and because it's unclear how run/session edits should interact with 'regular' package edits)
+
+    parent: Union["Session", "Run"] = p_parent(4, NodeType.SESSION, NodeType.RUN)
+    session: "Session" = p_ancestor(
+        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
+    )
+    root: Optional["Run"] = p_ancestor(
+        31,
+        NodeType.RUN,
+        require=False,
+        nearest=False,
+        include_self=False,
+        store=True,
+        wire=True,
+        index_in_pg=True,
+    )
+    server: Optional["Server"] = p_internal(
+        32, index_in_pg=True, require=False, array=False, references=NodeType.SERVER
+    )
+    block: Optional["Block"] = p_internal(
+        33, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
+    )
+    # block_path?
+    scheduled_at: Optional[datetime] = p_internal(35, default=None)
+    started_at: Optional[datetime] = p_internal(36, default=None)
+    terminated_at: Optional[datetime] = p_internal(37, default=None)
+    duration: float = p_internal(38, default=0)
+    status: RunStatus = p_internal(39, index_in_pg=True)
+
+    inputs_packed: Any = p_value_packed(50)
+    inputs_secret_packed: Any = p_secret_value_packed(51)
+    inputs: Any = p_value_runtime(50, 51)
+    outputs_packed: Any = p_value_packed(52)
+    outputs_secret_packed: Any = p_secret_value_packed(53)
+    outputs: Any = p_value_runtime(52, 53)
+    value_packed: Any = p_value_packed(54)
+    value_secret_packed: Any = p_secret_value_packed(55)
+    value: Any = p_value_runtime(54, 55)
+    error: Optional["RunError"] = p_internal(56, default=None, primitive_type=PrimitiveType.JSON)
+
+    runs: list["Run"] = p_child(NodeType.RUN)
+
+    def __content_str__(self):
+        value_keys_str = ", ".join(self.value.keys()) if self.value else ""
+        return f"{self.block} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
+
+    @property
+    def active(self) -> bool:
+        return self.status not in TERMINAL_RUN_STATUSES
+
+    def walk_descendants(self):
+        yield self
+        for child in self.runs:
+            yield from child.walk_descendants()
+
+
+_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
+_active_run_by_root: dict[UUID, Run] = {}
+_custom_value: ContextVar[dict[str, Any] | None] = ContextVar("custom_value", default=None)
+
+
+def _get_active_run() -> Run | None:
+    root = _active_root_run.get()
+    if root is not None:
+        return _active_run_by_root[root.id]
+    return None
+
+
+def _clear_active_run(run: Run):
+    root = run.root or run
+    if root.id in _active_run_by_root:
+        if run.parent is None:
+            del _active_run_by_root[root.id]
+        else:
+            _active_run_by_root[root.id] = run.parent
+    if _active_root_run.get() == run:
+        _active_root_run.set(None)
+
+
+def _set_active_run(run: Run):
+    root = run.root or run
+    _active_run_by_root[root.id] = run
+    if _active_root_run.get() is None:
+        _active_root_run.set(root)
+
+
+def _pack_and_truncate_value(
+    value: Any,
+    type: "Block",
+    ignore_array: bool = False,
+    ignore_outer: bool = False,
+    none_if_invalid: bool = False,
+    is_output: bool = None,
+) -> Any:
+    from bench.language.value import map_value, pack_value_flat
+
+    def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
+        if type.primitive_type == PrimitiveType.VECTOR:
+            if type.is_array:
+                return []
+            else:
+                return None
+        else:
+            return value
+
+    return map_value(
+        value=value,
+        type=type,
+        map_k=lambda f: (f.py_ident, f.identity_key),
+        map_v=pack_value_flat,
+        premap_v=_truncate_value,
+        ignore_array=ignore_array,
+        ignore_outer=ignore_outer,
+        none_if_invalid=none_if_invalid,
+        is_output=is_output,
+    )
+
+
+@node_component
+class HasRun(Node):
+    """A runnable block"""
+
+    triggers: NodeList["Trigger"] = p_child(NodeType.TRIGGER)
+
+    @property
+    def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
+        """Whether this block is async."""
+        return None
+
+    def _call_inner(self, *args, **kwargs):
+        assert (
+            self.is_attached and self._status == NodeStatus.TRACKED
+        ), f"cannot call {self!r} (status={self._status!r})"
+        try:
+            asyncio.get_running_loop()
+            is_outer_async = True
+        except RuntimeError:
+            is_outer_async = False
+        inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
+
+        if is_outer_async and not self._is_async:
+            inner_call = sync_to_async(inner_call)
+        elif not is_outer_async and self._is_async:
+            inner_call = async_to_sync(inner_call)
+
+        return inner_call(*args, **kwargs)
+
+    def _call_inner_sync(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def _call_inner_async(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+@struct(StructType.RUN_CODE_FRAME)
+class RunCodeFrame(Struct):
+    node: Node = p_internal(30, array=False, require=True, references=NodeType.BLOCK)
+    lineno: int = p_internal(31)
+    name: str = p_internal(32)
+    locals: Optional[dict[str, Any]] = p_internal(
+        33, default=None, primitive_type=PrimitiveType.JSON
+    )
+    line: str = p_internal(34)
+
+    @staticmethod
+    def clean(
+        stack: list["RunCodeFrame"], from_block: "Block", session: "Session"
+    ) -> list["RunCodeFrame"]:
+        from bench.language.block import Block
+        from bench.language.code_ import HasCode
+
+        code_by_method: dict[str, HasCode] = {
+            node._transform.method_name: node
+            for node in list(session.package._nodes)
+            if isinstance(node, Block) and getattr(node, "_transform", None)
+        }
+        if getattr(from_block, "_transform", None):
+            # from block may not be in package (e.g. if detached when running anonymous code)
+            code_by_method[from_block._transform.method_name] = from_block
+
+        found_start = False
+        cleaned_stack = []
+        for frame in stack:
+            if not found_start:
+                # impute bench source info into instantiated code callables
+                code = code_by_method.get(frame.name)
+                if code is not None:
+                    if code == from_block:
+                        found_start = True
+                    elif not found_start:
+                        continue  # ignore
+                    frame.node = from_block
+                    frame.name = from_block.name or "<unnamed>"
+                    frame.lineno = frame.lineno - code._transform.start_offset
+                    frame.line = code.code.splitlines()[frame.lineno - 1]
+                    frame.locals = frame.locals or {}
+                    for ident, var in code._block_references.items():
+                        if ident not in frame.locals and var.id in session.package._graph:
+                            frame.locals[ident] = repr(session.package._graph[var.id])
+            if found_start:
+                # trim file path for python packages
+                python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+                if python_version in frame.node:
+                    frame.node = frame.node.split(python_version)[-1][1:]  # skip slash
+                cleaned_stack.append(frame)
+        return [f for f in cleaned_stack if f.line]
+
+
+@struct(StructType.RUN_ERROR)
+class RunError(Struct, BenchError):
+    kind: RunErrorKind = p_internal(30)
+    type: str = p_internal(31)
+    message: Optional[str] = p_internal(32, default=None)
+    node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
+    traceback: list[RunCodeFrame] = p_internal(
+        34, default_factory=list, struct=StructType.RUN_CODE_FRAME
+    )
+
+    @staticmethod
+    def from_exception(e: BaseException, block: Optional["Block"]) -> "RunError":
+        if isinstance(e, RunError):
+            return e
+        stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
+        stack = RunCodeFrame.clean(stack, block, block.session)
+        if isinstance(e, SyntaxError):  # ignore (..., line x) because it's not useful
+            err_str = e.msg
+        else:
+            err_str = str(e)
+        return RunError(
+            kind=RunErrorKind.RUNTIME,
+            type=type(e).__name__,
+            message=err_str,
+            block=block,
+            traceback=stack,
+        )
+
+
+@node(NodeType.PAUSE, local=True)
+class Pause(Node):
+    """A resumable interruption in the execution (Run) of a block."""
+
+    parent: "Run" = p_parent(4, NodeType.RUN)
+    session: "Session" = p_ancestor(30, NodeType.SESSION, require=True, store=True)
+    # (placeholder)
+
+
 #
 # Log collection
 # (will obviously move out soon)
@@ -923,67 +1200,3 @@ class LogCollector:
 
 LOG_CACHE_SIZE = 1000
 MAX_STACK_DEPTH = 8 if IS_DEBUG else 16
-
-# We track the active root in a contextvar but not children
-#  because they may be in different contexts, and we cannot reset across contexts.
-# This will need to be expanded when we get to parallel runs.
-_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
-_active_run_by_root: dict[UUID, Run] = {}
-_custom_value: ContextVar[dict[str, Any] | None] = ContextVar("custom_value", default=None)
-
-
-def _get_active_run() -> Run | None:
-    root = _active_root_run.get()
-    if root is not None:
-        return _active_run_by_root[root.id]
-    return None
-
-
-def _clear_active_run(run: Run):
-    root = run.root or run
-    if root.id in _active_run_by_root:
-        if run.parent is None:
-            del _active_run_by_root[root.id]
-        else:
-            _active_run_by_root[root.id] = run.parent
-    if _active_root_run.get() == run:
-        _active_root_run.set(None)
-
-
-def _set_active_run(run: Run):
-    root = run.root or run
-    _active_run_by_root[root.id] = run
-    if _active_root_run.get() is None:
-        _active_root_run.set(root)
-
-
-def _pack_and_truncate_value(
-    value: Any,
-    type: "Block",
-    ignore_array: bool = False,
-    ignore_outer: bool = False,
-    none_if_invalid: bool = False,
-    is_output: bool = None,
-) -> Any:
-    from bench.language.value import map_value, pack_value_flat
-
-    def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
-        if type.primitive_type == PrimitiveType.VECTOR:
-            if type.is_array:
-                return []
-            else:
-                return None
-        else:
-            return value
-
-    return map_value(
-        value=value,
-        type=type,
-        map_k=lambda f: (f.py_ident, f.identity_key),
-        map_v=pack_value_flat,
-        premap_v=_truncate_value,
-        ignore_array=ignore_array,
-        ignore_outer=ignore_outer,
-        none_if_invalid=none_if_invalid,
-        is_output=is_output,
-    )

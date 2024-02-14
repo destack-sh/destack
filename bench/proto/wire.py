@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.13.0"
+VERSION = "2024.02.14.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -96,7 +96,6 @@ class BenchType(betterproto.Enum):
     UPGRADE = 22
     BLOCK = 23
     TRIGGER = 24
-    TAG = 25
     FIELD = 26
     RECORD = 27
     QUERY = 28
@@ -134,6 +133,7 @@ class BenchType(betterproto.Enum):
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
+    PROJECTION = 513
     FILE = 520
     ICON = 521
     POLICY = 530
@@ -170,7 +170,6 @@ class BlockType(betterproto.Enum):
     ALIAS = 4
     CLASS = 10
     CHOICE = 11
-    TAG = 12
     SIGNAL = 13
     PROTOCOL = 14
     SINGLE_VARIABLE = 20
@@ -348,7 +347,6 @@ class NodeType(betterproto.Enum):
     UPGRADE = 22
     BLOCK = 23
     TRIGGER = 24
-    TAG = 25
     FIELD = 26
     RECORD = 27
     QUERY = 28
@@ -404,9 +402,8 @@ class PolicyEffect(betterproto.Enum):
 
 class PrimitiveType(betterproto.Enum):
     """
-    Fundamental column / storage types we support (subset of SQL types, used
-    directly in sql/core). NOTE: the ids here are used in value pack/unpack
-    keys, so any changes are breaking.
+    Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
+     NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
     """
 
     UNSPECIFIED = 0
@@ -536,6 +533,7 @@ class StructType(betterproto.Enum):
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
+    PROJECTION = 513
     FILE = 520
     ICON = 521
     POLICY = 530
@@ -585,10 +583,9 @@ class StartRunResponseErrorType(betterproto.Enum):
 @dataclass(eq=False, repr=False)
 class AccessData(betterproto.Message):
     """
-    An evaluated access on some objects as part of a larger Request (by the
-    same subject). As in PolicyRule, if the decision is Deny, the
-    object_properties are the denied ones. (And if object_properties is unset,
-    it applies to all properties.)
+    An evaluated access on some objects as part of a larger Request (by the same subject).
+     As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
+     (And if object_properties is unset, it applies to all properties.)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -603,8 +600,7 @@ class AccessData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class AccessMatrixData(betterproto.Message):
     """
-    The materialized access matrix generated for a specific subject to quickly
-    evaluate access for objects.
+    The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -625,8 +621,8 @@ class AccessTraceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class AccessZoneData(betterproto.Message):
     """
-    The pre-filtered access rules for a given identity. Clients use this to
-    indicate access rights, but - obviously - only our copy is binding.
+    The pre-filtered access rules for a given identity.
+     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -661,32 +657,55 @@ class AggregationBucketData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BenchPathData(betterproto.Message):
     """
-    A human-readable Bench path to reference source nodes and
-    fields/properties. Absolute or relative. Paths are case-insensitive,
-    support alphanum + spaces and use '/' as a primary separator. Nodes 'below'
-    block-level are prefixed with a ':'. Fields are accessed with '.'.
-    flotothemoon/Mirror/Notion/Databases/Landscape ^ bench      ^ blocks
-    flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-    ^ bench      ^ blocks                      ^ sub-block                ^
-    field flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.do
-    cument.title ^ bench      ^ blocks
-    ^ field  ^ field  flotothemoon ^ bench flotothemoon.name ^ bench      ^
-    field flotothemoon-tests/Tests/Databases/TestPopulate.code ^ bench
-    ^ blocks                     ^ field  . ^ current .. ^ parent ../../Header
-    Screen:Header/Title.theme.primary.color ^ blocks           ^ sub-nodes  ^
-    field ../../../../Graphs ^ parents  NOT YET SUPPORTED: / -> package root
-    (=Package) $ -> module root (=Block) $User -> module-unique node
-    (=Block|View) ~ -> source module root ($ but for templated) [<expr like
-    ck=...>] -> dynamic Expression filter
-    symbolx@2024-01-01/Library/Common/Utils/DateUtils ^ bench ^ package  ^
-    blocks symbolx@MyNewFeature:2024-01-
-    01/Applications/Chat/MainScreen:ChatInput/Input.text ^ bench ^ branch     ^
-    package  ^ blocks                     ^ sub-nodes     ^ field  '' ERROR
-    (invalid, empty path) '../' ERROR (invalid, trailing slash)
-    ../../Something/../SomethingElse ERROR (invalid, cannot go up and down in
-    the same path)  The general syntax is: [bench-name][@branch-name][:package-
-    name][/[block-name][:sub-node-name]][.field-name] For absolute paths, the
-    bench name is required.
+    A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
+     Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+     Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
+
+     flotothemoon/Mirror/Notion/Databases/Landscape
+     ^ bench      ^ blocks
+     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
+     ^ bench      ^ blocks                      ^ sub-block                ^ field
+     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
+     ^ bench      ^ blocks                                              ^ field  ^ field
+
+     flotothemoon
+     ^ bench
+     flotothemoon.name
+     ^ bench      ^ field
+     flotothemoon-tests/Tests/Databases/TestPopulate.code
+     ^ bench            ^ blocks                     ^ field
+
+     .
+     ^ current
+     ..
+     ^ parent
+     ../../Header Screen:Header/Title.theme.primary.color
+     ^ blocks           ^ sub-nodes  ^ field
+     ../../../../Graphs
+     ^ parents
+
+     NOT YET SUPPORTED:
+     / -> package root (=Package)
+     $ -> module root (=Block)
+     $User -> module-unique node (=Block|View)
+     ~ -> source module root ($ but for templated)
+     [<expr like ck=...>] -> dynamic Expression filter
+
+     symbolx@2024-01-01/Library/Common/Utils/DateUtils
+     ^ bench ^ package  ^ blocks
+     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
+     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+
+     ''
+     ERROR (invalid, empty path)
+     '../'
+     ERROR (invalid, trailing slash)
+     ../../Something/../SomethingElse
+     ERROR (invalid, cannot go up and down in the same path)
+
+     The general syntax is:
+     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
+     For absolute paths, the bench name is required.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -701,12 +720,7 @@ class BenchPathData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CodeData(betterproto.Message):
     """
-    Code(sections: list[bench.language.code_.CodeSection] = <factory>,
-    _is_async: Optional[bool] = None, _transform:
-    Optional[bench.language.code_.CodeTransformation] = None,
-    _block_references: dict[str, 'Block'] | None = None, _cached_exports:
-    dict[str, typing.Any] | None = None, _status:
-    bench.language.const.NodeStatus = None)
+    Code(sections: list[bench.language.code_.CodeSection] = <factory>, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -716,8 +730,7 @@ class CodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CodeSectionData(betterproto.Message):
     """
-    CodeSection(code: str = <factory>, _status: bench.language.const.NodeStatus
-    = None)
+    CodeSection(code: str = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -727,8 +740,7 @@ class CodeSectionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ContextData(betterproto.Message):
     """
-    A semi-magical value that accumulates context down the graph (starting with
-    system context).
+    A semi-magical value that accumulates context down the graph (starting with system context).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -784,10 +796,7 @@ class FileData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.icon.IconKind = False, emoji: Optional[str] =
-    <factory>, type: Optional[bench.language.icon.IconType] = <factory>, image:
-    Optional[ForwardRef('File')] = <factory>, _status:
-    bench.language.const.NodeStatus = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -816,10 +825,7 @@ class LogEntryData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NodeReferenceData(betterproto.Message):
     """
-    NodeReference(type: bench.language.const.NodeType = <factory>, id:
-    Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck:
-    Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus =
-    None)
+    NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -832,19 +838,20 @@ class NodeReferenceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
     """
-    A policy regulating access to nodes within its scope. The scope is
-    determined by where its attached, but may be further restricted using
-    'scopes'.  The basics of access control: 1. An access is DENYed implicitly
-    unless explicitly and completely ALLOWed. 2. Policies are attached directly
-    to nodes or via delegates (badges, roles, identities, ...). a. Policies are
-    scoped to the node their definition or b. Delegate is attached to (or less
-    as specified). 3. Policies are evaluated in order up the node graph, first
-    match decides*. (This means you can read a sub block but not its parent.)
-    4. Every identity/role/... applicable to a subject is evaluated separately
-    and *any* allow wins.  * Conceptually, we do 'ray trace' up the graph for
-    every node, but actually doing that for every request is prohibitively
-    expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a
-    shortcut.
+    A policy regulating access to nodes within its scope.
+     The scope is determined by where its attached, but may be further restricted using 'scopes'.
+
+     The basics of access control:
+     1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
+     2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
+     a. Policies are scoped to the node their definition or
+     b. Delegate is attached to (or less as specified).
+     3. Policies are evaluated in order up the node graph, first match decides*.
+     (This means you can read a sub block but not its parent.)
+     4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
+
+     * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
+     is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -857,9 +864,9 @@ class PolicyData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PolicyRuleData(betterproto.Message):
     """
-    A rule in a policy: [subject] + can/cannot [verb] + [object] [if
-    condition]. Subject, verb and object are ORed, in-group conditions are
-    ANDed. (where None/empty -> wildcard, any value -> filter)
+    A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+     Subject, verb and object are ORed, in-group conditions are ANDed.
+     (where None/empty -> wildcard, any value -> filter)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -881,6 +888,21 @@ class PolicyRuleData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ProjectionData(betterproto.Message):
+    """
+    A projection into the graph.
+     NOTE 'Projecting' is not quite right / complete yet, consider:
+     - How do we filter and LoD this?
+     - When do we inline out-of-line descendants (like Comments or local Records)?
+     (esp. considering some out-of-line nodes would need to be fetched async)
+     - How do we alias shadowed and anonymous nodes?
+     - How do we make projections reproducible and inspectable in the editor?
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class PropertyPathData(betterproto.Message):
     """A path of Node/Struct properties."""
 
@@ -891,9 +913,7 @@ class PropertyPathData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int =
-    <factory>, references_type: Optional[bench.language.const.NodeType] =
-    <factory>, _status: bench.language.const.NodeStatus = None)
+    PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -905,8 +925,8 @@ class PropertyReferenceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReadOptionsData(betterproto.Message):
     """
-    Fine-grained options to a read request. This is an addition to primary
-    options (like the filter for a search or aggregation).
+    Fine-grained options to a read request.
+     This is an addition to primary options (like the filter for a search or aggregation).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -922,8 +942,8 @@ class ReadOptionsData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RequestData(betterproto.Message):
     """
-    A request with multiple accesses. TODO @Feature @Security: store, query and
-    watch access log
+    A request with multiple accesses.
+     TODO @Feature @Security: store, query and watch access log
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -936,8 +956,7 @@ class RequestData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RichTextData(betterproto.Message):
     """
-    RichText(spans: list['RichTextSpan'] = <factory>, _status:
-    bench.language.const.NodeStatus = None)
+    RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -947,12 +966,7 @@ class RichTextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RichTextSpanData(betterproto.Message):
     """
-    RichTextSpan(text: str | None = '', reference: bench.language.node.Node |
-    None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool
-    = False, is_italic: bool = False, is_strikethrough: bool = False,
-    is_underline: bool = False, is_code: bool = False, _status:
-    bench.language.const.NodeStatus = None, reference_ptr: 'NodeReference' =
-    None)
+    RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, _status: bench.language.const.NodeStatus = None, reference_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -969,10 +983,7 @@ class RichTextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     """
-    RunCodeFrame(node: bench.language.node.Node = None, lineno: int =
-    <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None,
-    line: str = <factory>, _status: bench.language.const.NodeStatus = None,
-    node_ptr: 'NodeReference' = None)
+    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -988,11 +999,7 @@ class RunCodeFrameData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
     """
-    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str =
-    <factory>, message: Optional[str] = None, node:
-    Optional[ForwardRef('Node')] = None, traceback:
-    list[bench.language.run.RunCodeFrame] = <factory>, _status:
-    bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
+    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1017,9 +1024,7 @@ class ScheduleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ServerImageData(betterproto.Message):
     """
-    ServerImage(language: str = <factory>, version: str = <factory>, platform:
-    str = <factory>, requirements: list['ServerImageRequirement'] = <factory>,
-    _status: bench.language.const.NodeStatus = None)
+    ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1032,8 +1037,7 @@ class ServerImageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ServerImageRequirementData(betterproto.Message):
     """
-    ServerImageRequirement(name: str = <factory>, version: str = <factory>,
-    _status: bench.language.const.NodeStatus = None)
+    ServerImageRequirement(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1044,8 +1048,7 @@ class ServerImageRequirementData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SpaceDockData(betterproto.Message):
     """
-    SpaceDock(items: list[bench.language.view.SpaceDockItem] = <factory>,
-    _status: bench.language.const.NodeStatus = None)
+    SpaceDock(items: list[bench.language.view.SpaceDockItem] = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1055,8 +1058,7 @@ class SpaceDockData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SpaceDockItemData(betterproto.Message):
     """
-    SpaceDockItem(hidden: bool = False, _status:
-    bench.language.const.NodeStatus = None)
+    SpaceDockItem(hidden: bool = False, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1066,9 +1068,7 @@ class SpaceDockItemData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StoreCredentialData(betterproto.Message):
     """
-    StoreCredential(type: bench.language.resource.StoreCredentialType =
-    <factory>, username: str = <factory>, password: str = <factory>, _status:
-    bench.language.const.NodeStatus = None)
+    StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1080,9 +1080,8 @@ class StoreCredentialData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SubjectData(betterproto.Message):
     """
-    The <whoever/whatever> issuing a request. Unknown/ignored attributes are
-    unset. (We unset various combinations of attributes to evaluate the access
-    of acting subjects independently.)
+    The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
+     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1101,26 +1100,31 @@ class SubjectData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    A type is a kind of value that can go somewhere, typically a field.  A type
-    is either: 1. primitive type (= column type, value is scalar, like int32,
-    string, bool, datetime, ...) [primitive_type] | [base_type = Block aliased
-    to primitive_type] 2. struct type (value is 'robust json', like Expression,
-    File, BenchPath, RichText, ...) [bench_type = StructType] | [base_type is
-    newtype with bench_type] 3. node type (value is NodeReference, like
-    Package, Block, Field, Record, Run, Signal, ...) [bench_type = NodeType] |
-    [base_type = Block aliased to bench_type] 4. reference to a block (value is
-    NodeReference that is an 'instance' of the block) [bench_type = NodeType &
-    base_type = Block] type = Record, base = DatabaseBlock -> values must be
-    Records in that database type = Run, base = Block -> values must be Runs of
-    that block type = Field, base = Block -> values must be a Field in that
-    block type = Signal, base = Block -> values must be Signals of that block
-    type type = Block, base = Block -> values must be Blocks conforming to that
-    block protocol type = Block, base = None -> values must be instances of the
-    resolved type ...  Types may also specify: - a format hint (which may
-    impact the unpacked/instantiated Python representation, like for Image) -
-    an additional condition instances must satisfy - combination flags for
-    arrays, optionals, ...  Type checking is done in ./value.py. You'll note
-    that we can only check some things without querying.
+    A type is a kind of value that can go somewhere, typically a field.
+
+     A type is either:
+     1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+     [primitive_type] | [base_type = Block aliased to primitive_type]
+     2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
+     [bench_type = StructType] | [base_type is newtype with bench_type]
+     3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+     [bench_type = NodeType] | [base_type = Block aliased to bench_type]
+     4. reference to a block (value is NodeReference that is an 'instance' of the block)
+     [bench_type = NodeType & base_type = Block]
+     type = Record, base = DatabaseBlock -> values must be Records in that database
+     type = Run, base = Block -> values must be Runs of that block
+     type = Field, base = Block -> values must be a Field in that block
+     type = Signal, base = Block -> values must be Signals of that block type
+     type = Block, base = Block -> values must be Blocks conforming to that block protocol
+     type = Block, base = None -> values must be instances of the resolved type
+     ...
+
+     Types may also specify:
+     - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+     - an additional condition instances must satisfy
+     - combination flags for arrays, optionals, ...
+
+     Type checking is done in ./value.py. You'll note that we can only check some things without querying.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1133,6 +1137,9 @@ class TypeInfoData(betterproto.Message):
     length: Optional[int] = betterproto.int32_field(46, optional=True)
     precision: Optional[int] = betterproto.int32_field(47, optional=True)
     scale: Optional[int] = betterproto.int32_field(48, optional=True)
+    default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        49, optional=True
+    )
     is_array: bool = betterproto.bool_field(50)
     is_required: bool = betterproto.bool_field(51)
     is_secret: bool = betterproto.bool_field(52)
@@ -1157,10 +1164,9 @@ class ValueSelectionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
     """
-    Attach a badge to a node with an inline definition. A badge's policies are
-    delegated to the 'holder' (any client presenting its secrets). The
-    delegated policies apply at the parent scope OR given scopes (which must be
-    below parent's).
+    Attach a badge to a node with an inline definition.
+     A badge's policies are delegated to the 'holder' (any client presenting its secrets).
+     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1188,8 +1194,7 @@ class BadgeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BenchData(betterproto.Message):
     """
-    A Bench is an AI-native operating system for a new generation of fully
-    integrated, fluid software.
+    A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1218,8 +1223,7 @@ class BenchData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
     """
-    A building block containing logic, types, UI, data, AI, - any Bench program
-    source.
+    A building block containing logic, types, UI, data, AI, - any Bench program source.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1258,7 +1262,7 @@ class BlockData(betterproto.Message):
     is_intrinsic: bool = betterproto.bool_field(63)
     is_protocol: bool = betterproto.bool_field(64)
     is_method: bool = betterproto.bool_field(65)
-    paused_at: Optional[int] = betterproto.int32_field(66, optional=True)
+    paused_at: Optional[datetime] = betterproto.message_field(66, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1320,8 +1324,8 @@ class ClientData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class DependencyData(betterproto.Message):
     """
-    A dependency on another Bench (pointing to a specific Package). If scopes
-    are given, only those blocks (and their
+    A dependency on another Bench (pointing to a specific Package).
+     If scopes are given, only those blocks (and their
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1342,8 +1346,8 @@ class DependencyData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class DriveData(betterproto.Message):
     """
-    A drive for file-like storage in a Bench. Virtualizes simple bucket-style
-    access to some S3-like storage.
+    A drive for file-like storage in a Bench.
+     Virtualizes simple bucket-style access to some S3-like storage.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1414,6 +1418,9 @@ class FieldData(betterproto.Message):
     length: Optional[int] = betterproto.int32_field(46, optional=True)
     precision: Optional[int] = betterproto.int32_field(47, optional=True)
     scale: Optional[int] = betterproto.int32_field(48, optional=True)
+    default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        49, optional=True
+    )
     is_array: bool = betterproto.bool_field(50)
     is_required: bool = betterproto.bool_field(51)
     is_secret: bool = betterproto.bool_field(52)
@@ -1464,9 +1471,9 @@ class HandleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IdentityData(betterproto.Message):
     """
-    Attach an identity to a block, member or user (only the user itself can do
-    that). Identity policies are delegated to the parent and its descendants.
-    The delegated policies apply to all descendant's accesses.
+    Attach an identity to a block, member or user (only the user itself can do that).
+     Identity policies are delegated to the parent and its descendants.
+     The delegated policies apply to all descendant's accesses.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1486,9 +1493,9 @@ class IdentityData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LinkData(betterproto.Message):
     """
-    A reference to another node in some graph. The referenced subtree is
-    inlined on access. The reference may be indirect through a value somewhere
-    (which should point to a node).
+    A reference to another node in some graph.
+     The referenced subtree is inlined on access.
+     The reference may be indirect through a value somewhere (which should point to a node).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1503,7 +1510,9 @@ class LinkData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    value: Optional["ValueReferenceData"] = betterproto.message_field(31, optional=True)
+    computed_reference: Optional["ValueReferenceData"] = betterproto.message_field(
+        31, optional=True
+    )
     order_key: Optional[str] = betterproto.string_field(32, optional=True)
 
 
@@ -1527,10 +1536,9 @@ class MembershipData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A node in the Bench graph: it's a struct with an identity, so it can relate
-    nodes in a graph. All nodes have a globally unique id (id). Source nodes
-    may also have a constant identifier key (ck) used to derive the id per
-    Package.
+    A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
+     All nodes have a globally unique id (id).
+     Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1547,23 +1555,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None,
-    kind: bench.language.const.NoticeKind = None, type:
-    bench.language.notice.NoticeType = <factory>, message: str = <factory>,
-    path: Optional[bench.language.expression.FieldPath] = None, properties:
-    Optional[list[bench.language.node.Property]] = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
-    = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>,
-    revision: int = 0, created_at: datetime.datetime = None, updated_at:
-    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
-    archived_at: Optional[datetime.datetime] = None, notices:
-    bench.language.graph.NodeList['Notice'] = None, _graph:
-    Optional[ForwardRef('NodeGraphBase')] = None, _session:
-    Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
-    None, parent_ptr: 'NodeReference' = None, properties_ptr:
-    'PropertyReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1624,8 +1616,7 @@ class OrganizationData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PackageData(betterproto.Message):
     """
-    A package is a semi-isolated version of a Bench containing all the source
-    and data.
+    A package is a semi-isolated version of a Bench containing all the source and data.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1690,8 +1681,7 @@ class QueryData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RecordData(betterproto.Message):
     """
-    A record in a database. The containing table is usually a real Postgres
-    table.
+    A record in a database. The containing table is usually a real Postgres table.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1708,14 +1698,17 @@ class RecordData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class RoleData(betterproto.Message):
     """
-    Attach a role to a block or member. Role policies are delegated to the
-    parent and its descendants. The delegated policies apply to all
-    descendant's accesses.
+    Attach a role to a block or member.
+     Role policies are delegated to the parent and its descendants.
+     The delegated policies apply to all descendant's accesses.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1750,22 +1743,32 @@ class RunData(betterproto.Message):
     session_ptr: "NodeReferenceData" = betterproto.message_field(30)
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(36, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(37, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(38, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(35, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(36, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(37, optional=True)
+    duration: float = betterproto.float_field(38)
     status: int = betterproto.int32_field(39)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        40, optional=True
+        50, optional=True
     )
+    inputs_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(51, optional=True)
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        41, optional=True
+        52, optional=True
     )
+    outputs_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(53, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        42, optional=True
+        54, optional=True
     )
+    value_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(55, optional=True)
     error: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        53, optional=True
+        56, optional=True
     )
 
 
@@ -1797,8 +1800,7 @@ class ServerData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
     """
-    A managed session for interacting with Bench nodes and (if on a Server)
-    running them.
+    A managed session for interacting with Bench nodes and (if on a Server) running them.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1822,8 +1824,7 @@ class SessionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SignalData(betterproto.Message):
     """
-    A signal received in this Bench. May be emitted by a Bench or an external
-    source.
+    A signal received in this Bench. May be emitted by a Bench or an external source.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1838,16 +1839,20 @@ class SignalData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        31, optional=True
+        33, optional=True
     )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(34, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class SkipData(betterproto.Message):
     """
-    A reference to another node in some graph that wasn't available for some
-    reason (usually permissions).
+    A reference to another node in some graph that wasn't available for some reason (usually permissions).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1890,8 +1895,8 @@ class SpaceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StoreData(betterproto.Message):
     """
-    A store for database-like storage in a Bench. Virtualizes a physical
-    database of that kind/engine (may be a sub-database/schema or such).
+    A store for database-like storage in a Bench.
+     Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1915,45 +1920,9 @@ class StoreData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class TagData(betterproto.Message):
-    """An association between a tag and a node (with optional value)."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    source: int = betterproto.int32_field(8)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        31, optional=True
-    )
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType =
-    <factory>, name: str | None = None, active: bool = True, schedule:
-    Optional[bench.language.trigger.Schedule] = None, signal:
-    Optional[ForwardRef('Block')] = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
-    = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>,
-    revision: int = 0, created_at: datetime.datetime = None, updated_at:
-    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
-    archived_at: Optional[datetime.datetime] = None, notices:
-    bench.language.graph.NodeList['Notice'] = None, _graph:
-    Optional[ForwardRef('NodeGraphBase')] = None, _session:
-    Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>,
-    _is_new: bool = False, _updated_properties: bitarray.bitarray | None =
-    None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' =
-    None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2051,33 +2020,32 @@ class SomeNodeData(betterproto.Message):
     upgrade: "UpgradeData" = betterproto.message_field(6, group="node")
     block: "BlockData" = betterproto.message_field(7, group="node")
     trigger: "TriggerData" = betterproto.message_field(8, group="node")
-    tag: "TagData" = betterproto.message_field(9, group="node")
-    field: "FieldData" = betterproto.message_field(10, group="node")
-    record: "RecordData" = betterproto.message_field(11, group="node")
-    query: "QueryData" = betterproto.message_field(12, group="node")
-    view: "ViewData" = betterproto.message_field(13, group="node")
-    notice: "NoticeData" = betterproto.message_field(14, group="node")
-    link: "LinkData" = betterproto.message_field(15, group="node")
-    skip: "SkipData" = betterproto.message_field(16, group="node")
-    space: "SpaceData" = betterproto.message_field(17, group="node")
-    session: "SessionData" = betterproto.message_field(18, group="node")
-    run: "RunData" = betterproto.message_field(19, group="node")
-    pause: "PauseData" = betterproto.message_field(20, group="node")
-    signal: "SignalData" = betterproto.message_field(21, group="node")
-    badge: "BadgeData" = betterproto.message_field(22, group="node")
-    role: "RoleData" = betterproto.message_field(23, group="node")
-    identity: "IdentityData" = betterproto.message_field(24, group="node")
-    server: "ServerData" = betterproto.message_field(25, group="node")
-    store: "StoreData" = betterproto.message_field(26, group="node")
-    drive: "DriveData" = betterproto.message_field(27, group="node")
-    cache: "CacheData" = betterproto.message_field(28, group="node")
-    file_content: "FileContentData" = betterproto.message_field(29, group="node")
-    handle: "HandleData" = betterproto.message_field(30, group="node")
-    user: "UserData" = betterproto.message_field(31, group="node")
-    organization: "OrganizationData" = betterproto.message_field(32, group="node")
-    client: "ClientData" = betterproto.message_field(33, group="node")
-    notification: "NotificationData" = betterproto.message_field(34, group="node")
-    membership: "MembershipData" = betterproto.message_field(35, group="node")
+    field: "FieldData" = betterproto.message_field(9, group="node")
+    record: "RecordData" = betterproto.message_field(10, group="node")
+    query: "QueryData" = betterproto.message_field(11, group="node")
+    view: "ViewData" = betterproto.message_field(12, group="node")
+    notice: "NoticeData" = betterproto.message_field(13, group="node")
+    link: "LinkData" = betterproto.message_field(14, group="node")
+    skip: "SkipData" = betterproto.message_field(15, group="node")
+    space: "SpaceData" = betterproto.message_field(16, group="node")
+    session: "SessionData" = betterproto.message_field(17, group="node")
+    run: "RunData" = betterproto.message_field(18, group="node")
+    pause: "PauseData" = betterproto.message_field(19, group="node")
+    signal: "SignalData" = betterproto.message_field(20, group="node")
+    badge: "BadgeData" = betterproto.message_field(21, group="node")
+    role: "RoleData" = betterproto.message_field(22, group="node")
+    identity: "IdentityData" = betterproto.message_field(23, group="node")
+    server: "ServerData" = betterproto.message_field(24, group="node")
+    store: "StoreData" = betterproto.message_field(25, group="node")
+    drive: "DriveData" = betterproto.message_field(26, group="node")
+    cache: "CacheData" = betterproto.message_field(27, group="node")
+    file_content: "FileContentData" = betterproto.message_field(28, group="node")
+    handle: "HandleData" = betterproto.message_field(29, group="node")
+    user: "UserData" = betterproto.message_field(30, group="node")
+    organization: "OrganizationData" = betterproto.message_field(31, group="node")
+    client: "ClientData" = betterproto.message_field(32, group="node")
+    notification: "NotificationData" = betterproto.message_field(33, group="node")
+    membership: "MembershipData" = betterproto.message_field(34, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -2090,8 +2058,8 @@ class ClientOrigin(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RpcMetadata(betterproto.Message):
     """
-    Core metadata for all RPC requests. (This is passed as specially encoded
-    headers, but it's nice to have a common definition.)
+    Core metadata for all RPC requests.
+     (This is passed as specially encoded headers, but it's nice to have a common definition.)
     """
 
     client_kind: Optional["ClientKind"] = betterproto.enum_field(1, optional=True)
@@ -2120,8 +2088,8 @@ class GraphScope(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
     """
-    Edit describes an edit to a Node. (Manually defined here since inline Node
-    properties inside structs aren't supported.)
+    Edit describes an edit to a Node.
+     (Manually defined here since inline Node properties inside structs aren't supported.)
     """
 
     type: "EditType" = betterproto.enum_field(1)
@@ -2190,8 +2158,7 @@ class LoginUserResponse(betterproto.Message):
 class LogoutUserRequest(betterproto.Message):
     client_ids: List[str] = betterproto.string_field(1)
     """
-    If specified, log out only the specified clients (instead of the current
-    client).
+    If specified, log out only the specified clients (instead of the current client).
     """
 
     logout_all: Optional[bool] = betterproto.bool_field(2, optional=True)
@@ -4102,78 +4069,78 @@ from typing import Union  # noqa
 import bench.proto.monkey  # noqa
 
 AnyNodeData = Union[
-    UpgradeData,
     PauseData,
-    TriggerData,
-    DependencyData,
-    SkipData,
-    RunData,
-    RoleData,
-    HandleData,
-    BenchData,
-    BlockData,
-    TagData,
     CacheData,
-    MembershipData,
-    DriveData,
-    BadgeData,
-    SpaceData,
-    RecordData,
-    ViewData,
-    ClientData,
-    ServerData,
-    SignalData,
-    SessionData,
-    BranchData,
-    OrganizationData,
-    UserData,
-    PackageData,
-    NoticeData,
-    FileContentData,
-    LinkData,
-    FieldData,
-    NotificationData,
     IdentityData,
-    StoreData,
-    EnvironmentData,
     QueryData,
+    RecordData,
+    UserData,
+    DependencyData,
+    FieldData,
+    BadgeData,
+    RoleData,
+    EnvironmentData,
+    ViewData,
+    FileContentData,
+    ServerData,
+    BenchData,
+    SpaceData,
+    SessionData,
+    RunData,
+    SkipData,
+    NoticeData,
+    BlockData,
+    DriveData,
+    LinkData,
+    HandleData,
+    UpgradeData,
+    StoreData,
+    NotificationData,
+    OrganizationData,
+    PackageData,
+    MembershipData,
+    ClientData,
+    SignalData,
+    TriggerData,
+    BranchData,
 ]
 AnyStructData = Union[
-    AccessTraceData,
+    TypeInfoData,
+    IconData,
+    NodeReferenceData,
+    RequestData,
+    ServerImageRequirementData,
+    SpaceDockData,
+    PropertyReferenceData,
+    ValueReferenceData,
+    StoreCredentialData,
+    CodeSectionData,
     BenchPathData,
+    AccessMatrixData,
+    ContextData,
     FieldPathData,
     ExpressionData,
-    FileData,
-    AggregationData,
+    SubjectData,
     RunCodeFrameData,
-    ServerImageRequirementData,
-    TypeInfoData,
-    StoreCredentialData,
+    FileData,
+    ProjectionData,
+    AggregationData,
+    ScheduleData,
+    RichTextSpanData,
+    AccessTraceData,
+    PolicyRuleData,
     AccessZoneData,
-    SpaceDockItemData,
-    RunErrorData,
-    ContextData,
-    AccessData,
+    RichTextData,
+    ServerImageData,
+    CodeData,
     PolicyData,
     ValueSelectionData,
-    NodeReferenceData,
-    ScheduleData,
-    PolicyRuleData,
     PropertyPathData,
-    SpaceDockData,
-    RequestData,
-    FieldPathSegmentData,
     ReadOptionsData,
-    RichTextData,
-    AggregationBucketData,
-    ServerImageData,
-    SubjectData,
-    CodeData,
-    IconData,
-    AccessMatrixData,
-    ValueReferenceData,
-    CodeSectionData,
     LogEntryData,
-    RichTextSpanData,
-    PropertyReferenceData,
+    AccessData,
+    SpaceDockItemData,
+    FieldPathSegmentData,
+    RunErrorData,
+    AggregationBucketData,
 ]

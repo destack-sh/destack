@@ -192,6 +192,14 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     is_serial: bool = False  # auto-incrementing integer
 
+    # value
+    is_value_runtime: bool = False  # for user 'value' properties
+    is_value_packed: bool = False  # for packed value properties (the underlying value)
+    value_packed_id: int | None = None  # the packed value
+    secret_value_packed_id: int | None = None  # the secret packed value (optional)
+    value_type_info_id: int | None = None  # the type info for the value
+    value_type_info_getter: Callable[["NodeT"], "TypeInfo"] | None = None  # type info getter
+
     # node references
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
@@ -207,7 +215,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
     custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
-    custom_copy: Callable[[Any], Any] | None = None
     ignore_conflicts: bool = False
     _cached_as_ref: Optional["PropertyReference"] = None
     _cached_as_type: Optional["TypeInfo"] = None
@@ -248,7 +255,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "ord",
         ):
             v = getattr(self, k)
-            if v is UNSET or (not v and v is not 0):
+            if v is UNSET or (not v and v != 0):
                 continue
             elif k == "id":
                 non_default.append(str(v))
@@ -463,17 +470,27 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
 
+        # resolve & check value type info
+        if self.is_value_runtime:
+            from bench.language.value import HasValues
+
+            assert HasValues in self.component.__static_components__, f"{self!r} is not HasValues"
+            if self.value_type_info_id is not None:
+                prop = self.component.__properties_by_id__.get(self.value_type_info_id)
+                if prop is None:
+                    raise ValueError(
+                        f"invalid value_type_info_id: {self.value_type_info_id} for {self!r}"
+                    )
+
         # sanity check some stuff
         if self.is_encrypted and not self.is_sensitive:
             raise ValueError(f"encrypted properties should be sensitive {self!r}")
         if self.is_encrypted and not self.is_deferred:
             raise ValueError(f"encrypted properties should be deferred {self!r}")
-        if self.type and not issubclass(self.component, Node) and self.is_deferred:
-            raise ValueError(f"cannot defer properties in structs {self!r}")
         if (
             self.id is not None
             and self.id is not UNSET
-            and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is user level fine)
+            and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is fine)
             and self.component.__name__ not in ("Node", "Struct")
             and self.id not in Node.__properties_by_id__
         ):
@@ -649,7 +666,6 @@ def p_property(
     unique: bool = False,
     sensitive: bool = False,
     ignore_conflicts: bool = False,
-    copy: Callable[[Any], Any] = None,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
 ):
     return Property(
@@ -661,7 +677,6 @@ def p_property(
         is_required=require,
         default=default,
         default_factory=default_factory,
-        custom_copy=copy,
         custom_validate=validate,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
@@ -679,22 +694,10 @@ def p_property(
     )
 
 
-if TYPE_CHECKING:
-    p_regular = p_internal = p_system = p_kernel = p_property
-else:
-    p_regular = functools.partial(p_property, internal=False, system=False)
-    p_internal = functools.partial(p_property, internal=True, system=False)
-    p_system = functools.partial(p_property, internal=True, system=True)
-    p_kernel = functools.partial(
-        p_property, internal=True, system=True, sensitive=True, kernel=True
-    )
-
-
 def p_runtime(
     *,
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
-    copy: Callable[[Any], Any] = None,
 ) -> object:
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
@@ -706,7 +709,6 @@ def p_runtime(
         is_stored=False,
         default=default,
         default_factory=default_factory,
-        custom_copy=copy,
     )
 
 
@@ -766,6 +768,80 @@ def p_child(
         list_type=custom_list or NodeList,
         is_stored=False,
         alias=alias,
+    )
+
+
+def p_value_runtime(
+    value_packed_id: int,
+    secret_value_packed_id: int | None = None,
+    *,
+    type: int | Callable[["NodeT"], "TypeInfo"] | None = None,
+) -> Property:
+    """Runtime-only property for a Value and secret value."""
+    value_type_info_id = None
+    value_type_info_getter = None
+    if isinstance(type, int):
+        value_type_info_id = type
+    elif callable(type):
+        value_type_info_getter = type
+    elif type is not None:
+        raise ValueError(f"invalid type info {type!r} for p_value_runtime")
+    return Property(
+        is_internal=True,
+        is_runtime=True,
+        is_wired=False,
+        is_stored=False,
+        is_required=False,
+        is_value_runtime=True,
+        default=None,
+        value_packed_id=value_packed_id,
+        secret_value_packed_id=secret_value_packed_id,
+        value_type_info_id=value_type_info_id,
+        value_type_info_getter=value_type_info_getter,
+    )
+
+
+def p_value_packed(id: int) -> Property:
+    """Packed value property."""
+    return Property(
+        id=id,
+        primitive_type=PrimitiveType.JSON,
+        default=None,
+        is_value_packed=True,
+        is_required=False,
+        is_internal=True,
+        is_system=True,
+        is_stored=True,
+        is_wired=True,
+    )
+
+
+def p_secret_value_packed(id: int) -> Property:
+    """Packed secret value property."""
+    return Property(
+        id=id,
+        primitive_type=PrimitiveType.JSON,
+        default=None,
+        is_value_packed=True,
+        is_required=False,
+        is_internal=True,
+        is_system=True,
+        is_stored=True,
+        is_wired=True,
+        is_sensitive=True,
+        is_encrypted=True,
+        is_deferred=True,
+    )
+
+
+if TYPE_CHECKING:
+    p_regular = p_internal = p_system = p_kernel = p_property
+else:
+    p_regular = functools.partial(p_property, internal=False, system=False)
+    p_internal = functools.partial(p_property, internal=True, system=False)
+    p_system = functools.partial(p_property, internal=True, system=True)
+    p_kernel = functools.partial(
+        p_property, internal=True, system=True, sensitive=True, kernel=True
     )
 
 
@@ -1048,6 +1124,7 @@ def _process_struct_base_cls(
     )
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
+    cls.__value_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.ord = i
@@ -1425,6 +1502,7 @@ class Struct(abc.ABC):
     __reference_properties__: ClassVar[dict[str, Property]] = {}
     __sensitive_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
+    __value_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
@@ -1731,6 +1809,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # <... defined in concrete type ...>
 
     notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
+    links: NodeList["Link"] = p_child(NodeType.LINK, NRel.CUMULATIVE)
 
     # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
     _graph: Union["NodeGraphBase", None] = p_runtime(default=None)
@@ -2264,7 +2343,7 @@ class Link(Node):
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
     )
-    value: Optional["ValueReference"] = p_regular(
+    computed_reference: Optional["ValueReference"] = p_regular(
         31, require=False, array=False, struct=StructType.VALUE_REFERENCE
     )
     order_key: Optional[str] = p_internal(32, default=None)
@@ -2356,8 +2435,6 @@ def _complete_bench_setup():
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:
                 raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
-            if not is_node and (prop.is_deferred or prop.is_encrypted):
-                raise ValueError(f"{prop!r} cannot be deferred or encrypted on {cls!r}")
 
             # check py_type matches struct type as defined
             if (

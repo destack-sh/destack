@@ -1,19 +1,11 @@
 import enum
-import typing
-from copy import deepcopy
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
-import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language.const import (
-    UNSET,
-    ConditionalOp,
-    NodeType,
-    new_dynamic_node_key,
-)
+from bench.language.const import UNSET, ConditionalOp, NodeType, new_dynamic_node_key
 from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     Node,
@@ -22,7 +14,6 @@ from bench.language.node import (
     NodeStatus,
     NRel,
     Property,
-    Node,
     _Passthrough,
     node,
     node_component,
@@ -30,16 +21,19 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_runtime,
+    p_secret_value_packed,
+    p_value_packed,
+    p_value_runtime,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.query import StoreEngine, QueryBuilder
-from bench.language.value import HasValue
-from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
+from bench.language.query import PostgresEngine, QueryBuilder
+from bench.language.value import HasValues
+from bench.proto.wire import RecordData
+from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
-from bench.proto.wire import RecordData
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import Block, Query
 
 logger = structlog.get_logger(__name__)
@@ -55,18 +49,14 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
     index_in_search=True,
     local=True,
 )
-class Record(HasValue, Node):
+class Record(HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
     parent: "Block" = p_parent(4, NodeType.BLOCK)
-    value_packed: typing.Any | None = p_internal(
-        30,
-        default_factory=dict,
-        copy=deepcopy,
-        primitive_type=PrimitiveType.JSON,
-        ignore_conflicts=True,
-    )
+    value_packed: Any = p_value_packed(30)
+    secret_value_packed = p_secret_value_packed(31)
+    value = p_value_runtime(30, 31, type=4)
 
     # could also have Record.secret_value_packed as in Block (no materialization needed?)
 
@@ -119,10 +109,7 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-class RecordPostgresEngine(StoreEngine[Record, RecordData]):
-    def __init__(self, cur: psycopg.AsyncCursor):
-        self._cur = cur
-
+class RecordPostgresEngine(PostgresEngine[Record, RecordData]):
     @property
     def _combined_filter(self) -> Expression:
         """Combines the custom with the default filter for this database."""
@@ -339,17 +326,3 @@ class HasDatabase(Node):
                 return None
         else:
             return new_dynamic_node_key(instance.ck)
-
-    # maybe these node methods should also go into passthrough?
-
-    def _iter_inner(self):
-        return iter(self.records)
-
-    def _aiter_inner(self):
-        return aiter(self.records)
-
-    def _len_inner(self):
-        return len(self.records)
-
-    def _getitem_inner(self, item):
-        return self.records[item]

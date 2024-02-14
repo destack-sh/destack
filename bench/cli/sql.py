@@ -248,9 +248,9 @@ async def shell(bench: str = None):
     if bench is not None:
         async with global_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
-        connection_str = get_pg_connection_str(local_pg_name=bench.pg_name)
+        connection_str = get_pg_connection_str(bench.main_environment.store)
     else:
-        connection_str = get_pg_connection_str(local_pg_name=None)
+        connection_str = get_pg_connection_str(GLOBAL_STORE)
 
     logger.info(
         "shell.psql", bench=bench, connection_str=re.sub(r":[^@]+@", ":*****@", connection_str)

@@ -1,9 +1,17 @@
 from typing import TYPE_CHECKING, Collection, Optional, Union
 
-from bench.language.node import Node
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeDataGraph, NodeList
-from bench.language.node import node, p_child, p_kernel, p_parent, p_regular, p_runtime, p_system
+from bench.language.node import (
+    Node,
+    node,
+    p_child,
+    p_kernel,
+    p_parent,
+    p_regular,
+    p_runtime,
+    p_system,
+)
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -45,7 +53,7 @@ class Bench(Node):
     owner: Union["User", "Organization"] = p_system(
         35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
-    encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True)
+    encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True, sensitive=True)
     policies: list["Policy"] | None = p_regular(
         37, default_factory=list, struct=StructType.POLICY, array=True
     )
@@ -55,11 +63,11 @@ class Bench(Node):
         40, require=False, array=False, references=NodeType.PACKAGE
     )
     packages: NodeList["Package"] = p_child(NodeType.PACKAGE)
-    main_environment: Optional["Environment"] = p_system(
+    main_environment: Optional["Environment"] = p_regular(
         41, require=False, array=False, references=NodeType.ENVIRONMENT
     )
     environments: NodeList["Environment"] = p_child(NodeType.ENVIRONMENT)
-    main_branch: Optional["Branch"] = p_system(
+    main_branch: Optional["Branch"] = p_regular(
         42, require=False, array=False, references=NodeType.BRANCH
     )
     branches: NodeList["Branch"] = p_child(NodeType.BRANCH)

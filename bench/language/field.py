@@ -1,5 +1,4 @@
 import typing
-from copy import deepcopy
 from typing import Any, Optional, Union
 
 import structlog
@@ -7,6 +6,7 @@ import structlog
 from bench.language.const import (
     NODE_TYPES,
     STRUCT_TYPES,
+    BenchError,
     BenchType,
     BlockType,
     FormatHint,
@@ -14,32 +14,29 @@ from bench.language.const import (
     NodeVisibility,
     StructType,
     new_dynamic_node_key,
-    BenchError,
 )
 from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
-    NodeList,
-    NRel,
-    Property,
     Node,
+    NodeList,
+    Property,
     Struct,
     node,
-    node_component,
-    p_child,
     p_internal,
     p_parent,
     p_regular,
     p_runtime,
+    p_value_packed,
+    p_value_runtime,
     struct,
 )
 from bench.language.validation import validate_name
-from bench.language.value import HasValue
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, RichText, Tag
+    from bench.language import Block, Expression, RichText
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -124,9 +121,8 @@ class TypeInfo(Struct):
     precision: Optional[int] = p_regular(47, require=False, default=None)
     scale: Optional[int] = p_regular(48, require=False, default=None)
     # default for this type :GeneralizeHasValue
-    # default_packed: Optional[Any] = p_regular(
-    #     49, require=False, default=None, primitive_type=PrimitiveType.JSON
-    # )
+    default_packed: Optional[Any] = p_value_packed(49)
+    default = p_value_runtime(49)
 
     # flags
     is_array: bool = p_regular(50, default=False)
@@ -220,12 +216,7 @@ class TypeInfo(Struct):
     @property
     def is_nested(self) -> bool:
         """Whether the value of this type has fields."""
-        if self._fields is not None:
-            return True
-        elif self.base_type and HasFields in self.base_type._components:
-            return True
-        else:
-            return False
+        return self._fields is not None or self.base_type is not None
 
     @property
     def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
@@ -238,7 +229,7 @@ class TypeInfo(Struct):
 
 
 @node(NodeType.FIELD)
-class Field(HasValue, TypeInfo, _TypeExpressionBase):
+class Field(Node, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
@@ -248,9 +239,8 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     text: Optional["RichText"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.RICH_TEXT
     )
-    value_packed: Any | None = p_internal(
-        34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
-    )
+    value_packed: Any | None = p_value_packed(34)
+    value = p_value_runtime(34)
 
     # type identity
     # ...TypeInfo
@@ -259,10 +249,8 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     is_input: bool = p_regular(60, default=False)
     is_output: bool = p_regular(61, default=False)
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
-    # is_indexed: bool = p_regular(63, default=False)
-    # is_unique: bool = p_regular(64, default=False)
-
-    tags: NodeList["Tag"] = p_child(NodeType.TAG)
+    # is_indexed: bool = p_regular(63, default=False) # for record fields
+    # is_unique: bool = p_regular(64, default=False) # for record fields (only?)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
@@ -309,109 +297,3 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     @property
     def storage_key(self) -> str:
         return f"{self.dynamic_key}-{self.resolved_type.identity_key}"
-
-
-@node_component
-class HasFields(Node):
-    """A node with fields"""
-
-    fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
-
-    _did_resolve_bases: bool = p_runtime(default=False)
-    _as_type: TypeInfo | None = p_runtime(default=None)
-
-    @property
-    def _type(self):
-        return self._as_type
-
-    def _init_inner(self):
-        if self._is_new and self.dynamic_key is None:
-            self.dynamic_key = new_dynamic_node_key(self.ck)
-
-    def _clear_inner(self, scope: Optional[Node] = None) -> None:
-        self._did_resolve_bases = False
-        self._as_type = None
-
-    def _interp_inner(self, scope: Node, on_notice: "NoticeHandler") -> None:
-        self._resolve_fields([], on_notice)
-        self._as_type = TypeInfo(base_type=self)
-
-    def _resolve_fields(self: "HasFields", path: list["Node"], on_notice: "NoticeHandler") -> None:
-        """
-        Resolves (and inlines) field references and unions.
-        """
-        from bench.language import NoticeType
-
-        if self._did_resolve_bases:
-            return  # already resolved
-
-        if any(f.id == self.id for f in path):
-            # circular panic
-            path = "->".join(n.name for n in path + [self])
-            on_notice(self, NoticeType.CIRCULAR_BASE, path=path)
-            self._did_resolve_bases = True
-            return
-
-        # resolve fields recursively (inlining any valid unions)
-        # nocheckin: Field._resolve_fields (-> resolve bases?)
-        self._did_resolve_bases = True
-
-    def _inputs_from_args(self, args, kwargs) -> dict:
-        inputs = {**kwargs}
-        input_fields = [f for f in self.fields if not f.is_output]
-        for input_t, input in zip(input_fields, args):
-            inputs[input_t.py_ident] = input
-        return inputs
-
-
-class TypedDict(dict):
-    """
-    A dot dict based on a type.
-    Errors on attribute access if the field doesn't exist, otherwise returns the value (or None).
-    """
-
-    _PROPS = ("_type", "_is_output")
-
-    def __init__(self, d: dict, type: "TypeInfo", is_output: bool = None):
-        super().__init__(**d)
-        self._type = type
-        self._is_output = is_output
-
-    def __str__(self):
-        return super().__str__()
-
-    def __repr__(self):
-        kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
-        return f"{self._type.base_type.py_ident}({kwargs_str})"
-
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            field = self._type.fields.get(item)
-            if field and (self._is_output is None or field.is_output == self._is_output):
-                return None
-        raise KeyError(f"no key {item!r} on {self._type!r}")
-
-    def __getattr__(self, item):
-        if item in TypedDict._PROPS:
-            return super().__getattr__(item)
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            field = self._type.fields.get(item)
-            if field and (self._is_output is None or field.is_output == self._is_output):
-                return None
-        raise AttributeError(f"no attribute {item!r} on {self._type!r}")
-
-    def __setattr__(self, name, value):
-        if name in TypedDict._PROPS:
-            return super().__setattr__(name, value)
-
-        field = self._type.fields.get(name)
-        if field and (self._is_output is None or field.is_output == self._is_output):
-            return dict.__setitem__(self, name, value)
-        raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
-
-    def to_dict(self):  # :ToDict
-        return self

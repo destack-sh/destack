@@ -1,16 +1,14 @@
 import typing
-from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import BlockType, NodeType, StructType, NodeVisibility
+from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
-from bench.language.field import TypedDict
 from bench.language.node import (
     Node,
     NodeList,
     NRel,
-    Node,
     _Passthrough,
     node,
     node_component,
@@ -18,12 +16,14 @@ from bench.language.node import (
     p_internal,
     p_parent,
     p_regular,
+    p_secret_value_packed,
     p_system,
+    p_value_packed,
+    p_value_runtime,
 )
-from bench.language.run import HasRun
+from bench.language.session import HasRun
 from bench.language.validation import validate_name
-from bench.language.value import HasValue
-from bench.sql.core import PrimitiveType
+from bench.language.value import HasValues, TypedDict
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import dict_minus
@@ -31,15 +31,13 @@ from bench.utils.func import dict_minus
 if TYPE_CHECKING:
     from bench.language import (
         Badge,
+        Code,
+        Field,
+        Icon,
         Package,
         Policy,
-        TypeInfo,
         RichText,
-        Icon,
-        Code,
-        Tag,
-        Field,
-        Trigger,
+        TypeInfo,
     )
 
 
@@ -81,7 +79,6 @@ IdentT = IdentifierType
 
 _block = _BlockTypeDescriptor
 _block(BlockType.PAGE, (), IdentT.VARIABLE)
-_block(BlockType.TAG, (), IdentT.TYPE)
 _block(BlockType.TEXT, (), IdentT.VARIABLE)
 _block(BlockType.BLANK, (), IdentT.VARIABLE)
 _block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
@@ -120,15 +117,13 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Block(HasValue):
+class Block(HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    children: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
+    blocks: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
     fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
-    tags: NodeList["Tag"] = p_child(NodeType.TAG)
-    triggers: NodeList["Trigger"] = p_child(NodeType.TRIGGER)
 
     # core
     type: BlockType = p_internal(30, default=BlockType.BLANK)
@@ -146,18 +141,9 @@ class Block(HasValue):
     text: Optional["RichText"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.RICH_TEXT
     )
-    value_packed: Any | None = p_internal(
-        42, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
-    )
-    secret_value_packed: Any | None = p_internal(
-        43,
-        default=None,
-        encrypt=True,
-        defer=True,
-        sensitive=True,
-        copy=deepcopy,
-        primitive_type=PrimitiveType.JSON,
-    )
+    value_packed: Any = p_value_packed(42)
+    secret_value_packed: Any | None = p_secret_value_packed(43)
+    value = p_value_runtime(42, 43)
     code: Optional["Code"] = p_regular(
         44, default=None, require=False, array=False, struct=StructType.CODE
     )
@@ -178,7 +164,7 @@ class Block(HasValue):
     is_intrinsic: bool = p_system(63, default=False)  # provided by the system
     is_protocol: bool = p_regular(64, default=False)  # has a protocol
     is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
-    paused_at: int | None = p_internal(66, default=None)  # triggers below (incl.) block are paused
+    paused_at: datetime | None = p_internal(66, default=None)  # triggers <=block are paused
 
     # (this is basically a flag but is_paused propagates down the tree)
     # is_frozen? (read-only in instances of template)
