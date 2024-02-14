@@ -74,6 +74,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     # value
     is_value_runtime: bool = False  # for user 'value' properties
     is_value_packed: bool = False  # for packed value properties (the underlying value)
+    is_value_freeform: bool = False  # for freeform value properties (dynamically untyped)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
@@ -715,6 +716,21 @@ def p_secret_value_packed(id: int) -> Property:
         is_sensitive=True,
         is_encrypted=True,
         is_deferred=True,
+    )
+
+
+def p_value_freeform(id: int) -> Property:
+    """Freeform value property."""
+    return Property(
+        id=id,
+        primitive_type=PrimitiveType.JSON,
+        default=None,
+        is_value_freeform=True,
+        is_required=False,
+        is_internal=True,
+        is_system=True,
+        is_stored=True,
+        is_wired=True,
     )
 
 

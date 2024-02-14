@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
-import functools
-from typing import Optional
+from typing import Optional, AsyncContextManager, Any
 from uuid import UUID
 
 import boto3
+import psycopg
 import structlog
 from botocore.config import Config
 from grpclib import GRPCError
@@ -14,7 +14,7 @@ from bench.language.const import ABOVE_SOURCE_NODE_TYPES
 from bench.language.query import PostgresEngine
 from bench.language.resource import StoreCredential, StoreCredentialType
 from bench.proto.wire import AnyNodeData, AnyStructData
-from bench.sql.client import pg_cursor_to_store
+from bench.sql.client import _PgStoreConnection
 from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
 
@@ -51,11 +51,17 @@ GLOBAL_POSTGRES_ENGINE = PostgresEngine(
     GLOBAL_STORE, scope=None, node_types=ABOVE_SOURCE_NODE_TYPES
 )
 
-global_pg_cursor = functools.partial(pg_cursor_to_store, store=GLOBAL_STORE)
+
+@asynccontextmanager
+async def global_pg_cursor(
+    autocommit: bool = False,
+) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
+    async with _PgStoreConnection(GLOBAL_STORE, autocommit=autocommit) as cur:
+        yield cur
 
 
 @asynccontextmanager
-async def global_session(read_only: bool = False) -> "Session":
+async def global_session(read_only: bool = False) -> AsyncContextManager[Session]:
     async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
         yield session
 

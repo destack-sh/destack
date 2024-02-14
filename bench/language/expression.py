@@ -14,7 +14,7 @@ from bench.language.const import (
     SortOp,
     StructType,
 )
-from bench.language.node import Node, Property, Struct, node, struct
+from bench.language.node import Node, Property, Struct, struct
 from bench.language.property import p_regular
 from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.proto.wire import AnyNodeData, NodeReferenceData

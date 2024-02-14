@@ -677,10 +677,7 @@ class AccessTrace(Struct):
 
 @struct(StructType.REQUEST)
 class Request(Struct):
-    """
-    A request with multiple accesses.
-    TODO @Feature @Security: store, query and watch access log
-    """
+    """A request comprising multiple Accesses."""
 
     subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
     decision: PolicyEffect = p_system(31, require=True)
@@ -897,7 +894,7 @@ def get_edited_scopes(edits: list[EditData]) -> dict[UUID, "NodeReference"]:
                     ptr: "NodeReference" = wiring.unpack_struct(node.parent_ptr)
                     edited_scopes_ptr[ptr.id] = ptr
             elif node_cls.__roots__:
-                raise ValidationError(node, f"can't create orphan")
+                raise ValidationError(node, "can't create orphan")
         else:
             # scope is the edited node itself
             if node.id not in edited_scopes_ptr:

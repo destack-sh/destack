@@ -1514,7 +1514,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
         # keep manually set node lists if passed in
         if existing_lists:
-            was_interp = self._status >= NodeStatus.INTERP
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
                     getattr(self, name).extend(*existing)

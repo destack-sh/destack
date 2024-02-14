@@ -58,6 +58,7 @@ class NodeType(IdEnum):
     PAUSE = 52  # (local)
     SIGNAL = 53  # (local)
     LOG = 54  # (local, search/analytical only)
+    # METRIC = ...?
 
     # auth
     BADGE = 60
@@ -512,7 +513,7 @@ class NoticeKind(IdEnum):
     """Type of diagnostic in increasing severity."""
 
     HINT = 1
-    INFORMATION = 2
+    INFO = 2
     WARNING = 3
     ERROR = 4
 
