@@ -1,4 +1,5 @@
 from .setup import _complete_bench_setup
+from .value import Context
 from ..sql.core import PrimitiveType
 from .access import (
     Access,
@@ -55,8 +56,7 @@ from .query import Query
 from .render import render
 from .resource import Cache, Drive, FileContent, Server, ServerImage, ServerImageRequirement, Store
 from .session import (
-    Context,
-    LogEntry,
+    Log,
     Pause,
     Run,
     RunError,
@@ -105,7 +105,7 @@ __all__ = [
     "Icon",
     "Identity",
     "Link",
-    "LogEntry",
+    "Log",
     "Node",
     "Node",
     "NodeReference",

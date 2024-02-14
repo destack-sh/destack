@@ -1244,10 +1244,13 @@ def evaluate_edit(
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
+    TODO @Broken @Security: verify equivalent 'run' access for the edits
+     (e.g. create Run with base=Block <=> run Block, create Signal with base=Block <=> emit Block)
     """
     from bench.proto import wiring
 
     accesses: list[Access] = []
+    cache: dict[Any, Any] = {}
     # when creating nested nodes in one transaction, the graph only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] | None = None
@@ -1288,7 +1291,7 @@ def evaluate_edit(
             _ints_to_mask(edit.properties, node_cls.__max_property_ord__ + 1)
             & node_cls.__properties_mask__
         )
-        _, access, _ = evaluate_access(
+        _, access, was_cached = evaluate_access(
             matrix=matrix,
             verb=access_type,
             object_node_type=node_type,
@@ -1297,13 +1300,17 @@ def evaluate_edit(
             scope_id=scope.id,
             mode=AccessMode.ATOMIC,
             trace=trace,
+            cache=cache,
         )
-        accesses.append(access)
-        if access.decision == PolicyEffect.DENY:
-            # implicit or explicit deny for access -> deny entire request
-            return Request(decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses)
+        if not was_cached:
+            accesses.append(access)
+            if access.decision == PolicyEffect.DENY:
+                # implicit or explicit deny for access -> deny entire request
+                return Request(
+                    decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses
+                )
 
-    # at this point no implicit or explicit denies have happened -> allow
+    # at this point no implicit or explicit denies have happened -> explicit allow
     return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
 
 

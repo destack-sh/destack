@@ -8,7 +8,6 @@ package symbolx.bench;
 
 import "bench/proto/common.proto";
 import "bench/proto/lang.proto";
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
@@ -261,10 +260,6 @@ service Supervisor {
 // Package host
 //
 
-message GetLogsRequest {}
-message GetLogsResponse {
-  repeated LogEntryData logs = 1;
-}
 
 message UploadFilesRequest {
   repeated FileData files = 1;
@@ -280,31 +275,6 @@ message DownloadFilesRequest {
 message DownloadFilesResponse {
   repeated string get_urls = 1;
   google.protobuf.Timestamp expires_at = 2;
-}
-
-
-message SearchLogsRequest {
-  ExpressionData filter = 1;
-  repeated ExpressionData sort = 2;
-  int32 limit = 3;
-  string after = 4;
-}
-message SearchLogsResponse {
-  repeated LogEntryData logs = 1;
-  repeated string cursors = 2;
-  string start_cursor = 3;
-}
-
-message WatchLogsRequest {
-}
-message WatchLogsResponse {
-  repeated LogEntryData logs = 1;
-}
-
-message NotifyServerLogsRequest {
-  repeated LogEntryData logs = 1;
-}
-message NotifyServerLogsResponse {
 }
 
 message RunProxyBlockRequest {
@@ -351,17 +321,6 @@ service BenchHost {
   rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
 
   //
-  // Logs
-  //
-
-  // Searches all existing logs.
-  rpc SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
-  // Subscribes to future logs.
-  rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-  // Notifies logs from a server *that are already stored* to notify frontend users connected to this host.
-  rpc NotifyServerLogs(NotifyServerLogsRequest) returns (google.protobuf.Empty);
-
-  //
   // Runs
   //
 
@@ -383,19 +342,13 @@ service BenchHost {
 //
 
 message StartRunRequest {
-  // scope
-  optional string bench_id = 1;
-  // request
-  RunData run = 5;
-  bool block = 6;
-  bool keyed_inputs = 7;
-  bool keyed_outputs = 8;
-  repeated string tags = 9;
+  GraphScope scope = 1;
+  RunData run = 2;
 }
 message StartRunResponse {
   ErrorType error_type = 1;
   RunData run = 2;
-  repeated LogEntryData logs = 3;
+  repeated LogData logs = 3;
 
   enum ErrorType {
     START_RUN_ERROR_TYPE_UNSPECIFIED = 0;

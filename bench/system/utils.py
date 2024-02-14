@@ -13,7 +13,7 @@ from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
 from bench.language.const import ABOVE_SOURCE_NODE_TYPES
 from bench.language.query import PostgresEngine
 from bench.language.resource import StoreCredential, StoreCredentialType
-from bench.proto.wire import AnyNodeData, AnyStructData, BenchHostStub
+from bench.proto.wire import AnyNodeData, AnyStructData
 from bench.sql.client import pg_cursor_to_store
 from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
@@ -55,12 +55,8 @@ global_pg_cursor = functools.partial(pg_cursor_to_store, store=GLOBAL_STORE)
 
 
 @asynccontextmanager
-async def global_session(read_only: bool = False, host: BenchHostStub | None = None) -> "Session":
-    from bench.language.const import _active_session
-
-    assert _active_session.get() is None, f"already in active session {_active_session.get()}"
-
-    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _host=host) as session:
+async def global_session(read_only: bool = False) -> "Session":
+    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
         yield session
 
 

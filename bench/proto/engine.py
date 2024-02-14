@@ -103,7 +103,6 @@ def map_bench_enum_to_proto(
     alias: str = None,
 ) -> Enum:
     assert issubclass(bench_t, (IdEnum, enum.IntEnum, enum.IntFlag)), f"invalid enum: {bench_t!r}"
-    # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
     if issubclass(bench_t, IdEnum):
         enum_values = [

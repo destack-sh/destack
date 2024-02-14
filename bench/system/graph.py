@@ -1,4 +1,5 @@
-from typing import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Collection
 from uuid import UUID
 
 from grpclib import GRPCError
@@ -59,15 +60,24 @@ class GraphIoService(GraphIoBase):
     def __init__(self):
         self.epoch: int = 0
 
-    def contribute_edits(self, edits: list[EditData]):
+    def on_edited_graph(self, edits: list[EditData]):
         # nocheckin: track and buffer edits for recent epochs
-        raise NotImplementedError
+        # self.watchers....
+        self.epoch += 1
 
-    def get_engines_for(self, subject: Subject, scope: GraphScope) -> tuple[StoreEngine, ...]:
+    def get_engines_for(
+        self, subject: Subject, scope: GraphScope, node_type: NodeType
+    ) -> tuple[StoreEngine, ...]:
         # nocheckin: use Session/Transaction for GraphIoService
         raise NotImplementedError
 
-    async def log_and_check_request(self, request: Request):
+    @asynccontextmanager
+    async def session_for(
+        self, subject: Subject, scope: GraphScope, root_node_types: Collection[NodeType]
+    ):
+        raise NotImplementedError
+
+    async def check_and_log_request(self, request: Request):
         logger.debug(f"request.{request.decision.name.lower()}", request=request)
         if request.decision == PolicyEffect.DENY:
             raise AccessError(request)
@@ -103,7 +113,7 @@ class GraphIoService(GraphIoBase):
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
             access, graph, required_nodes=request.roots, adapt_nodes_in_place=True
         )
-        await self.log_and_check_request(evaluated_request)
+        await self.check_and_log_request(evaluated_request)
 
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -150,7 +160,7 @@ class GraphIoService(GraphIoBase):
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
             access, graph, adapt_nodes_in_place=True, required_nodes=request.bases
         )
-        await self.log_and_check_request(evaluated_request)
+        await self.check_and_log_request(evaluated_request)
 
         return SearchNodesResponse(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
@@ -225,13 +235,14 @@ class GraphIoService(GraphIoBase):
             # evaluate the edits
             matrix = generate_access_matrix(subject, graph)
             evaluated_request = evaluate_edit(matrix, graph, request.transaction.edits)
-            await self.log_and_check_request(evaluated_request)
+            await self.check_and_log_request(evaluated_request)
 
             # apply the edits
             changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
                 cur=cur, edits=request.transaction.edits, return_nodes=True
             )
             await cur.connection.commit()
+            self.on_edited_graph(request.transaction.edits)
 
         return CommitTransactionResponse(
             changed_nodes=[wiring.wrap_some_node(n) for n in changed_nodes],
