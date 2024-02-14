@@ -9,7 +9,7 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language import C, ConditionalOp, Field, Package, SortMode, SortOp
+from bench.language import C, ConditionalOp, Field, Package, SortMode, SortOp, Property
 from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
@@ -18,7 +18,7 @@ from bench.language.expression import (
     ExpressionOps,
     S,
 )
-from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
+from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Struct
 from bench.language.query import StoreEngineIncapableError, StoreEngineError
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData

@@ -8,7 +8,8 @@ from bench.language.const import BenchError
 
 if TYPE_CHECKING:
     from bench.proto.wire import AnyNodeData, AnyStructData
-    from bench.language.node import Struct, Node, Property, Property
+    from bench.language.node import Struct, Node, Property
+    from bench.language import Property
 
 
 class ValidationError(BenchError, ValueError):

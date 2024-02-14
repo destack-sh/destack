@@ -6,12 +6,9 @@ from bench.language.node import (
     Struct,
     node,
     node_component,
-    p_child,
-    p_internal,
-    p_parent,
-    p_regular,
     struct,
 )
+from bench.language.property import p_parent, p_child, p_regular, p_internal
 from bench.language.validation import enum_validator
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum

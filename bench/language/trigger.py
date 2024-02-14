@@ -9,15 +9,13 @@ from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
 from bench.language.node import (
     Node,
     NodeList,
-    Property,
     Struct,
     node,
     node_component,
-    p_child,
-    p_parent,
-    p_regular,
     struct,
 )
+from bench.language.property import p_parent, p_child, p_regular
+from bench.language import Property
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 
 if TYPE_CHECKING:

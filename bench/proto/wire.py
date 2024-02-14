@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.14.0"
+VERSION = "2024.02.14.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,12 +13,19 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -306,16 +313,12 @@ class IdEnum(betterproto.Enum):
     UNSPECIFIED = 0
 
 
-class NodeRelationType(betterproto.Enum):
-    """Parent relation between node and descendants."""
-
-    DEFAULT = 0
-    STORED_CUSTOM = 1
-    CUMULATIVE = 2
-    NAMED = 4
-    SCOPED = 8
-    KEYED = 16
-    ORDERED = 32
+class NodeReferenceKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    PARENT = 1
+    ANCESTOR = 2
+    REGULAR = 3
+    CHILD = 4
 
 
 class NodeSource(betterproto.Enum):
@@ -326,15 +329,17 @@ class NodeSource(betterproto.Enum):
 
 
 class NodeStatus(betterproto.Enum):
-    SOURCE = 0
-    INTERP = 1
-    TRACKED = 2
+    UNSPECIFIED = 0
+    SOURCE = 1
+    INTERP = 2
+    TRACKED = 3
 
 
 class NodeTrackingLevel(betterproto.Enum):
-    NONE = 0
-    ANONYMOUS = 1
-    FULL = 2
+    UNSPECIFIED = 0
+    NONE = 1
+    ANONYMOUS = 2
+    FULL = 3
 
 
 class NodeType(betterproto.Enum):
@@ -657,9 +662,9 @@ class AggregationBucketData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BenchPathData(betterproto.Message):
     """
-    A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
-     Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
-     Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
+    A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+     Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
+     Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
 
      flotothemoon/Mirror/Notion/Databases/Landscape
      ^ bench      ^ blocks
@@ -684,17 +689,17 @@ class BenchPathData(betterproto.Message):
      ../../../../Graphs
      ^ parents
 
-     NOT YET SUPPORTED:
-     / -> package root (=Package)
-     $ -> module root (=Block)
-     $User -> module-unique node (=Block|View)
-     ~ -> source module root ($ but for templated)
-     [<expr like ck=...>] -> dynamic Expression filter
-
      symbolx@2024-01-01/Library/Common/Utils/DateUtils
      ^ bench ^ package  ^ blocks
      symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
      ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+
+     NOT YET SUPPORTED:
+     / -> package root (=Package)
+     $ -> module root (=Block|Package)
+     $User -> module-unique node (=Block|View)
+     ~ -> source module root (like $ but for templated)
+     [<expr like ck=...>] -> dynamic Expression filter
 
      ''
      ERROR (invalid, empty path)
@@ -1555,7 +1560,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1922,7 +1927,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -4064,83 +4069,83 @@ class ServerProcessBase(ServiceBase):
         }
 
 
-from typing import Union  # noqa
-
 import bench.proto.monkey  # noqa
 
+from typing import Union  # noqa
+
 AnyNodeData = Union[
+    SignalData,
+    NotificationData,
+    BenchData,
+    BlockData,
+    HandleData,
     PauseData,
-    CacheData,
-    IdentityData,
-    QueryData,
-    RecordData,
-    UserData,
-    DependencyData,
-    FieldData,
-    BadgeData,
-    RoleData,
-    EnvironmentData,
     ViewData,
+    DependencyData,
+    UpgradeData,
     FileContentData,
     ServerData,
-    BenchData,
-    SpaceData,
-    SessionData,
-    RunData,
+    IdentityData,
+    UserData,
+    RecordData,
     SkipData,
-    NoticeData,
-    BlockData,
+    QueryData,
+    BranchData,
     DriveData,
-    LinkData,
-    HandleData,
-    UpgradeData,
-    StoreData,
-    NotificationData,
     OrganizationData,
-    PackageData,
+    SessionData,
+    StoreData,
+    SpaceData,
+    RunData,
+    RoleData,
     MembershipData,
     ClientData,
-    SignalData,
+    EnvironmentData,
+    LinkData,
+    BadgeData,
+    PackageData,
+    FieldData,
     TriggerData,
-    BranchData,
+    CacheData,
+    NoticeData,
 ]
 AnyStructData = Union[
-    TypeInfoData,
-    IconData,
-    NodeReferenceData,
-    RequestData,
-    ServerImageRequirementData,
-    SpaceDockData,
-    PropertyReferenceData,
-    ValueReferenceData,
-    StoreCredentialData,
-    CodeSectionData,
-    BenchPathData,
-    AccessMatrixData,
-    ContextData,
-    FieldPathData,
-    ExpressionData,
-    SubjectData,
-    RunCodeFrameData,
-    FileData,
-    ProjectionData,
-    AggregationData,
-    ScheduleData,
-    RichTextSpanData,
-    AccessTraceData,
-    PolicyRuleData,
-    AccessZoneData,
-    RichTextData,
-    ServerImageData,
-    CodeData,
-    PolicyData,
-    ValueSelectionData,
-    PropertyPathData,
-    ReadOptionsData,
-    LogEntryData,
     AccessData,
-    SpaceDockItemData,
-    FieldPathSegmentData,
+    RichTextData,
     RunErrorData,
+    FileData,
     AggregationBucketData,
+    StoreCredentialData,
+    NodeReferenceData,
+    PolicyData,
+    ValueReferenceData,
+    AccessTraceData,
+    PropertyReferenceData,
+    BenchPathData,
+    ExpressionData,
+    ContextData,
+    AggregationData,
+    RichTextSpanData,
+    FieldPathData,
+    SpaceDockItemData,
+    ServerImageData,
+    ProjectionData,
+    SubjectData,
+    SpaceDockData,
+    TypeInfoData,
+    CodeSectionData,
+    CodeData,
+    ReadOptionsData,
+    ValueSelectionData,
+    RequestData,
+    PolicyRuleData,
+    IconData,
+    FieldPathSegmentData,
+    PropertyPathData,
+    AccessZoneData,
+    ScheduleData,
+    RunCodeFrameData,
+    LogEntryData,
+    AccessMatrixData,
+    ServerImageRequirementData,
 ]

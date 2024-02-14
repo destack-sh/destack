@@ -12,14 +12,16 @@ from bench.language.node import (
     _Passthrough,
     node,
     node_component,
-    p_child,
-    p_internal,
+)
+from bench.language.property import (
     p_parent,
-    p_regular,
-    p_secret_value_packed,
-    p_system,
-    p_value_packed,
+    p_child,
     p_value_runtime,
+    p_value_packed,
+    p_secret_value_packed,
+    p_regular,
+    p_internal,
+    p_system,
 )
 from bench.language.session import HasRun
 from bench.language.validation import validate_name

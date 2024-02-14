@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.14.0"
+VERSION = "2024.02.14.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -268,16 +268,23 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
     return key
 
 
-class NodeTrackingLevel(enum.IntEnum):
-    NONE = 0
-    ANONYMOUS = 1
-    FULL = 2
+class NodeTrackingLevel(IdEnum):
+    NONE = 1
+    ANONYMOUS = 2
+    FULL = 3
+
+
+class NodeReferenceKind(IdEnum):
+    PARENT = 1
+    ANCESTOR = 2
+    REGULAR = 3
+    CHILD = 4
 
 
 NTL = NodeTrackingLevel
 
 
-class NodeRelationType(enum.IntEnum):
+class NodeRelationType(enum.IntFlag):
     """Parent relation between node and descendants."""
 
     DEFAULT = 0  # default inline relation
@@ -292,10 +299,10 @@ class NodeRelationType(enum.IntEnum):
 NRel = NodeRelationType
 
 
-class NodeStatus(enum.IntEnum):
-    SOURCE = 0  # just loaded
-    INTERP = 1  # everything resolved & ready
-    TRACKED = 2  # live in a session
+class NodeStatus(IdEnum):
+    SOURCE = 1  # just loaded
+    INTERP = 2  # everything resolved & ready
+    TRACKED = 3  # live in a session
 
 
 #

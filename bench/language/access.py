@@ -27,25 +27,24 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
+from bench.language.setup import ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES, _COMPLETED_SETUP
 from bench.language.node import (
-    _COMPLETED_SETUP,
-    ANCESTOR_NODE_TYPES,
-    CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     Node,
-    Property,
     Struct,
     _on_completing_setup,
     iter_properties,
     node,
-    on_warning_raise,
-    p_child,
-    p_internal,
-    p_parent,
-    p_regular,
-    p_runtime,
-    p_system,
     struct,
+)
+from bench.language.property import (
+    Property,
+    p_runtime,
+    p_parent,
+    p_child,
+    p_regular,
+    p_internal,
+    p_system,
 )
 from bench.language.notice import NoticeHandler
 from bench.language.text import RichText
@@ -850,6 +849,8 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
 
 @_on_completing_setup
 def _interp_system_policies():
+    from bench.language.notice import on_warning_raise
+
     for policy in SYSTEM_POLICIES:
         policy._interp_rec(None, on_warning_raise)
 

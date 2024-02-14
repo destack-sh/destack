@@ -2,7 +2,8 @@ import re
 from typing import Optional
 
 from bench.language.const import StructType, NodeType
-from bench.language.node import p_regular, struct, Struct
+from bench.language.node import struct, Struct
+from bench.language.property import p_regular
 
 
 class InvalidBenchPath(ValueError):

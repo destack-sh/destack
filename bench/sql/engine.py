@@ -24,7 +24,16 @@ import structlog
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Package, StoreEngineType, TypeInfo, Store
+from bench.language import (
+    Block,
+    ConditionalOp,
+    Field,
+    Package,
+    StoreEngineType,
+    TypeInfo,
+    Store,
+    Property,
+)
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
@@ -32,14 +41,12 @@ from bench.language.expression import TYPE_DISCRIMINATOR_KEY, C, Expression, Exp
 from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
-    NODE_CLASSES,
-    PARENT_NODE_TYPES,
     UNSET,
     Node,
-    Property,
     get_node_id,
 )
 from bench.language.query import StoreEngineIncapableError
+from bench.language.setup import PARENT_NODE_TYPES, NODE_CLASSES
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE

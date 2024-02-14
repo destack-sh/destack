@@ -5,13 +5,8 @@ from bench.language.graph import NodeDataGraph, NodeList
 from bench.language.node import (
     Node,
     node,
-    p_child,
-    p_kernel,
-    p_parent,
-    p_regular,
-    p_runtime,
-    p_system,
 )
+from bench.language.property import p_runtime, p_parent, p_child, p_regular, p_system, p_kernel
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:

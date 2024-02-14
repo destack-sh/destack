@@ -9,7 +9,8 @@ import requests
 import structlog
 
 from bench.language.const import FileStatus, NodeType, StructType, active_session
-from bench.language.node import Property, Struct, p_internal, p_regular, p_runtime, struct
+from bench.language.node import Struct, struct
+from bench.language.property import p_runtime, p_regular, p_internal, Property
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env

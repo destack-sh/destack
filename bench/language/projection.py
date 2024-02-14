@@ -3,7 +3,8 @@ from uuid import UUID
 
 from bench.language.const import NodeType, SortOp, StructType
 from bench.language.expression import S
-from bench.language.node import Node, Struct, p_runtime, struct
+from bench.language.node import Node, Struct, struct
+from bench.language.property import p_runtime
 
 if TYPE_CHECKING:
     pass

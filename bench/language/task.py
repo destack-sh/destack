@@ -12,7 +12,8 @@ import structlog
 
 from bench.language.const import NodeType, RunErrorKind, RunStatus
 from bench.language.field import Field
-from bench.language.node import Node, node_component, p_runtime
+from bench.language.node import Node, node_component
+from .property import p_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
 from bench.utils.func import describe_type

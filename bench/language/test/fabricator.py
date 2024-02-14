@@ -9,7 +9,8 @@ import pytz
 
 from bench.language import Property, NodeReference
 from bench.language.const import BenchType, StructType, PrimitiveType, NODE_TYPES
-from bench.language.node import NODE_CLASS_BY_TYPE, BENCH_CLASS_BY_TYPE, Node, Struct
+from bench.language.node import Node, Struct
+from bench.language.setup import NODE_CLASS_BY_TYPE, BENCH_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
 
 NodeT = TypeVar("NodeT", bound=Node)
