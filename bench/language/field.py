@@ -33,7 +33,6 @@ from bench.language.node import (
 from bench.language.validation import validate_name
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
-from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, RichText
@@ -50,8 +49,6 @@ class TypeError(BenchError, TypeError):
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
-        if isinstance(value, (ProxyDict, ProxyList)):
-            value = unproxy_value(value)
         value_str = repr(value)
         max_value_str_len = 300
         if len(value_str) > max_value_str_len:
@@ -222,7 +219,7 @@ class TypeInfo(Struct):
     def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
         if self._fields is not None:
             return self._fields
-        elif self.base_type and HasFields in self.base_type._components:
+        elif self.base_type:
             return self.base_type.fields
         else:
             return None
@@ -244,13 +241,15 @@ class Field(Node, TypeInfo, _TypeExpressionBase):
 
     # type identity
     # ...TypeInfo
+    # ...literal_value? (for options)
 
     # field-only flags
     is_input: bool = p_regular(60, default=False)
     is_output: bool = p_regular(61, default=False)
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
-    # is_indexed: bool = p_regular(63, default=False) # for record fields
-    # is_unique: bool = p_regular(64, default=False) # for record fields (only?)
+    # is_indexed: bool = ... # for record fields
+    # is_unique: bool = ... # for record fields (only?)
+    # is_sensitive: bool = ...
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

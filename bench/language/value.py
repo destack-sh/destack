@@ -7,7 +7,6 @@ from bench.language.node import Node, NodeStatus, Property, node_component
 from bench.language.notice import NoticeHandler
 from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType
-from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
     from bench.language import NodeVisitor, Session, TypeInfo
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-# nocheckin: HasValue should be a mixin property 'value: Value = p_value(...)' :GeneralizeHasValue
+# nocheckin: implement new value system
 
 
 @node_component
@@ -24,51 +23,22 @@ class HasValues(Node):
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
-        # type may not be ready if not attached (e.g. Record in a Database)
-        if self._type is not None and any(p.id == self.__class__.value.id for p in properties):
-            try:
-
-                def get_k(f):
-                    return (
-                        f.py_ident if self._status == NodeStatus.TRACKED else f.storage_key
-                    )  # noqa
-
-                check_type(self.value or {}, self._type, get_k=get_k)
-            except TypeError as e:
-                on_invalid(self, f"invalid value: {e}", ["value"])
+        pass
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        if self.value:  # :VisitValue
-            for n in walk_value(self.value, self._type):  # :VisitValue
-                if isinstance(n, Node):
-                    visitor.visit_reference(n)
+        pass
 
     def _clear_inner(self, scope: Optional["Node"] = None):
-        self.value = None
+        pass
 
     def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
-        if self.value_packed is None:
-            return
-        if self.value is None:
-            self.value = unpack_value(self.value, self._type._typ, scope=scope, ignore_outer=True)
+        pass
 
     def _track_inner(self, session: "Session") -> None:
-        if self.value_packed is None:
-            return
-
-        def _onwrite_value(key: str) -> None:
-            # TODO @Performance: type check only the changed value
-            check_type(self.value, self._type)
-            if self.is_attached:
-                self.session.update(self, (self.__class__.value,))
-
-        assert self._type is not None, f"missing type for {self!r}"
-
-        value = TypedDict(value, self._type)
-        self.value = proxy_value(value, onread=lambda *args: None, onwrite=_onwrite_value)
+        pass
 
     def _untrack_inner(self) -> None:
-        self.value = None
+        pass
 
 
 def on_invalid_raise(
@@ -351,5 +321,137 @@ class TypedDict(dict):
             return dict.__setitem__(self, name, value)
         raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
 
-    def to_dict(self):  # :ToDict
-        return self
+
+def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
+    return lambda path: onfn(f"{key}.{path}")
+
+
+def proxy_value(
+    value: Any,
+    onwrite: Callable[[str], None],
+    default_none: bool = False,
+) -> Any:
+    """Recursively proxy the given value, calling onread/onwrite when a key is accessed."""
+    if isinstance(value, dict):
+        return ProxyDict(value, onwrite, default_none=default_none)
+    elif isinstance(value, list):
+        return ProxyList(value)
+    else:
+        return value
+
+
+def unproxy_value(value: Any) -> Any:
+    """Recursively unproxy the given value."""
+    if isinstance(value, ProxyDict):
+        return value._inner
+    elif isinstance(value, ProxyList):
+        return value._inner
+    else:
+        return value
+
+
+class ProxyDict(Mapping):
+    """Proxy a dict, behave as a type dict, calling onread/onwrite when a key is accessed."""
+
+    def __init__(
+        self,
+        inner: dict,
+        onwrite: Callable[[str], None],
+    ):
+        self._inner = inner
+        self._onwrite = onwrite
+
+    def __str__(self):
+        return str(self._inner)
+
+    def __repr__(self):
+        return f"<ProxyDict {self._inner}>"
+
+    def items(self):
+        return self._inner.items()
+
+    def keys(self):
+        return self._inner.keys()
+
+    def values(self):
+        return self._inner.values()
+
+    def __getitem__(self, key: str) -> Any:
+        return self._inner[key]
+
+    def update(self, other: dict) -> None:
+        for key, value in other.items():
+            self[key] = value
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        value = proxy_value(value, _curry_path(self._onwrite, key))
+        self._inner[key] = value
+        self._onwrite(key)
+
+    def __delitem__(self, key: str) -> None:
+        del self._inner[key]
+        self._onwrite(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._inner
+
+    def __len__(self):
+        return len(self._inner)
+
+    def __iter__(self):
+        return iter(self._inner)
+
+    # dot dict
+
+    def __setattr__(self, item, value):
+        if item in ("_inner", "_onwrite"):
+            return super().__setattr__(item, value)
+        self._inner[item] = value
+        self._onwrite(item)
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+
+class ProxyList(Collection):
+    """Proxy a list, calling onread and onwrite when a key is accessed."""
+
+    def __init__(self, inner: list, onwrite: Callable[[int], None]):
+        self._inner = inner
+        self._onwrite = onwrite
+
+    def __str__(self):
+        return str(self._inner)
+
+    def __repr__(self):
+        return f"<ProxyList {self._inner}>"
+
+    def __delitem__(self, key: int) -> None:
+        self._onwrite(key)
+        del self._inner[key]
+
+    def __contains__(self, key: Any) -> bool:
+        return key in self._inner
+
+    def __getitem__(self, item: int | slice) -> Any:
+        return self._inner[item]
+
+    def __len__(self):
+        return len(self._inner)
+
+    def __iter__(self):
+        return iter(self._inner)
+
+    def append(self, value: Any) -> None:
+        idx = len(self._inner)
+        self._inner.append(value)
+        self._onwrite(idx)
+
+    def extend(self, value: Any) -> None:
+        for v in value:
+            len(self._inner)
+            self._inner.append(v)
+        self._onwrite("")

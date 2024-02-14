@@ -17,9 +17,9 @@ RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
 @struct(StructType.BENCH_PATH)
 class BenchPath(Struct):
     """
-    A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
-    Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
-    Nodes 'below' block-level are prefixed with a ':'. Fields are accessed with '.'.
+    A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+    Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
+    Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
 
     flotothemoon/Mirror/Notion/Databases/Landscape
     ^ bench      ^ blocks
@@ -44,17 +44,17 @@ class BenchPath(Struct):
     ../../../../Graphs
     ^ parents
 
-    NOT YET SUPPORTED:
-    / -> package root (=Package)
-    $ -> module root (=Block)
-    $User -> module-unique node (=Block|View)
-    ~ -> source module root ($ but for templated)
-    [<expr like ck=...>] -> dynamic Expression filter
-
     symbolx@2024-01-01/Library/Common/Utils/DateUtils
     ^ bench ^ package  ^ blocks
     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+
+    NOT YET SUPPORTED:
+        / -> package root (=Package)
+        $ -> module root (=Block|Package)
+        $User -> module-unique node (=Block|View)
+        ~ -> source module root (like $ but for templated)
+        [<expr like ck=...>] -> dynamic Expression filter
 
     ''
     ERROR (invalid, empty path)

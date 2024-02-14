@@ -539,20 +539,15 @@ class RunStatus(IdEnum):
     COMPLETED = 9
 
 
-TERMINAL_RUN_STATUSES = {
+TERMINAL_RUN_STATUSES: bytetuple[RunStatus] = bytetuple(
     RunStatus.CANCELLED,
     RunStatus.ABORTED,
     RunStatus.FAILED,
     RunStatus.COMPLETED,
-}
-PENDING_RUN_STATUSES = {
-    RunStatus.SCHEDULED,
-    RunStatus.QUEUED,
-    RunStatus.RUNNING,
-    RunStatus.PAUSED,
-    RunStatus.ABORTING,
-}
-ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING}
+)
+ACTIVE_RUN_STATUSES = bytetuple(
+    RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING
+)
 
 
 class RunErrorKind(IdEnum):

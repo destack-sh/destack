@@ -84,10 +84,10 @@ MAX_TEXT_LENGTH = 2048
 MAX_DESCRIPTION_LENGTH = 512
 
 
+# TODO @Cleanup @Robustness: turn validators into Validators, compile constraints into SQL
+
+
 # NOTE: we cache these validators not for performance but for reference equality
-# TODO @Cleanup @Robustness: turn validators into Validators and compile constraints into SQL
-
-
 @cachetools.cached({})
 def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
     assert issubclass(t, (enum.StrEnum, enum.IntEnum)), f"invalid enum type: {t!r}"

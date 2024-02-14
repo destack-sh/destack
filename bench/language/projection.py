@@ -6,7 +6,7 @@ from bench.language.expression import S
 from bench.language.node import Node, Struct, p_runtime, struct
 
 if TYPE_CHECKING:
-    from bench.language import TypeInfo
+    pass
 
 
 class NodeVisitor:
@@ -99,26 +99,6 @@ class Projection(Struct):
             )
             for record in records:
                 seen_by_ck[record.ck] = record
-
-        self._nodes_by_ck.update(seen_by_ck)
-        return seen_by_ck
-
-    def project_value(
-        self, value: dict, type: "TypeInfo", is_output: bool = None
-    ) -> dict[UUID, Node]:
-        from bench.language.text import RichText
-        from bench.language.value import walk_value
-
-        seen_by_ck: dict[UUID, Node] = {}
-
-        for n in walk_value(value, type, is_output):  # :VisitValue
-            # there's definitely a more efficient way to do this
-            if isinstance(n, Node):
-                seen_by_ck[n.ck] = n
-            elif isinstance(n, RichText):
-                for span in n.spans:
-                    if span.reference:
-                        seen_by_ck[span.reference.ck] = span.reference
 
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck

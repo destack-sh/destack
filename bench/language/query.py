@@ -693,7 +693,9 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
         return PostgresConnection(self, session, conn, cur)
 
 
-class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
+class PostgresConnection(
+    StoreConnection[PostgresEngine, NodeT, NodeDataT], Generic[NodeT, NodeDataT]
+):
     def __init__(
         self,
         engine: "PostgresEngine",
@@ -708,7 +710,9 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
     async def close(self):
         await self._conn.close()
 
-    async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]", count: bool) -> FetchResult:
+    async def fetch(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
+    ) -> FetchResult:
         from bench.language import NodeReference, ReadOptions
         from bench.sql.engine import (
             compile_pg_conditional_maybe,
@@ -725,7 +729,7 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
             first=query._first,
             skip=query._skip,
         )
-        if count:
+        if options.count:
             total = await pg_count(
                 cur=self._cur,
                 table=query._node_cls.__table__,
