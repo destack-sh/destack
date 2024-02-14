@@ -542,6 +542,12 @@ export interface WatchEditsRequest {
      * @generated from protobuf field: optional uint64 since_epoch = 3;
      */
     sinceEpoch?: bigint;
+    /**
+     * @generated from protobuf field: map<int32, symbolx.bench.ExpressionData> filters = 4;
+     */
+    filters: {
+        [key: number]: ExpressionData;
+    };
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsResponse
@@ -2474,12 +2480,14 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         super("symbolx.bench.WatchEditsRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 4, name: "filters", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ExpressionData } }
         ]);
     }
     create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeTypes = [];
+        message.filters = {};
         if (value !== undefined)
             reflectionMergePartial<WatchEditsRequest>(this, message, value);
         return message;
@@ -2502,6 +2510,9 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                 case /* optional uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
+                case /* map<int32, symbolx.bench.ExpressionData> filters */ 4:
+                    this.binaryReadMap4(message.filters, reader, options);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2512,6 +2523,22 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
             }
         }
         return message;
+    }
+    private binaryReadMap4(map: WatchEditsRequest["filters"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof WatchEditsRequest["filters"] | undefined, val: WatchEditsRequest["filters"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.int32();
+                    break;
+                case 2:
+                    val = ExpressionData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.WatchEditsRequest.filters");
+            }
+        }
+        map[key ?? 0] = val ?? ExpressionData.create();
     }
     internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.GraphScope scope = 1; */
@@ -2527,6 +2554,13 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         /* optional uint64 since_epoch = 3; */
         if (message.sinceEpoch !== undefined)
             writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
+        /* map<int32, symbolx.bench.ExpressionData> filters = 4; */
+        for (let k of globalThis.Object.keys(message.filters)) {
+            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ExpressionData.internalBinaryWrite(message.filters[k as any], writer, options);
+            writer.join().join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

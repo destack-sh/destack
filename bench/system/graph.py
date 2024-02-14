@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Collection
+from typing import AsyncIterator, AsyncContextManager
 from uuid import UUID
 
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 import structlog
 
-from bench.language import Subject, NodeReference, ReadOptions, Expression, Aggregation
+from bench.language import Subject, NodeReference, ReadOptions, Expression, Session, C
 from bench.language.access import (
     adapt_read_options,
     generate_access_matrix,
@@ -16,19 +16,22 @@ from bench.language.access import (
     Request,
     AccessError,
 )
-from bench.language.const import NodeType, ABOVE_SOURCE_NODE_TYPES, AggregationOp, PolicyEffect
+from bench.language.const import (
+    NodeType,
+    ABOVE_SOURCE_NODE_TYPES,
+    PolicyEffect,
+    ConditionalOp,
+)
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE
-from bench.language.query import StoreEngine
+from bench.language.node import Node
+from bench.language.query import StoreEngine, QueryBuilder, FetchOptions
 from bench.proto import wiring
 from bench.proto.wire import (
-    GraphScope,
     EditData,
     GraphIoBase,
     GetNodesResponse,
     SearchNodesResponse,
     AggregateNodesResponse,
-    AnyNodeData,
     CommitTransactionResponse,
     CompleteTransactionRequest,
     CompleteTransactionResponse,
@@ -39,16 +42,8 @@ from bench.proto.wire import (
     GetNodesRequest,
     SearchNodesRequest,
     CommitTransactionRequest,
+    AggregateNodesRequest,
 )
-from bench.sql.engine import (
-    pg_get_node_data_graph,
-    pg_search_nodes_data_graph,
-    pg_count,
-    compile_pg_conditional,
-    pg_exists,
-    pg_write_regular_edits,
-)
-from bench.system.utils import global_pg_cursor
 from bench.utils.func import group_by
 
 logger = structlog.get_logger(__name__)
@@ -60,22 +55,19 @@ class GraphIoService(GraphIoBase):
     def __init__(self):
         self.epoch: int = 0
 
-    def on_edited_graph(self, edits: list[EditData]):
+    def on_graph_edited(self, edits: list[EditData]):
         # nocheckin: track and buffer edits for recent epochs
         # self.watchers....
         self.epoch += 1
 
-    def get_engines_for(
-        self, subject: Subject, scope: GraphScope, node_type: NodeType
-    ) -> tuple[StoreEngine, ...]:
-        # nocheckin: use Session/Transaction for GraphIoService
+    @property
+    def engines(self) -> tuple[StoreEngine, ...]:
         raise NotImplementedError
 
     @asynccontextmanager
-    async def session_for(
-        self, subject: Subject, scope: GraphScope, root_node_types: Collection[NodeType]
-    ):
-        raise NotImplementedError
+    async def session(self) -> AsyncContextManager[Session]:
+        async with Session(parent=None, _engines=self.engines) as session:
+            yield session
 
     async def check_and_log_request(self, request: Request):
         logger.debug(f"request.{request.decision.name.lower()}", request=request)
@@ -94,17 +86,23 @@ class GraphIoService(GraphIoBase):
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
-        async with global_pg_cursor() as cur:
+        async with self.session() as session:
+            session: Session
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
-                _ = await pg_get_node_data_graph(
-                    cur=cur,
-                    root_type=node_type,
-                    roots=tuple(r.id for r in root_node_references),
+                query = QueryBuilder(
+                    node_type=node_type,
+                    filter=C(
+                        ConditionalOp.IN,
+                        property=Node.id,
+                        value=tuple(r.id for r in root_node_references),
+                    ),
                     options=adapted_options,
-                    _graph=graph,  # accumulate into graph
                 )
+                connection = await session.tx.connect_to_store_for(request.scope, node_type)
+                result = await connection.fetch(query, FetchOptions(count=False))
+                graph.extend(result.nodes)
         if any(root.id not in graph for root in request.roots):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
@@ -129,7 +127,6 @@ class GraphIoService(GraphIoBase):
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
         if node_type not in ABOVE_SOURCE_NODE_TYPES:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         options: ReadOptions = (
@@ -137,25 +134,14 @@ class GraphIoService(GraphIoBase):
         )
 
         adapted_options = adapt_read_options(subject, node_type, options)
-        async with global_pg_cursor() as cur:
-            combined_filter = adapted_options.filter(node_type, filter)
-            roots, graph = await pg_search_nodes_data_graph(
-                cur=cur,
-                node_type=node_type,
-                filter=combined_filter,
-                sort=sort,
-                first=request.first,
-                after=request.after,
-                options=adapted_options,
+        async with self.session() as session:
+            session: Session
+            query = QueryBuilder(
+                node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
-            if request.count:
-                count = await pg_count(
-                    cur=cur,
-                    table=node_cls.__table__,
-                    where=compile_pg_conditional(node_cls, combined_filter),
-                )
-            else:
-                count = None
+            connection = await session.tx.connect_to_store_for(request.scope, node_type)
+            result = await connection.fetch(query, FetchOptions(count=request.count))
+            graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
             access, graph, adapt_nodes_in_place=True, required_nodes=request.bases
@@ -163,11 +149,11 @@ class GraphIoService(GraphIoBase):
         await self.check_and_log_request(evaluated_request)
 
         return SearchNodesResponse(
-            roots=[NodeReference.from_node_data(r) for r in roots.nodes],
+            roots=[NodeReference.from_node_data(r) for r in result.nodes],
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
-            cursors=list(roots.cursors),
-            start_cursor=roots.start_cursor,
-            total=count,
+            cursors=list(result.cursors),
+            start_cursor=result.start_cursor,
+            total=result.total,
             access=access._to_data(),
             epoch=self.epoch,
         )
@@ -180,31 +166,19 @@ class GraphIoService(GraphIoBase):
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
         if node_type not in ABOVE_SOURCE_NODE_TYPES:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
 
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
-        async with global_pg_cursor() as cur:
-            combined_filter = adapted_options.filter(node_type, filter)
-            if aggregation.op == AggregationOp.EXISTS:
-                exists = await pg_exists(
-                    cur=cur,
-                    table=node_cls.__table__,
-                    where=compile_pg_conditional(node_cls, combined_filter),
-                )
-                result = Aggregation(op=aggregation.op, exists=exists)
-            elif aggregation.op == AggregationOp.COUNT:
-                count = await pg_count(
-                    cur=cur,
-                    table=node_cls.__table__,
-                    where=compile_pg_conditional(node_cls, combined_filter),
-                )
-                result = Aggregation(op=aggregation.op, count=count)
-            else:
-                raise GRPCError(GRPCStatus.UNIMPLEMENTED, f"can't {aggregation.op.name} yet")
+        async with self.session() as session:
+            session: Session
+            query = QueryBuilder(
+                node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
+            )
+            connection = await session.tx.connect_to_store_for(request.scope, node_type)
+            result = await connection.aggregate(query)
 
-        return AggregateNodesResponse(aggregation=result._to_data(), epoch=self.epoch)
+        return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
@@ -214,20 +188,26 @@ class GraphIoService(GraphIoBase):
         edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
             edited_scopes_ptr.values(), lambda r: r.type
         )
-        async with global_pg_cursor() as cur:
+        async with self.session() as session:
+            session: Session
             # read the required nodes into a single graph for evaluation
             graph = NodeDataGraph()
             for node_type, node_references in edited_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO @Performance: select only require properties for edit eval (id/policies/...?)
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
-                _ = await pg_get_node_data_graph(
-                    cur=cur,
-                    root_type=node_type,
-                    roots=tuple(r.id for r in node_references),
+                query = QueryBuilder(
+                    node_type=node_type,
+                    filter=C(
+                        ConditionalOp.IN,
+                        property=Node.id,
+                        value=tuple(r.id for r in node_references),
+                    ),
                     options=adapted_options,
-                    _graph=graph,  # accumulate into graph
                 )
+                connection = await session.tx.connect_to_store_for(request.scope, node_type)
+                result = await connection.fetch(query, FetchOptions(count=False))
+                graph.extend(result.nodes)
                 if any(str(r.id) not in graph for r in node_references):
                     missing = tuple(r for r in node_references if str(r.id) not in graph)
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"edited scopes not found: {missing}")
@@ -238,12 +218,11 @@ class GraphIoService(GraphIoBase):
             await self.check_and_log_request(evaluated_request)
 
             # apply the edits
-            changed_nodes: list[AnyNodeData] = await pg_write_regular_edits(
-                cur=cur, edits=request.transaction.edits, return_nodes=True
-            )
-            await cur.connection.commit()
-            self.on_edited_graph(request.transaction.edits)
+            session.tx._add_pending_edits(request.transaction.edits)
+            await session.commit()
+            self.on_graph_edited(request.transaction.edits)
 
+        # nocheckin: use Session/Transaction for GraphIoService
         return CommitTransactionResponse(
             changed_nodes=[wiring.wrap_some_node(n) for n in changed_nodes],
             epoch=self.epoch,

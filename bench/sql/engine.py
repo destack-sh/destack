@@ -578,7 +578,6 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
         if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
             value = Jsonb(value)  # adapt json
-        original_value = value
         # first to bytea
         if column._unencrypted_type == PrimitiveType.BYTES:
             value = sql.SQL("{}::bytea").format(value)

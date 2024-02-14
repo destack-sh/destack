@@ -29,6 +29,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfo
 from bench.language.graph import NodeList
+from bench.language.text import RichText
 from bench.language.node import (
     Node,
     Struct,
@@ -48,6 +49,7 @@ from bench.language.property import (
     p_secret_value_packed,
     p_internal,
     p_system,
+    p_value_freeform,
 )
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.value import HasValues
@@ -100,24 +102,42 @@ class LogKind(IdEnum):
     ACCESS = 2
 
 
+class LogLevel(IdEnum):
+    TRACE = 1
+    DEBUG = 2
+    INFO = 3
+    WARNING = 4
+    ERROR = 5
+    FATAL = 6
+
+
 @node(NodeType.LOG, stored=False, index_in_search=True)
 class Log(Node):
-    """A log (entry) is a timestamped message in the Bench."""
+    """
+    A log (entry) is a timestamped record of something happening:
+     an event/message, any Access (read, edit, run), etc.
+    """
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
     # nocheckin: use UUIDT for session nodes, remove ck? (and access/action?/tx log)
 
     # content
-    kind: LogKind = p_internal(30)
-    stream: str = p_internal(33)
-    level: Optional[str] = p_internal(35, default=None)
-    logger: Optional[str] = p_internal(36, default=None)
-    message: Optional[str] = p_internal(39, default=None)
+    kind: LogKind = p_system(30)
+    level: LogLevel = p_system(31)
+    logger: Optional[str] = p_system(32, default=None)
+    event: Optional[str] = p_system(33, default=None)
+    message: Optional[str] = p_internal(34, default=None)  # the rendered 'text' (if any)
+    text: Optional[RichText] = p_internal(
+        35, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    )
+    value_freeform: Any | None = p_value_freeform(36)
 
     # context
-    session: "Session" = p_internal(40, require=False, array=True, references=NodeType.SESSION)
-    run: Optional["Run"] = p_internal(41, require=False, array=False, references=NodeType.RUN)
-    block: Optional["Block"] = p_internal(42, require=False, array=False, references=NodeType.BLOCK)
+    session: Optional["Session"] = p_system(
+        40, require=False, array=True, references=NodeType.SESSION
+    )
+    run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
+    block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}] '{self.message}' ({self.created_at})"
@@ -164,11 +184,13 @@ class Transaction:
             tx._add_pending_edit(edit)
         return tx
 
-    async def connect_to_store_for(self, base: Node | None, node_type: NodeType) -> StoreConnection:
-        root = base.root if base is not None else None
-        if root is not None:
+    async def connect_to_store_for(
+        self, base: Node | GraphScope | None, node_type: NodeType
+    ) -> StoreConnection:
+        if isinstance(base, Node):
             scope = GraphScope(
-                bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
+                bench_id=uuid_to_str(base.root.bench_id),
+                package_id=uuid_to_str(base.root.package_id),
             )
         else:
             scope = EMPTY_SCOPE
@@ -226,13 +248,21 @@ class Transaction:
         return edit
 
     def _add_pending_edit(self, edit: EditData) -> StoreEngine:
+        from bench.proto import wiring
+
         if edit.node_type == NodeType.FIELD:
             self._schema_changed = True
 
-        engine = self._get_engine_for_edit(edit.scope, edit.node_type)
+        node_type = wiring.unpack_enum(NodeType, edit.node_type)
+        engine = self._get_engine_for_edit(edit.scope, node_type)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         return engine
+
+    def _add_pending_edits(self, edits: Collection[EditData]):
+        """Adds a collection of edits to the pending edits."""
+        for edit in edits:
+            self._add_pending_edit(edit)
 
     def create(self, n: Node):
         edit = self._make_edit(EditType.CREATE, n)

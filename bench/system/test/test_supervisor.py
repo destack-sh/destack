@@ -194,12 +194,12 @@ async def test_public_node_read(
 
     # search (and count)
     search_req = SearchNodesRequest(node_type=packed_node_type, count=True)
-    search_rep = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
+    await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
     # can we assert anything here?
 
     # search with filter (and count)
     search_req = SearchNodesRequest(node_type=packed_node_type)
-    search_rep = await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
+    await supervisor.search_nodes(search_req, metadata=some_user.metadata.to_headers())
     # here?
 
     # aggregate: exists

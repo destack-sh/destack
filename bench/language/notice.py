@@ -37,7 +37,7 @@ class NoticeType(IdEnum):
         elif self.id < 200:
             return NoticeKind.WARNING
         elif self.id < 300:
-            return NoticeKind.INFORMATION
+            return NoticeKind.INFO
         else:
             return NoticeKind.HINT
 

@@ -99,6 +99,11 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def __contains__(self, item: IdT):
         return self.get(item) is not None
 
+    def extend(self, nodes: Collection[SomeNodeT]):
+        """Adds all nodes to the graph"""
+        for node in nodes:
+            self.add(node)
+
     def set(self, nodes: Collection[SomeNodeT]):
         """Replaces all nodes in the graph"""
         self.clear()

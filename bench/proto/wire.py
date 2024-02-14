@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.14.5"
+VERSION = "2024.02.14.6"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -934,10 +934,7 @@ class ReadOptionsData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RequestData(betterproto.Message):
-    """
-    A request with multiple accesses.
-     TODO @Feature @Security: store, query and watch access log
-    """
+    """A request comprising multiple Accesses."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "SubjectData" = betterproto.message_field(30)
@@ -1511,7 +1508,10 @@ class LinkData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogData(betterproto.Message):
-    """A log (entry) is a timestamped message in the Bench."""
+    """
+    A log (entry) is a timestamped record of something happening:
+     an event/message, any Access (read, edit, run), etc.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1525,10 +1525,14 @@ class LogData(betterproto.Message):
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     kind: int = betterproto.int32_field(30)
-    stream: str = betterproto.string_field(33)
-    level: Optional[str] = betterproto.string_field(35, optional=True)
-    logger: Optional[str] = betterproto.string_field(36, optional=True)
-    message: Optional[str] = betterproto.string_field(39, optional=True)
+    level: int = betterproto.int32_field(31)
+    logger: Optional[str] = betterproto.string_field(32, optional=True)
+    event: Optional[str] = betterproto.string_field(33, optional=True)
+    message: Optional[str] = betterproto.string_field(34, optional=True)
+    text: Optional["RichTextData"] = betterproto.message_field(35, optional=True)
+    value_freeform: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        36, optional=True
+    )
     session_ptr: List["NodeReferenceData"] = betterproto.message_field(40)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
@@ -2332,6 +2336,9 @@ class WatchEditsRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     node_types: List["NodeType"] = betterproto.enum_field(2)
     since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    filters: Dict[int, "ExpressionData"] = betterproto.map_field(
+        4, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -3922,78 +3929,78 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    NoticeData,
-    RecordData,
-    LogData,
-    CacheData,
-    SpaceData,
-    EnvironmentData,
-    QueryData,
     FieldData,
-    IdentityData,
-    BadgeData,
-    PackageData,
-    UserData,
-    LinkData,
-    TriggerData,
-    BenchData,
-    FileContentData,
-    ServerData,
-    OrganizationData,
-    UpgradeData,
-    MembershipData,
-    SessionData,
-    SignalData,
     RunData,
-    DependencyData,
-    ViewData,
-    ClientData,
     RoleData,
-    DriveData,
+    ViewData,
+    BadgeData,
     BlockData,
-    StoreData,
-    HandleData,
-    BranchData,
-    NotificationData,
+    NoticeData,
+    SpaceData,
     SkipData,
+    StoreData,
+    RecordData,
+    EnvironmentData,
+    CacheData,
+    BranchData,
+    HandleData,
+    PackageData,
+    SessionData,
+    ServerData,
+    DependencyData,
+    LinkData,
+    LogData,
+    IdentityData,
     PauseData,
+    SignalData,
+    OrganizationData,
+    TriggerData,
+    FileContentData,
+    MembershipData,
+    ClientData,
+    BenchData,
+    NotificationData,
+    UpgradeData,
+    UserData,
+    DriveData,
+    QueryData,
 ]
 AnyStructData = Union[
-    RunErrorData,
-    AccessData,
-    PropertyReferenceData,
-    ValueReferenceData,
-    IconData,
-    ServerImageRequirementData,
-    SpaceDockData,
-    RequestData,
-    StoreCredentialData,
-    ProjectionData,
-    ExpressionData,
-    FieldPathData,
     ScheduleData,
-    AggregationData,
-    SubjectData,
-    AccessZoneData,
-    FileData,
-    AccessMatrixData,
-    RichTextSpanData,
-    CodeData,
-    AccessTraceData,
-    ContextData,
-    TypeInfoData,
-    ServerImageData,
-    PropertyPathData,
-    ValueSelectionData,
-    PolicyRuleData,
-    BenchPathData,
-    RunCodeFrameData,
-    ReadOptionsData,
-    NodeReferenceData,
-    FieldPathSegmentData,
-    CodeSectionData,
     AggregationBucketData,
-    SpaceDockItemData,
+    IconData,
+    NodeReferenceData,
+    PolicyRuleData,
+    SpaceDockData,
+    ValueReferenceData,
+    AccessData,
     PolicyData,
+    PropertyReferenceData,
+    RichTextSpanData,
+    ExpressionData,
+    RunErrorData,
+    AccessZoneData,
+    AggregationData,
+    FieldPathSegmentData,
+    TypeInfoData,
+    RunCodeFrameData,
+    FieldPathData,
+    CodeSectionData,
+    ServerImageRequirementData,
+    ProjectionData,
+    RequestData,
+    SpaceDockItemData,
+    StoreCredentialData,
+    AccessMatrixData,
+    CodeData,
+    FileData,
+    ServerImageData,
+    ContextData,
+    BenchPathData,
+    ValueSelectionData,
+    ReadOptionsData,
+    PropertyPathData,
     RichTextData,
+    SubjectData,
+    AccessTraceData,
 ]

@@ -85,7 +85,7 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         async def _multiplexed_rpc(subject: Subject, request: betterproto.Message) -> None:
             scope: GraphScope | None = getattr(request, "scope")
             if scope is None:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench scope")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope")
             bench_id = to_uuid(scope.bench_id)
 
             # get bench host

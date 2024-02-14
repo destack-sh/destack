@@ -7,8 +7,6 @@ from bench.language import Client, User
 from bench.language.access import (
     Subject,
 )
-from bench.language.const import NodeType
-from bench.language.query import StoreEngine
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
@@ -23,7 +21,6 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
     SupervisorStub,
-    GraphScope,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.graph import GraphIoService
@@ -54,9 +51,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
     async def wait_closed(self) -> None:
         pass
 
-    def get_engines_for(
-        self, subject: Subject, scope: GraphScope, node_type: NodeType
-    ) -> tuple[StoreEngine, ...]:
+    @property
+    def engines(self):
         return (GLOBAL_POSTGRES_ENGINE,)
 
     #
@@ -94,7 +90,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
-            self.on_edited_graph(session.tx.edits)
+            self.on_graph_edited(session.tx.edits)
 
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self.epoch
@@ -118,7 +114,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
-            self.on_edited_graph(session.tx.edits)
+            self.on_graph_edited(session.tx.edits)
 
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
@@ -152,7 +148,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             session.upsert(client)
             await session.commit()
-            self.on_edited_graph(session.tx.edits)
+            self.on_graph_edited(session.tx.edits)
 
         return LoginUserResponse(
             user=user._to_data(),
@@ -183,7 +179,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 client.access_token = None
                 client.last_seen_at = utcnow_with_tz()
             await session.commit()
-            self.on_edited_graph(session.tx.edits)
+            self.on_graph_edited(session.tx.edits)
 
         return LogoutUserResponse()
 

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import contextvars
 import re
-from typing import Any
+from typing import Any, AsyncContextManager
 
 import psycopg
 from psycopg.rows import dict_row
@@ -65,7 +65,7 @@ def get_pg_connection_str(store: Store, database: str = None) -> str:
 @asynccontextmanager
 async def pg_connection(
     local_pg_name: str | None = None, autocommit: bool = False
-) -> psycopg.AsyncConnection[dict[str, Any]]:
+) -> AsyncContextManager[psycopg.AsyncConnection[dict[str, Any]]]:
     """Gets a psycopg cursor to the given database"""
     pool = await get_pg_connection_pool(local_pg_name)
     async with pool.connection() as conn:
@@ -77,7 +77,7 @@ async def pg_connection(
 @asynccontextmanager
 async def pg_cursor(
     connection_str: str, autocommit: bool = False
-) -> psycopg.AsyncCursor[dict[str, Any]]:
+) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
     pool = await get_pg_connection_pool(connection_str)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
@@ -125,7 +125,7 @@ class _PgStoreConnection:
 @asynccontextmanager
 async def pg_cursor_to_store(
     store: Store, autocommit: bool = False
-) -> psycopg.AsyncCursor[dict[str, Any]]:
+) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
     async with _PgStoreConnection(store, autocommit=autocommit) as cur:
         yield cur
 

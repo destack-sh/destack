@@ -681,8 +681,7 @@ export interface ReadOptionsData {
     globalFilter?: ExpressionData;
 }
 /**
- * A request with multiple accesses.
- * TODO @Feature @Security: store, query and watch access log
+ * A request comprising multiple Accesses.
  *
  * @generated from protobuf message symbolx.bench.RequestData
  */
@@ -2170,7 +2169,8 @@ export interface LinkData {
     orderKey?: string;
 }
 /**
- * A log (entry) is a timestamped message in the Bench.
+ * A log (entry) is a timestamped record of something happening:
+ * an event/message, any Access (read, edit, run), etc.
  *
  * @generated from protobuf message symbolx.bench.LogData
  */
@@ -2224,21 +2224,29 @@ export interface LogData {
      */
     kind: number;
     /**
-     * @generated from protobuf field: string stream = 33;
+     * @generated from protobuf field: int32 level = 31;
      */
-    stream: string;
+    level: number;
     /**
-     * @generated from protobuf field: optional string level = 35;
-     */
-    level?: string;
-    /**
-     * @generated from protobuf field: optional string logger = 36;
+     * @generated from protobuf field: optional string logger = 32;
      */
     logger?: string;
     /**
-     * @generated from protobuf field: optional string message = 39;
+     * @generated from protobuf field: optional string event = 33;
+     */
+    event?: string;
+    /**
+     * @generated from protobuf field: optional string message = 34;
      */
     message?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RichTextData text = 35;
+     */
+    text?: RichTextData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_freeform = 36;
+     */
+    valueFreeform?: Struct;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData session_ptr = 40;
      */
@@ -10978,10 +10986,12 @@ class LogData$Type extends MessageType<LogData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 30, name: "kind", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "stream", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "level", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "logger", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 39, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "level", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "logger", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "event", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "text", kind: "message", T: () => RichTextData },
+            { no: 36, name: "value_freeform", kind: "message", T: () => Struct },
             { no: 40, name: "session_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 41, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
@@ -10995,7 +11005,7 @@ class LogData$Type extends MessageType<LogData> {
         message.source = 0;
         message.revision = 0n;
         message.kind = 0;
-        message.stream = "";
+        message.level = 0;
         message.sessionPtr = [];
         if (value !== undefined)
             reflectionMergePartial<LogData>(this, message, value);
@@ -11042,17 +11052,23 @@ class LogData$Type extends MessageType<LogData> {
                 case /* int32 kind */ 30:
                     message.kind = reader.int32();
                     break;
-                case /* string stream */ 33:
-                    message.stream = reader.string();
+                case /* int32 level */ 31:
+                    message.level = reader.int32();
                     break;
-                case /* optional string level */ 35:
-                    message.level = reader.string();
-                    break;
-                case /* optional string logger */ 36:
+                case /* optional string logger */ 32:
                     message.logger = reader.string();
                     break;
-                case /* optional string message */ 39:
+                case /* optional string event */ 33:
+                    message.event = reader.string();
+                    break;
+                case /* optional string message */ 34:
                     message.message = reader.string();
+                    break;
+                case /* optional symbolx.bench.RichTextData text */ 35:
+                    message.text = RichTextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional google.protobuf.Struct value_freeform */ 36:
+                    message.valueFreeform = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueFreeform);
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData session_ptr */ 40:
                     message.sessionPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -11111,18 +11127,24 @@ class LogData$Type extends MessageType<LogData> {
         /* int32 kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
-        /* string stream = 33; */
-        if (message.stream !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.stream);
-        /* optional string level = 35; */
-        if (message.level !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.level);
-        /* optional string logger = 36; */
+        /* int32 level = 31; */
+        if (message.level !== 0)
+            writer.tag(31, WireType.Varint).int32(message.level);
+        /* optional string logger = 32; */
         if (message.logger !== undefined)
-            writer.tag(36, WireType.LengthDelimited).string(message.logger);
-        /* optional string message = 39; */
+            writer.tag(32, WireType.LengthDelimited).string(message.logger);
+        /* optional string event = 33; */
+        if (message.event !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.event);
+        /* optional string message = 34; */
         if (message.message !== undefined)
-            writer.tag(39, WireType.LengthDelimited).string(message.message);
+            writer.tag(34, WireType.LengthDelimited).string(message.message);
+        /* optional symbolx.bench.RichTextData text = 35; */
+        if (message.text)
+            RichTextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_freeform = 36; */
+        if (message.valueFreeform)
+            Struct.internalBinaryWrite(message.valueFreeform, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData session_ptr = 40; */
         for (let i = 0; i < message.sessionPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();

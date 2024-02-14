@@ -9,7 +9,7 @@ from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language.user import User, Client
-    from bench.proto.wire import ClientOrigin, RpcMetadata, SupervisorStub, SignupUserRequest
+    from bench.proto.wire import ClientOrigin, RpcMetadata, SupervisorStub
 
 
 @dataclass
