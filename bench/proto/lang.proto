@@ -39,6 +39,8 @@ enum AccessType {
   ACCESS_TYPE_PAUSE = 31;
   ACCESS_TYPE_RESUME = 32;
   ACCESS_TYPE_KILL = 33;
+  ACCESS_TYPE_EMIT = 34;
+  ACCESS_TYPE_RECEIVE = 35;
 }
 
 enum AggregationOp {
@@ -87,6 +89,7 @@ enum BenchType {
   BENCH_TYPE_RUN = 51;
   BENCH_TYPE_PAUSE = 52;
   BENCH_TYPE_SIGNAL = 53;
+  BENCH_TYPE_LOG = 54;
   BENCH_TYPE_BADGE = 60;
   BENCH_TYPE_ROLE = 61;
   BENCH_TYPE_IDENTITY = 62;
@@ -131,7 +134,6 @@ enum BenchType {
   BENCH_TYPE_CODE_SECTION = 591;
   BENCH_TYPE_RUN_CODE_FRAME = 592;
   BENCH_TYPE_RUN_ERROR = 593;
-  BENCH_TYPE_LOG_ENTRY = 600;
   BENCH_TYPE_SERVER_IMAGE = 630;
   BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   BENCH_TYPE_STORE_CREDENTIAL = 632;
@@ -334,6 +336,7 @@ enum NodeType {
   NODE_TYPE_RUN = 51;
   NODE_TYPE_PAUSE = 52;
   NODE_TYPE_SIGNAL = 53;
+  NODE_TYPE_LOG = 54;
   NODE_TYPE_BADGE = 60;
   NODE_TYPE_ROLE = 61;
   NODE_TYPE_IDENTITY = 62;
@@ -432,6 +435,8 @@ enum RunType {
   RUN_TYPE_PAUSE = 31;
   RUN_TYPE_RESUME = 32;
   RUN_TYPE_KILL = 33;
+  RUN_TYPE_EMIT = 34;
+  RUN_TYPE_RECEIVE = 35;
 }
 
 enum ScheduleType {
@@ -521,7 +526,6 @@ enum StructType {
   STRUCT_TYPE_CODE_SECTION = 591;
   STRUCT_TYPE_RUN_CODE_FRAME = 592;
   STRUCT_TYPE_RUN_ERROR = 593;
-  STRUCT_TYPE_LOG_ENTRY = 600;
   STRUCT_TYPE_SERVER_IMAGE = 630;
   STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   STRUCT_TYPE_STORE_CREDENTIAL = 632;
@@ -716,20 +720,6 @@ message IconData {
   optional string emoji = 31;
   optional int32 type = 32;
   optional FileData image = 33;
-}
-
-// An entry. In a log.
-message LogEntryData {
-  BenchType metatype = 1;
-  string id = 2;
-  google.protobuf.Timestamp created_at = 32;
-  string stream = 33;
-  repeated NodeReferenceData session_ptr = 34;
-  optional string level = 35;
-  optional string logger = 36;
-  optional NodeReferenceData block_ptr = 37;
-  optional NodeReferenceData run_ptr = 38;
-  optional string message = 39;
 }
 
 // NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
@@ -1286,6 +1276,29 @@ message LinkData {
   optional string order_key = 32;
 }
 
+// A log (entry) is a timestamped message in the Bench.
+message LogData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  int32 source = 8;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  int32 kind = 30;
+  string stream = 33;
+  optional string level = 35;
+  optional string logger = 36;
+  optional string message = 39;
+  repeated NodeReferenceData session_ptr = 40;
+  optional NodeReferenceData run_ptr = 41;
+  optional NodeReferenceData block_ptr = 42;
+}
+
 // A membership to a Bench or Organization.
 message MembershipData {
   BenchType metatype = 1;
@@ -1535,7 +1548,7 @@ message SessionData {
   bool is_read_only = 35;
 }
 
-// A signal received in this Bench. May be emitted by a Bench or an external source.
+// A signal emitted in this Bench.
 message SignalData {
   BenchType metatype = 1;
   string id = 2;
@@ -1548,11 +1561,11 @@ message SignalData {
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
-  optional NodeReferenceData type_ptr = 30;
-  optional NodeReferenceData object_ptr = 31;
-  optional NodeReferenceData sender_ptr = 32;
-  optional google.protobuf.Struct value_packed = 33;
-  optional google.protobuf.Struct secret_value_packed = 34;
+  optional NodeReferenceData type_ptr = 31;
+  optional NodeReferenceData object_ptr = 32;
+  optional NodeReferenceData sender_ptr = 33;
+  optional google.protobuf.Struct value_packed = 34;
+  optional google.protobuf.Struct secret_value_packed = 35;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
@@ -1716,20 +1729,21 @@ message SomeNodeData {
     RunData run = 18;
     PauseData pause = 19;
     SignalData signal = 20;
-    BadgeData badge = 21;
-    RoleData role = 22;
-    IdentityData identity = 23;
-    ServerData server = 24;
-    StoreData store = 25;
-    DriveData drive = 26;
-    CacheData cache = 27;
-    FileContentData file_content = 28;
-    HandleData handle = 29;
-    UserData user = 30;
-    OrganizationData organization = 31;
-    ClientData client = 32;
-    NotificationData notification = 33;
-    MembershipData membership = 34;
+    LogData log = 21;
+    BadgeData badge = 22;
+    RoleData role = 23;
+    IdentityData identity = 24;
+    ServerData server = 25;
+    StoreData store = 26;
+    DriveData drive = 27;
+    CacheData cache = 28;
+    FileContentData file_content = 29;
+    HandleData handle = 30;
+    UserData user = 31;
+    OrganizationData organization = 32;
+    ClientData client = 33;
+    NotificationData notification = 34;
+    MembershipData membership = 35;
   };
 }
 

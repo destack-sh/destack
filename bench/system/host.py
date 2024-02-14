@@ -2,7 +2,7 @@ import asyncio
 import functools
 import urllib
 from datetime import datetime, timedelta
-from typing import AsyncIterator, Callable
+from typing import Callable
 from uuid import UUID
 
 import betterproto
@@ -25,17 +25,12 @@ from bench.proto.wire import (
     GraphScope,
     KillRunRequest,
     KillRunResponse,
-    NotifyServerLogsRequest,
     RunProxyBlockRequest,
     RunProxyBlockResponse,
-    SearchLogsRequest,
-    SearchLogsResponse,
     StartRunRequest,
     StartRunResponse,
     UploadFilesRequest,
     UploadFilesResponse,
-    WatchLogsRequest,
-    WatchLogsResponse,
 )
 from bench.system.utils import get_s3_client, global_session, validate_bench_data_many
 from bench.utils.func import to_uuid
@@ -205,25 +200,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
             presigned_urls.append(get_url)
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
         return DownloadFilesResponse(get_urls=presigned_urls, expires_at=expires_at)
-
-    #
-    # Logs
-    #
-
-    async def search_logs(
-        self, subject: Subject, request: "SearchLogsRequest"
-    ) -> "SearchLogsResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def watch_logs(
-        self, subject: Subject, request: "WatchLogsRequest"
-    ) -> AsyncIterator["WatchLogsResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def notify_server_logs(
-        self, subject: Subject, request: "NotifyServerLogsRequest"
-    ) -> "NotifyServerLogsRequest":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Runs

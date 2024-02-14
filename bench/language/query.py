@@ -416,7 +416,7 @@ class QueryBuilder(
         from bench.proto.wiring import unpack_nodes_inline
 
         tx = active_tx()
-        connection = await tx.connect_store_to(base=self._base, node_type=self._node_type)
+        connection = await tx.connect_to_store_for(base=self._base, node_type=self._node_type)
         result = await connection.fetch(self, FetchOptions())
         source_graph = NodeDataGraph(result.nodes)
         roots = unpack_nodes_inline(
@@ -434,7 +434,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        connection = await active_tx().connect_store_to(
+        connection = await active_tx().connect_to_store_for(
             base=query._base, node_type=query._node_type
         )
         result = await connection.aggregate(query)
@@ -448,7 +448,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        connection = await active_tx().connect_store_to(
+        connection = await active_tx().connect_to_store_for(
             base=query._base, node_type=query._node_type
         )
         result = await connection.aggregate(query)
@@ -461,13 +461,17 @@ class QueryBuilder(
     @_auto_async_to_sync
     async def update(self, **kwargs) -> None:
         """Update the properties of all matching nodes."""
-        connection = await active_tx().connect_store_to(base=self._base, node_type=self._node_type)
+        connection = await active_tx().connect_to_store_for(
+            base=self._base, node_type=self._node_type
+        )
         await connection.update(self, **kwargs)
 
     @_auto_async_to_sync
     async def delete(self) -> None:
         """Removes and deletes all matching nodes from the query's parent."""
-        connection = await active_tx().connect_store_to(base=self._base, node_type=self._node_type)
+        connection = await active_tx().connect_to_store_for(
+            base=self._base, node_type=self._node_type
+        )
         await connection.delete(self)
 
 

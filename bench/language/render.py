@@ -58,7 +58,6 @@ def DEFAULT_VALUE_FILTER(f):  # noqa
 def render_prop(node: Node, name: str, value: Any) -> str:
     """
     Render a non-relational prop (may be a reference, but not a parent/child relation).
-    TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
     from bench.language.value import HasValues
 

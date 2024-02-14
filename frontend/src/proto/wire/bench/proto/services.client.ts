@@ -19,12 +19,6 @@ import type { StartRunRequest } from "./services";
 import type { PingServerRequest } from "./services";
 import type { PingServerResponse } from "./services";
 import type { RestartServerRequest } from "./services";
-import type { Empty } from "../../google/protobuf/empty";
-import type { NotifyServerLogsRequest } from "./services";
-import type { WatchLogsResponse } from "./services";
-import type { WatchLogsRequest } from "./services";
-import type { SearchLogsResponse } from "./services";
-import type { SearchLogsRequest } from "./services";
 import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
 import type { UploadFilesResponse } from "./services";
@@ -473,28 +467,6 @@ export interface IBenchHostClient {
      */
     downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
     // 
-    // Logs
-    // 
-
-    /**
-     * Searches all existing logs.
-     *
-     * @generated from protobuf rpc: SearchLogs(symbolx.bench.SearchLogsRequest) returns (symbolx.bench.SearchLogsResponse);
-     */
-    searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse>;
-    /**
-     * Subscribes to future logs.
-     *
-     * @generated from protobuf rpc: WatchLogs(symbolx.bench.WatchLogsRequest) returns (stream symbolx.bench.WatchLogsResponse);
-     */
-    watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse>;
-    /**
-     * Notifies logs from a server *that are already stored* to notify frontend users connected to this host.
-     *
-     * @generated from protobuf rpc: NotifyServerLogs(symbolx.bench.NotifyServerLogsRequest) returns (google.protobuf.Empty);
-     */
-    notifyServerLogs(input: NotifyServerLogsRequest, options?: RpcOptions): UnaryCall<NotifyServerLogsRequest, Empty>;
-    // 
     // Runs
     // 
 
@@ -625,37 +597,6 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // Logs
-    // 
-
-    /**
-     * Searches all existing logs.
-     *
-     * @generated from protobuf rpc: SearchLogs(symbolx.bench.SearchLogsRequest) returns (symbolx.bench.SearchLogsResponse);
-     */
-    searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SearchLogsRequest, SearchLogsResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Subscribes to future logs.
-     *
-     * @generated from protobuf rpc: WatchLogs(symbolx.bench.WatchLogsRequest) returns (stream symbolx.bench.WatchLogsResponse);
-     */
-    watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * Notifies logs from a server *that are already stored* to notify frontend users connected to this host.
-     *
-     * @generated from protobuf rpc: NotifyServerLogs(symbolx.bench.NotifyServerLogsRequest) returns (google.protobuf.Empty);
-     */
-    notifyServerLogs(input: NotifyServerLogsRequest, options?: RpcOptions): UnaryCall<NotifyServerLogsRequest, Empty> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<NotifyServerLogsRequest, Empty>("unary", this._transport, method, opt, input);
-    }
-    // 
     // Runs
     // 
 
@@ -665,7 +606,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -674,7 +615,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[11], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -683,7 +624,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[15], opt = this._transport.mergeOptions(options);
+        const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -692,7 +633,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[16], opt = this._transport.mergeOptions(options);
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -701,7 +642,7 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
      * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse> {
-        const method = this.methods[17], opt = this._transport.mergeOptions(options);
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }

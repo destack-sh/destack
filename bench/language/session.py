@@ -20,23 +20,19 @@ from bench.language.const import (
     BenchError,
     EditType,
     NodeStatus,
-    NodeTrackingLevel,
     NodeType,
     RunErrorKind,
     RunStatus,
     StoreEngineType,
     StructType,
-    TriggerType,
     _active_session,
 )
 from bench.language.field import TypeInfo
 from bench.language.graph import NodeList
 from bench.language.node import (
-    UNSET,
     Node,
     Struct,
     _Passthrough,
-    get_node_id,
     node,
     node_component,
     struct,
@@ -60,15 +56,12 @@ from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
-from bench.utils.func import _auto_async_to_sync, uuid_to_str
+from bench.utils.func import _auto_async_to_sync, uuid_to_str, IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
-        Bench,
         BenchError,
         Block,
-        Branch,
-        Environment,
         Node,
         Package,
         PrimitiveType,
@@ -84,68 +77,50 @@ logger = structlog.get_logger(__name__)
     NodeType.SIGNAL, passthrough=(("value", _Passthrough.Full),), index_in_search=True, local=True
 )
 class Signal(HasValues):
-    """A signal received in this Bench. May be emitted by a Bench or an external source."""
+    """A signal emitted in this Bench."""
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    # builtin_type: ...
     type: Optional["Block"] = p_internal(
-        30, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    object: Optional["Block"] = p_internal(
         31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    sender: Optional["Block"] = p_internal(
+    object: Optional["Block"] = p_internal(
         32, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    value_packed: Any | None = p_value_packed(33)
-    secret_value_packed: Any | None = p_secret_value_packed(34)
-    value = p_value_runtime(33, 34, type=30)
+    sender: Optional["Block"] = p_internal(
+        33, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
+    )
+    value_packed: Any | None = p_value_packed(34)
+    secret_value_packed: Any | None = p_secret_value_packed(35)
+    value = p_value_runtime(34, 35, type=30)
 
 
-@struct(StructType.LOG_ENTRY, index_in_search=True)
-class LogEntry(Struct):
-    """An entry. In a log."""
+class LogKind(IdEnum):
+    MESSAGE = 1
+    ACCESS = 2
 
-    id: UUID = p_internal(2, default_factory=uuid4)
-    package: "Package" = p_internal(5, require=True, array=False, references=NodeType.PACKAGE)
-    bench: "Package" = p_internal(6, require=True, array=False, references=NodeType.BENCH)
-    created_at: datetime = p_internal(32, default_factory=utcnow_with_tz)
+
+@node(NodeType.LOG, stored=False, index_in_search=True)
+class Log(Node):
+    """A log (entry) is a timestamped message in the Bench."""
+
+    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    # nocheckin: use UUIDT for session nodes, remove ck? (and access/action?/tx log)
+
+    # content
+    kind: LogKind = p_internal(30)
     stream: str = p_internal(33)
-    session: "Session" = p_internal(34, require=False, array=True, references=NodeType.SESSION)
     level: Optional[str] = p_internal(35, default=None)
     logger: Optional[str] = p_internal(36, default=None)
-    block: Optional["Block"] = p_internal(37, require=False, array=False, references=NodeType.BLOCK)
-    run: Optional["Run"] = p_internal(38, require=False, array=False, references=NodeType.RUN)
     message: Optional[str] = p_internal(39, default=None)
 
+    # context
+    session: "Session" = p_internal(40, require=False, array=True, references=NodeType.SESSION)
+    run: Optional["Run"] = p_internal(41, require=False, array=False, references=NodeType.RUN)
+    block: Optional["Block"] = p_internal(42, require=False, array=False, references=NodeType.BLOCK)
+
     def __content_str__(self):
-        return f"'{self.message}' ({self.created_at})"
-
-
-@struct(StructType.CONTEXT)
-class Context(Struct):
-    """A semi-magical value that accumulates context down the graph (starting with system context)."""
-
-    # system
-    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional["Environment"] = p_internal(
-        31, require=False, array=False, references=NodeType.ENVIRONMENT
-    )
-    branch: Optional["Branch"] = p_internal(
-        32, require=False, array=False, references=NodeType.BRANCH
-    )
-    package: Optional["Package"] = p_internal(
-        33, require=False, array=False, references=NodeType.PACKAGE
-    )
-    module: Optional["Block"] = p_internal(
-        34, require=False, array=False, references=NodeType.BLOCK
-    )
-    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
-    # log: ...
-
-    # custom
-    # value_packed: Any = p_value_packed(40)
-    # secret_value_packed: Any = p_secret_value_packed(41)
-    # value: Any = p_value_runtime(40, 41)
+        return f"[{self.kind.bench_name}] '{self.message}' ({self.created_at})"
 
 
 dcfield = dataclasses.field
@@ -189,7 +164,7 @@ class Transaction:
             tx._add_pending_edit(edit)
         return tx
 
-    async def connect_store_to(self, base: Node | None, node_type: NodeType) -> StoreConnection:
+    async def connect_to_store_for(self, base: Node | None, node_type: NodeType) -> StoreConnection:
         root = base.root if base is not None else None
         if root is not None:
             scope = GraphScope(
@@ -402,8 +377,8 @@ class Session(Node):
     _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
 
     # logs
-    _cached_logs: deque[LogEntry] | None = p_runtime(default=None)
-    _pending_logs: list[LogEntry] | None = p_runtime(default=None)
+    _cached_logs: deque[Log] | None = p_runtime(default=None)
+    _pending_logs: list[Log] | None = p_runtime(default=None)
     _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
     _stdout_collector: Optional["LogCollector"] = p_runtime(default=None)
     _stderr_collector: Optional["LogCollector"] = p_runtime(default=None)
@@ -672,7 +647,7 @@ class Session(Node):
         self._runs_by_id[run.id] = run
         self._pending_runs_by_id[run.id] = run
 
-    def _track_log(self, log: LogEntry):
+    def _track_log(self, log: Log):
         self._pending_logs.append(log)
         self._cached_logs.append(log)
 
@@ -789,57 +764,7 @@ class Session(Node):
             self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
-    def _create_run(
-        self,
-        block: Optional["Block"] = None,
-        inputs: dict[str, Any] | None = None,
-        queue_position: int | None = None,
-        trace: bool = True,
-        trigger_type: TriggerType | None = None,
-        trigger: Union["Trigger", UUID, None] = None,
-    ):
-        active_run = _get_active_run()
-        if trace and active_run is not None:
-            root = active_run.root or active_run
-            parent = active_run
-        else:
-            root = None
-            parent = self.session
-        if root:
-            trigger_type = trigger_type or TriggerType.INVOKE
-        if not trigger_type and root is None:
-            # inherit trigger type from session if we're not nested
-            # (this will be wrong once we process other triggers within a session)
-            trigger_type = self.session.trigger_type
-            trigger = self.session.trigger_id
-        run_ck = self._root_run_ck if root is None else uuid4()
-        run = Run(
-            ck=run_ck,
-            id=get_node_id(self.package.id, run_ck),
-            bench_id=self.session.package.bench_id,
-            server=self.session.server_id,
-            server_process_id=self.session.server_process_id,
-            block=block,
-            trigger_type=trigger_type,
-            trigger_id=trigger.id if not isinstance(trigger, UUID) else trigger,
-            started_at=utcnow_with_tz(),
-            inputs=inputs,
-            status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
-            value=(self._root_run_value or {}) if root is None else None,
-            _track=NodeTrackingLevel.NONE,
-            _session=UNSET,  # ensure run isn't validated/tracked in active session
-        )
-        run._session = None  # reset to None so it can be tracked
-        # we track session nodes manually :ManualSessionTracking
-        parent.runs.append(run)
-        custom_value = _custom_value.get()
-        if root is None and self._root_run_value:
-            run.value.update(self._root_run_value)
-        if custom_value:
-            run.value.update(custom_value)
-        if self._init_run_value:
-            run.value.update(self._init_run_value)
-        return run
+    # nocheckin: track sessions/runs (and signals/logs)
 
 
 # We track the active root in a contextvar but not children
@@ -1137,7 +1062,7 @@ def _redirect_std_streams_if_needed():
 
 
 class LogCollector:
-    def __init__(self, track: Callable[[LogEntry], None], stream: str, session: "Session"):
+    def __init__(self, track: Callable[[Log], None], stream: str, session: "Session"):
         self.track = track
         self.session = session
         self.stream = stream
@@ -1152,7 +1077,7 @@ class LogCollector:
             block = None
             run = None
         package = self.session.package
-        log_entry = LogEntry(
+        log_entry = Log(
             id=uuid4(),
             bench_id=package.bench_id,
             package=package,

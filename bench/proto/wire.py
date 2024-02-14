@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.14.1"
+VERSION = "2024.02.14.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -67,6 +67,8 @@ class AccessType(betterproto.Enum):
     PAUSE = 31
     RESUME = 32
     KILL = 33
+    EMIT = 34
+    RECEIVE = 35
 
 
 class AggregationOp(betterproto.Enum):
@@ -115,6 +117,7 @@ class BenchType(betterproto.Enum):
     RUN = 51
     PAUSE = 52
     SIGNAL = 53
+    LOG = 54
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -159,7 +162,6 @@ class BenchType(betterproto.Enum):
     CODE_SECTION = 591
     RUN_CODE_FRAME = 592
     RUN_ERROR = 593
-    LOG_ENTRY = 600
     SERVER_IMAGE = 630
     SERVER_IMAGE_REQUIREMENT = 631
     STORE_CREDENTIAL = 632
@@ -364,6 +366,7 @@ class NodeType(betterproto.Enum):
     RUN = 51
     PAUSE = 52
     SIGNAL = 53
+    LOG = 54
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -468,6 +471,8 @@ class RunType(betterproto.Enum):
     PAUSE = 31
     RESUME = 32
     KILL = 33
+    EMIT = 34
+    RECEIVE = 35
 
 
 class ScheduleType(betterproto.Enum):
@@ -557,7 +562,6 @@ class StructType(betterproto.Enum):
     CODE_SECTION = 591
     RUN_CODE_FRAME = 592
     RUN_ERROR = 593
-    LOG_ENTRY = 600
     SERVER_IMAGE = 630
     SERVER_IMAGE_REQUIREMENT = 631
     STORE_CREDENTIAL = 632
@@ -809,22 +813,6 @@ class IconData(betterproto.Message):
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
     type: Optional[int] = betterproto.int32_field(32, optional=True)
     image: Optional["FileData"] = betterproto.message_field(33, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class LogEntryData(betterproto.Message):
-    """An entry. In a log."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    created_at: datetime = betterproto.message_field(32)
-    stream: str = betterproto.string_field(33)
-    session_ptr: List["NodeReferenceData"] = betterproto.message_field(34)
-    level: Optional[str] = betterproto.string_field(35, optional=True)
-    logger: Optional[str] = betterproto.string_field(36, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
-    message: Optional[str] = betterproto.string_field(39, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1522,6 +1510,31 @@ class LinkData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class LogData(betterproto.Message):
+    """A log (entry) is a timestamped message in the Bench."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    source: int = betterproto.int32_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    kind: int = betterproto.int32_field(30)
+    stream: str = betterproto.string_field(33)
+    level: Optional[str] = betterproto.string_field(35, optional=True)
+    logger: Optional[str] = betterproto.string_field(36, optional=True)
+    message: Optional[str] = betterproto.string_field(39, optional=True)
+    session_ptr: List["NodeReferenceData"] = betterproto.message_field(40)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class MembershipData(betterproto.Message):
     """A membership to a Bench or Organization."""
 
@@ -1828,9 +1841,7 @@ class SessionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SignalData(betterproto.Message):
-    """
-    A signal received in this Bench. May be emitted by a Bench or an external source.
-    """
+    """A signal emitted in this Bench."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1843,15 +1854,15 @@ class SignalData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        33, optional=True
+        34, optional=True
     )
     secret_value_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(34, optional=True)
+    ] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2037,20 +2048,21 @@ class SomeNodeData(betterproto.Message):
     run: "RunData" = betterproto.message_field(18, group="node")
     pause: "PauseData" = betterproto.message_field(19, group="node")
     signal: "SignalData" = betterproto.message_field(20, group="node")
-    badge: "BadgeData" = betterproto.message_field(21, group="node")
-    role: "RoleData" = betterproto.message_field(22, group="node")
-    identity: "IdentityData" = betterproto.message_field(23, group="node")
-    server: "ServerData" = betterproto.message_field(24, group="node")
-    store: "StoreData" = betterproto.message_field(25, group="node")
-    drive: "DriveData" = betterproto.message_field(26, group="node")
-    cache: "CacheData" = betterproto.message_field(27, group="node")
-    file_content: "FileContentData" = betterproto.message_field(28, group="node")
-    handle: "HandleData" = betterproto.message_field(29, group="node")
-    user: "UserData" = betterproto.message_field(30, group="node")
-    organization: "OrganizationData" = betterproto.message_field(31, group="node")
-    client: "ClientData" = betterproto.message_field(32, group="node")
-    notification: "NotificationData" = betterproto.message_field(33, group="node")
-    membership: "MembershipData" = betterproto.message_field(34, group="node")
+    log: "LogData" = betterproto.message_field(21, group="node")
+    badge: "BadgeData" = betterproto.message_field(22, group="node")
+    role: "RoleData" = betterproto.message_field(23, group="node")
+    identity: "IdentityData" = betterproto.message_field(24, group="node")
+    server: "ServerData" = betterproto.message_field(25, group="node")
+    store: "StoreData" = betterproto.message_field(26, group="node")
+    drive: "DriveData" = betterproto.message_field(27, group="node")
+    cache: "CacheData" = betterproto.message_field(28, group="node")
+    file_content: "FileContentData" = betterproto.message_field(29, group="node")
+    handle: "HandleData" = betterproto.message_field(30, group="node")
+    user: "UserData" = betterproto.message_field(31, group="node")
+    organization: "OrganizationData" = betterproto.message_field(32, group="node")
+    client: "ClientData" = betterproto.message_field(33, group="node")
+    notification: "NotificationData" = betterproto.message_field(34, group="node")
+    membership: "MembershipData" = betterproto.message_field(35, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -2351,16 +2363,6 @@ class PingServerResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GetLogsRequest(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class GetLogsResponse(betterproto.Message):
-    logs: List["LogEntryData"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class UploadFilesRequest(betterproto.Message):
     files: List["FileData"] = betterproto.message_field(1)
 
@@ -2383,41 +2385,6 @@ class DownloadFilesResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class SearchLogsRequest(betterproto.Message):
-    filter: "ExpressionData" = betterproto.message_field(1)
-    sort: List["ExpressionData"] = betterproto.message_field(2)
-    limit: int = betterproto.int32_field(3)
-    after: str = betterproto.string_field(4)
-
-
-@dataclass(eq=False, repr=False)
-class SearchLogsResponse(betterproto.Message):
-    logs: List["LogEntryData"] = betterproto.message_field(1)
-    cursors: List[str] = betterproto.string_field(2)
-    start_cursor: str = betterproto.string_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class WatchLogsRequest(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class WatchLogsResponse(betterproto.Message):
-    logs: List["LogEntryData"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class NotifyServerLogsRequest(betterproto.Message):
-    logs: List["LogEntryData"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class NotifyServerLogsResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
 class RunProxyBlockRequest(betterproto.Message):
     path: "BenchPathData" = betterproto.message_field(1, group="block")
     reference: "NodeReferenceData" = betterproto.message_field(2, group="block")
@@ -2435,23 +2402,15 @@ class RunProxyBlockResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StartRunRequest(betterproto.Message):
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    """scope"""
-
-    run: "RunData" = betterproto.message_field(5)
-    """request"""
-
-    block: bool = betterproto.bool_field(6)
-    keyed_inputs: bool = betterproto.bool_field(7)
-    keyed_outputs: bool = betterproto.bool_field(8)
-    tags: List[str] = betterproto.string_field(9)
+    scope: "GraphScope" = betterproto.message_field(1)
+    run: "RunData" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class StartRunResponse(betterproto.Message):
     error_type: "StartRunResponseErrorType" = betterproto.enum_field(1)
     run: "RunData" = betterproto.message_field(2)
-    logs: List["LogEntryData"] = betterproto.message_field(3)
+    logs: List["LogData"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -2998,58 +2957,6 @@ class BenchHostStub(betterproto.ServiceStub):
             "/symbolx.bench.BenchHost/DownloadFiles",
             request,
             DownloadFilesResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def search_logs(
-        self,
-        request: "SearchLogsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "SearchLogsResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.BenchHost/SearchLogs",
-            request,
-            SearchLogsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def watch_logs(
-        self,
-        request: "WatchLogsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["WatchLogsResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.BenchHost/WatchLogs",
-            request,
-            WatchLogsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def notify_server_logs(
-        self,
-        request: "NotifyServerLogsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        return await self._unary_unary(
-            "/symbolx.bench.BenchHost/NotifyServerLogs",
-            request,
-            betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3685,22 +3592,6 @@ class BenchHostBase(ServiceBase):
     ) -> "DownloadFilesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def search_logs(
-        self, subject: "Subject", request: "SearchLogsRequest"
-    ) -> "SearchLogsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def watch_logs(
-        self, subject: "Subject", request: "WatchLogsRequest"
-    ) -> AsyncIterator["WatchLogsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchLogsResponse()
-
-    async def notify_server_logs(
-        self, subject: "Subject", request: "NotifyServerLogsRequest"
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def restart_server(
         self, subject: "Subject", request: "RestartServerRequest"
     ) -> "PingServerResponse":
@@ -3801,31 +3692,6 @@ class BenchHostBase(ServiceBase):
         response = await self.download_files(request)
         await stream.send_message(response)
 
-    async def __rpc_search_logs(
-        self, stream: "grpclib.server.Stream[SearchLogsRequest, SearchLogsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.search_logs(request)
-        await stream.send_message(response)
-
-    async def __rpc_watch_logs(
-        self, stream: "grpclib.server.Stream[WatchLogsRequest, WatchLogsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_logs,
-            stream,
-            request,
-        )
-
-    async def __rpc_notify_server_logs(
-        self,
-        stream: "grpclib.server.Stream[NotifyServerLogsRequest, betterproto_lib_google_protobuf.Empty]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.notify_server_logs(request)
-        await stream.send_message(response)
-
     async def __rpc_restart_server(
         self, stream: "grpclib.server.Stream[RestartServerRequest, PingServerResponse]"
     ) -> None:
@@ -3923,24 +3789,6 @@ class BenchHostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DownloadFilesRequest,
                 DownloadFilesResponse,
-            ),
-            "/symbolx.bench.BenchHost/SearchLogs": grpclib.const.Handler(
-                self.__rpc_search_logs,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                SearchLogsRequest,
-                SearchLogsResponse,
-            ),
-            "/symbolx.bench.BenchHost/WatchLogs": grpclib.const.Handler(
-                self.__rpc_watch_logs,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchLogsRequest,
-                WatchLogsResponse,
-            ),
-            "/symbolx.bench.BenchHost/NotifyServerLogs": grpclib.const.Handler(
-                self.__rpc_notify_server_logs,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                NotifyServerLogsRequest,
-                betterproto_lib_google_protobuf.Empty,
             ),
             "/symbolx.bench.BenchHost/RestartServer": grpclib.const.Handler(
                 self.__rpc_restart_server,
@@ -4074,78 +3922,78 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    SignalData,
-    NotificationData,
-    BenchData,
-    BlockData,
-    HandleData,
-    PauseData,
-    ViewData,
-    DependencyData,
-    UpgradeData,
-    FileContentData,
-    ServerData,
-    IdentityData,
-    UserData,
+    NoticeData,
     RecordData,
-    SkipData,
-    QueryData,
-    BranchData,
-    DriveData,
-    OrganizationData,
-    SessionData,
-    StoreData,
+    LogData,
+    CacheData,
     SpaceData,
-    RunData,
-    RoleData,
-    MembershipData,
-    ClientData,
     EnvironmentData,
-    LinkData,
+    QueryData,
+    FieldData,
+    IdentityData,
     BadgeData,
     PackageData,
-    FieldData,
+    UserData,
+    LinkData,
     TriggerData,
-    CacheData,
-    NoticeData,
+    BenchData,
+    FileContentData,
+    ServerData,
+    OrganizationData,
+    UpgradeData,
+    MembershipData,
+    SessionData,
+    SignalData,
+    RunData,
+    DependencyData,
+    ViewData,
+    ClientData,
+    RoleData,
+    DriveData,
+    BlockData,
+    StoreData,
+    HandleData,
+    BranchData,
+    NotificationData,
+    SkipData,
+    PauseData,
 ]
 AnyStructData = Union[
-    AccessData,
-    RichTextData,
     RunErrorData,
-    FileData,
-    AggregationBucketData,
-    StoreCredentialData,
-    NodeReferenceData,
-    PolicyData,
-    ValueReferenceData,
-    AccessTraceData,
+    AccessData,
     PropertyReferenceData,
-    BenchPathData,
-    ExpressionData,
-    ContextData,
-    AggregationData,
-    RichTextSpanData,
-    FieldPathData,
-    SpaceDockItemData,
-    ServerImageData,
-    ProjectionData,
-    SubjectData,
-    SpaceDockData,
-    TypeInfoData,
-    CodeSectionData,
-    CodeData,
-    ReadOptionsData,
-    ValueSelectionData,
-    RequestData,
-    PolicyRuleData,
+    ValueReferenceData,
     IconData,
-    FieldPathSegmentData,
-    PropertyPathData,
-    AccessZoneData,
-    ScheduleData,
-    RunCodeFrameData,
-    LogEntryData,
-    AccessMatrixData,
     ServerImageRequirementData,
+    SpaceDockData,
+    RequestData,
+    StoreCredentialData,
+    ProjectionData,
+    ExpressionData,
+    FieldPathData,
+    ScheduleData,
+    AggregationData,
+    SubjectData,
+    AccessZoneData,
+    FileData,
+    AccessMatrixData,
+    RichTextSpanData,
+    CodeData,
+    AccessTraceData,
+    ContextData,
+    TypeInfoData,
+    ServerImageData,
+    PropertyPathData,
+    ValueSelectionData,
+    PolicyRuleData,
+    BenchPathData,
+    RunCodeFrameData,
+    ReadOptionsData,
+    NodeReferenceData,
+    FieldPathSegmentData,
+    CodeSectionData,
+    AggregationBucketData,
+    SpaceDockItemData,
+    PolicyData,
+    RichTextData,
 ]

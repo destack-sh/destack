@@ -3,13 +3,24 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 
 import structlog
 
-from bench.language.node import Node, NodeStatus, node_component, Property
+from bench.language.const import StructType, NodeType
+from bench.language.node import Node, NodeStatus, node_component, Property, struct, Struct
 from bench.language.notice import NoticeHandler
+from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
-    from bench.language import NodeVisitor, Session, TypeInfo
+    from bench.language import (
+        NodeVisitor,
+        Session,
+        TypeInfo,
+        Bench,
+        Environment,
+        Branch,
+        Package,
+        Block,
+    )
     from bench.language.field import Field, TypeInfo
 
 logger = structlog.get_logger(__name__)
@@ -39,6 +50,33 @@ class HasValues(Node):
 
     def _untrack_inner(self) -> None:
         pass
+
+
+@struct(StructType.CONTEXT)
+class Context(Struct):
+    """A semi-magical value that accumulates context down the graph (starting with system context)."""
+
+    # system
+    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
+    environment: Optional["Environment"] = p_internal(
+        31, require=False, array=False, references=NodeType.ENVIRONMENT
+    )
+    branch: Optional["Branch"] = p_internal(
+        32, require=False, array=False, references=NodeType.BRANCH
+    )
+    package: Optional["Package"] = p_internal(
+        33, require=False, array=False, references=NodeType.PACKAGE
+    )
+    module: Optional["Block"] = p_internal(
+        34, require=False, array=False, references=NodeType.BLOCK
+    )
+    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
+    # log: ...
+
+    # custom
+    # value_packed: Any = p_value_packed(40)
+    # secret_value_packed: Any = p_secret_value_packed(41)
+    # value: Any = p_value_runtime(40, 41)
 
 
 def on_invalid_raise(

@@ -867,15 +867,7 @@ class Struct(abc.ABC):
                     self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
 
     def _clear_inner(self, scope: Optional["Node"] = None):
-        # clear node references :NodeReferences
-        scope_graph = scope._graph if scope is not None else None
-        for prop in self.__reference_properties__.values():
-            if scope_graph is not None:  # if scope is set only clear nodes in scope
-                val = getattr(self, prop.name)
-                if val is None or val.ck not in scope_graph:
-                    continue
-            # TODO @Broken?: reset node references in clear for real (if still needed)
-            # setattr(self, prop.name, None)
+        pass
 
     def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType

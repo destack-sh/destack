@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.14.1"
+VERSION = "2024.02.14.5"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -57,6 +57,7 @@ class NodeType(IdEnum):
     RUN = 51  # (local)
     PAUSE = 52  # (local)
     SIGNAL = 53  # (local)
+    LOG = 54  # (local, search/analytical only)
 
     # auth
     BADGE = 60
@@ -145,7 +146,6 @@ class StructType(IdEnum):
     CODE_SECTION = 591
     RUN_CODE_FRAME = 592
     RUN_ERROR = 593
-    LOG_ENTRY = 600
     # CURSOR?
 
     SERVER_IMAGE = 630
@@ -351,6 +351,8 @@ class RunType(IdEnum):
     PAUSE = 31
     RESUME = 32
     KILL = 33
+    EMIT = 34
+    RECEIVE = 35
 
     @property
     def kind(self) -> "AccessKind":
@@ -358,7 +360,6 @@ class RunType(IdEnum):
 
 
 class AccessKind(IdEnum):
-    # NOTE: AccessType/AccessKind ids should match (used in properties masks).
     READ = 1
     EDIT = 10
     RUN = 30
@@ -412,9 +413,7 @@ class AccessMode(IdEnum):
 class StoreKind(IdEnum):
     RELATIONAL = 1
     SEARCH = 2
-    # would be nice to unify ANALYTICAL with SEARCH (need to eval CH's search capabilities)
     ANALYTICAL = 3
-    # DOCUMENT?
 
 
 class StoreEngineType(IdEnum):
