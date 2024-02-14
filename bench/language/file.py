@@ -9,16 +9,9 @@ import requests
 import structlog
 
 from bench.language.const import FileStatus, NodeType, StructType, active_session
-from bench.language.node import (
-    Property,
-    Struct,
-    p_internal,
-    p_regular,
-    p_runtime,
-    struct,
-)
+from bench.language.node import Property, Struct, p_internal, p_regular, p_runtime, struct
 from bench.language.validation import ValidationHandler, on_invalid_raise
-from bench.utils.func import _auto_async_to_sync
+from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -197,3 +190,21 @@ class File(Struct):
         if suffix not in ("txt", "md", "csv", "rst", "log", "json", "yaml", "yml", "toml"):
             name += ".txt"
         return await File.from_content(name, "text/plain", content.encode())
+
+
+class IconKind(IdEnum):
+    EMOJI = 1
+    BUILTIN = 2
+    CUSTOM = 3
+
+
+class IconType(IdEnum):
+    pass
+
+
+@struct(StructType.ICON)
+class Icon(Struct):
+    kind: IconKind = p_internal(30, default=False)
+    emoji: Optional[str] = p_internal(31, require=False)
+    type: Optional[IconType] = p_internal(32, require=False)
+    image: Optional["File"] = p_internal(33, require=False, array=False, struct=StructType.FILE)

@@ -43,9 +43,8 @@ from .expression import (
     ValueReference,
     ValueSelection,
 )
-from .field import Field, HasFields, TypeInfo
-from .file import File
-from .icon import Icon
+from .field import Field, TypeInfo
+from .file import File, Icon
 from .node import Link, Node, Property, Struct, _complete_bench_setup
 from .notice import Notice, NoticeError, NoticeType
 from .path import BenchPath
@@ -53,9 +52,16 @@ from .projection import NodeVisitor
 from .query import Query
 from .render import render
 from .resource import Cache, Drive, FileContent, Server, ServerImage, ServerImageRequirement, Store
-from .run import Pause, Run, RunError
-from .session import Context, LogEntry, Session, Signal, Transaction
-from .tag import Tag
+from .session import (
+    Context,
+    LogEntry,
+    Pause,
+    Run,
+    RunError,
+    Session,
+    Signal,
+    Transaction,
+)
 from .task import TaskError
 from .text import RichText, RichTextSpan
 from .trigger import Trigger
@@ -94,7 +100,6 @@ __all__ = [
     "FileContent",
     "FormatHint",
     "Handle",
-    "HasFields",
     "Icon",
     "Identity",
     "Link",
@@ -109,7 +114,6 @@ __all__ = [
     "Organization",
     "Package",
     "Package",
-    "Pause",
     "Policy",
     "PolicyEffect",
     "PolicyRule",
@@ -125,8 +129,6 @@ __all__ = [
     "RichText",
     "RichTextSpan",
     "Role",
-    "Run",
-    "RunError",
     "S",
     "ScheduleType",
     "Server",
@@ -143,7 +145,6 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
-    "Tag",
     "Transaction",
     "Trigger",
     "TriggerType",

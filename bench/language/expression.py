@@ -14,22 +14,13 @@ from bench.language.const import (
     SortOp,
     StructType,
 )
-from bench.language.node import (
-    BENCH_CLASS_BY_TYPE,
-    Node,
-    Property,
-    Struct,
-    node,
-    p_regular,
-    struct,
-)
+from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, node, p_regular, struct
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, Node, Property, TypeInfo
-    from bench.language.field import HasFields
+    from bench.language import Block, Expression, Field, Node, Property, TypeInfo
     from bench.language.query import QueryBuilder
 
 #
@@ -418,7 +409,7 @@ def coerce_conditional(
         target = None
         if field_key in node.__properties__:
             target = node.__properties__[field_key]
-        elif isinstance(node, Node) and HasFields in node._components:
+        elif isinstance(node, Node) and "fields" in node.__list_properties__:
             target = node.fields.get(field_key)
         if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
@@ -442,7 +433,7 @@ def coerce_conditional(
 
 
 def coerce_sort(
-    node: Union[Node, type[Node], "HasFields"],
+    node: Union[Node, type[Node], "Block"],
     sort: list[Expression | str] | Expression | str | None,
     *args: str,
 ) -> Optional[list[Expression]]:
@@ -475,7 +466,7 @@ def coerce_sort(
             target = None
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
-            elif isinstance(node, Node) and HasFields in node._components:
+            elif isinstance(node, Node) and "fields" in node.__list_properties__:
                 target = node.fields.get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")

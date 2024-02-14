@@ -75,7 +75,6 @@ enum BenchType {
   BENCH_TYPE_UPGRADE = 22;
   BENCH_TYPE_BLOCK = 23;
   BENCH_TYPE_TRIGGER = 24;
-  BENCH_TYPE_TAG = 25;
   BENCH_TYPE_FIELD = 26;
   BENCH_TYPE_RECORD = 27;
   BENCH_TYPE_QUERY = 28;
@@ -113,6 +112,7 @@ enum BenchType {
   BENCH_TYPE_TYPE_INFO = 510;
   BENCH_TYPE_CONTEXT = 511;
   BENCH_TYPE_SCHEDULE = 512;
+  BENCH_TYPE_PROJECTION = 513;
   BENCH_TYPE_FILE = 520;
   BENCH_TYPE_ICON = 521;
   BENCH_TYPE_POLICY = 530;
@@ -149,7 +149,6 @@ enum BlockType {
   BLOCK_TYPE_ALIAS = 4;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
-  BLOCK_TYPE_TAG = 12;
   BLOCK_TYPE_SIGNAL = 13;
   BLOCK_TYPE_PROTOCOL = 14;
   BLOCK_TYPE_SINGLE_VARIABLE = 20;
@@ -324,7 +323,6 @@ enum NodeType {
   NODE_TYPE_UPGRADE = 22;
   NODE_TYPE_BLOCK = 23;
   NODE_TYPE_TRIGGER = 24;
-  NODE_TYPE_TAG = 25;
   NODE_TYPE_FIELD = 26;
   NODE_TYPE_RECORD = 27;
   NODE_TYPE_QUERY = 28;
@@ -505,6 +503,7 @@ enum StructType {
   STRUCT_TYPE_TYPE_INFO = 510;
   STRUCT_TYPE_CONTEXT = 511;
   STRUCT_TYPE_SCHEDULE = 512;
+  STRUCT_TYPE_PROJECTION = 513;
   STRUCT_TYPE_FILE = 520;
   STRUCT_TYPE_ICON = 521;
   STRUCT_TYPE_POLICY = 530;
@@ -711,7 +710,7 @@ message FileData {
   optional string external_url = 35;
 }
 
-// Icon(kind: bench.language.icon.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.icon.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
 message IconData {
   BenchType metatype = 1;
   int32 kind = 30;
@@ -787,6 +786,17 @@ message PolicyRuleData {
   optional bool object_properties_is_kernel = 84;
 }
 
+// A projection into the graph.
+// NOTE 'Projecting' is not quite right / complete yet, consider:
+// - How do we filter and LoD this?
+// - When do we inline out-of-line descendants (like Comments or local Records)?
+// (esp. considering some out-of-line nodes would need to be fetched async)
+// - How do we alias shadowed and anonymous nodes?
+// - How do we make projections reproducible and inspectable in the editor?
+message ProjectionData {
+  BenchType metatype = 1;
+}
+
 // A path of Node/Struct properties.
 message PropertyPathData {
   BenchType metatype = 1;
@@ -853,7 +863,7 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
+// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
 message RunErrorData {
   BenchType metatype = 1;
   int32 kind = 30;
@@ -960,6 +970,7 @@ message TypeInfoData {
   optional int32 length = 46;
   optional int32 precision = 47;
   optional int32 scale = 48;
+  optional google.protobuf.Struct default_packed = 49;
   bool is_array = 50;
   bool is_required = 51;
   bool is_secret = 52;
@@ -1060,7 +1071,7 @@ message BlockData {
   bool is_intrinsic = 63;
   bool is_protocol = 64;
   bool is_method = 65;
-  optional int32 paused_at = 66;
+  optional google.protobuf.Timestamp paused_at = 66;
 }
 
 // A branch is a Git-like pointer to the head of a lineage of packages.
@@ -1196,6 +1207,7 @@ message FieldData {
   optional int32 length = 46;
   optional int32 precision = 47;
   optional int32 scale = 48;
+  optional google.protobuf.Struct default_packed = 49;
   bool is_array = 50;
   bool is_required = 51;
   bool is_secret = 52;
@@ -1271,7 +1283,7 @@ message LinkData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData reference_ptr = 30;
-  optional ValueReferenceData value = 31;
+  optional ValueReferenceData computed_reference = 31;
   optional string order_key = 32;
 }
 
@@ -1305,7 +1317,7 @@ message BaseNodeData {
   optional google.protobuf.Timestamp archived_at = 14;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.node.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1429,6 +1441,7 @@ message RecordData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Struct value_packed = 30;
+  optional google.protobuf.Struct secret_value_packed = 31;
 }
 
 // Attach a role to a block or member.
@@ -1465,15 +1478,19 @@ message RunData {
   NodeReferenceData session_ptr = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData server_ptr = 32;
-  optional NodeReferenceData block_ptr = 34;
-  optional google.protobuf.Timestamp scheduled_at = 36;
-  optional google.protobuf.Timestamp started_at = 37;
-  optional google.protobuf.Timestamp terminated_at = 38;
+  optional NodeReferenceData block_ptr = 33;
+  optional google.protobuf.Timestamp scheduled_at = 35;
+  optional google.protobuf.Timestamp started_at = 36;
+  optional google.protobuf.Timestamp terminated_at = 37;
+  float duration = 38;
   int32 status = 39;
-  optional google.protobuf.Struct inputs_packed = 40;
-  optional google.protobuf.Struct outputs_packed = 41;
-  optional google.protobuf.Struct value_packed = 42;
-  optional google.protobuf.Struct error = 53;
+  optional google.protobuf.Struct inputs_packed = 50;
+  optional google.protobuf.Struct inputs_secret_packed = 51;
+  optional google.protobuf.Struct outputs_packed = 52;
+  optional google.protobuf.Struct outputs_secret_packed = 53;
+  optional google.protobuf.Struct value_packed = 54;
+  optional google.protobuf.Struct value_secret_packed = 55;
+  optional google.protobuf.Struct error = 56;
 }
 
 // A server providing the compute runtime for a Bench.
@@ -1533,7 +1550,10 @@ message SignalData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData type_ptr = 30;
-  optional google.protobuf.Struct value_packed = 31;
+  optional NodeReferenceData object_ptr = 31;
+  optional NodeReferenceData sender_ptr = 32;
+  optional google.protobuf.Struct value_packed = 33;
+  optional google.protobuf.Struct secret_value_packed = 34;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
@@ -1596,24 +1616,7 @@ message StoreData {
   repeated StoreCredentialData extra_credentials = 45;
 }
 
-// An association between a tag and a node (with optional value).
-message TagData {
-  BenchType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 6;
-  int32 source = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Struct value_packed = 31;
-  optional NodeReferenceData reference_ptr = 32;
-}
-
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Optional[ForwardRef('NodeGraphBase')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1702,33 +1705,32 @@ message SomeNodeData {
     UpgradeData upgrade = 6;
     BlockData block = 7;
     TriggerData trigger = 8;
-    TagData tag = 9;
-    FieldData field = 10;
-    RecordData record = 11;
-    QueryData query = 12;
-    ViewData view = 13;
-    NoticeData notice = 14;
-    LinkData link = 15;
-    SkipData skip = 16;
-    SpaceData space = 17;
-    SessionData session = 18;
-    RunData run = 19;
-    PauseData pause = 20;
-    SignalData signal = 21;
-    BadgeData badge = 22;
-    RoleData role = 23;
-    IdentityData identity = 24;
-    ServerData server = 25;
-    StoreData store = 26;
-    DriveData drive = 27;
-    CacheData cache = 28;
-    FileContentData file_content = 29;
-    HandleData handle = 30;
-    UserData user = 31;
-    OrganizationData organization = 32;
-    ClientData client = 33;
-    NotificationData notification = 34;
-    MembershipData membership = 35;
+    FieldData field = 9;
+    RecordData record = 10;
+    QueryData query = 11;
+    ViewData view = 12;
+    NoticeData notice = 13;
+    LinkData link = 14;
+    SkipData skip = 15;
+    SpaceData space = 16;
+    SessionData session = 17;
+    RunData run = 18;
+    PauseData pause = 19;
+    SignalData signal = 20;
+    BadgeData badge = 21;
+    RoleData role = 22;
+    IdentityData identity = 23;
+    ServerData server = 24;
+    StoreData store = 25;
+    DriveData drive = 26;
+    CacheData cache = 27;
+    FileContentData file_content = 28;
+    HandleData handle = 29;
+    UserData user = 30;
+    OrganizationData organization = 31;
+    ClientData client = 32;
+    NotificationData notification = 33;
+    MembershipData membership = 34;
   };
 }
 

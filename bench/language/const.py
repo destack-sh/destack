@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.13.0"
+VERSION = "2024.02.14.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -37,7 +37,7 @@ class NodeType(IdEnum):
     UPGRADE = 22
     BLOCK = 23
     TRIGGER = 24
-    TAG = 25
+    # TAG = 25 (not sure what to do with tags yet)
     FIELD = 26
     RECORD = 27  # (local)
     QUERY = 28
@@ -109,7 +109,6 @@ ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 
 
 class StructType(IdEnum):
-    # starts at 500 to avoid collisions with NodeType (BenchType combines both in one metatype)
     BENCH_PATH = 500
     NODE_REFERENCE = 501
     PROPERTY_REFERENCE = 502
@@ -122,6 +121,7 @@ class StructType(IdEnum):
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
+    PROJECTION = 513
 
     FILE = 520
     ICON = 521
@@ -187,7 +187,7 @@ class BlockType(IdEnum):
 
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields
-    TAG = 12  # define a tag type with fields
+    # TAG = 12  # define a tag type with fields
     SIGNAL = 13  # define a signal type with fields
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
     # NOTICE = ...  # define a new notice type

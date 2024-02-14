@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.02.13.0"
+VERSION = "2024.02.14.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -385,7 +385,7 @@ BLOCK_TABLE = Table(
         Column("is_intrinsic", PrimitiveType.BOOLEAN, default="false"),
         Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
         Column("is_method", PrimitiveType.BOOLEAN, default="false"),
-        Column("paused_at", PrimitiveType.INT32, is_nullable=True),
+        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -442,52 +442,6 @@ TRIGGER_TABLE = Table(
     ),
 )
 
-TAG_TABLE = Table(
-    "bench_tag",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_field_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_field",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-        ),
-        Column("revision", PrimitiveType.INT64, default="0"),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL)",
-        ),
-    ),
-)
-
 FIELD_TABLE = Table(
     "bench_field",
     (
@@ -525,6 +479,7 @@ FIELD_TABLE = Table(
         Column("length", PrimitiveType.INT32, is_nullable=True),
         Column("precision", PrimitiveType.INT32, is_nullable=True),
         Column("scale", PrimitiveType.INT32, is_nullable=True),
+        Column("default_packed", PrimitiveType.JSON, is_nullable=True),
         Column("is_array", PrimitiveType.BOOLEAN, default="false"),
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
@@ -725,7 +680,6 @@ LINK_TABLE = Table(
         Column("reference_upgrade_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_trigger_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_tag_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_field_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_record_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_query_ck", PrimitiveType.UUID, is_nullable=True),
@@ -733,7 +687,7 @@ LINK_TABLE = Table(
         Column("reference_notice_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_skip_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_space_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("value", PrimitiveType.JSON, is_nullable=True),
+        Column("computed_reference", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
@@ -783,7 +737,6 @@ SKIP_TABLE = Table(
         Column("reference_upgrade_ck", PrimitiveType.UUID),
         Column("reference_block_ck", PrimitiveType.UUID),
         Column("reference_trigger_ck", PrimitiveType.UUID),
-        Column("reference_tag_ck", PrimitiveType.UUID),
         Column("reference_field_ck", PrimitiveType.UUID),
         Column("reference_record_ck", PrimitiveType.UUID),
         Column("reference_query_ck", PrimitiveType.UUID),
@@ -922,10 +875,14 @@ RUN_TABLE = Table(
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("duration", PrimitiveType.FLOAT32, default="0"),
         Column("status", PrimitiveType.INT16),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("inputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("outputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
@@ -995,10 +952,15 @@ SIGNAL_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("type_block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("object_block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("sender_block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
     ),
     indexes=(
         Index("bench_idx_type_block_ck", IndexType.BTREE, ("type_block_ck",)),
+        Index("bench_idx_object_block_ck", IndexType.BTREE, ("object_block_ck",)),
+        Index("bench_idx_sender_block_ck", IndexType.BTREE, ("sender_block_ck",)),
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
         Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),

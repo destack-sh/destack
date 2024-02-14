@@ -11,13 +11,15 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 import structlog
 
 from bench.language.const import NodeType, RunErrorKind, RunStatus
-from bench.language.field import Field, TypedDict
-from bench.language.node import Node, Node, node_component, p_runtime
+from bench.language.field import Field
+from bench.language.node import Node, node_component, p_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
-from bench.language.session import Run
 from bench.utils.func import describe_type
 from bench.utils.utils import format_python, omit_empty
+
+from . import Run, RunError
+from .value import TypedDict
 
 if TYPE_CHECKING:
     from bench.language.block import Block
@@ -85,13 +87,15 @@ class HasTask(Node):
 
         # do task
         projection = Projection(self.package)
-        seen_from_node = projection.view_node(self, ancestors_up_to=NodeType.FILE, max_distance=5)
-        await projection.view_records(seen_from_node.values(), limit=10)
-        seen_from_value = projection.view_value(inputs, self, is_output=False)
-        projection.view_node(
+        seen_from_node = projection.project_node(
+            self, ancestors_up_to=NodeType.FILE, max_distance=5
+        )
+        await projection.project_records(seen_from_node.values(), limit=10)
+        seen_from_value = projection.project_value(inputs, self, is_output=False)
+        projection.project_node(
             seen_from_value.values(), ancestors_up_to=NodeType.FILE, max_distance=2
         )
-        await projection.view_records(seen_from_value.values(), limit=10)
+        await projection.project_records(seen_from_value.values(), limit=10)
 
         self.session._run_enter(self, is_async=True, inputs=inputs)
         try:
@@ -230,7 +234,6 @@ async def run_task(
 
 
 # avoid circular import
-from .run import RunError  # noqa: E402
 
 
 class TaskError(RunError):

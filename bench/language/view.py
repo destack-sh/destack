@@ -99,9 +99,7 @@ class SpaceDockItemType(IdEnum):
 
 @struct(StructType.SPACE_DOCK_ITEM)
 class SpaceDockItem(Struct):
-    # type: SpaceDockItemType = p_regular(
-    #     30, require=True, validate=enum_validator(SpaceDockItemType)
-    # )
+    # type: SpaceDockItemType = ...
     hidden: bool = p_regular(31, default=False)
 
 

@@ -3,46 +3,46 @@
 #
 import abc
 from typing import (
-    TypeVar,
-    Union,
-    Optional,
     TYPE_CHECKING,
     Any,
-    Generic,
-    Self,
-    NamedTuple,
-    cast,
-    ClassVar,
     Callable,
+    ClassVar,
+    Generic,
+    NamedTuple,
+    Optional,
+    Self,
+    TypeVar,
+    Union,
+    cast,
 )
 from uuid import UUID
 
-from asgiref.sync import async_to_sync
 import psycopg
+from asgiref.sync import async_to_sync
 
 from bench.language.const import (
-    NodeType,
-    StructType,
-    BenchError,
     AggregationOp,
-    StoreEngineType,
-    active_tx,
+    BenchError,
     ExpressionKind,
+    NodeType,
+    StoreEngineType,
+    StructType,
+    active_tx,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
-from bench.language.node import node, Node, p_parent, p_regular, NODE_CLASS_BY_TYPE
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, node, p_parent, p_regular
 from bench.proto.wire import (
-    AnyNodeData,
-    NodeReferenceData,
     AggregationData,
+    AnyNodeData,
     EditData,
     GraphIoStub,
     GraphScope,
+    NodeReferenceData,
 )
 from bench.utils.func import _auto_async_to_sync, bytetuple
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Block, ReadOptions, Session, Store
+    from bench.language import Block, Expression, ReadOptions, Session, Store
     from bench.sql.client import _PgStoreConnection
 
 NodeT = TypeVar("NodeT", bound=Node)
@@ -428,7 +428,7 @@ class QueryBuilder(
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
-        from bench.language.expression import coerce_conditional, A
+        from bench.language.expression import A, coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
@@ -442,7 +442,7 @@ class QueryBuilder(
     @_auto_async_to_sync
     async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
-        from bench.language.expression import coerce_conditional, A
+        from bench.language.expression import A, coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
@@ -660,7 +660,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         return AggregateResult(response.aggregation)
 
 
-class InMemoryGraphEngine(StoreEngine):
+class InMemoryGraphEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     type = StoreEngineType.INMEMORY
 
     def __init__(
@@ -679,7 +679,7 @@ class InMemoryGraphEngine(StoreEngine):
         return f"node_graph={self.node_graph!r}, source_graph={self.source_graph!r}, store={self.store}"
 
 
-class PostgresEngine(StoreEngine):
+class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     type = StoreEngineType.POSTGRES
 
     def __str__(self):
@@ -709,12 +709,12 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
         await self._conn.close()
 
     async def fetch(self, query: "QueryBuilder[NodeT, NodeDataT]", count: bool) -> FetchResult:
-        from bench.sql.engine import (
-            pg_search_nodes_data_graph,
-            pg_count,
-            compile_pg_conditional_maybe,
-        )
         from bench.language import NodeReference, ReadOptions
+        from bench.sql.engine import (
+            compile_pg_conditional_maybe,
+            pg_count,
+            pg_search_nodes_data_graph,
+        )
 
         roots, graph = await pg_search_nodes_data_graph(
             cur=self._cur,
@@ -742,7 +742,7 @@ class PostgresConnection(StoreConnection[PostgresEngine, NodeT, NodeDataT]):
         )
 
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        from bench.sql.engine import compile_pg_conditional_maybe, pg_exists, pg_count
+        from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
 
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(
