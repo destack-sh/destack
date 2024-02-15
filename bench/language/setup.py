@@ -187,7 +187,7 @@ def _complete_bench_setup():
         )
         if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
             raise ValueError(
-                f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but got in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
+                f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
     check_collections_equal(
         IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]

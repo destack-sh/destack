@@ -748,31 +748,27 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("SystemProtection").append(
         PolicyRule(
             "CannotAccessKernelProperties",
-            text=RichText.plain("Kernel properties are inaccessible outside the system itself."),
+            text=RichText.plain("Kernel properties are inaccessible outside of the system."),
         )
         .deny()
         .object(properties_is_kernel=True),
         PolicyRule(
             "CannotUpdateSystemProperties",
-            text=RichText.plain(
-                "System properties are not directly editable, only through special methods or relevant accesses."
-            ),
+            text=RichText.plain("System properties must be edited through designated methods."),
         )
         .deny(EditType.UPDATE)
         .object(properties_is_system=True),
         PolicyRule(
-            "CannotCreateRootNodesDirectly",
-            text=RichText.plain(
-                "Root nodes (Bench, Organization, User) must be created through special methods."
-            ),
+            "CannotCreateOrDeleteSystemNodesDirectly",
+            text=RichText.plain("System nodes' existence must be managed through special methods."),
         )
-        .deny(EditType.CREATE, EditType.UPSERT)
-        .object(node_types=ROOT_NODE_TYPES.tuple),
+        .deny(EditType.CREATE, EditType.UPSERT, EditType.DELETE)
+        .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(
             "CannotEditHandles",
             text=RichText.plain(
                 "Handles (like usernames) must be edited through special methods."
-                # (explicitly deny this since handles are owned by the root)
+                # (explicitly deny this since handles are owned by the root via OwnerAccess)
             ),
         )
         .deny(AccessKind.EDIT)
@@ -799,7 +795,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     ),
     Policy("StaffAccess").append(
         PolicyRule(
-            "StaffCanReadAnything",
+            "StaffCanReadAnythingDuringBeta",
             text=RichText.plain("During the beta, staff users can access anything."),
         )
         .subject(is_staff=True)

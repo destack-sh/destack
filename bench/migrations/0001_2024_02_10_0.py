@@ -1287,6 +1287,44 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     """
     )
 
+    # bench_pause
+    await cur.execute(
+        """
+    CREATE TABLE bench_pause (
+        id uuid NOT NULL PRIMARY KEY,
+        ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
+        created_at timestamp NOT NULL,
+        updated_at timestamp NOT NULL,
+        deleted_at timestamp,
+        archived_at timestamp
+    )
+    """
+    )
+
+    # bench_session
+    await cur.execute(
+        """
+    CREATE TABLE bench_session (
+        id uuid NOT NULL PRIMARY KEY,
+        ck uuid NOT NULL,
+        parent_package_id uuid,
+        package_id uuid NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
+        created_at timestamp NOT NULL,
+        updated_at timestamp NOT NULL,
+        deleted_at timestamp,
+        archived_at timestamp,
+        server_id uuid,
+        opened_at timestamp,
+        closed_at timestamp,
+        is_runtime boolean NOT NULL DEFAULT false,
+        is_read_only boolean NOT NULL DEFAULT false
+    )
+    """
+    )
+
     # bench_signal
     await cur.execute(
         """
@@ -1305,22 +1343,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         sender_block_ck uuid,
         value_packed jsonb,
         secret_value_packed bytea
-    )
-    """
-    )
-
-    # bench_pause
-    await cur.execute(
-        """
-    CREATE TABLE bench_pause (
-        id uuid NOT NULL PRIMARY KEY,
-        ck uuid NOT NULL,
-        package_id uuid NOT NULL,
-        revision bigint NOT NULL DEFAULT 0,
-        created_at timestamp NOT NULL,
-        updated_at timestamp NOT NULL,
-        deleted_at timestamp,
-        archived_at timestamp
     )
     """
     )
@@ -1355,28 +1377,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     """
     )
 
-    # bench_session
-    await cur.execute(
-        """
-    CREATE TABLE bench_session (
-        id uuid NOT NULL PRIMARY KEY,
-        ck uuid NOT NULL,
-        parent_package_id uuid,
-        package_id uuid NOT NULL,
-        revision bigint NOT NULL DEFAULT 0,
-        created_at timestamp NOT NULL,
-        updated_at timestamp NOT NULL,
-        deleted_at timestamp,
-        archived_at timestamp,
-        server_id uuid,
-        opened_at timestamp,
-        closed_at timestamp,
-        is_runtime boolean NOT NULL DEFAULT false,
-        is_read_only boolean NOT NULL DEFAULT false
-    )
-    """
-    )
-
     # bench_record_ephemeral
     await cur.execute(
         "CREATE INDEX bench_record_ephemeral_bench_idx_block_key_deleted_at ON bench_record_ephemeral USING BTREE (block_key, deleted_at)"
@@ -1391,6 +1391,41 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_record_ephemeral    
         ADD CONSTRAINT bench_record_ephemeral_bench_idx_ck_block_key UNIQUE USING INDEX bench_record_ephemeral_bench_idx_ck_block_key
+    """
+    )
+
+    # bench_pause
+    await cur.execute(
+        """
+        ALTER TABLE bench_pause    
+        ADD COLUMN parent_run_id uuid REFERENCES bench_run ON DELETE CASCADE,
+        ADD COLUMN session_id uuid NOT NULL REFERENCES bench_session ON DELETE CASCADE
+    """
+    )
+    await cur.execute(
+        "CREATE INDEX bench_pause_bench_idx_package_deleted_at ON bench_pause USING BTREE (deleted_at, package_id)"
+    )
+    await cur.execute(
+        "CREATE INDEX bench_pause_bench_idx_package_archived_at ON bench_pause USING BTREE (archived_at, package_id)"
+    )
+    await cur.execute(
+        """
+        ALTER TABLE bench_pause    
+        ADD CONSTRAINT bench_pause_bench_check_one_parent CHECK ((parent_run_id IS NOT NULL))
+    """
+    )
+
+    # bench_session
+    await cur.execute(
+        "CREATE INDEX bench_session_bench_idx_package_deleted_at ON bench_session USING BTREE (deleted_at, package_id)"
+    )
+    await cur.execute(
+        "CREATE INDEX bench_session_bench_idx_package_archived_at ON bench_session USING BTREE (archived_at, package_id)"
+    )
+    await cur.execute(
+        """
+        ALTER TABLE bench_session    
+        ADD CONSTRAINT bench_session_bench_check_one_parent CHECK ((parent_package_id IS NOT NULL))
     """
     )
 
@@ -1414,27 +1449,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_signal    
         ADD CONSTRAINT bench_signal_bench_check_one_parent CHECK ((parent_package_id IS NOT NULL))
-    """
-    )
-
-    # bench_pause
-    await cur.execute(
-        """
-        ALTER TABLE bench_pause    
-        ADD COLUMN parent_run_id uuid REFERENCES bench_run ON DELETE CASCADE,
-        ADD COLUMN session_id uuid NOT NULL REFERENCES bench_session ON DELETE CASCADE
-    """
-    )
-    await cur.execute(
-        "CREATE INDEX bench_pause_bench_idx_package_deleted_at ON bench_pause USING BTREE (deleted_at, package_id)"
-    )
-    await cur.execute(
-        "CREATE INDEX bench_pause_bench_idx_package_archived_at ON bench_pause USING BTREE (archived_at, package_id)"
-    )
-    await cur.execute(
-        """
-        ALTER TABLE bench_pause    
-        ADD CONSTRAINT bench_pause_bench_check_one_parent CHECK ((parent_run_id IS NOT NULL))
     """
     )
 
@@ -1471,20 +1485,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_run    
         ADD CONSTRAINT bench_run_bench_check_one_parent CHECK ((parent_session_id IS NOT NULL) OR (parent_run_id IS NOT NULL))
-    """
-    )
-
-    # bench_session
-    await cur.execute(
-        "CREATE INDEX bench_session_bench_idx_package_deleted_at ON bench_session USING BTREE (deleted_at, package_id)"
-    )
-    await cur.execute(
-        "CREATE INDEX bench_session_bench_idx_package_archived_at ON bench_session USING BTREE (archived_at, package_id)"
-    )
-    await cur.execute(
-        """
-        ALTER TABLE bench_session    
-        ADD CONSTRAINT bench_session_bench_check_one_parent CHECK ((parent_package_id IS NOT NULL))
     """
     )
 

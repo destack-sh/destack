@@ -1,5 +1,6 @@
+from collections import deque
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, AsyncContextManager
+from typing import AsyncIterator, AsyncContextManager, Optional
 from uuid import UUID
 
 from grpclib import GRPCError
@@ -22,10 +23,11 @@ from bench.language.const import (
     PolicyEffect,
     ConditionalOp,
 )
-from bench.language.graph import NodeDataGraph
+from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
 from bench.language.query import StoreEngine, QueryBuilder, FetchOptions
 from bench.proto import wiring
+from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     EditData,
     GraphIoBase,
@@ -43,25 +45,38 @@ from bench.proto.wire import (
     SearchNodesRequest,
     CommitTransactionRequest,
     AggregateNodesRequest,
+    FlushTransactionResponse,
+    FlushTransactionRequest,
 )
-from bench.utils.func import group_by
+from bench.utils.func import group_by, bytetuple
 
 logger = structlog.get_logger(__name__)
+
+EPOCH_BUFFER_SIZE = 1000
 
 
 class GraphIoService(GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
 
-    def __init__(self):
+    def __init__(self, *, bench_id: UUID | None, node_types: bytetuple[NodeType]):
+        super().__init__()
         self.epoch: int = 0
+        self.recent_epochs: deque[list[EditData]] = deque(maxlen=EPOCH_BUFFER_SIZE)
+        # nocheckin: validate target scope (bench_id or None) per requests
+        self.bench_id: UUID | None = bench_id
+        self.node_types: bytetuple[NodeType] = node_types
 
-    def on_graph_edited(self, edits: list[EditData]):
+    def on_graph_edited(
+        self, edits: list[EditData], source_graph: NodeDataGraph, graph: Optional[NodeGraph] = None
+    ):
         # nocheckin: track and buffer edits for recent epochs
+        self.recent_epochs.appendleft(edits)
         # self.watchers....
         self.epoch += 1
 
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
+        """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
     @asynccontextmanager
@@ -222,10 +237,13 @@ class GraphIoService(GraphIoBase):
             await session.commit()
             self.on_graph_edited(request.edits)
 
-        return CommitTransactionResponse(
-            changed_nodes=[wiring.wrap_some_node(n) for n in session.tx.changed_nodes],
-            epoch=self.epoch,
-        )
+        accepted_revisions = [e.revision for e in request.edits]
+        return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
+
+    async def flush_transaction(
+        self, subject: "Subject", request: "FlushTransactionRequest"
+    ) -> "FlushTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def complete_transaction(
         self, subject: Subject, request: "CompleteTransactionRequest"
@@ -240,4 +258,6 @@ class GraphIoService(GraphIoBase):
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
+        if not self.supports_watch:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"watch not supported in {self.__class__}")
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

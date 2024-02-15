@@ -75,7 +75,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     # value
     is_value_runtime: bool = False  # for user 'value' properties
     is_value_packed: bool = False  # for packed value properties (the underlying value)
-    is_value_freeform: bool = False  # for freeform value properties (dynamically untyped)
+    is_value_dynamic: bool = False  # for freeform value properties (dynamically untyped)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
@@ -657,8 +657,8 @@ def p_child(
 
 
 def p_value_runtime(
-    value_packed_id: int,
-    secret_value_packed_id: int | None = None,
+    packed: int,
+    secret_packed: int | None = None,
     *,
     type: int | Callable[["Node"], "TypeInfo"] | None = None,
 ) -> Property:
@@ -679,8 +679,8 @@ def p_value_runtime(
         is_required=False,
         is_value_runtime=True,
         default=None,
-        value_packed_ptr=value_packed_id,
-        secret_value_packed_ptr=secret_value_packed_id,
+        value_packed_ptr=packed,
+        secret_value_packed_ptr=secret_packed,
         value_type_info_ptr=value_type_info_id,
         value_type_info_getter=value_type_info_getter,
     )
@@ -719,13 +719,13 @@ def p_secret_value_packed(id: int) -> Property:
     )
 
 
-def p_value_freeform(id: int) -> Property:
+def p_value_dynamic(id: int) -> Property:
     """Freeform value property."""
     return Property(
         id=id,
         primitive_type=PrimitiveType.JSON,
         default=None,
-        is_value_freeform=True,
+        is_value_dynamic=True,
         is_required=False,
         is_internal=True,
         is_system=True,

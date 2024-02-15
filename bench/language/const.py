@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.15.1"
+VERSION = "2024.02.15.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -35,21 +35,21 @@ class NodeType(IdEnum):
     PACKAGE = 20
     DEPENDENCY = 21
     UPGRADE = 22
-    BLOCK = 23
-    TRIGGER = 24
-    # TAG = 25 (not sure what to do with tags yet)
-    FIELD = 26
-    RECORD = 27  # (local)
-    QUERY = 28
-    VIEW = 29
-    # STEP = 30
+    SPACE = 23
+    LINK = 24
+    SKIP = 25
+    NOTICE = 26
+    BLOCK = 27
+    TRIGGER = 28
+    FIELD = 29
+    RECORD = 30  # (local)
+    QUERY = 31
+    VIEW = 32
+    # TAG?  (not sure what to do with tags yet)
+    # STEP = ...
     # CONNECTION? (also for Flow)
-    NOTICE = 32
-    LINK = 35
-    SKIP = 36
     # COMMENT = ...
     # REACTION = ...
-    SPACE = 40
     # LOCK?
 
     # session
@@ -57,7 +57,8 @@ class NodeType(IdEnum):
     RUN = 51  # (local)
     PAUSE = 52  # (local)
     SIGNAL = 53  # (local)
-    LOG = 54  # (local, search/analytical only)
+    LOG = 54  # (local, analytics only)
+    NOTIFICATION = 55
     # METRIC = ...?
 
     # auth
@@ -70,17 +71,15 @@ class NodeType(IdEnum):
     STORE = 161  # 'database' for Postgres/OpenSearch/ClickHouse
     DRIVE = 162  # 'bucket' for S3/MinIO
     CACHE = 163  # Redis/Memcached
-    FILE_CONTENT = 170  # in a Drive
     # DOMAIN, EMAIL, ...
+    FILE_CONTENT = 180  # in a Drive
 
     # user
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    NOTIFICATION = 224
-
-    MEMBERSHIP = 240
+    MEMBERSHIP = 225
     # INVITE = ...
     # FRIENDSHIP/FOLLOW/AFFILIATION...?
 
@@ -105,8 +104,9 @@ SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.MEMBERSHIP)
 )
+OUTSIDE_BENCH_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if nt.id >= 200) + (NodeType.BENCH,)
+    OUTSIDE_BENCH_NODE_TYPES.tuple + (NodeType.BENCH,)
 )
 
 

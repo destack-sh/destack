@@ -12,10 +12,6 @@ import type { ServerData } from "./lang";
 import { BenchHost } from "./services";
 import type { RunProxyBlockResponse } from "./services";
 import type { RunProxyBlockRequest } from "./services";
-import type { KillRunResponse } from "./services";
-import type { KillRunRequest } from "./services";
-import type { StartRunResponse } from "./services";
-import type { StartRunRequest } from "./services";
 import type { PingServerRequest } from "./services";
 import type { PingServerResponse } from "./services";
 import type { RestartServerRequest } from "./services";
@@ -198,7 +194,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
 }
 /**
  * Global control plane: all the global stuff like Benches, Users, etc..
- * Will probably shard this  at some point.
+ * Will probably shard this at some point.
  * Frontend connects to this directly.
  *
  *
@@ -221,13 +217,13 @@ export interface ISupervisorClient {
      */
     changeUserPassword(input: ChangeUserPasswordRequest, options?: RpcOptions): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse>;
     /**
-     * Login user account with the current client.
+     * Login user account with a new or existing client.
      *
      * @generated from protobuf rpc: LoginUser(symbolx.bench.LoginUserRequest) returns (symbolx.bench.LoginUserResponse);
      */
     loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
     /**
-     * Logout user account with the current client.
+     * Logout user account with the current or other owned clients.
      *
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */
@@ -281,7 +277,7 @@ export interface ISupervisorClient {
 }
 /**
  * Global control plane: all the global stuff like Benches, Users, etc..
- * Will probably shard this  at some point.
+ * Will probably shard this at some point.
  * Frontend connects to this directly.
  *
  *
@@ -315,7 +311,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<ChangeUserPasswordRequest, ChangeUserPasswordResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Login user account with the current client.
+     * Login user account with a new or existing client.
      *
      * @generated from protobuf rpc: LoginUser(symbolx.bench.LoginUserRequest) returns (symbolx.bench.LoginUserResponse);
      */
@@ -324,7 +320,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Logout user account with the current client.
+     * Logout user account with the current or other owned clients.
      *
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */
@@ -483,18 +479,6 @@ export interface IBenchHostClient {
      */
     pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse>;
     /**
-     * Starts a run in an appropriate server (same request/response as for ServerNode).
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in the appropriate server (same request/response as for ServerNode).
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
-    /**
      * Runs a well-known internal block in the host with our credentials.
      *
      * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
@@ -619,33 +603,19 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Starts a run in an appropriate server (same request/response as for ServerNode).
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in the appropriate server (same request/response as for ServerNode).
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
      * Runs a well-known internal block in the host with our credentials.
      *
      * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }
+// 
+// Server node
+// 
+
 /**
  * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
@@ -660,19 +630,11 @@ export interface IServerClient {
      * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.ServerData);
      */
     restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, ServerData>;
-    /**
-     * Starts a run in a process in this server.
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in a process in this server.
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
+// 
+// Server node
+// 
+
 /**
  * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
@@ -695,24 +657,6 @@ export class ServerClient implements IServerClient, ServiceInfo {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartServerRequest, ServerData>("unary", this._transport, method, opt, input);
     }
-    /**
-     * Starts a run in a process in this server.
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in a process in this server.
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
-    }
 }
 /**
  * The actual server process executing a Bench 'thread'.
@@ -722,18 +666,6 @@ export class ServerClient implements IServerClient, ServiceInfo {
  * @generated from protobuf service symbolx.bench.ServerProcess
  */
 export interface IServerProcessClient {
-    /**
-     * Starts a run in this server process.
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in this server process.
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
  * The actual server process executing a Bench 'thread'.
@@ -747,23 +679,5 @@ export class ServerProcessClient implements IServerProcessClient, ServiceInfo {
     methods = ServerProcess.methods;
     options = ServerProcess.options;
     constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Starts a run in this server process.
-     *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in this server process.
-     *
-     * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
 }

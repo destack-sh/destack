@@ -6,6 +6,7 @@
 //
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
+import { ServerData } from "./lang";
 import { ServiceType } from "@protobuf-ts/runtime-rpc";
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
@@ -16,14 +17,11 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { LogData } from "./lang";
-import { RunData } from "./lang";
 import { RunErrorData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
 import { BenchPathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
-import { ServerData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
@@ -541,12 +539,6 @@ export interface WatchEditsRequest {
      * @generated from protobuf field: optional uint64 since_epoch = 3;
      */
     sinceEpoch?: bigint;
-    /**
-     * @generated from protobuf field: map<int32, symbolx.bench.ExpressionData> filters = 4;
-     */
-    filters: {
-        [key: number]: ExpressionData;
-    };
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsResponse
@@ -578,10 +570,6 @@ export interface RestartServerRequest {
  * @generated from protobuf message symbolx.bench.RestartServerResponse
  */
 export interface RestartServerResponse {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ServerData servers = 1;
-     */
-    servers: ServerData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.PingServerRequest
@@ -600,10 +588,6 @@ export interface PingServerRequest {
  * @generated from protobuf message symbolx.bench.PingServerResponse
  */
 export interface PingServerResponse {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ServerData servers = 1;
-     */
-    servers: ServerData[];
 }
 // 
 // Package host
@@ -704,99 +688,6 @@ export interface RunProxyBlockResponse {
      * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 2;
      */
     error?: RunErrorData;
-}
-// 
-// Server node
-// 
-
-/**
- * @generated from protobuf message symbolx.bench.StartRunRequest
- */
-export interface StartRunRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
-     */
-    scope?: GraphScope;
-    /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 2;
-     */
-    run?: RunData;
-}
-/**
- * @generated from protobuf message symbolx.bench.StartRunResponse
- */
-export interface StartRunResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.StartRunResponse.ErrorType error_type = 1;
-     */
-    errorType: StartRunResponse_ErrorType;
-    /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 2;
-     */
-    run?: RunData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.LogData logs = 3;
-     */
-    logs: LogData[];
-}
-/**
- * @generated from protobuf enum symbolx.bench.StartRunResponse.ErrorType
- */
-export enum StartRunResponse_ErrorType {
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
-     */
-    START_RUN_ERROR_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
-     */
-    START_RUN_ERROR_TYPE_UNAVAILABLE = 1,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INVALID = 2;
-     */
-    START_RUN_ERROR_TYPE_INVALID = 2,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INTERNAL = 3;
-     */
-    START_RUN_ERROR_TYPE_INTERNAL = 3,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_TIMEOUT = 4;
-     */
-    START_RUN_ERROR_TYPE_TIMEOUT = 4,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_RUNTIME = 5;
-     */
-    START_RUN_ERROR_TYPE_RUNTIME = 5,
-    /**
-     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_DUPLICATE = 6;
-     */
-    START_RUN_ERROR_TYPE_DUPLICATE = 6
-}
-/**
- * @generated from protobuf message symbolx.bench.KillRunRequest
- */
-export interface KillRunRequest {
-    /**
-     * scope
-     *
-     * @generated from protobuf field: optional string bench_id = 1;
-     */
-    benchId?: string;
-    /**
-     * request
-     *
-     * @generated from protobuf field: string run_id = 5;
-     */
-    runId: string;
-}
-/**
- * @generated from protobuf message symbolx.bench.KillRunResponse
- */
-export interface KillRunResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 1;
-     */
-    run?: RunData;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
@@ -2484,14 +2375,12 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         super("symbolx.bench.WatchEditsRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 4, name: "filters", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ExpressionData } }
+            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeTypes = [];
-        message.filters = {};
         if (value !== undefined)
             reflectionMergePartial<WatchEditsRequest>(this, message, value);
         return message;
@@ -2514,9 +2403,6 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                 case /* optional uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
-                case /* map<int32, symbolx.bench.ExpressionData> filters */ 4:
-                    this.binaryReadMap4(message.filters, reader, options);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2527,22 +2413,6 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
             }
         }
         return message;
-    }
-    private binaryReadMap4(map: WatchEditsRequest["filters"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof WatchEditsRequest["filters"] | undefined, val: WatchEditsRequest["filters"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.int32();
-                    break;
-                case 2:
-                    val = ExpressionData.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.WatchEditsRequest.filters");
-            }
-        }
-        map[key ?? 0] = val ?? ExpressionData.create();
     }
     internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.GraphScope scope = 1; */
@@ -2558,13 +2428,6 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
         /* optional uint64 since_epoch = 3; */
         if (message.sinceEpoch !== undefined)
             writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
-        /* map<int32, symbolx.bench.ExpressionData> filters = 4; */
-        for (let k of globalThis.Object.keys(message.filters)) {
-            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ExpressionData.internalBinaryWrite(message.filters[k as any], writer, options);
-            writer.join().join();
-        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2687,40 +2550,18 @@ export const RestartServerRequest = new RestartServerRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartServerResponse$Type extends MessageType<RestartServerResponse> {
     constructor() {
-        super("symbolx.bench.RestartServerResponse", [
-            { no: 1, name: "servers", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ServerData }
-        ]);
+        super("symbolx.bench.RestartServerResponse", []);
     }
     create(value?: PartialMessage<RestartServerResponse>): RestartServerResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.servers = [];
         if (value !== undefined)
             reflectionMergePartial<RestartServerResponse>(this, message, value);
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerResponse): RestartServerResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.ServerData servers */ 1:
-                    message.servers.push(ServerData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+        return target ?? this.create();
     }
     internalBinaryWrite(message: RestartServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.ServerData servers = 1; */
-        for (let i = 0; i < message.servers.length; i++)
-            ServerData.internalBinaryWrite(message.servers[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2788,40 +2629,18 @@ export const PingServerRequest = new PingServerRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PingServerResponse$Type extends MessageType<PingServerResponse> {
     constructor() {
-        super("symbolx.bench.PingServerResponse", [
-            { no: 1, name: "servers", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ServerData }
-        ]);
+        super("symbolx.bench.PingServerResponse", []);
     }
     create(value?: PartialMessage<PingServerResponse>): PingServerResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.servers = [];
         if (value !== undefined)
             reflectionMergePartial<PingServerResponse>(this, message, value);
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerResponse): PingServerResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.ServerData servers */ 1:
-                    message.servers.push(ServerData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+        return target ?? this.create();
     }
     internalBinaryWrite(message: PingServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.ServerData servers = 1; */
-        for (let i = 0; i < message.servers.length; i++)
-            ServerData.internalBinaryWrite(message.servers[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3178,221 +2997,6 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
  * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockResponse
  */
 export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class StartRunRequest$Type extends MessageType<StartRunRequest> {
-    constructor() {
-        super("symbolx.bench.StartRunRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "run", kind: "message", T: () => RunData }
-        ]);
-    }
-    create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<StartRunRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunRequest): StartRunRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
-                    break;
-                case /* symbolx.bench.RunData run */ 2:
-                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: StartRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunData run = 2; */
-        if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.StartRunRequest
- */
-export const StartRunRequest = new StartRunRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class StartRunResponse$Type extends MessageType<StartRunResponse> {
-    constructor() {
-        super("symbolx.bench.StartRunResponse", [
-            { no: 1, name: "error_type", kind: "enum", T: () => ["symbolx.bench.StartRunResponse.ErrorType", StartRunResponse_ErrorType] },
-            { no: 2, name: "run", kind: "message", T: () => RunData },
-            { no: 3, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogData }
-        ]);
-    }
-    create(value?: PartialMessage<StartRunResponse>): StartRunResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.errorType = 0;
-        message.logs = [];
-        if (value !== undefined)
-            reflectionMergePartial<StartRunResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunResponse): StartRunResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.StartRunResponse.ErrorType error_type */ 1:
-                    message.errorType = reader.int32();
-                    break;
-                case /* symbolx.bench.RunData run */ 2:
-                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-                    break;
-                case /* repeated symbolx.bench.LogData logs */ 3:
-                    message.logs.push(LogData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: StartRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.StartRunResponse.ErrorType error_type = 1; */
-        if (message.errorType !== 0)
-            writer.tag(1, WireType.Varint).int32(message.errorType);
-        /* symbolx.bench.RunData run = 2; */
-        if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.LogData logs = 3; */
-        for (let i = 0; i < message.logs.length; i++)
-            LogData.internalBinaryWrite(message.logs[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.StartRunResponse
- */
-export const StartRunResponse = new StartRunResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class KillRunRequest$Type extends MessageType<KillRunRequest> {
-    constructor() {
-        super("symbolx.bench.KillRunRequest", [
-            { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<KillRunRequest>): KillRunRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.runId = "";
-        if (value !== undefined)
-            reflectionMergePartial<KillRunRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: KillRunRequest): KillRunRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional string bench_id */ 1:
-                    message.benchId = reader.string();
-                    break;
-                case /* string run_id */ 5:
-                    message.runId = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: KillRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string bench_id = 1; */
-        if (message.benchId !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* string run_id = 5; */
-        if (message.runId !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.runId);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.KillRunRequest
- */
-export const KillRunRequest = new KillRunRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class KillRunResponse$Type extends MessageType<KillRunResponse> {
-    constructor() {
-        super("symbolx.bench.KillRunResponse", [
-            { no: 1, name: "run", kind: "message", T: () => RunData }
-        ]);
-    }
-    create(value?: PartialMessage<KillRunResponse>): KillRunResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<KillRunResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: KillRunResponse): KillRunResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.RunData run */ 1:
-                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: KillRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.RunData run = 1; */
-        if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.KillRunResponse
- */
-export const KillRunResponse = new KillRunResponse$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -3440,22 +3044,15 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
     { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
-    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
     { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Server
  */
 export const Server = new ServiceType("symbolx.bench.Server", [
-    { name: "RestartServer", options: {}, I: RestartServerRequest, O: ServerData },
-    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
+    { name: "RestartServer", options: {}, I: RestartServerRequest, O: ServerData }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.ServerProcess
  */
-export const ServerProcess = new ServiceType("symbolx.bench.ServerProcess", [
-    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
-]);
+export const ServerProcess = new ServiceType("symbolx.bench.ServerProcess", []);

@@ -37,13 +37,13 @@ from bench.language import (
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
-from bench.language.expression import TYPE_DISCRIMINATOR_KEY, C, Expression, ExpressionOps
+from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     UNSET,
     Node,
-    get_node_id,
+    derive_package_node_id,
 )
 from bench.language.query import StoreEngineIncapableError
 from bench.language.setup import PARENT_NODE_TYPES, NODE_CLASSES
@@ -1364,18 +1364,19 @@ async def pg_search_nodes_data_graph(
 async def pg_write_regular_edits(
     cur: psycopg.AsyncCursor,
     edits: list[EditData] | tuple[EditData, ...],
-    *,
-    return_nodes: bool = False,
-) -> list["AnyNodeData"] | tuple["AnyNodeData", ...] | None:
-    """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
+) -> list["int"] | tuple[int, ...]:
+    """
+    Writes 'regular' edits to nodes (that aren't stored specially like records).
+    Returns the new revisions of the edited nodes.
+    """
     if not edits:
-        return () if return_nodes else None
+        return ()
 
     # batch operations by edit kind and node type
     cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
-    all_returned_nodes: list[AnyNodeData] = [] if return_nodes else None
+    all_new_revisions: list[int] = []
     for i in range(len(edits)):
         edit = edits[i]
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
@@ -1396,31 +1397,27 @@ async def pg_write_regular_edits(
             edit_kind: EditType = wiring.unpack_enum(EditType, edit.type)
             node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
             updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
-            if return_nodes:
-                selected_properties = updated_properties + (cur_node_cls.id,)
-            else:
-                selected_properties = ()
             batch_changed_nodes = await _pg_write_regular_edit_batch(
                 cur=cur,
                 edit_kind=edit_kind,
                 node_type=node_type,
                 batch=cur_batch,
-                return_nodes=return_nodes,
+                return_nodes=True,
                 updated_properties=updated_properties,
-                selected_properties=selected_properties,
+                selected_properties=(cur_node_cls.id, cur_node_cls.revision),
             )
-            if batch_changed_nodes:
-                all_returned_nodes.extend(batch_changed_nodes)
+            new_revisions_by_id = {node.id: node.revision for node in batch_changed_nodes}
+            assert len(new_revisions_by_id) == len(cur_batch), f"duplicates: {edits!r}"
+            for edit in cur_batch:
+                node = wiring.unwrap_some_node(edit.node)
+                all_new_revisions.append(new_revisions_by_id[node.id])
             # start new batch
             if next_edit is not None:
                 cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, next_edit.node_type)]
                 cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
                 cur_batch.clear()
 
-    if return_nodes:
-        return all_returned_nodes
-    else:
-        return None
+    return all_new_revisions
 
 
 async def _pg_write_regular_edit_batch(
@@ -1535,6 +1532,9 @@ async def _pg_write_regular_edit_batch(
             row = {"archived_at": now}
         elif edit_kind == EditType.UNARCHIVE:
             row = {"archived_at": None}
+        else:
+            raise ValueError(f"unexpected edit kind {edit_kind} {node_type} for {batch!r}")
+        row["revision"] = sql.SQL("revision + 1")
         where = SqlComparison(
             left=sql.Identifier("id"),
             op=PostgresConditionalOp.EQ,
@@ -1852,8 +1852,8 @@ def pg_unwrap_record_field_value(field: "Field", value: Any) -> Any:
 
 def pg_wrap_record_value(database: Block, value_packed: dict) -> dict:
     assert isinstance(value_packed, dict), f"record value not a dict: {value_packed}"
-    if TYPE_DISCRIMINATOR_KEY in value_packed:  # not stored in database (implicit in block_key)
-        del value_packed[TYPE_DISCRIMINATOR_KEY]
+    if METATYPE_KEY in value_packed:  # not stored in database (implicit in block_key)
+        del value_packed[METATYPE_KEY]
     if database.ephemeral:  # lift into generic 'value_packed' JSONB column
         value_packed = {
             "value_packed": sql.SQL("value_packed || {}").format(sql.Literal(Jsonb(value_packed)))
@@ -1965,7 +1965,7 @@ async def pg_duplicate_records(
         for record_row in record_rows:
             if not keep_cks:
                 record_row["ck"] = uuid4()
-            record_row["id"] = get_node_id(target_package_id, ck=record_row["ck"])
+            record_row["id"] = derive_package_node_id(target_package_id, ck=record_row["ck"])
             record_row["block_key"] = target_database.dynamic_key
             if not copy_revisions:
                 record_row["revision"] = 0

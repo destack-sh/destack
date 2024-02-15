@@ -621,14 +621,12 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         response = await self.engine.remote.aggregate_nodes(request)
         return AggregateResult(response.aggregation)
 
-    async def commit(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[AnyNodeData] | tuple[AnyNodeData, ...]:
-        from bench.proto import wire, wiring
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[int]:
+        from bench.proto import wire
 
         request = wire.CommitTransactionRequest(id=str(self.session.tx.id), edits=edits)
         response = await self.engine.remote.commit_transaction(request)
-        return tuple(wiring.unwrap_some_node(n) for n in response.nodes)
+        return response.revisions
 
 
 class InMemoryGraphEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
@@ -719,34 +717,30 @@ class PostgresConnection(
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
 
+        where = compile_pg_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
-            exists = await pg_exists(
-                self.cur,
-                query._node_cls.__table__,
-                compile_pg_conditional_maybe(query._node_cls, query._filter),
-            )
+            exists = await pg_exists(self.cur, query._node_cls.__table__, where=where)
             return AggregateResult(AggregationData(exists=exists))
         elif query._aggregation.op == AggregationOp.COUNT:
-            where = compile_pg_conditional_maybe(query._node_cls, query._filter)
-            count = await pg_count(self.cur, query._node_cls.__table__, where)
+            count = await pg_count(self.cur, query._node_cls.__table__, where=where)
             return AggregateResult(AggregationData(count=count))
         else:
             raise StoreEngineIncapableError(
                 self, query, expr=query._aggregation, reason="unsupported"
             )
 
-    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> list[NodeDataT]:
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
         from bench.sql.engine import pg_write_regular_edits
 
-        changed_nodes = await pg_write_regular_edits(self.cur, edits, return_nodes=True)
-        return changed_nodes
+        new_revisions = await pg_write_regular_edits(self.cur, edits)
+        return new_revisions
 
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[NodeDataT]:
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
         from bench.sql.engine import pg_write_regular_edits
 
-        changed_nodes = await pg_write_regular_edits(self.cur, edits, return_nodes=True)
+        new_revisions = await pg_write_regular_edits(self.cur, edits)
         await self.cur.connection.commit()
-        return changed_nodes
+        return new_revisions
 
     async def cancel(self) -> None:
         await self.cur.connection.rollback()

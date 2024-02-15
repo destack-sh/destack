@@ -51,6 +51,7 @@ message EditData {
   repeated sint32 properties = 4;
   ClientOrigin origin = 5;
   GraphScope scope = 6;
+  // System-side accepted revision for the edit.
   optional int64 revision = 7;
 }
 

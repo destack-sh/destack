@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Collection, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.graph import NodeDataGraph, NodeList
+from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
     node,
 )
-from bench.language.property import p_runtime, p_parent, p_child, p_regular, p_system, p_kernel
+from bench.language.property import p_parent, p_child, p_regular, p_system, p_kernel
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -57,14 +57,14 @@ class Bench(Node):
     main_package: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE
     )
-    packages: NodeList["Package"] = p_child(NodeType.PACKAGE)
     main_environment: Optional["Environment"] = p_regular(
         41, require=False, array=False, references=NodeType.ENVIRONMENT
     )
-    environments: NodeList["Environment"] = p_child(NodeType.ENVIRONMENT)
     main_branch: Optional["Branch"] = p_regular(
         42, require=False, array=False, references=NodeType.BRANCH
     )
+    packages: NodeList["Package"] = p_child(NodeType.PACKAGE)
+    environments: NodeList["Environment"] = p_child(NodeType.ENVIRONMENT)
     branches: NodeList["Branch"] = p_child(NodeType.BRANCH)
 
     # resources
@@ -142,8 +142,6 @@ class Package(Node):
     blocks: NodeList["Block"] = p_child(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_child(NodeType.SPACE)
     dependencies: NodeList["Dependency"] = p_child(NodeType.DEPENDENCY)
-
-    _source: Optional[NodeDataGraph] = p_runtime(default=None)
 
     @property
     def name(self):
