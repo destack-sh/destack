@@ -6,14 +6,8 @@ import pytz
 from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
-from bench.language.node import (
-    Node,
-    Struct,
-    node,
-    struct,
-)
-from bench.language.property import p_parent, p_regular
-from bench.language import Property
+from bench.language.node import Node, Struct, node, struct
+from bench.language.property import p_parent, p_regular, Property
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 
 if TYPE_CHECKING:

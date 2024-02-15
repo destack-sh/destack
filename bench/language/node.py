@@ -188,7 +188,10 @@ def _process_struct_base_cls(
     reserved: set[str | int] = None,
     is_in_package: bool = False,
     is_in_bench: bool = False,
+    is_sub_package: bool = False,
+    is_sub_bench: bool = False,
     is_final: bool = False,
+    no_ck: bool = False,
 ) -> tuple[type["Node"], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
     metatype = METATYPE_PROPERTY.clone()
@@ -265,8 +268,6 @@ def _process_struct_base_cls(
                 else:
                     pass  # ignore
             elif not prop._equals_type(existing):
-                if existing.ignore_conflicts:
-                    continue
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_graph_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
@@ -294,18 +295,16 @@ def _process_struct_base_cls(
     # create class (map properties to dataclass fields)
     # TODO @Cleanup: the ck/package/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
-        # remove 'bench'/'package' ancestor property if not actually a descendant :MagicNodeProps
-        if ((not is_in_bench or cls.__name__ == "Bench") and prop.name == "bench") or (
-            (not is_in_package or cls.__name__ == "Package") and prop.name == "package"
+        # remove :MagicNodeProps if not needed
+        if (prop.name == "bench" and not is_sub_bench) or (
+            prop.name == "package" and not is_sub_package
         ):
             attr = None
             del properties_by_name[name]
-            # remove contributed reference keys too
-            for key in prop.reference_ptrs:
+            for key in prop.reference_ptrs:  # incl. contributed
                 del properties_by_name[key.name]
-        # remove node ck (is == id if outside a package) :MagicNodeProps
-        elif prop.name == "ck" and is_node and (not is_in_package or cls.__name__ == "Package"):
-            attr = _node_ck_from_id_prop(prop)
+        elif prop.name == "ck" and (no_ck or not is_sub_package):
+            attr = _node_ck_from_id_prop(prop)  # ck == id
             del properties_by_name[name]
 
         # map property to class attribute or dataclass field
@@ -455,7 +454,10 @@ def node_component(
     reserved: set[str | int] = None,
     is_in_package: bool = False,
     is_in_bench: bool = False,
+    is_sub_package: bool = False,
+    is_sub_bench: bool = False,
     is_final: bool = False,
+    no_ck: bool = False,
 ):
     """
     Mark a class as a node component (or concrete node for a NodeType).
@@ -470,6 +472,7 @@ def node_component(
             is_in_package=is_in_package,
             is_in_bench=is_in_bench,
             is_final=is_final,
+            no_ck=no_ck,
         )
         cls.__passthrough_targets__ = passthrough
         # register node properties
@@ -514,6 +517,7 @@ def node(
     stored: bool = True,
     stored_custom: bool = False,
     index_in_search: bool = False,
+    no_ck: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     reserved: set[str | int] = None,
@@ -539,6 +543,7 @@ def node(
             reserved=reserved,
             is_in_package=in_package,
             is_in_bench=in_bench,
+            no_ck=no_ck,
             is_final=True,
         )
         cls.__is_stored__ = stored
@@ -1031,8 +1036,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     # 1-9: reserved for node identity
     # NOTE: ck/package/branch/bench only exist if __is_in_package__/__is_in_bench__ :MagicNodeProps
-    id: UUID = p_system(2, default=None, require=True)
-    ck: UUID = p_system(3, default=None, require=True)
+    id: UUID = p_system(2, default=None, require=True, autoset=True)
+    ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_parent(4)
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
@@ -1040,17 +1045,19 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
-    revision: int = p_system(10, default=0, require=True, primitive_type=PrimitiveType.INT64)
-    created_at: datetime = p_system(11, default=None, require=True)
-    updated_at: datetime = p_system(12, default=None, require=True)
-    deleted_at: Optional[datetime] = p_system(13, default=None)
-    archived_at: Optional[datetime] = p_system(14, default=None)
+    revision: int = p_system(
+        10, default=0, require=True, autoset=True, primitive_type=PrimitiveType.INT64
+    )
+    created_at: datetime = p_system(11, default=None, require=True, autoset=True)
+    updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
+    deleted_at: Optional[datetime] = p_system(13, default=None, autoset=True)
+    archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     # (only some nodes have some of these properties)
     # changed_at, active_at, ....
     # created_by, updated_by, changed_by, active_by, ...
-    # computed_values: dict[int, ValueReference] | None = p_regular(20)
+    # computed_properties: dict[int, ValueReference] | None = p_regular(20)
     # for instances of templates (with 'template' set)
-    # set_values: list[int] | None = p_regular(21)
+    # set_properties: list[int] | None = p_regular(21)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1313,7 +1320,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
                     return object.__setattr__(self, key, value)
                 else:
                     return attr.set(value)  # has its own set
-            elif prop.is_runtime_only:  # untracked
+            elif prop.is_runtime_only or prop.is_autoset:  # untracked
                 return object.__setattr__(self, key, value)
 
             if is_tracked:

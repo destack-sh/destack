@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.14.6"
+VERSION = "2024.02.15.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -255,19 +255,12 @@ DEPENDENCY_TABLE = Table(
     "bench_dependency",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_package_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_package",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -283,8 +276,8 @@ DEPENDENCY_TABLE = Table(
         Column("scopes_block_ck", PrimitiveType.UUID, is_array=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -299,19 +292,12 @@ UPGRADE_TABLE = Table(
     "bench_upgrade",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_package_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_package",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -322,8 +308,8 @@ UPGRADE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -338,7 +324,6 @@ BLOCK_TABLE = Table(
     "bench_block",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
@@ -352,12 +337,6 @@ BLOCK_TABLE = Table(
             is_foreign_key_to="bench_package",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -388,8 +367,8 @@ BLOCK_TABLE = Table(
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -404,19 +383,12 @@ TRIGGER_TABLE = Table(
     "bench_trigger",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_block",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -430,8 +402,8 @@ TRIGGER_TABLE = Table(
         Column("signal_block_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -446,19 +418,12 @@ FIELD_TABLE = Table(
     "bench_field",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_block",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -488,8 +453,8 @@ FIELD_TABLE = Table(
         Column("is_option", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -504,19 +469,12 @@ QUERY_TABLE = Table(
     "bench_query",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_block",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -531,8 +489,8 @@ QUERY_TABLE = Table(
         Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -547,7 +505,6 @@ VIEW_TABLE = Table(
     "bench_view",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_space_id",
             PrimitiveType.UUID,
@@ -569,12 +526,6 @@ VIEW_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -585,8 +536,8 @@ VIEW_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -601,7 +552,6 @@ NOTICE_TABLE = Table(
     "bench_notice",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
@@ -616,12 +566,6 @@ NOTICE_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -634,8 +578,8 @@ NOTICE_TABLE = Table(
         Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -650,7 +594,6 @@ LINK_TABLE = Table(
     "bench_link",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_package_id",
             PrimitiveType.UUID,
@@ -664,12 +607,6 @@ LINK_TABLE = Table(
             is_foreign_key_to="bench_block",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -691,8 +628,8 @@ LINK_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -707,19 +644,12 @@ SPACE_TABLE = Table(
     "bench_space",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_package_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_package",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -733,8 +663,8 @@ SPACE_TABLE = Table(
         Column("dock", PrimitiveType.JSON),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -749,9 +679,7 @@ SESSION_TABLE = Table(
     "bench_session",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -764,8 +692,8 @@ SESSION_TABLE = Table(
         Column("is_read_only", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -780,7 +708,6 @@ RUN_TABLE = Table(
     "bench_run",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_session_id",
             PrimitiveType.UUID,
@@ -795,7 +722,6 @@ RUN_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column("package_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -835,8 +761,8 @@ RUN_TABLE = Table(
         Index("bench_idx_server_id", IndexType.BTREE, ("server_id",)),
         Index("bench_idx_block_ck", IndexType.BTREE, ("block_ck",)),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -851,7 +777,6 @@ PAUSE_TABLE = Table(
     "bench_pause",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_run_id",
             PrimitiveType.UUID,
@@ -859,7 +784,6 @@ PAUSE_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column("package_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -873,8 +797,8 @@ PAUSE_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -887,9 +811,7 @@ SIGNAL_TABLE = Table(
     "bench_signal",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -905,8 +827,8 @@ SIGNAL_TABLE = Table(
         Index("bench_idx_type_block_ck", IndexType.BTREE, ("type_block_ck",)),
         Index("bench_idx_object_block_ck", IndexType.BTREE, ("object_block_ck",)),
         Index("bench_idx_sender_block_ck", IndexType.BTREE, ("sender_block_ck",)),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -921,7 +843,6 @@ BADGE_TABLE = Table(
     "bench_badge",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_package_id",
             PrimitiveType.UUID,
@@ -935,12 +856,6 @@ BADGE_TABLE = Table(
             is_foreign_key_to="bench_block",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
-        ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
         ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
@@ -959,8 +874,8 @@ BADGE_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_link_token", IndexType.BTREE, ("link_token",), is_unique=True),
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -981,7 +896,6 @@ ROLE_TABLE = Table(
     "bench_role",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
@@ -996,12 +910,6 @@ ROLE_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1010,8 +918,8 @@ ROLE_TABLE = Table(
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(
@@ -1026,7 +934,6 @@ IDENTITY_TABLE = Table(
     "bench_identity",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column(
             "parent_block_id",
             PrimitiveType.UUID,
@@ -1048,12 +955,6 @@ IDENTITY_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-        ),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1062,8 +963,8 @@ IDENTITY_TABLE = Table(
         Column("type_block_ck", PrimitiveType.UUID),
     ),
     indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
     ),
     constraints=(
         Constraint(

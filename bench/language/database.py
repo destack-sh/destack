@@ -138,7 +138,7 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
         where = compile_pg_conditional_maybe(query._node_cls, filter)
         sort = compile_pg_sorts(query._sort)
         records, cursors, start_cursor = await pg_select_records_data(
-            cur=self._cur,
+            cur=self.cur,
             database=query._base,
             where=where,
             sort=sort,
@@ -149,7 +149,7 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
         roots = tuple(NodeReference.from_node_data(record) for record in records)
 
         if options.count:
-            total = await pg_count(self._cur, query._node_cls.__table__, where)
+            total = await pg_count(self.cur, query._node_cls.__table__, where)
         else:
             total = None
 
@@ -165,14 +165,14 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
         )
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(
-                self._cur,
+                self.cur,
                 query._node_cls.__table__,
                 compile_pg_conditional_maybe(query._node_cls, filter),
             )
             return AggregateResult(AggregationData(exists=exists))
         elif query._aggregation.op == AggregationOp.COUNT:
             where = compile_pg_conditional_maybe(query._node_cls, filter)
-            count = await pg_count(self._cur, query._node_cls.__table__, where)
+            count = await pg_count(self.cur, query._node_cls.__table__, where)
             return AggregateResult(AggregationData(count=count))
         else:
             raise StoreEngineIncapableError(

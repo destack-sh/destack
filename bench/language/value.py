@@ -27,6 +27,9 @@ logger = structlog.get_logger(__name__)
 
 
 # nocheckin: implement new value system
+#  store everything as 'structs' with id in a map of sub-values?
+#   (should support powerful atomic & patched edits later)
+#  .. shouldn't we store all structs like that then though? not just values?
 
 
 @node_component

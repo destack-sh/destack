@@ -51,6 +51,7 @@ message EditData {
   repeated sint32 properties = 4;
   ClientOrigin origin = 5;
   GraphScope scope = 6;
+  optional int64 revision = 7;
 }
 
 // Transaction of edits to a Node.

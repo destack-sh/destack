@@ -25,7 +25,6 @@ import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
 import { ServerData } from "./lang";
 import { EditData } from "./common";
-import { TransactionData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
 import { NodeType } from "./lang";
@@ -421,44 +420,52 @@ export interface CommitTransactionRequest {
      */
     scope?: GraphScope;
     /**
-     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
+     * @generated from protobuf field: string id = 2;
      */
-    transaction?: TransactionData;
+    id: string;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 3;
+     */
+    edits: EditData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitTransactionResponse
  */
 export interface CommitTransactionResponse {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
+     * @generated from protobuf field: repeated int64 revisions = 1;
      */
-    changedNodes: SomeNodeData[];
+    revisions: bigint[];
     /**
      * @generated from protobuf field: uint64 epoch = 2;
      */
     epoch: bigint;
 }
 /**
- * @generated from protobuf message symbolx.bench.BeginTransactionRequest
+ * @generated from protobuf message symbolx.bench.FlushTransactionRequest
  */
-export interface BeginTransactionRequest {
+export interface FlushTransactionRequest {
     /**
      * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
      */
     scope?: GraphScope;
     /**
-     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
+     * @generated from protobuf field: string id = 2;
      */
-    transaction?: TransactionData;
+    id: string;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 3;
+     */
+    edits: EditData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.BeginTransactionResponse
+ * @generated from protobuf message symbolx.bench.FlushTransactionResponse
  */
-export interface BeginTransactionResponse {
+export interface FlushTransactionResponse {
     /**
-     * @generated from protobuf field: string transaction_id = 1;
+     * @generated from protobuf field: repeated int64 revisions = 1;
      */
-    transactionId: string;
+    revisions: bigint[];
     /**
      * @generated from protobuf field: uint64 epoch = 2;
      */
@@ -473,22 +480,14 @@ export interface CompleteTransactionRequest {
      */
     scope?: GraphScope;
     /**
-     * @generated from protobuf field: symbolx.bench.TransactionData transaction = 2;
+     * @generated from protobuf field: string id = 2;
      */
-    transaction?: TransactionData;
+    id: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.CompleteTransactionResponse
  */
 export interface CompleteTransactionResponse {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData changed_nodes = 1;
-     */
-    changedNodes: SomeNodeData[];
-    /**
-     * @generated from protobuf field: uint64 epoch = 2;
-     */
-    epoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitCompletedTransactionRequest
@@ -1997,11 +1996,14 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
     constructor() {
         super("symbolx.bench.CommitTransactionRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionRequest>): CommitTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.id = "";
+        message.edits = [];
         if (value !== undefined)
             reflectionMergePartial<CommitTransactionRequest>(this, message, value);
         return message;
@@ -2014,8 +2016,11 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
                 case /* symbolx.bench.GraphScope scope */ 1:
                     message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* symbolx.bench.TransactionData transaction */ 2:
-                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* repeated symbolx.bench.EditData edits */ 3:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2032,9 +2037,12 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         /* symbolx.bench.GraphScope scope = 1; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.TransactionData transaction = 2; */
-        if (message.transaction)
-            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* repeated symbolx.bench.EditData edits = 3; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2049,13 +2057,13 @@ export const CommitTransactionRequest = new CommitTransactionRequest$Type();
 class CommitTransactionResponse$Type extends MessageType<CommitTransactionResponse> {
     constructor() {
         super("symbolx.bench.CommitTransactionResponse", [
-            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 1, name: "revisions", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionResponse>): CommitTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.changedNodes = [];
+        message.revisions = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<CommitTransactionResponse>(this, message, value);
@@ -2066,8 +2074,12 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.SomeNodeData changed_nodes */ 1:
-                    message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated int64 revisions */ 1:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.revisions.push(reader.int64().toBigInt());
+                    else
+                        message.revisions.push(reader.int64().toBigInt());
                     break;
                 case /* uint64 epoch */ 2:
                     message.epoch = reader.uint64().toBigInt();
@@ -2084,9 +2096,13 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
         return message;
     }
     internalBinaryWrite(message: CommitTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
-        for (let i = 0; i < message.changedNodes.length; i++)
-            SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 revisions = 1; */
+        if (message.revisions.length) {
+            writer.tag(1, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.revisions.length; i++)
+                writer.int64(message.revisions[i]);
+            writer.join();
+        }
         /* uint64 epoch = 2; */
         if (message.epoch !== 0n)
             writer.tag(2, WireType.Varint).uint64(message.epoch);
@@ -2101,20 +2117,23 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
  */
 export const CommitTransactionResponse = new CommitTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BeginTransactionRequest$Type extends MessageType<BeginTransactionRequest> {
+class FlushTransactionRequest$Type extends MessageType<FlushTransactionRequest> {
     constructor() {
-        super("symbolx.bench.BeginTransactionRequest", [
+        super("symbolx.bench.FlushTransactionRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
-    create(value?: PartialMessage<BeginTransactionRequest>): BeginTransactionRequest {
+    create(value?: PartialMessage<FlushTransactionRequest>): FlushTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.id = "";
+        message.edits = [];
         if (value !== undefined)
-            reflectionMergePartial<BeginTransactionRequest>(this, message, value);
+            reflectionMergePartial<FlushTransactionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BeginTransactionRequest): BeginTransactionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FlushTransactionRequest): FlushTransactionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2122,8 +2141,11 @@ class BeginTransactionRequest$Type extends MessageType<BeginTransactionRequest> 
                 case /* symbolx.bench.GraphScope scope */ 1:
                     message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* symbolx.bench.TransactionData transaction */ 2:
-                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* repeated symbolx.bench.EditData edits */ 3:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2136,13 +2158,16 @@ class BeginTransactionRequest$Type extends MessageType<BeginTransactionRequest> 
         }
         return message;
     }
-    internalBinaryWrite(message: BeginTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: FlushTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.GraphScope scope = 1; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.TransactionData transaction = 2; */
-        if (message.transaction)
-            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* repeated symbolx.bench.EditData edits = 3; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2150,32 +2175,36 @@ class BeginTransactionRequest$Type extends MessageType<BeginTransactionRequest> 
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.BeginTransactionRequest
+ * @generated MessageType for protobuf message symbolx.bench.FlushTransactionRequest
  */
-export const BeginTransactionRequest = new BeginTransactionRequest$Type();
+export const FlushTransactionRequest = new FlushTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BeginTransactionResponse$Type extends MessageType<BeginTransactionResponse> {
+class FlushTransactionResponse$Type extends MessageType<FlushTransactionResponse> {
     constructor() {
-        super("symbolx.bench.BeginTransactionResponse", [
-            { no: 1, name: "transaction_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+        super("symbolx.bench.FlushTransactionResponse", [
+            { no: 1, name: "revisions", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<BeginTransactionResponse>): BeginTransactionResponse {
+    create(value?: PartialMessage<FlushTransactionResponse>): FlushTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.transactionId = "";
+        message.revisions = [];
         message.epoch = 0n;
         if (value !== undefined)
-            reflectionMergePartial<BeginTransactionResponse>(this, message, value);
+            reflectionMergePartial<FlushTransactionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BeginTransactionResponse): BeginTransactionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FlushTransactionResponse): FlushTransactionResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string transaction_id */ 1:
-                    message.transactionId = reader.string();
+                case /* repeated int64 revisions */ 1:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.revisions.push(reader.int64().toBigInt());
+                    else
+                        message.revisions.push(reader.int64().toBigInt());
                     break;
                 case /* uint64 epoch */ 2:
                     message.epoch = reader.uint64().toBigInt();
@@ -2191,10 +2220,14 @@ class BeginTransactionResponse$Type extends MessageType<BeginTransactionResponse
         }
         return message;
     }
-    internalBinaryWrite(message: BeginTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string transaction_id = 1; */
-        if (message.transactionId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.transactionId);
+    internalBinaryWrite(message: FlushTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated int64 revisions = 1; */
+        if (message.revisions.length) {
+            writer.tag(1, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.revisions.length; i++)
+                writer.int64(message.revisions[i]);
+            writer.join();
+        }
         /* uint64 epoch = 2; */
         if (message.epoch !== 0n)
             writer.tag(2, WireType.Varint).uint64(message.epoch);
@@ -2205,19 +2238,20 @@ class BeginTransactionResponse$Type extends MessageType<BeginTransactionResponse
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.BeginTransactionResponse
+ * @generated MessageType for protobuf message symbolx.bench.FlushTransactionResponse
  */
-export const BeginTransactionResponse = new BeginTransactionResponse$Type();
+export const FlushTransactionResponse = new FlushTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CompleteTransactionRequest$Type extends MessageType<CompleteTransactionRequest> {
     constructor() {
         super("symbolx.bench.CompleteTransactionRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "transaction", kind: "message", T: () => TransactionData }
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CompleteTransactionRequest>): CompleteTransactionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.id = "";
         if (value !== undefined)
             reflectionMergePartial<CompleteTransactionRequest>(this, message, value);
         return message;
@@ -2230,8 +2264,8 @@ class CompleteTransactionRequest$Type extends MessageType<CompleteTransactionReq
                 case /* symbolx.bench.GraphScope scope */ 1:
                     message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* symbolx.bench.TransactionData transaction */ 2:
-                    message.transaction = TransactionData.internalBinaryRead(reader, reader.uint32(), options, message.transaction);
+                case /* string id */ 2:
+                    message.id = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2248,9 +2282,9 @@ class CompleteTransactionRequest$Type extends MessageType<CompleteTransactionReq
         /* symbolx.bench.GraphScope scope = 1; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.TransactionData transaction = 2; */
-        if (message.transaction)
-            TransactionData.internalBinaryWrite(message.transaction, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2264,48 +2298,18 @@ export const CompleteTransactionRequest = new CompleteTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CompleteTransactionResponse$Type extends MessageType<CompleteTransactionResponse> {
     constructor() {
-        super("symbolx.bench.CompleteTransactionResponse", [
-            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
+        super("symbolx.bench.CompleteTransactionResponse", []);
     }
     create(value?: PartialMessage<CompleteTransactionResponse>): CompleteTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.changedNodes = [];
-        message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<CompleteTransactionResponse>(this, message, value);
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CompleteTransactionResponse): CompleteTransactionResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.SomeNodeData changed_nodes */ 1:
-                    message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* uint64 epoch */ 2:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+        return target ?? this.create();
     }
     internalBinaryWrite(message: CompleteTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.SomeNodeData changed_nodes = 1; */
-        for (let i = 0; i < message.changedNodes.length; i++)
-            SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
-        if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3397,7 +3401,7 @@ export const GraphIO = new ServiceType("symbolx.bench.GraphIO", [
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
-    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
+    { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
@@ -3414,8 +3418,8 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
-    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
@@ -3427,8 +3431,8 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
-    { name: "BeginTransaction", options: {}, I: BeginTransactionRequest, O: BeginTransactionResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },

@@ -53,8 +53,7 @@ from bench.language.property import (
 )
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.value import HasValues
-from bench.opensearch.client import get_os_errors, os_client
-from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
+from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub, AnyNodeData
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
@@ -111,7 +110,7 @@ class LogLevel(IdEnum):
     FATAL = 6
 
 
-@node(NodeType.LOG, stored=False, index_in_search=True)
+@node(NodeType.LOG, stored=False, index_in_search=True, no_ck=True)
 class Log(Node):
     """
     A log (entry) is a timestamped record of something happening:
@@ -119,7 +118,7 @@ class Log(Node):
     """
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
-    # nocheckin: use UUIDT for session nodes, remove ck? (and access/action?/tx log)
+    # nocheckin: use UUIDT for session nodes?
 
     # content
     kind: LogKind = p_system(30)
@@ -140,7 +139,7 @@ class Log(Node):
     block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
 
     def __content_str__(self):
-        return f"[{self.kind.bench_name}] '{self.message}' ({self.created_at})"
+        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.message}' ({self.created_at})"
 
 
 dcfield = dataclasses.field
@@ -151,7 +150,7 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
-    TODO @Cleanup: Transaction should be a Struct (along with Edit)
+    TODO @Cleanup: Transaction should be a Struct (or maybe even Node?) (along with Edit)
       (but we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
@@ -161,6 +160,7 @@ class Transaction:
     _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
+    revisions: list[int] = dcfield(default_factory=list)
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
         default_factory=lambda: defaultdict(list)
     )
@@ -168,6 +168,10 @@ class Transaction:
 
     # for syncing databases (should probably generalize into' untracked edits')
     _schema_changed: bool = dcfield(default=False)
+
+    @property
+    def changed_nodes(self) -> Collection[AnyNodeData]:
+        return self._changed_nodes_by_id.values()
 
     @property
     def has_edits(self) -> bool:
@@ -242,7 +246,7 @@ class Transaction:
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
-            properties=properties,
+            properties=properties,  # type: ignore
             scope=scope,
         )
         return edit
@@ -320,9 +324,6 @@ class Transaction:
         edit = self._make_edit(EditType.DELETE, n)
         self._add_pending_edit(edit)
 
-    def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
-        self._changed_record_ids_by_base_id[database.id].update(record_ids)
-
     #
     # Transaction management
     #
@@ -337,7 +338,7 @@ class Transaction:
         """
 
         if only_engine_types:
-            engines = [e for e in self.session._engines if e.type in only_engine_types]
+            engines = tuple(e for e in self.session._engines if e.type in only_engine_types)
         else:
             engines = self.session._engines
         log = logger.bind(edits=len(self.edits), engines=len(engines), transaction=self)
@@ -346,7 +347,9 @@ class Transaction:
             if pending_edits:
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
-                await connection.flush(pending_edits)
+                changed_nodes = await connection.flush(pending_edits)
+                for node in changed_nodes:
+                    self._changed_nodes_by_id[node.id] = node
                 pending_edits.clear()
 
     async def commit(self):
@@ -360,7 +363,9 @@ class Transaction:
             if pending_edits or engine.id in self._connections_by_engine_id:
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
-                await connection.commit(pending_edits)
+                changed_nodes = await connection.commit(pending_edits)
+                for node in changed_nodes:
+                    self._changed_nodes_by_id[node.id] = node
                 pending_edits.clear()
 
     async def rollback(self):
@@ -370,8 +375,8 @@ class Transaction:
     async def close(self):
         """Closes the transaction and associated store engines, rolling back uncommitted edits."""
         for connection in self._connections_by_engine_id.values():
-            if connection is not None:
-                await connection.close()
+            await connection.close()
+        self._connections_by_engine_id.clear()
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
@@ -637,9 +642,6 @@ class Session(Node):
             block = self._active_nodes_by_ck[n.ck]
             raise RuntimeError(f"cannot delete ancestor {n!r} of running block: {block!r}")
 
-    def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
-        self._tx._records_changed(database, record_ids)
-
     #
     # Stack: runs/logs
     #
@@ -649,28 +651,7 @@ class Session(Node):
         return self._stacktrace
 
     async def _flush_logs(self) -> None:
-        """Flushes pending logs to OS."""
-
-        from bench.opensearch.engine import pack_struct
-        from bench.proto import wiring
-
-        with self._runtime_tracing_lock:
-            logs = self._pending_logs
-            self._pending_logs = []
-        if not logs:
-            return
-        logger.debug("session.write_logs", logs=len(logs))
-        ops: list[dict] = []
-        os_name = self.package.os_name
-        logs = [wiring.pack_struct(log) for log in logs]
-        for log in logs:
-            ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
-            ops.append(pack_struct(log))
-        ret = await os_client.bulk(ops)
-        if ret["errors"]:
-            raise RuntimeError(f"failed to write logs: {get_os_errors(ret)}")
-        await self._host.notify_logs(logs)
-        logger.debug("session.write_logs.done", logs=len(logs))
+        raise NotImplementedError
 
     def _track_run(self, run: "Run"):
         # replace if already exists by id (runs are updated)
@@ -805,10 +786,6 @@ class Run(HasValues):
     """
     A 'run' of a block (in a session).
     """
-
-    # NOTE we don't 'track' runs in sessions yet
-    #  (because we don't edit them outside of the source session,
-    #   and because it's unclear how run/session edits should interact with 'regular' package edits)
 
     parent: Union["Session", "Run"] = p_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = p_ancestor(
@@ -972,9 +949,9 @@ class RunCodeFrame(Struct):
         stack: list["RunCodeFrame"], from_block: "Block", session: "Session"
     ) -> list["RunCodeFrame"]:
         from bench.language.block import Block
-        from bench.language.code_ import HasCode
+        from bench.language.code_ import Code
 
-        code_by_method: dict[str, HasCode] = {
+        code_by_method: dict[str, Code] = {
             node._transform.method_name: node
             for node in list(session.package._nodes)
             if isinstance(node, Block) and getattr(node, "_transform", None)
@@ -1042,7 +1019,7 @@ class RunError(Struct, BenchError):
 
 @node(NodeType.PAUSE, local=True)
 class Pause(Node):
-    """A resumable interruption in the execution (Run) of a block."""
+    """A resumable interruption in a Run."""
 
     parent: "Run" = p_parent(4, NodeType.RUN)
     session: "Session" = p_ancestor(30, NodeType.SESSION, require=True, store=True)

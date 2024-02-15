@@ -184,7 +184,7 @@ class GraphIoService(GraphIoBase):
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.transaction.edits)
+        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.edits)
         edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
             edited_scopes_ptr.values(), lambda r: r.type
         )
@@ -214,17 +214,16 @@ class GraphIoService(GraphIoBase):
 
             # evaluate the edits
             matrix = generate_access_matrix(subject, graph)
-            evaluated_request = evaluate_edit(matrix, graph, request.transaction.edits)
+            evaluated_request = evaluate_edit(matrix, graph, request.edits)
             await self.check_and_log_request(evaluated_request)
 
             # apply the edits
-            session.tx._add_pending_edits(request.transaction.edits)
+            session.tx._add_pending_edits(request.edits)
             await session.commit()
-            self.on_graph_edited(request.transaction.edits)
+            self.on_graph_edited(request.edits)
 
-        # nocheckin: use Session/Transaction for GraphIoService
         return CommitTransactionResponse(
-            changed_nodes=[wiring.wrap_some_node(n) for n in changed_nodes],
+            changed_nodes=[wiring.wrap_some_node(n) for n in session.tx.changed_nodes],
             epoch=self.epoch,
         )
 

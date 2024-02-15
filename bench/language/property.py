@@ -60,6 +60,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     is_internal: bool = False  # = should be edited via accessors, but not enforced
     is_system: bool = False  # = only editable by system
     is_kernel: bool = False  # = only viewable by system
+    is_autoset: bool = False  # = set automatically by system, cannot set directly
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance
     is_wired: bool = UNSET  # serialized onto wire (in proto)
@@ -95,7 +96,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
     custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
-    ignore_conflicts: bool = False
     _cached_as_ref: Optional["PropertyReference"] = None
     _cached_as_type: Optional["TypeInfo"] = None
 
@@ -535,6 +535,7 @@ def p_property(
     internal: bool = False,
     system: bool = False,
     kernel: bool = False,
+    autoset: bool = False,
     description: str = None,
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
@@ -550,26 +551,25 @@ def p_property(
     encrypt: bool = False,
     unique: bool = False,
     sensitive: bool = False,
-    ignore_conflicts: bool = False,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
 ):
     return Property(
         id=id,
         description=description,
-        is_internal=internal,
-        is_system=system,
-        is_kernel=kernel,
-        is_required=require,
         default=default,
         default_factory=default_factory,
         custom_validate=validate,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
-        ignore_conflicts=ignore_conflicts,
-        is_wired=wire,
-        is_stored=store,
         struct_type=struct,
         primitive_type=primitive_type,
+        is_internal=internal,
+        is_system=system,
+        is_kernel=kernel,
+        is_required=require,
+        is_autoset=autoset,
+        is_wired=wire,
+        is_stored=store,
         is_array=array,
         is_deferred=defer,
         is_encrypted=encrypt,
@@ -660,7 +660,7 @@ def p_value_runtime(
     value_packed_id: int,
     secret_value_packed_id: int | None = None,
     *,
-    type: int | Callable[["NodeT"], "TypeInfo"] | None = None,
+    type: int | Callable[["Node"], "TypeInfo"] | None = None,
 ) -> Property:
     """Runtime-only property for a Value and secret value."""
     value_type_info_id = None

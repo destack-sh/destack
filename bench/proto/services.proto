@@ -133,29 +133,29 @@ message AggregateNodesResponse {
 
 message CommitTransactionRequest {
   GraphScope scope = 1;
-  TransactionData transaction = 2;
+  string id = 2;
+  repeated EditData edits = 3;
 }
 message CommitTransactionResponse {
-  repeated SomeNodeData changed_nodes = 1;
+  repeated int64 revisions = 1;
   uint64 epoch = 2;
 }
 
-message BeginTransactionRequest {
+message FlushTransactionRequest {
   GraphScope scope = 1;
-  TransactionData transaction = 2;
+  string id = 2;
+  repeated EditData edits = 3;
 }
-message BeginTransactionResponse {
-  string transaction_id = 1;
+message FlushTransactionResponse {
+  repeated int64 revisions = 1;
   uint64 epoch = 2;
 }
 
 message CompleteTransactionRequest {
   GraphScope scope = 1;
-  TransactionData transaction = 2;
+  string id = 2;
 }
 message CompleteTransactionResponse {
-  repeated SomeNodeData changed_nodes = 1;
-  uint64 epoch = 2;
 }
 
 message CommitCompletedTransactionRequest {
@@ -209,11 +209,11 @@ service GraphIO {
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Commit a new or pending completed transaction to this graph.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-  // Begins a pending transaction.
-  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
+  // Begins or extends a pending transaction. Edits are additive.
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
   // Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
-  // Rolls back a completed transaction to this graph.
+  // Rolls back a pending or completed transaction to this graph.
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   // Receive any relevant edits to this graph.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
@@ -250,8 +250,8 @@ service Supervisor {
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
@@ -306,8 +306,8 @@ service BenchHost {
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);

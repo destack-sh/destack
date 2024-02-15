@@ -198,23 +198,8 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
         raise NotImplementedError
 
 
-class WriteQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
-    """Modify all matching nodes."""
-
-    def update(self, **kwargs) -> None:
-        """Update the properties of all matching nodes."""
-        raise NotImplementedError
-
-    def delete(self) -> None:
-        """Removes and deletes all matching nodes from the query's parent."""
-        raise NotImplementedError
-
-
 class QueryBuilder(
-    Generic[NodeT, NodeDataT],
-    MakeQueryBase[NodeT, NodeDataT],
-    ReadQueryBase[NodeT, NodeDataT],
-    WriteQueryBase[NodeT, NodeDataT],
+    Generic[NodeT, NodeDataT], MakeQueryBase[NodeT, NodeDataT], ReadQueryBase[NodeT, NodeDataT]
 ):
     def __init__(
         self,
@@ -454,26 +439,6 @@ class QueryBuilder(
         result = await connection.aggregate(query)
         return result.aggregation.exists
 
-    #
-    # Write
-    #
-
-    @_auto_async_to_sync
-    async def update(self, **kwargs) -> None:
-        """Update the properties of all matching nodes."""
-        connection = await active_tx().connect_to_store_for(
-            base=self._base, node_type=self._node_type
-        )
-        await connection.update(self, **kwargs)
-
-    @_auto_async_to_sync
-    async def delete(self) -> None:
-        """Removes and deletes all matching nodes from the query's parent."""
-        connection = await active_tx().connect_to_store_for(
-            base=self._base, node_type=self._node_type
-        )
-        await connection.delete(self)
-
 
 class FetchOptions(NamedTuple):
     count: bool = False
@@ -570,30 +535,17 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
         raise StoreEngineIncapableError(self, query, reason="exists unsupported")
 
     #
-    # Write
-    #
-
-    async def delete(self, query: "QueryBuilder[NodeT, NodeDataT]") -> list[EditData]:
-        """
-        Removes and deletes all matching nodes from the query's parent.
-        Begins a transaction context if not already in one.
-        """
-        raise StoreEngineIncapableError(self, query, reason="delete unsupported")
-
-    async def update(self, query: "QueryBuilder[NodeT, NodeDataT]", **kwargs) -> list[EditData]:
-        """
-        Update the properties of all matching nodes (in transaction, if any).
-        Begins a transaction context if not already in one.
-        """
-        raise StoreEngineIncapableError(self, query, reason="update unsupported")
-
-    #
     # Transaction management
     # The methods closely mirror :GraphIO service methods for universal 2PCs.
     #
 
-    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
-        """Flushes edits in the current transaction context. If not in a transaction, begins one."""
+    async def flush(
+        self, edits: list[EditData] | tuple[EditData, ...]
+    ) -> list[int] | tuple[int, ...] | None:
+        """
+        Flushes edits in the current transaction context. If not in a transaction, begins one.
+        If this is a primary store, must return the accepted revisions for every edit (in order).
+        """
         raise StoreEngineIncapableError(self, reason="flush unsupported")
 
     async def complete(self) -> None:
@@ -604,8 +556,13 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
         """Cancels the current transaction context. No further operations are allowed."""
         raise StoreEngineIncapableError(self, reason="cancel unsupported")
 
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
-        """Commits the flushed pending and given edits in the current transaction context."""
+    async def commit(
+        self, edits: list[EditData] | tuple[EditData, ...]
+    ) -> list[int] | tuple[int, ...] | None:
+        """
+        Commits the flushed pending and given edits in the current transaction context.
+        If this is a primary store, must return the accepted revisions for every edit (in order).
+        """
         raise StoreEngineIncapableError(self, reason="commit unsupported")
 
     async def close(self):
@@ -624,10 +581,10 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         remote: GraphIoStub,
     ):
         super().__init__(store, node_types)
-        self._remote = remote
+        self.remote = remote
 
     def __str__(self):
-        return f"remote={self._remote}, store={self.store}"
+        return f"remote={self.remote}, store={self.store}"
 
 
 class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
@@ -644,7 +601,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             options=wiring.pack_struct_maybe(query._options),
             count=options.count,
         )
-        response = await self.engine._remote.search_nodes(request)
+        response = await self.engine.remote.search_nodes(request)
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
             roots=response.rootsy,
@@ -661,8 +618,17 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             limit=query._first,
             aggregation=query._aggregation._to_data(),
         )
-        response = await self.engine._remote.aggregate_nodes(request)
+        response = await self.engine.remote.aggregate_nodes(request)
         return AggregateResult(response.aggregation)
+
+    async def commit(
+        self, edits: list[EditData] | tuple[EditData, ...]
+    ) -> list[AnyNodeData] | tuple[AnyNodeData, ...]:
+        from bench.proto import wire, wiring
+
+        request = wire.CommitTransactionRequest(id=str(self.session.tx.id), edits=edits)
+        response = await self.engine.remote.commit_transaction(request)
+        return tuple(wiring.unwrap_some_node(n) for n in response.nodes)
 
 
 class InMemoryGraphEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
@@ -709,11 +675,11 @@ class PostgresConnection(
         cur: psycopg.AsyncCursor,
     ):
         super().__init__(engine, session)
-        self._conn = conn
-        self._cur = cur
+        self.conn = conn
+        self.cur = cur
 
     async def close(self):
-        await self._conn.close()
+        await self.conn.close()
 
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
@@ -726,7 +692,7 @@ class PostgresConnection(
         )
 
         roots, graph = await pg_search_nodes_data_graph(
-            cur=self._cur,
+            cur=self.cur,
             node_type=query._node_type,
             options=query._options or ReadOptions(),
             filter=query._filter,
@@ -736,9 +702,9 @@ class PostgresConnection(
         )
         if options.count:
             total = await pg_count(
-                cur=self._cur,
+                cur=self.cur,
                 table=query._node_cls.__table__,
-                where=(compile_pg_conditional_maybe(query._node_cls, query._filter)),
+                where=compile_pg_conditional_maybe(query._node_cls, query._filter),
             )
         else:
             total = None
@@ -755,34 +721,35 @@ class PostgresConnection(
 
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(
-                self._cur,
+                self.cur,
                 query._node_cls.__table__,
                 compile_pg_conditional_maybe(query._node_cls, query._filter),
             )
             return AggregateResult(AggregationData(exists=exists))
         elif query._aggregation.op == AggregationOp.COUNT:
             where = compile_pg_conditional_maybe(query._node_cls, query._filter)
-            count = await pg_count(self._cur, query._node_cls.__table__, where)
+            count = await pg_count(self.cur, query._node_cls.__table__, where)
             return AggregateResult(AggregationData(count=count))
         else:
             raise StoreEngineIncapableError(
                 self, query, expr=query._aggregation, reason="unsupported"
             )
 
-    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> list[NodeDataT]:
         from bench.sql.engine import pg_write_regular_edits
 
-        await pg_write_regular_edits(self._cur, edits)
+        changed_nodes = await pg_write_regular_edits(self.cur, edits, return_nodes=True)
+        return changed_nodes
 
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> None:
-        if edits:
-            from bench.sql.engine import pg_write_regular_edits
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[NodeDataT]:
+        from bench.sql.engine import pg_write_regular_edits
 
-            await pg_write_regular_edits(self._cur, edits)
-        await self._cur.connection.commit()
+        changed_nodes = await pg_write_regular_edits(self.cur, edits, return_nodes=True)
+        await self.cur.connection.commit()
+        return changed_nodes
 
     async def cancel(self) -> None:
-        await self._cur.connection.rollback()
+        await self.cur.connection.rollback()
 
 
 class OpensearchStoreEngine(StoreEngine):
