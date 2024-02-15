@@ -11,13 +11,13 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.14.5"
+VERSION = "2024.02.15.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
-
+REVISION_PENDING = -1
 
 #
 # Metatypes for Nodes/Structs
@@ -345,7 +345,7 @@ class EditType(IdEnum):
         return AccessKind.EDIT
 
 
-class RunType(IdEnum):
+class UseType(IdEnum):
     """A type of Run access on nodes."""
 
     START = 30
@@ -357,13 +357,13 @@ class RunType(IdEnum):
 
     @property
     def kind(self) -> "AccessKind":
-        return AccessKind.RUN
+        return AccessKind.USE
 
 
 class AccessKind(IdEnum):
     READ = 1
     EDIT = 10
-    RUN = 30
+    USE = 30
 
     @property
     def from_ord(self) -> int:
@@ -375,26 +375,26 @@ class AccessKind(IdEnum):
 
 
 if typing.TYPE_CHECKING:
-    AccessType = ReadType | EditType | RunType
+    AccessType = ReadType | EditType | UseType
 else:
-    AccessType = IdEnum.combine("AccessType", ReadType, EditType, RunType)
+    AccessType = IdEnum.combine("AccessType", ReadType, EditType, UseType)
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
 
 READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
 EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
-RUN_TYPES: bytetuple[RunType] = bytetuple(tuple(RunType))
+USE_TYPES: bytetuple[UseType] = bytetuple(tuple(UseType))
 ACCESS_TYPES: bytetuple[AccessType] = bytetuple(tuple(AccessType))
-ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, RunType, AccessType)
+ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)
 ACCESS_KINDS = bytetuple(tuple(AccessKind))
 ACCESS_TYPES_BY_KIND: dict[AccessKind, bytetuple[AccessType]] = {
     AccessKind.READ: bytetuple(READ_TYPES),
     AccessKind.EDIT: bytetuple(EDIT_TYPES),
-    AccessKind.RUN: bytetuple(RUN_TYPES),
+    AccessKind.USE: bytetuple(USE_TYPES),
 }
 ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
     AccessKind.READ: ReadType,
     AccessKind.EDIT: EditType,
-    AccessKind.RUN: RunType,
+    AccessKind.USE: UseType,
 }
 ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
     access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types

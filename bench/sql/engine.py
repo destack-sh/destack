@@ -1358,7 +1358,7 @@ async def pg_search_nodes_data_graph(
         return roots, graph
 
 
-# TODO @Performance: use psycopg3 pipelining to batch edits?
+# TODO @Performance: use psycopg3/postgres pipelining to batch edits?
 
 
 async def pg_write_regular_edits(
@@ -1366,12 +1366,10 @@ async def pg_write_regular_edits(
     edits: list[EditData] | tuple[EditData, ...],
     *,
     return_nodes: bool = False,
-    select_properties_by_type: dict[NodeType, tuple[Property, ...]]
-    | None = DEFAULT_SELECTED_PROPERTIES,
-) -> list["AnyNodeData"] | None:
+) -> list["AnyNodeData"] | tuple["AnyNodeData", ...] | None:
     """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
     if not edits:
-        return None
+        return () if return_nodes else None
 
     # batch operations by edit kind and node type
     cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
@@ -1397,14 +1395,19 @@ async def pg_write_regular_edits(
         ):
             edit_kind: EditType = wiring.unpack_enum(EditType, edit.type)
             node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
+            updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
+            if return_nodes:
+                selected_properties = updated_properties + (cur_node_cls.id,)
+            else:
+                selected_properties = ()
             batch_changed_nodes = await _pg_write_regular_edit_batch(
                 cur=cur,
                 edit_kind=edit_kind,
                 node_type=node_type,
                 batch=cur_batch,
                 return_nodes=return_nodes,
-                updated_properties=cur_node_cls._unmask_properties_ids(cur_updated_properties),
-                selected_properties=select_properties_by_type[node_type],
+                updated_properties=updated_properties,
+                selected_properties=selected_properties,
             )
             if batch_changed_nodes:
                 all_returned_nodes.extend(batch_changed_nodes)
@@ -1426,7 +1429,7 @@ async def _pg_write_regular_edit_batch(
     edit_kind: EditType,
     node_type: NodeType,
     batch: list[EditData],
-    updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
+    updated_properties: list[Property] | tuple[Property, ...] | None,  # across all edits
     return_nodes: bool,
     selected_properties: tuple[Property, ...],
 ) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
@@ -1470,8 +1473,7 @@ async def _pg_write_regular_edit_batch(
         now = utcnow_with_tz()
         dynamic_values: list[RowIn] = []
         dynamic_columns: list[Column] = [table._primary_key]  # always 'dynamic', never updated
-        for prop_id in updated_properties:
-            prop = node_cls.__properties_by_id__[prop_id]
+        for prop in updated_properties:
             if prop.reference_stored_ptrs is not None:
                 dynamic_columns.extend(p.column for p in prop.reference_stored_ptrs)
             else:
@@ -1479,9 +1481,8 @@ async def _pg_write_regular_edit_batch(
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
         for edit, node in zip(batch, nodes):
             row = {"id": node.id}
-            for prop_id in updated_properties:
-                prop = node_cls.__properties_by_id__[prop_id]
-                if prop_id in edit.properties:  # this is pretty inefficient
+            for prop in updated_properties:
+                if prop.id in edit.properties:  # this is pretty inefficient
                     # property is changed in edit
                     if prop.reference_stored_ptrs is not None:
                         value = getattr(node, prop.reference_wired_ptr.name)

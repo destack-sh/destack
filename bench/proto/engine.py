@@ -44,8 +44,9 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
     assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
-    if prop.is_struct or prop.is_enum and prop.primitive_type == PrimitiveType.STRING:
+    if prop.is_struct or prop.is_enum:
         proto_t = map_bench_type_to_proto(prop.py_type_stripped, cache)
+        assert isinstance(proto_t, (Enum, Message)), f"unexpected property type: {proto_t!r}"
         return Field(
             id=prop.id,
             name=prop.name,
@@ -98,7 +99,7 @@ def map_bench_struct_to_proto(
 
 
 def map_bench_enum_to_proto(
-    bench_t: type[IdEnum] | type[enum.IntEnum] | type[enum.IntFlag],
+    bench_t: type[IdEnum] | type[enum.IntFlag],
     cache: dict[_BenchType, ProtoObject],
     alias: str = None,
 ) -> Enum:

@@ -44,8 +44,8 @@ import type { CancelTransactionResponse } from "./services";
 import type { CancelTransactionRequest } from "./services";
 import type { CompleteTransactionResponse } from "./services";
 import type { CompleteTransactionRequest } from "./services";
-import type { BeginTransactionResponse } from "./services";
-import type { BeginTransactionRequest } from "./services";
+import type { FlushTransactionResponse } from "./services";
+import type { FlushTransactionRequest } from "./services";
 import type { CommitTransactionResponse } from "./services";
 import type { CommitTransactionRequest } from "./services";
 import type { AggregateNodesResponse } from "./services";
@@ -88,11 +88,11 @@ export interface IGraphIOClient {
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
     /**
-     * Begins a pending transaction.
+     * Begins or extends a pending transaction. Edits are additive.
      *
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
      */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse>;
     /**
      * Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
      *
@@ -100,7 +100,7 @@ export interface IGraphIOClient {
      */
     completeTransaction(input: CompleteTransactionRequest, options?: RpcOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse>;
     /**
-     * Rolls back a completed transaction to this graph.
+     * Rolls back a pending or completed transaction to this graph.
      *
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
@@ -160,13 +160,13 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Begins a pending transaction.
+     * Begins or extends a pending transaction. Edits are additive.
      *
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
      */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
         const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
@@ -178,7 +178,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Rolls back a completed transaction to this graph.
+     * Rolls back a pending or completed transaction to this graph.
      *
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
@@ -259,13 +259,13 @@ export interface ISupervisorClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
-     */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
+    /**
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
+     */
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse>;
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
@@ -371,18 +371,18 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
-     */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
-        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
+     */
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
@@ -431,13 +431,13 @@ export interface IBenchHostClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
-     */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse>;
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
+    /**
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
+     */
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse>;
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
@@ -540,18 +540,18 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * @generated from protobuf rpc: BeginTransaction(symbolx.bench.BeginTransactionRequest) returns (symbolx.bench.BeginTransactionResponse);
-     */
-    beginTransaction(input: BeginTransactionRequest, options?: RpcOptions): UnaryCall<BeginTransactionRequest, BeginTransactionResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<BeginTransactionRequest, BeginTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: RpcOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
+     */
+    flushTransaction(input: FlushTransactionRequest, options?: RpcOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);

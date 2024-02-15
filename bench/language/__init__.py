@@ -1,3 +1,4 @@
+from .property import Property
 from .setup import _complete_bench_setup
 from .value import Context
 from ..sql.core import PrimitiveType
@@ -141,6 +142,7 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
+    "Property",
     "Transaction",
     "Trigger",
     "TriggerType",

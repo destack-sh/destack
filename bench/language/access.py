@@ -23,7 +23,7 @@ from bench.language.const import (
     NodeType,
     PolicyEffect,
     ReadType,
-    RunType,
+    UseType,
     StructType,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
@@ -1241,7 +1241,7 @@ def evaluate_edit(
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
-    TODO @Broken @Security: verify equivalent 'run' access for the edits
+    TODO @Broken @Security: verify equivalent 'use' access for the edits
      (e.g. create Run with base=Block <=> run Block, create Signal with base=Block <=> emit Block)
     """
     from bench.proto import wiring
@@ -1311,9 +1311,9 @@ def evaluate_edit(
     return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
 
 
-def evaluate_run(
+def evaluate_use(
     matrix: AccessMatrix,
-    run_type: RunType,
+    run_type: UseType,
     node: "Block",
     *,
     trace: bool = False,

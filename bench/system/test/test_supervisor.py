@@ -171,8 +171,9 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
                 node=wiring.wrap_some_node(new_client._to_data()),
                 origin=actor_handle.origin,
             )
-            transaction = TransactionData(id=str(uuid4()), edits=[create_client_edit])
-            create_client_req = CommitTransactionRequest(transaction=transaction)
+            create_client_req = CommitTransactionRequest(
+                id=str(uuid4()), edits=[create_client_edit]
+            )
             if is_target_self:  # can create clients for ourselves
                 _ = await supervisor.commit_transaction(
                     create_client_req, metadata=actor_handle.headers
@@ -242,8 +243,7 @@ async def test_root_node_create_denied(
             node=wiring.wrap_some_node(node_data),
             origin=some_user.origin,
         )
-        transaction = TransactionData(id=str(uuid4()), edits=[edit])
-        commit_req = CommitTransactionRequest(transaction=transaction)
+        commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
             _ = await supervisor.commit_transaction(
                 commit_req, metadata=some_user.metadata.to_headers()
