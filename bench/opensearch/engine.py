@@ -13,7 +13,7 @@ from bench.language import C, ConditionalOp, Field, Package, SortMode, SortOp, P
 from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
-    TYPE_DISCRIMINATOR_KEY,
+    METATYPE_KEY,
     Expression,
     ExpressionOps,
     S,
@@ -267,7 +267,7 @@ def os_compile_search(
         raise ValueError("cannot specify both after and skip")
     combined_query = C(
         ConditionalOp.AND,
-        clauses=[C(ConditionalOp.EQUALS, field_key=TYPE_DISCRIMINATOR_KEY, value=metatype.name)],
+        clauses=[C(ConditionalOp.EQUALS, field_key=METATYPE_KEY, value=metatype.name)],
     )
     if query is not None:
         combined_query &= query
@@ -422,7 +422,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
     metatype = wiring.unpack_enum(BenchType, node.metatype)
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
-    document: dict[str, Any] = {TYPE_DISCRIMINATOR_KEY: metatype.name}
+    document: dict[str, Any] = {METATYPE_KEY: metatype.name}
     for prop in bench_cls.__stored_properties__.values():
         if not _is_property_indexed_in_search(prop):
             continue
@@ -432,7 +432,7 @@ def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
 
 
 def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
-    metatype = BenchType(source[TYPE_DISCRIMINATOR_KEY])
+    metatype = BenchType(source[METATYPE_KEY])
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]
     proto_kwargs = {}
@@ -508,7 +508,7 @@ async def sync_pg_databases_to_os(
 
 
 DEFAULT_FIELDS = {
-    TYPE_DISCRIMINATOR_KEY: os.TYPE_DISCRIMINATOR_FIELD,
+    METATYPE_KEY: os.METATYPE_FIELD,
 }
 GLOBAL_INDEX_SHARDS = 5
 GLOBAL_INDEX_REPLICAS = 1

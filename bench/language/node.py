@@ -2,6 +2,7 @@ import abc
 import dataclasses
 import enum
 import functools
+import secrets
 import inspect
 import uuid
 from collections import defaultdict
@@ -48,7 +49,13 @@ from bench.language.const import (
     NodeReferenceKind,
 )
 from bench.language.property import Property
-from bench.language.graph import DetachedNodeGraph, NodeGraph, NodeGraphBase, NodeList
+from bench.language.graph import (
+    DetachedNodeGraph,
+    NodeGraph,
+    NodeGraphBase,
+    NodeList,
+    NodeDataGraph,
+)
 from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -109,7 +116,14 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def get_node_id(package_id: UUID, ck: UUID):
+def new_struct_id() -> str:
+    return secrets.token_hex(8)
+
+
+new_node_id = uuid4
+
+
+def derive_package_node_id(package_id: UUID, ck: UUID):
     """Derive the version-specific node id from its constant key"""
     return uuid.uuid5(package_id, str(ck))
 
@@ -186,8 +200,6 @@ def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
-    is_in_package: bool = False,
-    is_in_bench: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
     is_final: bool = False,
@@ -303,7 +315,7 @@ def _process_struct_base_cls(
             del properties_by_name[name]
             for key in prop.reference_ptrs:  # incl. contributed
                 del properties_by_name[key.name]
-        elif prop.name == "ck" and (no_ck or not is_sub_package):
+        elif prop.name == "ck" and is_node and (no_ck or not is_sub_package):
             attr = _node_ck_from_id_prop(prop)  # ck == id
             del properties_by_name[name]
 
@@ -452,8 +464,6 @@ def node_component(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
-    is_in_package: bool = False,
-    is_in_bench: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
     is_final: bool = False,
@@ -469,8 +479,8 @@ def node_component(
             cls=cls,
             dynamic_components=dynamic_components,
             reserved=reserved,
-            is_in_package=is_in_package,
-            is_in_bench=is_in_bench,
+            is_sub_bench=is_sub_bench,
+            is_sub_package=is_sub_package,
             is_final=is_final,
             no_ck=no_ck,
         )
@@ -525,6 +535,7 @@ def node(
     constraints: tuple[Constraint, ...] = (),
     unique_together: tuple[tuple[str, ...], ...] = (),
     identifier: IdentifierType | None = None,
+    id_factory: Callable[[], UUID] = new_node_id,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -541,8 +552,8 @@ def node(
             passthrough=passthrough,
             dynamic_components=dynamic_components,
             reserved=reserved,
-            is_in_package=in_package,
-            is_in_bench=in_bench,
+            is_sub_bench=sub_bench,
+            is_sub_package=sub_package,
             no_ck=no_ck,
             is_final=True,
         )
@@ -551,6 +562,7 @@ def node(
         cls.__is_indexed_in_search__ = index_in_search
         cls.__is_local__ = local
         cls.__identifier_type__ = identifier
+        cls.__id_factory__ = id_factory
 
         extra_indexes: list[Index] = [*indexes]
         extra_constraints: list[Constraint] = [*constraints]
@@ -566,13 +578,11 @@ def node(
             )
             extra_indexes.append(index)
             extra_constraints.append(constraint)
-
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 
         parent_property = cls.__properties__.get("parent", None)
-        if parent_property is None:
-            raise ValueError(f"node {cls} has no parent property")
+        assert parent_property is not None, f"missing parent property for node {cls}"
         cls.__parent_property__ = parent_property
         cls.__roots__ = bytetuple(roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
@@ -748,6 +758,7 @@ class Struct(abc.ABC):
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
+    __id_factory__: ClassVar[Callable[[], str]] = new_struct_id
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
@@ -772,6 +783,12 @@ class Struct(abc.ABC):
     __is_struct__: ClassVar[bool] = True
     __is_node__: ClassVar[bool] = False
     __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS (only for logs really)
+
+    # id: str = p_system(1)
+    # parent_id: str | None = p_parent(1)
+    # parent_key: str | None = p_system(2)
+    # revision: int = p_system(3)?
+    # order_key: str | None = p_internal(4)
 
     _status: NodeStatus = p_runtime(default=None)
 
@@ -855,11 +872,6 @@ class Struct(abc.ABC):
 
     def __eq__(self, other):
         return self.equals_content(other)
-
-    def _set_untracked(self, key, value):
-        self.__dict__[key] = value
-
-    # TODO @Broken: track in-struct edits (__setattr__) :StructScope
 
     def _init_inner(self):
         # init reference pointers if references are set :NodeReferences
@@ -1014,6 +1026,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None
+    __id_factory__: ClassVar[Callable[[], UUID]] = None
 
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
@@ -1066,7 +1079,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     links: NodeList["Link"] = p_child(NodeType.LINK, NRel.CUMULATIVE)
 
     # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
-    _graph: Union["NodeGraphBase", None] = p_runtime(default=None)
+    _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
+    _source_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: NodeStatus = p_runtime(default=None)
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
@@ -1077,12 +1091,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         # init ck/id/timestamps
         if self.__is_in_package__:
             if self.ck is None:
-                self.ck = uuid4()
+                self.ck = self.__class__.__id_factory__()
                 self._is_new = True
             if self.id is None and self.is_attached:
                 self._assign_id(self.package.id)
         elif self.id is None:
-            self.id = uuid4()
+            self.id = self.__class__.__id_factory__()
             self._is_new = True
         if self.created_at is None:
             now = utcnow_with_tz()
@@ -1124,7 +1138,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         return parent
 
     @property
-    def _root_graph(self) -> "NodeGraphBase":
+    def _root_graph(self) -> Union["NodeGraph", "DetachedNodeGraph"]:
         root = self.root
         graph = root._graph
         assert graph is not None, f"no graph for root {root!r} (from {self!r})"
@@ -1134,7 +1148,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         assert package_id, f"cannot assign id to {self!r} without a package id"
         assert self.id is None, f"cannot assign id to {self!r} twice"
         assert self.ck is not None, f"cannot assign id to {self!r} without ck"
-        self.id = get_node_id(package_id, self.ck)
+        self.id = derive_package_node_id(package_id, self.ck)
 
     @final
     def __str__(self):  # noqa: override the default __str__ for nodes

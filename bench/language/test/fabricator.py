@@ -68,7 +68,7 @@ class Fabricator:
                 tuple(p for p in NODE_CLASS_BY_TYPE[type].__properties__.values() if p.id)
             )
             return prop.to_ref()
-        else:  # default random and unconstrained jumble of properties
+        else:  # default unconstrained random jumble of properties
             kwargs = {}
             bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
             for prop in bench_cls.__runtime_properties__.values():

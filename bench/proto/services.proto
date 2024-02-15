@@ -176,7 +176,6 @@ message WatchEditsRequest {
   GraphScope scope = 1;
   repeated NodeType node_types = 2;
   optional uint64 since_epoch = 3;
-  map<int32, ExpressionData> filters = 4;
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
@@ -188,7 +187,6 @@ message RestartServerRequest {
   string server_id = 2;
 }
 message RestartServerResponse {
-  repeated ServerData servers = 1;
 }
 
 message PingServerRequest {
@@ -196,7 +194,6 @@ message PingServerRequest {
   string server_id = 2;
 }
 message PingServerResponse {
-  repeated ServerData servers = 1;
 }
 
 // Common service definition for global and bench-local :GraphIO
@@ -220,7 +217,7 @@ service GraphIO {
 }
 
 // Global control plane: all the global stuff like Benches, Users, etc..
-// Will probably shard this  at some point.
+// Will probably shard this at some point.
 // Frontend connects to this directly.
 service Supervisor {
   //
@@ -231,9 +228,9 @@ service Supervisor {
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
   // Change user password.
   rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
-  // Login user account with the current client.
+  // Login user account with a new or existing client.
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
-  // Logout user account with the current client.
+  // Logout user account with the current or other owned clients.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
   //
@@ -329,10 +326,6 @@ service BenchHost {
   rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
   // Ensure the server for a Bench is running.
   rpc PingServer(PingServerRequest) returns (PingServerResponse);
-  // Starts a run in an appropriate server (same request/response as for ServerNode).
-  rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in the appropriate server (same request/response as for ServerNode).
-  rpc KillRun(KillRunRequest) returns (KillRunResponse);
   // Runs a well-known internal block in the host with our credentials.
   rpc RunProxyBlock(RunProxyBlockRequest) returns (RunProxyBlockResponse);
 
@@ -342,54 +335,16 @@ service BenchHost {
 // Server node
 //
 
-message StartRunRequest {
-  GraphScope scope = 1;
-  RunData run = 2;
-}
-message StartRunResponse {
-  ErrorType error_type = 1;
-  RunData run = 2;
-  repeated LogData logs = 3;
-
-  enum ErrorType {
-    START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
-    START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
-    START_RUN_ERROR_TYPE_INVALID = 2;
-    START_RUN_ERROR_TYPE_INTERNAL = 3;
-    START_RUN_ERROR_TYPE_TIMEOUT = 4;
-    START_RUN_ERROR_TYPE_RUNTIME = 5;
-    START_RUN_ERROR_TYPE_DUPLICATE = 6;
-  }
-}
-
-message KillRunRequest {
-  // scope
-  optional string bench_id = 1;
-  // request
-  string run_id = 5;
-}
-message KillRunResponse {
-  RunData run = 1;
-}
-
 // A user Server providing an isolated Bench runtime to execute user stuff.
 // Service is scoped to bench_id/server_id.
 // Not directly accessible from the outside.
 service Server {
   // Restart this server immediately.
   rpc RestartServer(RestartServerRequest) returns (ServerData);
-  // Starts a run in a process in this server.
-  rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in a process in this server.
-  rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }
 
 // The actual server process executing a Bench 'thread'.
 // Service is scoped to bench_id/server_id/server_process_id.
 // Not directly accessible from the outside.
 service ServerProcess {
-  // Starts a run in this server process.
-  rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in this server process.
-  rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }

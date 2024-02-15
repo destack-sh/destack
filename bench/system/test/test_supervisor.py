@@ -15,6 +15,7 @@ from bench.language.const import (
     ROOT_NODE_TYPES,
 )
 from bench.language.expression import A
+from bench.language.user import Notification, UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     SupervisorStub,
@@ -28,7 +29,6 @@ from bench.proto.wire import (
     SearchNodesRequest,
     AggregationOp,
     AggregateNodesRequest,
-    TransactionData,
 )
 from bench.system.supervisor import Supervisor
 from bench.system.test.conftest import make_user_handle, UserHandle
@@ -76,6 +76,8 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == str(user.slug)
     assert signup_rep.user.id == str(user.id)
+
+    # TODO @Security: user email confirmation etc.
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
@@ -129,9 +131,9 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
 async def test_cross_user_protection(supervisor: SupervisorStub):
     """Users can only take certain actions on themselves."""
 
-    user_a = User(slug="alice", name="Alice", email="alice@bench.app")
-    user_b = User(slug="bob", name="Bob", email="bob@bench.app")
-    user_c = User(slug="carol", name="Carol", email="carol@bench.app")
+    user_a = User(slug="alice", name="Alice", email="alice@bench.app", status=UserStatus.REGISTERED)
+    user_b = User(slug="bob", name="Bob", email="bob@bench.app", status=UserStatus.REGISTERED)
+    user_c = User(slug="carol", name="Carol", email="carol@bench.app", status=UserStatus.REGISTERED)
     handle_a = await make_user_handle(supervisor, user_a)
     handle_b = await make_user_handle(supervisor, user_b)
     handle_c = await make_user_handle(supervisor, user_c)
@@ -158,21 +160,22 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
             else:  # but not others'‚
                 assert not read_target.email
 
-            # create new client
-            new_client = Client(
+            # create new notification
+            # (this works via the supervisor until the Users are activated yet)
+            new_notification = Notification(
                 parent=target,
                 name=f"{actor.name}'s Toaster",
                 device_name="toaster",
                 last_seen_at=utcnow_with_tz(),
             )
-            create_client_edit = EditData(
+            create_notification_edit = EditData(
                 type=wire.EditType.CREATE,
-                node_type=wire.NodeType.CLIENT,
-                node=wiring.wrap_some_node(new_client._to_data()),
+                node_type=wire.NodeType.NOTIFICATION,
+                node=wiring.wrap_some_node(new_notification._to_data()),
                 origin=actor_handle.origin,
             )
             create_client_req = CommitTransactionRequest(
-                id=str(uuid4()), edits=[create_client_edit]
+                id=str(uuid4()), edits=[create_notification_edit]
             )
             if is_target_self:  # can create clients for ourselves
                 _ = await supervisor.commit_transaction(

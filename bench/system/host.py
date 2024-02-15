@@ -13,7 +13,7 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Organization, Package, User
 from bench.language.access import ReadOptions, Subject
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, IN_BENCH_NODE_TYPES
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
 from bench.proto.services import BenchServiceBase, RpcCallable
@@ -23,15 +23,12 @@ from bench.proto.wire import (
     DownloadFilesRequest,
     DownloadFilesResponse,
     GraphScope,
-    KillRunRequest,
-    KillRunResponse,
     RunProxyBlockRequest,
     RunProxyBlockResponse,
-    StartRunRequest,
-    StartRunResponse,
     UploadFilesRequest,
     UploadFilesResponse,
 )
+from bench.system.graph import GraphIoService
 from bench.system.utils import get_s3_client, global_session, validate_bench_data_many
 from bench.utils.func import to_uuid
 
@@ -56,7 +53,7 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         self._bench_hosts_lock = asyncio.Lock()
 
     def __str__(self):
-        return "shards=*"
+        return "shards=[*]"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -104,14 +101,15 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         return _multiplexed_rpc
 
 
-class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
+class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase, GraphIoService):
     """
     Host for an (active) Bench package. Manages basically everything that's not actually running it.
-    Any client (frontend, server, ...) connects to this to do anything with the package.
+    Any Client (frontend, server, ...) connects to this to do anything with the Bench.
     """
 
     def __init__(self, bench_id: UUID, package_id: UUID):
-        super().__init__(loopback_stub_to=BenchHostStub)
+        BenchServiceBase.__init__(self, loopback_stub_to=BenchHostStub)
+        GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self.package_id = package_id
         self._bench: Bench | None = None
@@ -204,12 +202,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase):
     #
     # Runs
     #
-
-    async def start_run(self, subject: Subject, request: "StartRunRequest") -> "StartRunResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def kill_run(self, subject: Subject, request: "KillRunRequest") -> "KillRunResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def run_proxy_block(
         self, subject: Subject, request: "RunProxyBlockRequest"

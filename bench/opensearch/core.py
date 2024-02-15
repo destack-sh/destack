@@ -247,7 +247,7 @@ class HnswParameters:
 
 field = Field
 
-TYPE_DISCRIMINATOR_FIELD = Field(FT.KEYWORD)
+METATYPE_FIELD = Field(FT.KEYWORD)
 
 
 @dataclass

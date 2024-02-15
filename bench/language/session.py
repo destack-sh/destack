@@ -49,15 +49,16 @@ from bench.language.property import (
     p_secret_value_packed,
     p_internal,
     p_system,
-    p_value_freeform,
+    p_value_dynamic,
 )
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.value import HasValues
-from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub, AnyNodeData
+from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
-from bench.utils.func import _auto_async_to_sync, uuid_to_str, IdEnum
+from bench.utils.func import _auto_async_to_sync, uuid_to_str, IdEnum, bytetuple
+from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -69,13 +70,21 @@ if TYPE_CHECKING:
         Server,
         Struct,
         Trigger,
+        Request,
     )
 
 logger = structlog.get_logger(__name__)
 
+# we don't want edits to Signals/Logs to be logged in Signals or Logs (for obvious reasons)
+MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeType.LOG))
+
 
 @node(
-    NodeType.SIGNAL, passthrough=(("value", _Passthrough.Full),), index_in_search=True, local=True
+    NodeType.SIGNAL,
+    passthrough=(("value", _Passthrough.Full),),
+    index_in_search=True,
+    local=True,
+    id_factory=UUIDT,
 )
 class Signal(HasValues):
     """A signal emitted in this Bench."""
@@ -110,7 +119,7 @@ class LogLevel(IdEnum):
     FATAL = 6
 
 
-@node(NodeType.LOG, stored=False, index_in_search=True, no_ck=True)
+@node(NodeType.LOG, stored=False, index_in_search=True, no_ck=True, id_factory=UUIDT)
 class Log(Node):
     """
     A log (entry) is a timestamped record of something happening:
@@ -118,7 +127,6 @@ class Log(Node):
     """
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
-    # nocheckin: use UUIDT for session nodes?
 
     # content
     kind: LogKind = p_system(30)
@@ -129,7 +137,10 @@ class Log(Node):
     text: Optional[RichText] = p_internal(
         35, default=None, require=False, array=False, struct=StructType.RICH_TEXT
     )
-    value_freeform: Any | None = p_value_freeform(36)
+    value_dynamic: Any | None = p_value_dynamic(36)
+    request: Optional["Request"] = p_system(
+        37, require=False, array=False, struct=StructType.REQUEST
+    )
 
     # context
     session: Optional["Session"] = p_system(
@@ -160,7 +171,6 @@ class Transaction:
     _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
-    revisions: list[int] = dcfield(default_factory=list)
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
         default_factory=lambda: defaultdict(list)
     )
@@ -168,10 +178,6 @@ class Transaction:
 
     # for syncing databases (should probably generalize into' untracked edits')
     _schema_changed: bool = dcfield(default=False)
-
-    @property
-    def changed_nodes(self) -> Collection[AnyNodeData]:
-        return self._changed_nodes_by_id.values()
 
     @property
     def has_edits(self) -> bool:
@@ -347,9 +353,9 @@ class Transaction:
             if pending_edits:
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
-                changed_nodes = await connection.flush(pending_edits)
-                for node in changed_nodes:
-                    self._changed_nodes_by_id[node.id] = node
+                accepted_revisions = await connection.flush(pending_edits)
+                for edit, new_revision in zip(pending_edits, accepted_revisions):
+                    edit.revision = new_revision
                 pending_edits.clear()
 
     async def commit(self):
@@ -363,9 +369,9 @@ class Transaction:
             if pending_edits or engine.id in self._connections_by_engine_id:
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
-                changed_nodes = await connection.commit(pending_edits)
-                for node in changed_nodes:
-                    self._changed_nodes_by_id[node.id] = node
+                accepted_revisions = await connection.commit(pending_edits)
+                for edit, new_revision in zip(pending_edits, accepted_revisions):
+                    edit.revision = new_revision
                 pending_edits.clear()
 
     async def rollback(self):
@@ -383,7 +389,7 @@ _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 _runtime_tracing_lock: threading.Lock = threading.Lock()
 
 
-@node(NodeType.SESSION, index_in_search=True, local=True)
+@node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
 class Session(Node):
     """
     A managed session for interacting with Bench nodes and (if on a Server) running them.
@@ -776,12 +782,13 @@ class Session(Node):
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     # nocheckin: track sessions/runs (and signals/logs)
+    #  what should session nodes be scoped to? what parent?
 
 
 # We track the active root in a contextvar but not children
 #  because they may be in different contexts, and we cannot reset across contexts.
 # This will need to be expanded when we get to parallel runs.
-@node(NodeType.RUN, index_in_search=True, local=True)
+@node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(HasValues):
     """
     A 'run' of a block (in a session).
@@ -826,6 +833,8 @@ class Run(HasValues):
     error: Optional["RunError"] = p_internal(56, default=None, primitive_type=PrimitiveType.JSON)
 
     runs: list["Run"] = p_child(NodeType.RUN)
+
+    # inline_runs: list["Run"] = p_internal(60, require=False, array=True, struct=NodeType.RUN)?
 
     def __content_str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
