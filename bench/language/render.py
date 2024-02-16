@@ -216,7 +216,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
         init_props = {
             prop.name: getattr(node, prop.name)
             for prop in node.__properties__.values()
-            if not prop.is_runtime_only
+            if not prop.is_ephemeral
             and not prop.is_graph_reference
             and prop.id >= 30
             and prop.name not in ("id", "ck", "parent", "order_key", "dynamic_key")

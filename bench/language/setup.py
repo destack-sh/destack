@@ -18,7 +18,7 @@ from bench.utils.func import bytetuple, IdEnum, get_subclasses, check_collection
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
-    from bench.language import Node, Struct
+    from bench.language import Node, Struct, Property
 
 # some global indexes for language types/classes
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
@@ -86,6 +86,8 @@ def _complete_bench_setup():
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
         # misc finalization on properties
         for name, prop in cls.__properties__.items():
+            prop: Property
+
             if prop.reference_wired_ptr or prop.reference_stored_ptrs:
                 # Properties with reference ptrs (like Node.parent -> parent_ptr/parent_id)
                 #  aren't stored directly, we just use is_wired/is_stored to indicate what
@@ -97,8 +99,8 @@ def _complete_bench_setup():
             # finalize type info
             prop._finalize()
 
-            # set properties (that exist at runtime) on class
-            if prop.is_runtime and not prop.is_runtime_only and not prop.is_computed:
+            # set introspectable properties as <cls>.<property>
+            if prop.is_introspectable:
                 setattr(cls, name, prop)
 
             # ensure the introspected property type works (and cache it)

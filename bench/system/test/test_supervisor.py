@@ -13,10 +13,9 @@ from bench.language.const import (
     PUBLIC_NODE_TYPES,
     EditType,
     ROOT_NODE_TYPES,
-    NotificationKind,
 )
 from bench.language.expression import A
-from bench.language.user import Notification, UserStatus
+from bench.language.user import UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     SupervisorStub,
@@ -161,32 +160,43 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
             else:  # but not others'‚
                 assert not read_target.email
 
-            # create new notification
+            # update the User's full name
             # (this works via the supervisor until the Users are activated yet)
-            # nocheckin: fix this test with something not a Notification?
-            #  (lives in Package now)
-            new_notification = Notification(
-                parent=target,
-                kind=NotificationKind.URGENT,
-                title=f"{actor.name}'s Toaster Is On Fire",
+            target_data = target._to_data()
+            target_data.name = f"{actor.name}'s Puppet"
+            edit = EditData(
+                type=wire.EditType.UPDATE,
+                node_type=wire.NodeType.USER,
+                node=wiring.wrap_some_node(target_data),
+                subject=actor_handle.subject,
+                properties=[User.name.id],
             )
-            create_notification_edit = EditData(
-                type=wire.EditType.CREATE,
-                node_type=wire.NodeType.NOTIFICATION,
-                node=wiring.wrap_some_node(new_notification._to_data()),
-                origin=actor_handle.origin,
-            )
-            create_client_req = CommitTransactionRequest(
-                id=str(uuid4()), edits=[create_notification_edit]
-            )
-            if is_target_self:  # can create clients for ourselves
-                _ = await supervisor.commit_transaction(
-                    create_client_req, metadata=actor_handle.headers
-                )
+            commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
+            if is_target_self:  # can update our own data
+                _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
             else:  # but not for others
                 with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
                     _ = await supervisor.commit_transaction(
-                        create_client_req, metadata=actor_handle.headers
+                        commit_req, metadata=actor_handle.headers
+                    )
+
+            # update the User's client's device name
+            target_data = target_handle.client._to_data()
+            target_data.device_name = f"{actor.name}'s Puppet Device"
+            edit = EditData(
+                type=wire.EditType.UPDATE,
+                node_type=wire.NodeType.CLIENT,
+                node=wiring.wrap_some_node(target_data),
+                subject=actor_handle.subject,
+                properties=[Client.device_name.id],
+            )
+            commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
+            if is_target_self:  # can update our own data
+                _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
+            else:  # but not for others
+                with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+                    _ = await supervisor.commit_transaction(
+                        commit_req, metadata=actor_handle.headers
                     )
 
 

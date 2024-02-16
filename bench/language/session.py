@@ -86,7 +86,7 @@ MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeTyp
     local=True,
     id_factory=UUIDT,
 )
-class Signal(HasValues):
+class Signal(Node, HasValues):
     """A signal emitted in this Bench."""
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
@@ -102,7 +102,7 @@ class Signal(HasValues):
     )
     value_packed: Any | None = p_value_packed(34)
     secret_value_packed: Any | None = p_secret_value_packed(35)
-    value = p_value_runtime(34, 35, type=30)
+    value = p_value_runtime(34, 35, type=31)
 
 
 class LogKind(IdEnum):
@@ -337,12 +337,45 @@ class Transaction:
     # Transaction management
     #
 
+    def canonicalize_edits(self, edits: Collection[EditData]):
+        """
+        'Canonicalizes' the edits in place by imputing the tracking info (e.g. 'updated_at', 'updated_by').
+        We do this in the untrusted clients as well as in the system, but only the system counts,
+         because the tracking properties are not directly updatable (only through the edit types).
+        The clients tracking timestamps can drift during sync, but that's okay, we only need existence.
+        """
+        from bench.proto import wiring
+
+        now = utcnow_with_tz()
+        for edit in edits:
+            node = wiring.unwrap_some_node(edit.node)
+            if edit.type in (EditType.CREATE, EditType.UPSERT):
+                node.created_at = now
+                node.created_by_ptr = edit.subject
+                node.updated_at = now
+                node.updated_by_ptr = edit.subject
+            elif edit.type in (EditType.MOVE, EditType.UPDATE):
+                node.updated_at = now
+                node.updated_by_ptr = edit.subject
+            elif edit.type == EditType.ARCHIVE:
+                node.archived_at = now
+            elif edit.type == EditType.UNARCHIVE:
+                node.archived_at = None
+            elif edit.type == EditType.SOFT_DELETE:
+                node.deleted_at = now
+            elif edit.type == EditType.RESTORE:
+                node.deleted_at = None
+            elif edit.type == EditType.DELETE:
+                node.deleted_at = now  # technically unnecessary but convenient
+            else:
+                raise ValueError(f"unexpected edit type: {edit.type}")
+
     async def open(self):
         pass
 
     async def flush(self, *only_engine_types: StoreEngineType):
         """
-        Flushes any pending edits to the primary stores (without committing).
+        Canonicalizes and flushes any pending edits to the primary stores (without committing).
         If specific engines are given, only flushes to those engines.
         """
 
@@ -354,6 +387,7 @@ class Transaction:
         for engine in engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits:
+                self.canonicalize_edits(pending_edits)
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.flush(pending_edits)
@@ -365,11 +399,12 @@ class Transaction:
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
         log = logger.bind(edits=len(self.edits), transaction=self)
 
-        # TODO @Robustness!: use 2PC in Transaction.commit
+        # TODO @Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
         for engine in self.session._engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits or engine.id in self._connections_by_engine_id:
+                self.canonicalize_edits(pending_edits)
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
@@ -379,7 +414,7 @@ class Transaction:
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
-        raise NotImplementedError("not yet supported")
+        raise NotImplementedError("not yet supported")  # :2PC
 
     async def close(self):
         """Closes the transaction and associated store engines, rolling back uncommitted edits."""
@@ -412,7 +447,6 @@ class Session(Node):
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["BenchHostStub"] = p_runtime(default=None)
-    _dangling_nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     # runtime
     _stacktrace: list["Run"] | None = p_runtime(default=None)
@@ -442,10 +476,6 @@ class Session(Node):
 
     def _init_inner(self) -> None:
         self._session = self
-
-    @property
-    def dangling_nodes(self) -> tuple[Node, ...]:
-        return tuple(n for n in self._dangling_nodes_by_ck.values() if not n.parent)
 
     @property
     def tx(self) -> Transaction:
@@ -550,9 +580,6 @@ class Session(Node):
             self._stdout_collector.stop()
             self._stderr_collector.stop()
             self._flush_session_loop.cancel()
-
-        if self.dangling_nodes:
-            logger.warn("session.close.dangling", dangling=self.dangling_nodes)
 
     async def __aenter__(self):
         await self.open()
@@ -799,7 +826,7 @@ class Session(Node):
 #  because they may be in different contexts, and we cannot reset across contexts.
 # This will need to be expanded when we get to parallel runs.
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
-class Run(HasValues):
+class Run(Node, HasValues):
     """
     A 'run' of a block (in a session).
     """

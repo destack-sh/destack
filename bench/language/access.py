@@ -399,20 +399,18 @@ class PolicyRule(Struct):
         self._object_node_types_mask = _enums_to_mask(self.object_node_types, NodeType)
         self._object_properties_masks = {}
         all_properties = self.object_properties or ()
-        if self.object_properties_is_system is not None:
+        if (
+            self.object_properties_is_system is not None
+            or self.object_properties_is_sensitive is not None
+            or self.object_properties_is_kernel is not None
+        ):
             all_properties = list(all_properties)
             for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
-                if prop.has_id and prop.is_system == self.object_properties_is_system:
-                    all_properties.append(prop)
-        if self.object_properties_is_sensitive is not None:
-            all_properties = list(all_properties)
-            for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
-                if prop.has_id and prop.is_sensitive == self.object_properties_is_sensitive:
-                    all_properties.append(prop)
-        if self.object_properties_is_kernel is not None:
-            all_properties = list(all_properties)
-            for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
-                if prop.has_id and prop.is_kernel == self.object_properties_is_kernel:
+                if prop.has_id and (
+                    prop.is_system == self.object_properties_is_system
+                    or prop.is_sensitive == self.object_properties_is_sensitive
+                    or prop.is_kernel == self.object_properties_is_kernel
+                ):
                     all_properties.append(prop)
         for prop in all_properties:
             if prop.type not in self._object_properties_masks:
@@ -427,13 +425,14 @@ class PolicyRule(Struct):
             self._verb_mask[AccessType.get_min_ord() : AccessType.get_max_ord()] = True
         else:
             for verb in self.verbs or ():
+                assert type(verb) is AccessType, f"unexpected verb {verb!r}"
                 self._verb_mask[verb.ord] = True
             for verb_kind in self.verb_kinds or ():
                 self._verb_mask[verb_kind.from_ord : verb_kind.to_ord + 1] = True
 
     def matches_subject(self, subject: "Subject", object_owner: Owner) -> bool:
+        # subject always matches (by definition) if the policy is delegated
         if not self.subject_is_delegated:
-            # subject always matches (by definition) if the policy is delegated
             if (
                 self.subject_is_authenticated is not None
                 and self.subject_is_authenticated != subject.is_authenticated
@@ -452,6 +451,7 @@ class PolicyRule(Struct):
         return True  # no mismatch -> match
 
     def matches_verb(self, verb: AccessType) -> bool:
+        assert type(verb) is AccessType, f"unexpected verb {verb!r}"
         return self._verb_mask[verb.ord]
 
     #
@@ -460,7 +460,7 @@ class PolicyRule(Struct):
 
     def allow(self, *verbs: AccessType | AccessKind) -> "Self":
         self.effect = PolicyEffect.ALLOW
-        self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
+        self.verbs = [verb.to(AccessType) for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
         if _COMPLETED_SETUP:
@@ -469,7 +469,7 @@ class PolicyRule(Struct):
 
     def deny(self, *verbs: AccessType | AccessKind) -> "Self":
         self.effect = PolicyEffect.DENY
-        self.verbs = [verb for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
+        self.verbs = [verb.to(AccessType) for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
         if _COMPLETED_SETUP:
@@ -699,36 +699,6 @@ def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     else:
         for value in values:
             mask[value.ord] = True
-    return mask
-
-
-def _properties_to_mask(values: list[Property], node_type: NodeType) -> bitarray:
-    """Set the given properties in a mask. No values == all values == wildcard!"""
-    mask = bitarray(NODE_CLASS_BY_TYPE[node_type].__max_property_ord__)
-    if not values:
-        mask.setall(True)
-    else:
-        for value in values:
-            mask[value.ord] = True
-    return mask
-
-
-def _mask_to_properties(mask: bitarray, node_type: NodeType) -> tuple[Property, ...]:
-    """Convert a mask to a list of properties. Empty mask == all properties == wildcard!"""
-    node_cls = NODE_CLASS_BY_TYPE[node_type]
-    if mask == node_cls.__properties_mask__:
-        return ()
-    properties = node_cls._unmask_properties(mask)
-    return properties
-
-
-def _ints_to_mask(values: list[int], length: int) -> bitarray:
-    mask = bitarray(length)
-    if not values:
-        mask.setall(True)
-    else:
-        for value in values:
-            mask[value] = True
     return mask
 
 
@@ -1051,6 +1021,7 @@ def evaluate_access(
     """
 
     # the granted 'allow' mask for properties across identities
+    verb = verb.to(AccessType)
     composite_allowed_properties = bitarray(len(object_properties))
     object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
     matched_rules: list[PolicyRule] = [] if trace else None
@@ -1088,12 +1059,12 @@ def evaluate_access(
                             matched_rules.append(rule)
                         if rule.effect == PolicyEffect.ALLOW:
                             rule_properties_mask = rule._object_properties_masks.get(
-                                object_node_type, object_node_cls.__properties_mask__
+                                object_node_type, object_node_cls.__properties_mask_set__
                             )
                             allowed_properties |= rule_properties_mask & unset_properties
                         else:
                             rule_properties_mask = rule._object_properties_masks.get(
-                                object_node_type, bitarray(object_node_cls.__max_property_ord__ + 1)
+                                object_node_type, object_node_cls.__properties_mask_unset__
                             )
                             allowed_properties &= ~(rule_properties_mask & unset_properties)
                         unset_properties = unset_properties & ~rule_properties_mask
@@ -1129,17 +1100,22 @@ def evaluate_access(
     else:
         raise ValueError(f"unexpected mode {mode!r}")
     if decision == PolicyEffect.ALLOW:
-        access_properties = composite_allowed_properties
+        decided_properties = composite_allowed_properties
+    elif decision == PolicyEffect.DENY:  # denied properties are inverse of allowed
+        decided_properties = ~composite_allowed_properties & object_properties
     else:
-        access_properties = ~composite_allowed_properties & object_properties
-
+        raise ValueError(f"unexpected decision {decision!r}")
     if num_cached_identities < len(matrix.identities):
+        if decided_properties.all():
+            object_properties = ()
+        else:
+            object_properties = object_node_cls._unmask_properties(decided_properties)
         access = Access(
             mode=mode,
             decision=decision,
             verb=verb,
             object_type=object_node_type,
-            object_properties=_mask_to_properties(access_properties, object_node_type),
+            object_properties=object_properties,
             trace=AccessTrace(matched_rules=matched_rules) if trace else None,
         )
         was_cached = False
@@ -1176,7 +1152,7 @@ def evaluate_and_adapt_read(
     for node in graph.nodes:
         object_node_type: NodeType = wiring.unpack_enum(NodeType, node.metatype)
         object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
-        object_properties: bitarray = object_node_cls.__properties_mask__
+        object_properties: bitarray = object_node_cls.__properties_mask_set__
 
         root = graph.get_root(node)  # a bit inefficient?
         adapted_properties, access, was_cached = evaluate_access(
@@ -1253,7 +1229,7 @@ def evaluate_edit(
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node = wiring.unwrap_some_node(edit.node)
 
-        # figure out the scope to evaluate the edit in
+        # figure out the scope to evaluate what in
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node
             if edit.type in (EditType.CREATE, EditType.UPSERT):
@@ -1276,14 +1252,15 @@ def evaluate_edit(
                     decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses
                 )
             else:
-                scope = node
-                root = node
+                scope = root = graph.get(node.id)
+        try:
+            object_properties = node_cls._mask_properties_ids(edit.properties)
+            if not object_properties.any():  # if nothing specified, default to all
+                object_properties = node_cls.__properties_mask_set__
+        except LookupError as e:
+            raise ValidationError(edit, "invalid properties") from e
 
         # and evaluate it
-        object_properties = (
-            _ints_to_mask(edit.properties, node_cls.__max_property_ord__ + 1)
-            & node_cls.__properties_mask__
-        )
         _, access, was_cached = evaluate_access(
             matrix=matrix,
             verb=access_type,
@@ -1297,11 +1274,9 @@ def evaluate_edit(
         )
         if not was_cached:
             accesses.append(access)
-            if access.decision == PolicyEffect.DENY:
-                # implicit or explicit deny for access -> deny entire request
-                return Request(
-                    decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses
-                )
+        if access.decision == PolicyEffect.DENY:
+            # implicit or explicit deny for access -> deny entire request
+            return Request(decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses)
 
     # at this point no implicit or explicit denies have happened -> explicit allow
     return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
@@ -1323,7 +1298,7 @@ def evaluate_use(
         matrix=matrix,
         verb=run_type,
         object_node_type=node.metatype,
-        object_properties=node_cls.__properties_mask__,
+        object_properties=node_cls.__properties_mask_set__,
         scope_id=str(node.id),
         root_id=str(node.bench.id),
         mode=AccessMode.ATOMIC,

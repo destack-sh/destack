@@ -386,9 +386,13 @@ class IdEnum(enum.IntEnum):
         """Get the maximum ord."""
         return len(cls)
 
+    def to(self, combined_type: type["IdEnum"]) -> "IdEnum":
+        return combined_type(self.id)
+
     @staticmethod
     def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
-        return IdEnum(name, {t.name: t.id for e in enums for t in e})
+        combined = IdEnum(name, {t.name: t.id for e in enums for t in e})
+        return typing.cast(type["IdEnum"], combined)
 
 
 EnumT = TypeVar("EnumT", bound=IdEnum)

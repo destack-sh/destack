@@ -26,8 +26,8 @@ from typing import (
     final,
 )
 from uuid import UUID, uuid4
-
 import math
+
 import structlog
 from bitarray import bitarray
 from cachetools import cached
@@ -271,7 +271,7 @@ def _process_struct_base_cls(
             existing = properties_by_name.get(name, None)
             # override parent & id with more specific values
             if existing is None or name.startswith("parent") or existing.id is UNSET:
-                if prop.is_runtime_only or component not in dynamic_components:
+                if prop.is_ephemeral or component not in dynamic_components:
                     prop = prop.clone()
                     prop.component = cls
                     properties_by_name[name] = prop
@@ -299,7 +299,7 @@ def _process_struct_base_cls(
                         f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
                     )
                 properties_by_name[p.name] = p
-                if not p.is_computed:
+                if not p.is_computed:  # why is this needed?
                     setattr(cls, p.name, p)
 
     # create class (map properties to dataclass fields)
@@ -376,7 +376,9 @@ def _process_struct_base_cls(
     cls.__properties_name_by_id__ = frozendict(
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
     )
-    cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_runtime_only})
+    cls.__tracked_properties__ = frozendict(
+        {p.name: p for p in props if not p.is_ephemeral and not p.is_computed}
+    )
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__reference_properties__ = frozendict(
         {p.name: p for p in props if p.reference_types or p.is_property_reference}
@@ -395,8 +397,9 @@ def _process_struct_base_cls(
             prop.reference_source.ord = i
     cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
     cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
-    cls.__properties_mask__ = bitarray(cls.__max_property_ord__ + 1)
-    cls.__properties_mask__.setall(True)
+    cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
+    cls.__properties_mask_set__.setall(True)
+    cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
     # TODO @Performance!: use slots for Struct/Node and in wire types (StructData/NodeData/...)
     #  Using slots for our structs bit trickier than it seems because
@@ -407,6 +410,10 @@ def _process_struct_base_cls(
     cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
     for prop in props:  # update reference to 'new' class
         prop.component = cls
+        # dataclass set the default value as a class attribute, but we don't want that
+        #  (I can't figure out why they do that, the defaults are set in __init__ too?)
+        if prop.default is not None and getattr(cls, prop.name, None) == prop.default:
+            setattr(cls, prop.name, None)
 
     return cls, properties_by_name
 
@@ -776,7 +783,8 @@ class Struct(abc.ABC):
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
     __max_property_ord__: ClassVar[int] = None
-    __properties_mask__: ClassVar[bitarray] = None
+    __properties_mask_set__: ClassVar[bitarray] = None
+    __properties_mask_unset__: ClassVar[bitarray] = None
 
     __is_struct__: ClassVar[bool] = True
     __is_node__: ClassVar[bool] = False
@@ -829,6 +837,14 @@ class Struct(abc.ABC):
         return mask
 
     @classmethod
+    def _mask_properties_ids(cls, properties: Collection[int]) -> bitarray:
+        mask = bitarray(cls.__max_property_ord__ + 1)
+        for prop_id in properties:
+            prop = cls.__properties_by_id__[prop_id]
+            mask[prop.ord] = True
+        return mask
+
+    @classmethod
     def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
         prop = cls._get_property(ptr)
         if prop is None:
@@ -874,6 +890,8 @@ class Struct(abc.ABC):
     def _init_inner(self):
         # init reference pointers if references are set :NodeReferences
         for prop in self.__reference_properties__.values():
+            if prop.reference_kind == NodeReferenceKind.ANCESTOR:
+                continue
             ref = getattr(self, prop.name)
             if prop.reference_wired_ptr is not None and ref:
                 if prop.is_array:
@@ -1066,10 +1084,20 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # not yet fully implemented:
     # changed_at (15), active_at (16), ....
     created_by: Union["User", "Run", None] = p_system(
-        17, default=None, require=False, array=False, references=(NodeType.USER, NodeType.RUN)
+        17,
+        default=None,
+        require=False,
+        array=False,
+        autoset=True,
+        references=(NodeType.USER, NodeType.RUN),
     )
     updated_by: Union["User", "Run", None] = p_system(
-        18, default=None, require=False, array=False, references=(NodeType.USER, NodeType.RUN)
+        18,
+        default=None,
+        require=False,
+        array=False,
+        autoset=True,
+        references=(NodeType.USER, NodeType.RUN),
     )
     # changed_by (19), active_by (20), ...
     # for in-source nodes:
@@ -1110,8 +1138,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         # init session context
         if self._session is None and self._session is not UNSET:
             self._session = _active_session.get()
-        if self._session and self._session is not UNSET and self._is_new and not self.parent:
-            self._session._dangling_nodes_by_ck[self.ck] = self
         # init status
         if self._status is None:
             self._status = NodeStatus.INTERP if self._session is not None else NodeStatus.SOURCE
@@ -1333,21 +1359,23 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         is_tracked = self._status == NodeStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
-            if prop.reference_kind == NodeReferenceKind.CHILD:
-                attr = getattr(self, key)
-                if attr is None:  # initial set
+            if prop.is_ephemeral or prop.is_autoset:  # untracked
+                return object.__setattr__(self, key, value)
+            elif prop.reference_kind == NodeReferenceKind.CHILD:
+                attr = object.__getattribute__(self, key)
+                if attr is None or type(attr) is Property:  # initial set
                     return object.__setattr__(self, key, value)
                 else:
                     return attr.set(value)  # has its own set
-            elif prop.is_runtime_only or prop.is_autoset:  # untracked
-                return object.__setattr__(self, key, value)
+            elif prop.is_computed:
+                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
             if is_tracked:
                 # validated set
                 prev = getattr(self, key)
                 object.__setattr__(self, key, value)
                 try:
-                    self._validate_self([prop], on_invalid=on_invalid_raise)
+                    self._validate_self((prop,), on_invalid=on_invalid_raise)
                     self._updated_self((prop,))
                 except ValidationError:  # reset on error
                     object.__setattr__(self, key, prev)
@@ -1362,7 +1390,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
                 object.__setattr__(
                     self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
                 )
-            if self._session is not None and not self._is_new:
+            if is_tracked and self._session is not None and not self._is_new:
                 # update in session
                 if self._updated_properties is None:
                     self._updated_properties = bitarray(self.__max_property_ord__ + 1)
@@ -1420,7 +1448,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             **{
                 p.name: p
                 for p in self.__properties__.values()
-                if p.reference_kind or not p.is_runtime_only
+                if p.reference_kind or not p.is_ephemeral
             },
             # public methods
             **{m: None for m in dir(self) if not m.startswith("_")},

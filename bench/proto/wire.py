@@ -878,12 +878,12 @@ class FileData(betterproto.Message):
     """A reference to a file stored somewhere."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
-    sha512: Optional[str] = betterproto.string_field(30, optional=True)
-    content_length: Optional[int] = betterproto.int32_field(31, optional=True)
-    content_type: Optional[str] = betterproto.string_field(32, optional=True)
+    type: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(33, optional=True)
-    content_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    external_url: Optional[str] = betterproto.string_field(35, optional=True)
+    size: Optional[int] = betterproto.int32_field(34, optional=True)
+    sha512: Optional[str] = betterproto.string_field(35, optional=True)
+    content_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    external_url: Optional[str] = betterproto.string_field(37, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1542,8 +1542,8 @@ class FileContentData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     sha512: str = betterproto.string_field(30)
-    content_length: int = betterproto.int64_field(31)
-    content_type: str = betterproto.string_field(32)
+    size: int = betterproto.int64_field(31)
+    type: str = betterproto.string_field(32)
     status: "FileStatus" = betterproto.enum_field(33)
     retention: "FileRetentionMode" = betterproto.enum_field(34)
     expires_at: Optional[datetime] = betterproto.message_field(35, optional=True)
@@ -2322,10 +2322,7 @@ class EditData(betterproto.Message):
     """The scope to apply the edit to."""
 
     subject: Optional["NodeReferenceData"] = betterproto.message_field(6, optional=True)
-    """
-    The User/Run that made the edit.
-     nocheckin: use and store Edit.subject (and validate?)
-    """
+    """The User/Run that made the edit."""
 
     revision: Optional[int] = betterproto.int64_field(7, optional=True)
     """System-side accepted revision for the edit."""
@@ -3914,79 +3911,79 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    HandleData,
-    UpgradeData,
-    RecordData,
-    RoleData,
-    MembershipData,
-    InviteData,
-    SkipData,
-    BranchData,
-    StoreData,
-    LinkData,
-    BenchData,
-    SpaceData,
-    PackageData,
-    DriveData,
-    ClientData,
-    OrganizationData,
-    DependencyData,
-    FieldData,
-    ViewData,
-    IdentityData,
-    QueryData,
-    CacheData,
-    TriggerData,
-    BlockData,
-    BadgeData,
-    NotificationData,
-    UserData,
-    SignalData,
     LogData,
-    RunData,
-    PauseData,
-    NoticeData,
-    EnvironmentData,
-    SessionData,
-    ServerData,
+    UpgradeData,
+    FieldData,
+    BenchData,
     FileContentData,
+    ViewData,
+    RunData,
+    StoreData,
+    CacheData,
+    BlockData,
+    SpaceData,
+    NoticeData,
+    DriveData,
+    UserData,
+    BranchData,
+    TriggerData,
+    IdentityData,
+    LinkData,
+    InviteData,
+    RecordData,
+    DependencyData,
+    QueryData,
+    NotificationData,
+    RoleData,
+    SignalData,
+    OrganizationData,
+    ClientData,
+    MembershipData,
+    HandleData,
+    SessionData,
+    PackageData,
+    BadgeData,
+    PauseData,
+    EnvironmentData,
+    SkipData,
+    ServerData,
 ]
 AnyStructData = Union[
-    RichTextData,
-    PolicyRuleData,
-    AccessTraceData,
-    TypeInfoData,
-    BenchPathData,
     ValueSelectionData,
-    SpaceDockData,
-    AggregationData,
-    PolicyData,
-    ProjectionData,
-    PropertyPathData,
-    AccessMatrixData,
-    CodeData,
-    ScheduleData,
-    ServerImageData,
-    FieldPathSegmentData,
-    IconData,
     RunErrorData,
+    CodeSectionData,
+    PropertyPathData,
+    AccessTraceData,
+    ScheduleData,
+    BenchPathData,
+    SpaceDockData,
+    TypeInfoData,
+    RichTextData,
+    AggregationBucketData,
+    ServerImageData,
+    NodeReferenceData,
+    FieldPathSegmentData,
+    ReadOptionsData,
+    FileData,
+    AccessZoneData,
     RichTextSpanData,
     AccessData,
-    RunCodeFrameData,
-    ServerImageRequirementData,
-    AccessZoneData,
-    SubjectData,
-    ContextData,
-    StoreCredentialData,
     PropertyReferenceData,
-    AggregationBucketData,
-    CodeSectionData,
-    RequestData,
-    NodeReferenceData,
+    AccessMatrixData,
+    ServerImageRequirementData,
+    SubjectData,
     ExpressionData,
-    ReadOptionsData,
-    ValueReferenceData,
+    CodeData,
+    StoreCredentialData,
+    AggregationData,
     FieldPathData,
-    FileData,
+    RequestData,
+    PolicyRuleData,
+    RunCodeFrameData,
+    PolicyData,
     SpaceDockItemData,
+    ContextData,
+    ValueReferenceData,
+    IconData,
+    ProjectionData,
 ]

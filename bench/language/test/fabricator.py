@@ -47,6 +47,8 @@ class Fabricator:
             }
         elif prop.py_type_stripped in self.DEFAULT_GENERATORS:
             return self.DEFAULT_GENERATORS[prop.py_type_stripped]()
+        elif prop.primitive_type == PrimitiveType.JSON:
+            return {}  # not correct, not sure what to do
         else:
             raise ValueError(f"cannot fabricate {prop}")
 
@@ -71,9 +73,11 @@ class Fabricator:
         else:  # default unconstrained random jumble of properties
             kwargs = {}
             bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
-            for prop in bench_cls.__runtime_properties__.values():
-                if prop.is_runtime_only or prop.is_computed:
+            for prop in bench_cls.__wired_properties__.values():
+                if prop.is_ephemeral or prop.is_computed:
                     continue
+                elif prop.reference_kind and not prop.reference_source:
+                    continue  # set indirectly via the underlying NodeReference/PropertyReference
                 elif prop.struct_type in path:  # prevent circles
                     kwargs[prop.name] = [] if prop.is_array else None
                 elif prop.is_array:
@@ -81,4 +85,5 @@ class Fabricator:
                     kwargs[prop.name] = [self.fabricate_prop_scalar(prop, path) for _ in range(len)]
                 else:
                     kwargs[prop.name] = self.fabricate_prop_scalar(prop, path)
-            return bench_cls(**kwargs)
+            fabricated = bench_cls(**kwargs)
+            return fabricated

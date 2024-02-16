@@ -394,27 +394,27 @@ export interface FileData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: optional string sha512 = 30;
+     * @generated from protobuf field: optional string type = 31;
      */
-    sha512?: string;
-    /**
-     * @generated from protobuf field: optional int32 content_length = 31;
-     */
-    contentLength?: number;
-    /**
-     * @generated from protobuf field: optional string content_type = 32;
-     */
-    contentType?: string;
+    type?: string;
     /**
      * @generated from protobuf field: optional string name = 33;
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData content_ptr = 34;
+     * @generated from protobuf field: optional int32 size = 34;
+     */
+    size?: number;
+    /**
+     * @generated from protobuf field: optional string sha512 = 35;
+     */
+    sha512?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData content_ptr = 36;
      */
     contentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string external_url = 35;
+     * @generated from protobuf field: optional string external_url = 37;
      */
     externalUrl?: string;
 }
@@ -2071,13 +2071,13 @@ export interface FileContentData {
      */
     sha512: string;
     /**
-     * @generated from protobuf field: int64 content_length = 31;
+     * @generated from protobuf field: int64 size = 31;
      */
-    contentLength: bigint;
+    size: bigint;
     /**
-     * @generated from protobuf field: string content_type = 32;
+     * @generated from protobuf field: string type = 32;
      */
-    contentType: string;
+    type: string;
     /**
      * @generated from protobuf field: symbolx.bench.FileStatus status = 33;
      */
@@ -7416,12 +7416,12 @@ class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "content_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "content_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "content_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 36, name: "content_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FileData>): FileData {
@@ -7439,22 +7439,22 @@ class FileData$Type extends MessageType<FileData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional string sha512 */ 30:
-                    message.sha512 = reader.string();
-                    break;
-                case /* optional int32 content_length */ 31:
-                    message.contentLength = reader.int32();
-                    break;
-                case /* optional string content_type */ 32:
-                    message.contentType = reader.string();
+                case /* optional string type */ 31:
+                    message.type = reader.string();
                     break;
                 case /* optional string name */ 33:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData content_ptr */ 34:
+                case /* optional int32 size */ 34:
+                    message.size = reader.int32();
+                    break;
+                case /* optional string sha512 */ 35:
+                    message.sha512 = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData content_ptr */ 36:
                     message.contentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.contentPtr);
                     break;
-                case /* optional string external_url */ 35:
+                case /* optional string external_url */ 37:
                     message.externalUrl = reader.string();
                     break;
                 default:
@@ -7472,24 +7472,24 @@ class FileData$Type extends MessageType<FileData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional string sha512 = 30; */
-        if (message.sha512 !== undefined)
-            writer.tag(30, WireType.LengthDelimited).string(message.sha512);
-        /* optional int32 content_length = 31; */
-        if (message.contentLength !== undefined)
-            writer.tag(31, WireType.Varint).int32(message.contentLength);
-        /* optional string content_type = 32; */
-        if (message.contentType !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.contentType);
+        /* optional string type = 31; */
+        if (message.type !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.type);
         /* optional string name = 33; */
         if (message.name !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.NodeReferenceData content_ptr = 34; */
+        /* optional int32 size = 34; */
+        if (message.size !== undefined)
+            writer.tag(34, WireType.Varint).int32(message.size);
+        /* optional string sha512 = 35; */
+        if (message.sha512 !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.sha512);
+        /* optional symbolx.bench.NodeReferenceData content_ptr = 36; */
         if (message.contentPtr)
-            NodeReferenceData.internalBinaryWrite(message.contentPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional string external_url = 35; */
+            NodeReferenceData.internalBinaryWrite(message.contentPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional string external_url = 37; */
         if (message.externalUrl !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.externalUrl);
+            writer.tag(37, WireType.LengthDelimited).string(message.externalUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -11291,8 +11291,8 @@ class FileContentData$Type extends MessageType<FileContentData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "sha512", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "content_length", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 32, name: "content_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 32, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "status", kind: "enum", T: () => ["symbolx.bench.FileStatus", FileStatus, "FILE_STATUS_"] },
             { no: 34, name: "retention", kind: "enum", T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 35, name: "expires_at", kind: "message", T: () => Timestamp }
@@ -11305,8 +11305,8 @@ class FileContentData$Type extends MessageType<FileContentData> {
         message.source = 0;
         message.revision = 0n;
         message.sha512 = "";
-        message.contentLength = 0n;
-        message.contentType = "";
+        message.size = 0n;
+        message.type = "";
         message.status = 0;
         message.retention = 0;
         if (value !== undefined)
@@ -11354,11 +11354,11 @@ class FileContentData$Type extends MessageType<FileContentData> {
                 case /* string sha512 */ 30:
                     message.sha512 = reader.string();
                     break;
-                case /* int64 content_length */ 31:
-                    message.contentLength = reader.int64().toBigInt();
+                case /* int64 size */ 31:
+                    message.size = reader.int64().toBigInt();
                     break;
-                case /* string content_type */ 32:
-                    message.contentType = reader.string();
+                case /* string type */ 32:
+                    message.type = reader.string();
                     break;
                 case /* symbolx.bench.FileStatus status */ 33:
                     message.status = reader.int32();
@@ -11417,12 +11417,12 @@ class FileContentData$Type extends MessageType<FileContentData> {
         /* string sha512 = 30; */
         if (message.sha512 !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.sha512);
-        /* int64 content_length = 31; */
-        if (message.contentLength !== 0n)
-            writer.tag(31, WireType.Varint).int64(message.contentLength);
-        /* string content_type = 32; */
-        if (message.contentType !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.contentType);
+        /* int64 size = 31; */
+        if (message.size !== 0n)
+            writer.tag(31, WireType.Varint).int64(message.size);
+        /* string type = 32; */
+        if (message.type !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.type);
         /* symbolx.bench.FileStatus status = 33; */
         if (message.status !== 0)
             writer.tag(33, WireType.Varint).int32(message.status);

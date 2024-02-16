@@ -730,15 +730,15 @@ class PostgresConnection(
             )
 
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
-        from bench.sql.engine import pg_write_regular_edits
+        from bench.sql.engine import pg_write_edits
 
-        new_revisions = await pg_write_regular_edits(self.cur, edits)
+        new_revisions = await pg_write_edits(self.cur, edits)
         return new_revisions
 
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
-        from bench.sql.engine import pg_write_regular_edits
+        from bench.sql.engine import pg_write_edits
 
-        new_revisions = await pg_write_regular_edits(self.cur, edits)
+        new_revisions = await pg_write_edits(self.cur, edits)
         await self.cur.connection.commit()
         return new_revisions
 

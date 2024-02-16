@@ -30,19 +30,19 @@ GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional
 class File(Struct):
     """A reference to a file stored somewhere."""
 
-    sha512: Optional[str] = p_internal(30)
-    content_length: Optional[int] = p_internal(31)
-    content_type: Optional[str] = p_internal(32)
+    type: Optional[str] = p_internal(31)
     name: Optional[str] = p_regular(33)
+    size: Optional[int] = p_internal(34)
+    sha512: Optional[str] = p_internal(35)
     content: Optional["FileContent"] = p_internal(
-        34, require=False, array=False, references=NodeType.FILE_CONTENT
+        36, require=False, array=False, references=NodeType.FILE_CONTENT
     )
-    external_url: Optional[str] = p_internal(35)
+    external_url: Optional[str] = p_internal(37)
 
     _cached_bytes: Optional[bytes] = p_runtime(default=None)
 
     def __content_str__(self):
-        return f"{self.name} {self.status}, {self.content_type}, {self.content_length} bytes"
+        return f"{self.name} {self.status}, {self.type}, {self.size} bytes"
 
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: ValidationHandler
@@ -52,10 +52,10 @@ class File(Struct):
                 self,
                 f"{self} name is too long ({len(self.name)} > {FILE_MAX_NAME_LENGTH})",
             )
-        if self.content_length > FILE_MAX_SIZE:
+        if self.size > FILE_MAX_SIZE:
             on_invalid(
                 self,
-                f"{self} is too big ({self.content_length} > {FILE_MAX_SIZE} bytes)",
+                f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)",
             )
 
     @_auto_async_to_sync
@@ -146,39 +146,39 @@ class File(Struct):
         response.raise_for_status()
         obj = File(
             sha512=hashlib.sha512(response.content).hexdigest(),
-            content_length=int(response.headers["Content-Length"]),
-            content_type=response.headers["Content-Type"],
+            size=int(response.headers["Content-Length"]),
+            type=response.headers["Content-Type"],
             name=name or response.url.split("/")[-1],
         )
         obj._assign_id_and_ck(session.package.ck)
-        obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
+        obj._validate_self(["name", "type", "size"], on_invalid=on_invalid_raise)
         await obj._do_upload(response.content)
         return obj
 
     @staticmethod
     @_auto_async_to_sync
-    async def from_file(file: BinaryIO, name: str = None, content_type: str = None) -> "File":
+    async def from_file(file: BinaryIO, name: str = None, type: str = None) -> "File":
         """Upload a file to file storage."""
         content = file.read()
-        content_type = content_type or mimetypes.guess_type(file.name)[0]
-        return await File.from_content(name or file.name, content_type, content)
+        type = type or mimetypes.guess_type(file.name)[0]
+        return await File.from_content(name or file.name, type, content)
 
     @staticmethod
     @_auto_async_to_sync
-    async def from_content(name: str, content_type: str, content: bytes | BinaryIO) -> "File":
+    async def from_content(name: str, type: str, content: bytes | BinaryIO) -> "File":
         """Upload a file to file storage."""
         session = active_session()
         if isinstance(content, BinaryIO):
             content = content.read()
         obj = File(
             sha512=hashlib.sha512(content).hexdigest(),
-            content_length=len(content),
-            content_type=content_type,
+            size=len(content),
+            type=type,
             name=name,
             _session=None,
         )
         obj._assign_id_and_ck(session.package.ck)
-        obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
+        obj._validate_self(["name", "type", "size"], on_invalid=on_invalid_raise)
         await obj._do_upload(content)
         return obj
 

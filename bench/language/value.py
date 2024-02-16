@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 import structlog
 
 from bench.language.const import StructType, NodeType
-from bench.language.node import Node, NodeStatus, node_component, Property, struct, Struct
+from bench.language.node import Node, NodeStatus, Property, struct, Struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler
@@ -41,8 +41,8 @@ class Value(TypedDict):
     ...  # actual value
 
 
-@node_component
-class HasValues(Node):
+@struct_component
+class HasValues(Struct):
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:

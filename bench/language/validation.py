@@ -2,6 +2,7 @@ import enum
 import re
 from typing import TYPE_CHECKING, Union
 
+import betterproto
 import cachetools
 
 from bench.language.const import BenchError
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 class ValidationError(BenchError, ValueError):
     def __init__(
         self,
-        subject: Union["Struct", "AnyStructData", "AnyNodeData"],
+        subject: Union["Struct", "AnyStructData", "AnyNodeData", betterproto.Message],
         message: str,
         properties: list["Property"] | None = None,
         cause: Exception | None = None,

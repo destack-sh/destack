@@ -33,9 +33,9 @@ USER_PG_USERNAME = get_from_env("USER_PG_USERNAME", optional=True)
 USER_PG_PASSWORD = get_from_env("USER_PG_PASSWORD", optional=True)
 
 GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
-SYSTEM_BENCH = Bench(name="system", slug="system", encryption_key=GLOBAL_PG_CRYPTO_KEY)
+SYSTEM_BENCH = Bench(name="System", slug="system", encryption_key=GLOBAL_PG_CRYPTO_KEY)
 GLOBAL_STORE = Store(
-    name="global",
+    name="Global",
     kind=StoreKind.RELATIONAL,
     engine=StoreEngineType.POSTGRES,
     parent=SYSTEM_BENCH,
