@@ -53,7 +53,6 @@ message EditData {
   // The scope to apply the edit to.
   GraphScope scope = 5;
   // The User/Run that made the edit.
-  // nocheckin: use and store Edit.subject (and validate?)
   optional NodeReferenceData subject = 6;
   // System-side accepted revision for the edit.
   optional int64 revision = 7;

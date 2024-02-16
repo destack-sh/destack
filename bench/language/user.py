@@ -182,6 +182,7 @@ class Invite(Node):
     user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
     user_email: Optional[str] = p_regular(31)
 
+    # membership properties once accepted
     is_owner: bool = p_regular(32, default=False)
     roles: list["Role"] | None = p_regular(
         33, default_factory=list, require=False, array=True, references=NodeType.ROLE
@@ -193,7 +194,7 @@ class Invite(Node):
     passthrough=(("value", _Passthrough.Full),),
     index_in_search=True,
 )
-class Notification(HasValues):
+class Notification(Node, HasValues):
     """
     A notification for the Bench's owner.
     As with all owner Bench stuff, the main Bench's main package is the 'truth'.

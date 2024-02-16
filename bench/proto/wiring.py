@@ -287,7 +287,7 @@ def unpack_nodes_inline(
             # keep parent instance if it was passed (update in place)
             if parent is not None and node.id == parent.id:
                 for prop in parent.__properties__.values():
-                    if not prop.is_runtime_only and not prop.is_graph_reference:
+                    if not prop.is_ephemeral and not prop.is_graph_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = parent
 

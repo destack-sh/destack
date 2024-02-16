@@ -797,12 +797,12 @@ message FieldPathSegmentData {
 // A reference to a file stored somewhere.
 message FileData {
   BenchType metatype = 1;
-  optional string sha512 = 30;
-  optional int32 content_length = 31;
-  optional string content_type = 32;
+  optional string type = 31;
   optional string name = 33;
-  optional NodeReferenceData content_ptr = 34;
-  optional string external_url = 35;
+  optional int32 size = 34;
+  optional string sha512 = 35;
+  optional NodeReferenceData content_ptr = 36;
+  optional string external_url = 37;
 }
 
 // Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -1331,8 +1331,8 @@ message FileContentData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   string sha512 = 30;
-  int64 content_length = 31;
-  string content_type = 32;
+  int64 size = 31;
+  string type = 32;
   FileStatus status = 33;
   FileRetentionMode retention = 34;
   optional google.protobuf.Timestamp expires_at = 35;

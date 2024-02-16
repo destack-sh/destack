@@ -53,6 +53,9 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     alias: str | None = None  # for node list relations
     struct_type: StructType | None = None  # for struct properties
     primitive_type: PrimitiveType | None = UNSET
+    default: Any = UNSET
+    default_factory: Callable[[], Any] | None = None
+    custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
 
     # flags
     is_array: bool = UNSET
@@ -63,6 +66,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     is_autoset: bool = False  # = set automatically by system, cannot set directly
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance
+    is_ephemeral: bool = False  # runtime-only in-memory property
     is_wired: bool = UNSET  # serialized onto wire (in proto)
     is_stored: bool = UNSET  # stored in DB
     is_indexed_in_pg: bool = False  # indexed in DB?
@@ -93,11 +97,9 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     children_flags: NodeRelationType = NodeRelationType.DEFAULT
     list_type: type["NodeListBase"] | None = None
 
-    default: Any = UNSET
-    default_factory: Callable[[], Any] | None = None
-    custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
     _cached_as_ref: Optional["PropertyReference"] = None
     _cached_as_type: Optional["TypeInfo"] = None
+    _is_finalized: bool = False
 
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
@@ -122,6 +124,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "is_wired",
             "is_stored",
             "is_computed",
+            "is_ephemeral",
             "is_internal",
             "is_system",
             "is_kernel",
@@ -135,7 +138,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "ord",
         ):
             v = getattr(self, k)
-            if v is UNSET or (not v and v != 0):
+            if v is UNSET or (not v and type(v) is not int or v != 0):
                 continue
             elif k == "id":
                 non_default.append(str(v))
@@ -227,7 +230,16 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
     @property
     def is_introspectable(self) -> bool:
-        return not self.is_runtime_only and self.is_stored
+        return (
+            # exclude our own runtime-only properties
+            not self.is_ephemeral
+            # exclude empty references type, TypeInfo can't handle that yet
+            and (not self.reference_kind or self.reference_types)
+            # exclude ancestor properties (they're computed but would be nice to have :c)
+            and self.reference_kind != NodeReferenceKind.ANCESTOR
+            # exclude contributed reference properties (like parent_id)
+            and not self.reference_source
+        )
 
     @property
     def is_graph_reference(self) -> bool:
@@ -261,10 +273,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     @property
     def is_property_reference(self) -> bool:
         return self.struct_type == StructType.PROPERTY_REFERENCE
-
-    @property
-    def is_runtime_only(self):
-        return self.is_runtime and not self.is_stored and not self.is_wired
 
     @property
     def is_optional(self) -> bool:
@@ -309,7 +317,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             self.is_runtime = self.is_stored
 
         # resolve py type
-        if self.is_runtime_only or self.reference_kind == NodeReferenceKind.CHILD:
+        if self.is_ephemeral or self.reference_kind == NodeReferenceKind.CHILD:
             # can't resolve these because they point to non-Bench types
             self.py_type_stripped = self.py_type_raw
             return
@@ -353,14 +361,17 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         if self.is_value_runtime:
             from bench.language.value import HasValues
 
-            assert HasValues in self.component.__static_components__, f"{self!r} is not HasValues"
-            if self.value_type_info_id is not None:
+            assert (
+                HasValues in self.component.__static_components__
+            ), f"{self.component} is not HasValues"
+            if isinstance(self.value_type_info_ptr, int):
                 self.value_type_info_ptr = self.component.__properties_by_id__[
-                    self.value_type_info_id
+                    self.value_type_info_ptr
                 ]
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
-            self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
-            if self.secret_value_packed_ptr is not None:
+            if isinstance(self.value_packed_ptr, int):
+                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+            if isinstance(self.secret_value_packed_ptr, int):
                 self.secret_value_packed_ptr = self.component.__properties_by_id__[
                     self.secret_value_packed_ptr
                 ]
@@ -542,8 +553,8 @@ def p_property(
     require: bool = UNSET,
     references: tuple[NodeType, ...] | NodeType = None,
     struct: StructType = None,
-    store: bool = UNSET,
-    wire: bool = UNSET,
+    store: bool = True,
+    wire: bool = True,
     primitive_type: PrimitiveType = UNSET,
     index_in_pg: bool = False,
     array: bool = UNSET,
@@ -568,6 +579,7 @@ def p_property(
         is_kernel=kernel,
         is_required=require,
         is_autoset=autoset,
+        is_runtime=True,
         is_wired=wire,
         is_stored=store,
         is_array=array,
@@ -589,6 +601,7 @@ def p_runtime(
         is_internal=True,
         is_runtime=True,
         is_wired=False,
+        is_ephemeral=True,
         is_computed=False,
         is_required=False,
         is_stored=False,
@@ -676,6 +689,7 @@ def p_value_runtime(
         is_runtime=True,
         is_wired=False,
         is_stored=False,
+        is_ephemeral=True,
         is_required=False,
         is_value_runtime=True,
         default=None,
@@ -746,9 +760,11 @@ METATYPE_PROPERTY = Property(
     is_internal=True,
     is_required=True,
     is_computed=True,  # is set statically in runtime
+    is_ephemeral=True,
     is_runtime=False,
     is_wired=True,
     is_stored=False,
+    is_array=False,
     primitive_type=PrimitiveType.STRING,
 )
 _PROPERTY_SPECIFIERS = (

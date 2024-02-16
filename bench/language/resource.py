@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
 
 from bench.language.text import RichText
 from bench.language.const import (
@@ -20,9 +19,8 @@ from bench.language.node import (
     struct,
 )
 from bench.language.property import p_parent, p_regular, p_internal, p_system, p_kernel
-from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import IdEnum, _auto_async_to_sync
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench
@@ -144,16 +142,11 @@ class FileContent(Node):
 
     parent: Drive = p_parent(4, NodeType.DRIVE, is_system=True)
     sha512: str = p_internal(30)
-    content_length: int = p_internal(31, primitive_type=PrimitiveType.INT64)
-    content_type: str = p_internal(32)
+    size: int = p_internal(31, primitive_type=PrimitiveType.INT64)
+    type: str = p_internal(32)
     status: FileStatus = p_internal(33)
     retention: FileRetentionMode = p_regular(34)
     expires_at: Optional[datetime] = p_regular(35)
-
-
-CacheKey = str | bytes
-CacheValue = str | bytes
-CACHE_USAGE_KEY = "__used"
 
 
 @node(NodeType.CACHE)
@@ -161,54 +154,3 @@ class Cache(Node):
     """Cache for ephemeral data."""
 
     parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
-
-    @_auto_async_to_sync
-    async def get(self, key: CacheKey) -> Optional[CacheValue]:
-        return await redis.get(f"{self.scope_key}.{key}")
-
-    @_auto_async_to_sync
-    async def get_many(self, keys: list[CacheKey]) -> dict[CacheKey, CacheValue]:
-        values = await redis.mget([f"{self.scope_key}.{key}" for key in keys])
-        return {key: value for key, value in zip(keys, values) if value is not None}
-
-    @_auto_async_to_sync
-    async def set(self, key: CacheKey, value: CacheValue, expire: int = None):
-        value_size = self.get_value_size(value)
-        pipe = redis.pipeline()
-        pipe.set(f"{self.scope_key}.{key}", value, ex=expire)
-        pipe.incrby(self.usage_key, value_size)
-        await pipe.execute()
-
-    @_auto_async_to_sync
-    async def set_many(self, values: dict[CacheKey, CacheValue], expire: int = None):
-        total_size = sum(self.get_value_size(value) for value in values.values())
-        pipe = redis.pipeline()
-        for key, value in values.items():
-            pipe.set(f"{self.scope_key}.{key}", value, ex=expire)
-        pipe.incrby(self.usage_key, total_size)
-        await pipe.execute()
-
-    @_auto_async_to_sync
-    async def delete(self, key: CacheKey) -> CacheValue:
-        value = await redis.get(f"{self.scope_key}.{key}")
-        if value is None:
-            raise KeyError(key)
-        pipe = redis.pipeline()
-        pipe.delete(f"{self.scope_key}.{key}")
-        pipe.decrby(self.usage_key, self.get_value_size(value))
-        await pipe.execute()
-        return value
-
-    def get_value_size(self, value: CacheValue) -> int:
-        if isinstance(value, bytes):
-            return len(value)
-        elif isinstance(value, str):
-            return len(value.encode("utf-8"))
-        else:
-            raise ValueError(f"unexpected value type {type(value)}")
-
-    def _get_scope_key(self, bench_id: UUID) -> str:
-        return f"bench.{bench_id}"
-
-    def _get_usage_key(self, bench_id: UUID) -> str:
-        return f"{self._get_scope_key(bench_id)}.{CACHE_USAGE_KEY}"

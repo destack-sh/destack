@@ -33,6 +33,7 @@ from bench.language.property import (
     p_internal,
 )
 from bench.language.validation import validate_name
+from bench.language.value import HasValues
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 
@@ -74,7 +75,7 @@ class TypeError(BenchError, TypeError):
 
 
 @struct(StructType.TYPE_INFO)
-class TypeInfo(Struct):
+class TypeInfo(HasValues):
     """
     A type is a kind of value that can go somewhere, typically a field.
 

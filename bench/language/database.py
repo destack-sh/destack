@@ -56,7 +56,7 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
     index_in_search=True,
     local=True,
 )
-class Record(HasValues):
+class Record(Node, HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema

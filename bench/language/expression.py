@@ -22,7 +22,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Field, Node, TypeInfo
+    from bench.language import Block, Expression, Field, TypeInfo
     from bench.language.query import QueryBuilder
 
 #
@@ -81,6 +81,7 @@ class NodeReference(Struct):
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
         if node is None:
             return None
+        assert isinstance(node, Node), f"expected Node, got {node!r}"
         if "ck" in node.__properties__:
             if node.metatype == NodeType.RECORD:
                 return NodeReference(

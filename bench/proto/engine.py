@@ -41,7 +41,7 @@ _BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag
 
 
 def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoObject]) -> Field:
-    assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
+    assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
     if prop.is_struct or prop.is_enum:

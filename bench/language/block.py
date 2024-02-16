@@ -119,7 +119,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Block(HasValues):
+class Block(Node, HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
@@ -257,7 +257,7 @@ class Block(HasValues):
         # add runtime properties from dynamic components
         for component in self._dynamic_components:
             for prop in component.__properties__.values():
-                if prop.is_runtime_only and prop.name not in self.__dict__:
+                if prop.is_ephemeral and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
     def morph(self, to_type: BlockType):

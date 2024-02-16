@@ -171,6 +171,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 clients = await Client.filter(
                     parent=subject.user, id__in=request.client_ids
                 ).tolist()
+                if len(clients) != len(request.client_ids):
+                    missing_ids = set(request.client_ids) - {c.id for c in clients}
+                    raise GRPCError(GRPCStatus.NOT_FOUND, f"clients not found: {missing_ids}")
             elif request.logout_all:
                 clients = await Client.filter(parent=subject.user).tolist()
             else:

@@ -27,7 +27,6 @@ from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
 from bench.language.query import StoreEngine, QueryBuilder, FetchOptions
 from bench.proto import wiring
-from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     EditData,
     GraphIoBase,
@@ -235,7 +234,7 @@ class GraphIoService(GraphIoBase):
             # apply the edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
-            self.on_graph_edited(request.edits)
+            self.on_graph_edited(request.edits, graph)
 
         accepted_revisions = [e.revision for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -243,21 +242,19 @@ class GraphIoService(GraphIoBase):
     async def flush_transaction(
         self, subject: "Subject", request: "FlushTransactionRequest"
     ) -> "FlushTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     async def complete_transaction(
         self, subject: Subject, request: "CompleteTransactionRequest"
     ) -> "CompleteTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     async def cancel_transaction(
         self, subject: Subject, request: "CancelTransactionRequest"
     ) -> "CancelTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        if not self.supports_watch:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"watch not supported in {self.__class__}")
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
