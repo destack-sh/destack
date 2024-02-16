@@ -11,13 +11,14 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.15.3"
+VERSION = "2024.02.16.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
 REVISION_PENDING = -1
+
 
 #
 # Metatypes for Nodes/Structs
@@ -39,12 +40,12 @@ class NodeType(IdEnum):
     LINK = 24
     SKIP = 25
     NOTICE = 26
-    BLOCK = 27
-    TRIGGER = 28
-    FIELD = 29
-    RECORD = 30  # (local)
-    QUERY = 31
-    VIEW = 32
+    BLOCK = 30
+    TRIGGER = 31
+    FIELD = 32
+    RECORD = 33  # (local)
+    QUERY = 34
+    VIEW = 35
     # TAG?  (not sure what to do with tags yet)
     # STEP = ...
     # CONNECTION? (also for Flow)
@@ -52,7 +53,7 @@ class NodeType(IdEnum):
     # REACTION = ...
     # LOCK?
 
-    # session
+    # session/runtime
     SESSION = 50  # (local)
     RUN = 51  # (local)
     PAUSE = 52  # (local)
@@ -80,8 +81,7 @@ class NodeType(IdEnum):
     ORGANIZATION = 222
     CLIENT = 223
     MEMBERSHIP = 225
-    # INVITE = ...
-    # FRIENDSHIP/FOLLOW/AFFILIATION...?
+    INVITE = 226
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
@@ -89,21 +89,19 @@ ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100) + (NodeType.SPACE,)
+    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100) + (NodeType.MEMBERSHIP, NodeType.INVITE)
 )
 SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in IN_PACKAGE_NODE_TYPES if nt != NodeType.PACKAGE)
+    tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
 )
 IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if nt.id < 200)
-    + (NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.SPACE, NodeType.HANDLE)
+    + (NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.CLIENT, NodeType.HANDLE)
 )
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
-PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.MEMBERSHIP)
-)
+PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGANIZATION))
 OUTSIDE_BENCH_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     OUTSIDE_BENCH_NODE_TYPES.tuple + (NodeType.BENCH,)
@@ -204,7 +202,7 @@ class BlockType(IdEnum):
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
 
     QUERY = 40  # define a set of queries
-    DATABASE = 41  # define a database with queries
+    DATABASE = 41  # define a database with records & queries
 
     SCREEN = 50  # define a screen with views
 
@@ -635,6 +633,33 @@ if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
     ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
+
+
+class UserStatus(IdEnum):
+    INVITED = 1  # invited via email
+    RESERVED = 2  # reserved a handle, unconfirmed
+    REGISTERED = 3  # confirmed email
+    ACTIVATED = 10  # has main bench
+
+
+class OrganizationStatus(IdEnum):
+    REGISTERED = 3  # created org
+    ACTIVATED = 10  # has main bench
+
+
+class NotificationKind(IdEnum):
+    """
+    The level of interaction required for a notification.
+    """
+
+    PASSIVE = 1  # no quick action required, not urgent
+    ACTIVE = 2  # important action required / may want to know this as soon as possible
+    URGENT = 3  # immediate action required
+
+
+#
+# Other common non-const stuff
+#
 
 
 class BenchError(Exception):

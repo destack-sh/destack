@@ -52,7 +52,6 @@ from bench.language.property import Property
 from bench.language.graph import (
     DetachedNodeGraph,
     NodeGraph,
-    NodeGraphBase,
     NodeList,
     NodeDataGraph,
 )
@@ -91,10 +90,7 @@ from bench.sql.core import (
 )
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import (
-    bytetuple,
-    did_you_mean_str,
-)
+from bench.utils.func import bytetuple, did_you_mean_str
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
@@ -109,6 +105,8 @@ if TYPE_CHECKING:
         PropertyReference,
         Session,
         ValueReference,
+        User,
+        Run,
     )
     from bench.language.expression import _NodeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -1065,12 +1063,19 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
     deleted_at: Optional[datetime] = p_system(13, default=None, autoset=True)
     archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    # (only some nodes have some of these properties)
-    # changed_at, active_at, ....
-    # created_by, updated_by, changed_by, active_by, ...
-    # computed_properties: dict[int, ValueReference] | None = p_regular(20)
+    # not yet fully implemented:
+    # changed_at (15), active_at (16), ....
+    created_by: Union["User", "Run", None] = p_system(
+        17, default=None, require=False, array=False, references=(NodeType.USER, NodeType.RUN)
+    )
+    updated_by: Union["User", "Run", None] = p_system(
+        18, default=None, require=False, array=False, references=(NodeType.USER, NodeType.RUN)
+    )
+    # changed_by (19), active_by (20), ...
+    # for in-source nodes:
+    # computed_properties: dict[int, ValueReference] | None = p_regular(21)
     # for instances of templates (with 'template' set)
-    # set_properties: list[int] | None = p_regular(21)
+    # set_properties: list[int] | None = p_regular(22)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

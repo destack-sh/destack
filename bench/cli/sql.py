@@ -76,6 +76,7 @@ def regen():
 async def makemigrations(
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
+    no_local: bool = typer.Option(default=False, help="exclude local operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
 ):
@@ -106,22 +107,25 @@ async def makemigrations(
             f"stored migrations are ahead of known migrations:\nstored={stored_migrations!r}\nknown={known_migrations!r}"
         )
 
-    # resolve bench into local pg name if needed
-    async with global_session(read_only=True):
-        try:
-            bench = await Bench.descendants(Environment, Store).get(slug=bench)
-            async with pg_cursor_to_store(bench.main_environment.store) as cur:
-                old_local_tables = await introspect_tables_from_pg(cur)
-        except (NodeNotFoundError, SqlUndefinedObjectError):
-            old_local_tables = ()  # initial migration
+    # diff local
+    if not no_local:
+        async with global_session(read_only=True):
+            try:
+                bench = await Bench.descendants(Environment, Store).get(slug=bench)
+                async with pg_cursor_to_store(bench.main_environment.store) as cur:
+                    old_local_tables = await introspect_tables_from_pg(cur)
+            except (NodeNotFoundError, SqlUndefinedObjectError):
+                old_local_tables = ()  # initial migration
+        local_migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
+    else:
+        local_migration_ops = ()
 
-    # introspect current/old tables from DB, get new from code
+    # diff global
     async with global_pg_cursor() as cur:
         old_global_tables = await introspect_tables_from_pg(cur)
+    global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
 
     # generate migration
-    global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
-    local_migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
     if not global_migration_ops and not local_migration_ops:
         logger.info("makemigrations.noop")
         return

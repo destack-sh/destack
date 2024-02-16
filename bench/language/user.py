@@ -1,7 +1,13 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, Any
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import (
+    NodeType,
+    StructType,
+    OrganizationStatus,
+    UserStatus,
+    NotificationKind,
+)
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
@@ -22,7 +28,6 @@ from bench.language.property import (
 from bench.language.value import HasValues
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
-from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Bench, RichText, Role, Server, Space, Block, Package
@@ -48,13 +53,6 @@ class Handle(Node):
         4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
     )
     slug: str = p_system(30, unique=True)
-
-
-class UserStatus(IdEnum):
-    INVITED = 1  # invited via email
-    RESERVED = 2  # reserved a handle, unconfirmed
-    REGISTERED = 3  # confirmed email
-    ACTIVATED = 10  # has main bench
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
@@ -93,17 +91,22 @@ class User(Node):
 
     # flags
     is_staff: bool = p_system(90, default=False)
-    is_activated: bool = p_system(91, default=False)
 
+    def __content_str__(self) -> str:
+        return self.status.bench_name
 
-class OrganizationStatus(IdEnum):
-    REGISTERED = 3  # confirmed email
-    ACTIVATED = 10  # has main bench
+    @property
+    def bench(self) -> "Bench":
+        assert self.main_bench is not None, f"{self!r} is not activated"
+        return self.main_bench
 
 
 @node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
 class Organization(Node):
-    """A Bench organization with Users as members."""
+    """
+    A Bench organization with Users as members.
+    Until activation only its creator has access.
+    """
 
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE
@@ -120,17 +123,10 @@ class Organization(Node):
     # flags
     # ...
 
-
-@node(NodeType.MEMBERSHIP)
-class Membership(Node):
-    """A membership to a Bench or Organization."""
-
-    parent: Union["Bench", "Organization"] = p_parent(4, NodeType.BENCH, NodeType.ORGANIZATION)
-    user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
-    is_owner: bool = p_regular(31, default=False)
-
-    # roles are defined (and resolved) in the main bench
-    roles: NodeList["Role"] = p_child(NodeType.ROLE)
+    @property
+    def bench(self) -> "Bench":
+        assert self.main_bench is not None, f"{self!r} is not activated"
+        return self.main_bench
 
 
 @node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
@@ -164,14 +160,32 @@ class Client(Node):
         return self.parent
 
 
-class NotificationKind(IdEnum):
+@node(NodeType.MEMBERSHIP)
+class Membership(Node):
     """
-    The level of interaction required for a notification.
+    A membership to this Bench (or its owner if it's the main Bench).
     """
 
-    PASSIVE = 1  # no quick action required, not urgent
-    ACTIVE = 2  # important action required / may want to know this as soon as possible
-    URGENT = 3  # immediate action required
+    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
+    is_owner: bool = p_regular(31, default=False)
+
+    # roles are defined (and resolved) in the main bench
+    roles: NodeList["Role"] = p_child(NodeType.ROLE)
+
+
+@node(NodeType.INVITE)
+class Invite(Node):
+    """An invitation to become a member of this Bench."""
+
+    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
+    user_email: Optional[str] = p_regular(31)
+
+    is_owner: bool = p_regular(32, default=False)
+    roles: list["Role"] | None = p_regular(
+        33, default_factory=list, require=False, array=True, references=NodeType.ROLE
+    )
 
 
 @node(
@@ -188,8 +202,8 @@ class Notification(HasValues):
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
     # -> builtin_type / custom_type / ... 'type' as union
-    expires_at: datetime = p_internal(33)
-    read_at: datetime = p_internal(34)
+    expires_at: Optional[datetime] = p_internal(33, default=None)
+    read_at: Optional[datetime] = p_internal(34, default=None)
     sender: Optional["Block"] = p_internal(
         35, require=False, array=False, references=NodeType.BLOCK
     )
