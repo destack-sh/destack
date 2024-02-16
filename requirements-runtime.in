@@ -17,7 +17,7 @@ cachetools==5.2.0
 croniter==1.4.1
 dateparser==1.1.8
 deepgram-sdk==2.11.0
-dropbox==11.34.0
+dropbox==11.36.2
 duckdb==0.7.1
 ebooklib==0.18
 feedparser==6.0.10

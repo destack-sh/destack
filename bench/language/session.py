@@ -122,8 +122,8 @@ class LogLevel(IdEnum):
 @node(NodeType.LOG, stored=False, index_in_search=True, no_ck=True, id_factory=UUIDT)
 class Log(Node):
     """
-    A log (entry) is a timestamped record of something happening:
-     an event/message, any Access (read, edit, run), etc.
+    A log (entry) is a timestamped event of something happening:
+     a message, some Access (read, edit, use), etc.
     """
 
     parent: "Package" = p_parent(4, NodeType.PACKAGE)
@@ -154,6 +154,7 @@ class Log(Node):
 
 
 dcfield = dataclasses.field
+EditSubject = Union["User", "Run"]
 
 
 @dataclass(slots=True)
@@ -228,7 +229,7 @@ class Transaction:
     # Edits
     #
 
-    def _make_edit(self, type: EditType, n: Node) -> EditData:
+    def _make_edit(self, type: EditType, n: Node, subject: EditSubject) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         if self.is_read_only:
             raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
@@ -254,6 +255,8 @@ class Transaction:
             node=wiring.wrap_some_node(node_data),
             properties=properties,  # type: ignore
             scope=scope,
+            subject=subject.to_ref() if subject is not None else None,
+            revision=None,  # not known yet
         )
         return edit
 
@@ -274,21 +277,21 @@ class Transaction:
         for edit in edits:
             self._add_pending_edit(edit)
 
-    def create(self, n: Node):
-        edit = self._make_edit(EditType.CREATE, n)
+    def create(self, n: Node, subject: EditSubject):
+        edit = self._make_edit(EditType.CREATE, n, subject)
         self._add_pending_edit(edit)
 
-    def upsert(self, n: Node):
-        edit = self._make_edit(EditType.UPSERT, n)
+    def upsert(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.UPSERT, n, subject)
         self._add_pending_edit(edit)
 
-    def update(self, n: Node, properties: tuple[Property, ...]):
+    def update(self, n: Node, subject: EditSubject | None, properties: tuple[Property, ...]):
         from bench.proto import wiring
 
         edit = self._pending_updates_idx.get(n)
         if edit is None:
             # new update
-            edit = self._make_edit(EditType.UPDATE, n)
+            edit = self._make_edit(EditType.UPDATE, n, subject)
             engine = self._add_pending_edit(edit)
             self._pending_updates_idx[n] = engine.id, len(self.edits) - 1
             return
@@ -306,28 +309,28 @@ class Transaction:
             value = wiring._pack_struct_prop(prop, value, ignore_array=False)
             setattr(node_data, prop.name, value)
 
-    def move(self, n: Node):
-        edit = self._make_edit(EditType.MOVE, n)
+    def move(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.MOVE, n, subject)
         self._add_pending_edit(edit)
 
-    def soft_delete(self, n: Node):
-        edit = self._make_edit(EditType.SOFT_DELETE, n)
+    def soft_delete(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.SOFT_DELETE, n, subject)
         self._add_pending_edit(edit)
 
-    def restore(self, n: Node):
-        edit = self._make_edit(EditType.RESTORE, n)
+    def restore(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.RESTORE, n, subject)
         self._add_pending_edit(edit)
 
-    def archive(self, n: Node):
-        edit = self._make_edit(EditType.ARCHIVE, n)
+    def archive(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.ARCHIVE, n, subject)
         self._add_pending_edit(edit)
 
-    def unarchive(self, n: Node):
-        edit = self._make_edit(EditType.UNARCHIVE, n)
+    def unarchive(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.UNARCHIVE, n, subject)
         self._add_pending_edit(edit)
 
-    def delete(self, n: Node):
-        edit = self._make_edit(EditType.DELETE, n)
+    def delete(self, n: Node, subject: EditSubject | None):
+        edit = self._make_edit(EditType.DELETE, n, subject)
         self._add_pending_edit(edit)
 
     #
@@ -586,61 +589,68 @@ class Session(Node):
     # Transaction
     #
 
+    @property
+    def _edit_subject(self) -> Optional["Run"]:
+        # Everything that comes this way in a Session is either system (subject=None) or in a Run.
+        #  (Users add pending edits to Transactions directly with themselves as a subject)
+        # All edits in a Run are attributed to the root for clarity.
+        return self._stacktrace[0] if self._stacktrace else None
+
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._tx.create(n)
+            self._tx.create(n, self._edit_subject)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._tx.upsert(n)
+            self._tx.upsert(n, self._edit_subject)
 
     def update(self, *nodes: Node, properties: tuple[Property, ...]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._tx.update(n, properties)
+            self._tx.update(n, self._edit_subject, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._tx.move(n)
+            self._tx.move(n, self._edit_subject)
 
     def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
-            self._tx.soft_delete(n)
+            self._tx.soft_delete(n, self._edit_subject)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
         assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
-            self._tx.restore(n)
+            self._tx.restore(n, self._edit_subject)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
-            self._tx.archive(n)
+            self._tx.archive(n, self._edit_subject)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
         assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
-            self._tx.unarchive(n)
+            self._tx.unarchive(n, self._edit_subject)
 
     def hard_delete_forever(self, *nodes: Node):
         """Irreversibly deletes a node."""
         assert self._tx is not None, f"no transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
-            self._tx.delete(n)
+            self._tx.delete(n, self._edit_subject)
 
     def _check_not_active(self, n: Node):
         """Checks if the node or any of its ancestors are active."""

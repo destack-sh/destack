@@ -60,6 +60,7 @@ from .session import (
     Session,
     Signal,
     Transaction,
+    Run,
 )
 from .text import RichText, RichTextSpan
 from .trigger import Trigger
@@ -126,6 +127,7 @@ __all__ = [
     "RichText",
     "RichTextSpan",
     "Role",
+    "Run",
     "S",
     "ScheduleType",
     "Server",

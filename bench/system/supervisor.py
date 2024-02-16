@@ -8,6 +8,7 @@ from bench.language.access import (
     Subject,
 )
 from bench.language.const import OUTSIDE_BENCH_NODE_TYPES
+from bench.language.user import UserStatus
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
@@ -72,7 +73,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 slug=request.slug,
                 name=request.name,
                 email=request.email,
-                is_activated=True,
+                status=UserStatus.REGISTERED,
                 _is_new=True,  # force create (despite already having an id)
             )
             user.password_salt = generate_salt()

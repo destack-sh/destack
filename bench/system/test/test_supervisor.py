@@ -13,6 +13,7 @@ from bench.language.const import (
     PUBLIC_NODE_TYPES,
     EditType,
     ROOT_NODE_TYPES,
+    NotificationKind,
 )
 from bench.language.expression import A
 from bench.language.user import Notification, UserStatus
@@ -61,7 +62,7 @@ def raises_grpc_error(status: grpclib.const.Status):
 async def test_user_auth_flow(supervisor: SupervisorStub):
     """Create a User, login and logout. Read back data to confirm."""
 
-    user = User(slug="test", name="Test", email="test@symbolx.com")
+    user = User(slug="test", name="Test", email="test@symbolx.com", status=UserStatus.INVITED)
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
 
     # signup -> success
@@ -162,11 +163,12 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
 
             # create new notification
             # (this works via the supervisor until the Users are activated yet)
+            # nocheckin: fix this test with something not a Notification?
+            #  (lives in Package now)
             new_notification = Notification(
                 parent=target,
-                name=f"{actor.name}'s Toaster",
-                device_name="toaster",
-                last_seen_at=utcnow_with_tz(),
+                kind=NotificationKind.URGENT,
+                title=f"{actor.name}'s Toaster Is On Fire",
             )
             create_notification_edit = EditData(
                 type=wire.EditType.CREATE,
@@ -244,7 +246,7 @@ async def test_root_node_create_denied(
             type=edit_type,
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
-            origin=some_user.origin,
+            subject=some_user.subject,
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):

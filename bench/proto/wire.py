@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.15.3"
+VERSION = "2024.02.16.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -107,12 +107,12 @@ class BenchType(betterproto.Enum):
     LINK = 24
     SKIP = 25
     NOTICE = 26
-    BLOCK = 27
-    TRIGGER = 28
-    FIELD = 29
-    RECORD = 30
-    QUERY = 31
-    VIEW = 32
+    BLOCK = 30
+    TRIGGER = 31
+    FIELD = 32
+    RECORD = 33
+    QUERY = 34
+    VIEW = 35
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -132,6 +132,7 @@ class BenchType(betterproto.Enum):
     ORGANIZATION = 222
     CLIENT = 223
     MEMBERSHIP = 225
+    INVITE = 226
     BENCH_PATH = 500
     NODE_REFERENCE = 501
     PROPERTY_REFERENCE = 502
@@ -390,12 +391,12 @@ class NodeType(betterproto.Enum):
     LINK = 24
     SKIP = 25
     NOTICE = 26
-    BLOCK = 27
-    TRIGGER = 28
-    FIELD = 29
-    RECORD = 30
-    QUERY = 31
-    VIEW = 32
+    BLOCK = 30
+    TRIGGER = 31
+    FIELD = 32
+    RECORD = 33
+    QUERY = 34
+    VIEW = 35
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -415,6 +416,7 @@ class NodeType(betterproto.Enum):
     ORGANIZATION = 222
     CLIENT = 223
     MEMBERSHIP = 225
+    INVITE = 226
 
 
 class NodeVisibility(betterproto.Enum):
@@ -1252,6 +1254,8 @@ class BadgeData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type: "BadgeType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(32)
@@ -1278,6 +1282,8 @@ class BenchData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: str = betterproto.string_field(32)
     name: str = betterproto.string_field(33)
@@ -1309,6 +1315,8 @@ class BlockData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type: "BlockType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     order_key: Optional[str] = betterproto.string_field(33, optional=True)
@@ -1350,6 +1358,8 @@ class BranchData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
@@ -1369,6 +1379,8 @@ class CacheData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1384,6 +1396,8 @@ class ClientData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     device_name: str = betterproto.string_field(33)
     browser_name: Optional[str] = betterproto.string_field(34, optional=True)
@@ -1397,7 +1411,7 @@ class ClientData(betterproto.Message):
 class DependencyData(betterproto.Message):
     """
     A dependency on another Bench (pointing to a specific Package).
-     If scopes are given, only those blocks (and their
+     If scopes are given, only those blocks are included.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1411,8 +1425,11 @@ class DependencyData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    dependency_ptr: "NodeReferenceData" = betterproto.message_field(30)
-    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(30)
+    dependency_ptr: "NodeReferenceData" = betterproto.message_field(40)
+    dependency_scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(41)
 
 
 @dataclass(eq=False, repr=False)
@@ -1431,6 +1448,8 @@ class DriveData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: str = betterproto.string_field(32)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     host: Optional[str] = betterproto.string_field(40, optional=True)
@@ -1449,6 +1468,8 @@ class EnvironmentData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
@@ -1474,6 +1495,8 @@ class FieldData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1516,6 +1539,8 @@ class FileContentData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     sha512: str = betterproto.string_field(30)
     content_length: int = betterproto.int64_field(31)
     content_type: str = betterproto.string_field(32)
@@ -1537,6 +1562,8 @@ class HandleData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     slug: str = betterproto.string_field(30)
 
 
@@ -1559,7 +1586,30 @@ class IdentityData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type_ptr: "NodeReferenceData" = betterproto.message_field(30)
+
+
+@dataclass(eq=False, repr=False)
+class InviteData(betterproto.Message):
+    """An invitation to become a member of this Bench."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    source: "NodeSource" = betterproto.enum_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
+    user_email: Optional[str] = betterproto.string_field(31, optional=True)
+    is_owner: bool = betterproto.bool_field(32)
+    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -1581,6 +1631,8 @@ class LinkData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     computed_reference: Optional["ValueReferenceData"] = betterproto.message_field(
         31, optional=True
@@ -1591,8 +1643,8 @@ class LinkData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LogData(betterproto.Message):
     """
-    A log (entry) is a timestamped record of something happening:
-     an event/message, any Access (read, edit, run), etc.
+    A log (entry) is a timestamped event of something happening:
+     a message, some Access (read, edit, use), etc.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1605,6 +1657,8 @@ class LogData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     kind: "LogKind" = betterproto.enum_field(30)
     level: "LogLevel" = betterproto.enum_field(31)
     logger: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1622,7 +1676,7 @@ class LogData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class MembershipData(betterproto.Message):
-    """A membership to a Bench or Organization."""
+    """A membership to this Bench (or its owner if it's the main Bench)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1633,6 +1687,8 @@ class MembershipData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     user_ptr: "NodeReferenceData" = betterproto.message_field(30)
     is_owner: bool = betterproto.bool_field(31)
 
@@ -1654,12 +1710,14 @@ class BaseNodeData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1673,6 +1731,8 @@ class NoticeData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     kind: "NoticeKind" = betterproto.enum_field(30)
     type: "NoticeType" = betterproto.enum_field(31)
     message: str = betterproto.string_field(33)
@@ -1698,9 +1758,11 @@ class NotificationData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     kind: "NotificationKind" = betterproto.enum_field(30)
-    expires_at: datetime = betterproto.message_field(33)
-    read_at: datetime = betterproto.message_field(34)
+    expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
+    read_at: Optional[datetime] = betterproto.message_field(34, optional=True)
     sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
     sender_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
     title: Optional[str] = betterproto.string_field(40, optional=True)
@@ -1715,7 +1777,10 @@ class NotificationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OrganizationData(betterproto.Message):
-    """A Bench organization with Users as members."""
+    """
+    A Bench organization with Users as members.
+     Until activation only its creator has access.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1726,6 +1791,8 @@ class OrganizationData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: Optional[str] = betterproto.string_field(32, optional=True)
     name: str = betterproto.string_field(33)
@@ -1749,11 +1816,13 @@ class PackageData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
-    is_paused: bool = betterproto.bool_field(36)
-    is_partial: bool = betterproto.bool_field(37)
+    is_partial: bool = betterproto.bool_field(36)
+    paused_at: Optional[datetime] = betterproto.message_field(37, optional=True)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
     environment_ptr: "NodeReferenceData" = betterproto.message_field(39)
     branch_ptr: "NodeReferenceData" = betterproto.message_field(40)
@@ -1774,6 +1843,8 @@ class PauseData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1791,6 +1862,8 @@ class QueryData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     node_type: "NodeType" = betterproto.enum_field(32)
@@ -1816,6 +1889,8 @@ class RecordData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
@@ -1843,6 +1918,8 @@ class RoleData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
@@ -1861,6 +1938,8 @@ class RunData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     session_ptr: "NodeReferenceData" = betterproto.message_field(30)
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1906,6 +1985,8 @@ class ServerData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     profile: "ServerProfile" = betterproto.enum_field(30)
     image: Optional["ServerImageData"] = betterproto.message_field(31, optional=True)
     version: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1935,6 +2016,8 @@ class SessionData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     opened_at: Optional[datetime] = betterproto.message_field(32, optional=True)
     closed_at: Optional[datetime] = betterproto.message_field(33, optional=True)
@@ -1957,6 +2040,8 @@ class SignalData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
@@ -1985,6 +2070,8 @@ class SkipData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     reference_ptr: "NodeReferenceData" = betterproto.message_field(30)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
 
@@ -2004,6 +2091,8 @@ class SpaceData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: str = betterproto.string_field(31)
     text: Optional["RichTextData"] = betterproto.message_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
@@ -2027,6 +2116,8 @@ class StoreData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     kind: "StoreKind" = betterproto.enum_field(30)
     engine: "StoreEngineType" = betterproto.enum_field(31)
     name: str = betterproto.string_field(32)
@@ -2041,7 +2132,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2055,6 +2146,8 @@ class TriggerData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type: "TriggerType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     active: bool = betterproto.bool_field(32)
@@ -2079,6 +2172,8 @@ class UpgradeData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["RichTextData"] = betterproto.message_field(34, optional=True)
 
@@ -2096,6 +2191,8 @@ class UserData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: Optional[str] = betterproto.string_field(32, optional=True)
     name: Optional[str] = betterproto.string_field(33, optional=True)
@@ -2107,7 +2204,6 @@ class UserData(betterproto.Message):
     password_hash: Optional[bytes] = betterproto.bytes_field(51, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(70, optional=True)
     is_staff: bool = betterproto.bool_field(90)
-    is_activated: bool = betterproto.bool_field(91)
 
 
 @dataclass(eq=False, repr=False)
@@ -2125,6 +2221,8 @@ class ViewData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type: "ViewType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(32, optional=True)
@@ -2167,6 +2265,7 @@ class SomeNodeData(betterproto.Message):
     organization: "OrganizationData" = betterproto.message_field(33, group="node")
     client: "ClientData" = betterproto.message_field(34, group="node")
     membership: "MembershipData" = betterproto.message_field(35, group="node")
+    invite: "InviteData" = betterproto.message_field(36, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -2217,8 +2316,17 @@ class EditData(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(2)
     node: "SomeNodeData" = betterproto.message_field(3)
     properties: List[int] = betterproto.sint32_field(4)
-    origin: "ClientOrigin" = betterproto.message_field(5)
-    scope: "GraphScope" = betterproto.message_field(6)
+    """Actually changed properties (if updating)."""
+
+    scope: "GraphScope" = betterproto.message_field(5)
+    """The scope to apply the edit to."""
+
+    subject: Optional["NodeReferenceData"] = betterproto.message_field(6, optional=True)
+    """
+    The User/Run that made the edit.
+     nocheckin: use and store Edit.subject (and validate?)
+    """
+
     revision: Optional[int] = betterproto.int64_field(7, optional=True)
     """System-side accepted revision for the edit."""
 
@@ -2228,6 +2336,7 @@ class TransactionData(betterproto.Message):
     """Transaction of edits to a Node."""
 
     id: str = betterproto.string_field(1)
+    origin: "ClientOrigin" = betterproto.message_field(5)
     edits: List["EditData"] = betterproto.message_field(2)
 
 
@@ -3805,78 +3914,79 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    NoticeData,
-    LinkData,
-    UserData,
-    OrganizationData,
-    RoleData,
     HandleData,
-    SignalData,
-    ClientData,
-    BenchData,
-    LogData,
-    PackageData,
-    SessionData,
-    TriggerData,
-    ServerData,
-    ViewData,
-    MembershipData,
-    DependencyData,
-    BlockData,
-    CacheData,
-    BranchData,
-    IdentityData,
+    UpgradeData,
     RecordData,
+    RoleData,
+    MembershipData,
+    InviteData,
+    SkipData,
+    BranchData,
+    StoreData,
+    LinkData,
+    BenchData,
+    SpaceData,
+    PackageData,
     DriveData,
+    ClientData,
+    OrganizationData,
+    DependencyData,
+    FieldData,
+    ViewData,
+    IdentityData,
+    QueryData,
+    CacheData,
+    TriggerData,
+    BlockData,
+    BadgeData,
+    NotificationData,
+    UserData,
+    SignalData,
+    LogData,
     RunData,
     PauseData,
-    NotificationData,
-    BadgeData,
-    StoreData,
-    FileContentData,
-    FieldData,
-    SpaceData,
-    SkipData,
-    UpgradeData,
+    NoticeData,
     EnvironmentData,
-    QueryData,
+    SessionData,
+    ServerData,
+    FileContentData,
 ]
 AnyStructData = Union[
-    IconData,
-    AccessData,
-    StoreCredentialData,
-    CodeSectionData,
-    PropertyReferenceData,
-    RichTextSpanData,
-    NodeReferenceData,
-    ContextData,
-    PolicyRuleData,
-    ExpressionData,
-    CodeData,
-    AggregationData,
-    FieldPathData,
-    AccessTraceData,
-    ProjectionData,
-    PolicyData,
-    TypeInfoData,
-    SpaceDockItemData,
-    ServerImageData,
     RichTextData,
-    ScheduleData,
-    SpaceDockData,
-    ValueSelectionData,
+    PolicyRuleData,
+    AccessTraceData,
+    TypeInfoData,
     BenchPathData,
-    RunCodeFrameData,
+    ValueSelectionData,
+    SpaceDockData,
+    AggregationData,
+    PolicyData,
+    ProjectionData,
     PropertyPathData,
-    SubjectData,
     AccessMatrixData,
-    ReadOptionsData,
-    AccessZoneData,
-    ServerImageRequirementData,
-    RunErrorData,
-    ValueReferenceData,
-    AggregationBucketData,
+    CodeData,
+    ScheduleData,
+    ServerImageData,
     FieldPathSegmentData,
-    FileData,
+    IconData,
+    RunErrorData,
+    RichTextSpanData,
+    AccessData,
+    RunCodeFrameData,
+    ServerImageRequirementData,
+    AccessZoneData,
+    SubjectData,
+    ContextData,
+    StoreCredentialData,
+    PropertyReferenceData,
+    AggregationBucketData,
+    CodeSectionData,
     RequestData,
+    NodeReferenceData,
+    ExpressionData,
+    ReadOptionsData,
+    ValueReferenceData,
+    FieldPathData,
+    FileData,
+    SpaceDockItemData,
 ]

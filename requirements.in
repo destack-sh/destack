@@ -16,7 +16,7 @@ json-stream==2.2.1
 kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 more-itertools==9.0.0
-numpy<2,>=1.20.0#
+numpy<2,>=1.20.0
 openai==0.28.1
 opensearch-py[async]==2.3.1
 Pillow==9.4.0

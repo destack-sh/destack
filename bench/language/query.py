@@ -386,11 +386,11 @@ class QueryBuilder(
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        results = await self.filter(filter).fetch()
+        combined_query = self.filter(filter)
+        results = await combined_query.fetch()
         if len(results) == 1:
             return results[0]
         else:
-            combined_query = self.filter(filter)
             if len(results) == 0:
                 raise NodeNotFoundError(combined_query)
             else:

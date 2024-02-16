@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Optional, Union
 
 from bench.language.const import NodeType, StructType
@@ -6,7 +7,7 @@ from bench.language.node import (
     Node,
     node,
 )
-from bench.language.property import p_parent, p_child, p_regular, p_system, p_kernel
+from bench.language.property import p_parent, p_child, p_regular, p_system, p_kernel, p_internal
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -129,8 +130,8 @@ class Package(Node):
     policies: list["Policy"] | None = p_regular(
         35, default_factory=list, struct=StructType.POLICY, array=True
     )
-    is_paused: bool = p_system(36, default=False)
-    is_partial: bool = p_system(37, default=False)
+    is_partial: bool = p_system(36, default=False)
+    paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
     base: Optional["Package"] = p_system(
         38, require=False, array=False, references=NodeType.PACKAGE
     )
@@ -148,8 +149,12 @@ class Package(Node):
         return self.parent.name if self.parent is not None else None
 
     @property
-    def os_name(self) -> str:
-        return self.environment.index.handle
+    def is_paused(self) -> bool:
+        return self.paused_at is not None
+
+    @is_paused.setter
+    def is_paused(self, value: bool) -> None:
+        self.paused_at = datetime.utcnow() if value else None
 
     @property
     def _nodes(self) -> Collection[Node]:
@@ -163,13 +168,18 @@ class Package(Node):
 class Dependency(Node):
     """
     A dependency on another Bench (pointing to a specific Package).
-    If scopes are given, only those blocks (and their
+    If scopes are given, only those blocks are included.
     """
 
-    parent: Package = p_parent(4, NodeType.PACKAGE)
+    # dependent
+    parent: Union[Package, "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    scopes: list["Block"] = p_regular(30, require=True, array=True, references=NodeType.BLOCK)
 
-    dependency: Package = p_regular(30, require=True, array=False, references=NodeType.PACKAGE)
-    scopes: list["Block"] = p_regular(31, require=True, array=True, references=NodeType.BLOCK)
+    # dependency
+    dependency: Package = p_regular(40, require=True, array=False, references=NodeType.PACKAGE)
+    dependency_scopes: list["Block"] = p_regular(
+        41, require=True, array=True, references=NodeType.BLOCK
+    )
 
 
 @node(NodeType.UPGRADE, identifier=IdentifierType.VARIABLE)
