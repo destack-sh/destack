@@ -13,7 +13,7 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import NodeStatus, NodeType, NRel
+from bench.language.const import InterpStatus, NodeType, NRel
 from bench.language.setup import CHILD_NODE_TYPES
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -512,9 +512,11 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         node_cls = NODE_CLASS_BY_TYPE[self._property.reference_types[0]]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
-            node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NodeStatus.SOURCE)
+            node = node_cls.new(
+                *args, **kwargs, for_parent=self._parent, _status=InterpStatus.SOURCE
+            )
         else:
-            node = node_cls(*args, **kwargs, _status=NodeStatus.SOURCE)
+            node = node_cls(*args, **kwargs, _status=InterpStatus.SOURCE)
         self.append(node)
         return node
 

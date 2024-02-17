@@ -610,7 +610,7 @@ def p_runtime(
     )
 
 
-def p_parent(id: int, *node_type: NodeType, is_system: bool = False):
+def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False):
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -759,7 +759,7 @@ METATYPE_PROPERTY = Property(
     py_type_raw=BenchType,
     is_internal=True,
     is_required=True,
-    is_computed=True,  # is set statically in runtime
+    is_computed=True,  # is set statically by class decorator
     is_ephemeral=True,
     is_runtime=False,
     is_wired=True,
@@ -770,7 +770,7 @@ METATYPE_PROPERTY = Property(
 _PROPERTY_SPECIFIERS = (
     p_property,
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_ancestor,
     p_child,
     p_value_runtime,

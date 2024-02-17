@@ -48,7 +48,6 @@ class NodeType(IdEnum):
     VIEW = 35
     # TAG?  (not sure what to do with tags yet)
     # STEP = ...
-    # CONNECTION? (also for Flow)
     # COMMENT = ...
     # REACTION = ...
     # LOCK?
@@ -143,8 +142,9 @@ class StructType(IdEnum):
 
     CODE = 590
     CODE_SECTION = 591
-    RUN_CODE_FRAME = 592
-    RUN_ERROR = 593
+    CODE_LINE = 592
+    RUN_CODE_FRAME = 600
+    RUN_ERROR = 601
     # CURSOR?
 
     SERVER_IMAGE = 630
@@ -298,9 +298,9 @@ class NodeRelationType(enum.IntFlag):
 NRel = NodeRelationType
 
 
-class NodeStatus(IdEnum):
+class InterpStatus(IdEnum):
     SOURCE = 1  # just loaded
-    INTERP = 2  # everything resolved & ready
+    INTERPED = 2  # everything resolved & ready
     TRACKED = 3  # live in a session
 
 

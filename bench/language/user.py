@@ -15,7 +15,7 @@ from bench.language.node import (
     _Passthrough,
 )
 from bench.language.property import (
-    p_parent,
+    p_node_parent,
     p_child,
     p_regular,
     p_internal,
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 class Handle(Node):
     """A Bench @handle. Can only be created/edited by the system."""
 
-    parent: Union["User", "Organization", "Bench"] = p_parent(
+    parent: Union["User", "Organization", "Bench"] = p_node_parent(
         4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
     )
     slug: str = p_system(30, unique=True)
@@ -133,7 +133,7 @@ class Organization(Node):
 class Client(Node):
     """A client to this Bench."""
 
-    parent: Union[User, "Server"] = p_parent(4, NodeType.USER, NodeType.SERVER)
+    parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
     name: Optional[str] = p_regular(32, default=None)
     device_name: str = p_regular(33)
@@ -166,7 +166,7 @@ class Membership(Node):
     A membership to this Bench (or its owner if it's the main Bench).
     """
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
     is_owner: bool = p_regular(31, default=False)
 
@@ -178,7 +178,7 @@ class Membership(Node):
 class Invite(Node):
     """An invitation to become a member of this Bench."""
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
     user_email: Optional[str] = p_regular(31)
 
@@ -200,7 +200,7 @@ class Notification(Node, HasValues):
     As with all owner Bench stuff, the main Bench's main package is the 'truth'.
     """
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
     # -> builtin_type / custom_type / ... 'type' as union
     expires_at: Optional[datetime] = p_internal(33, default=None)

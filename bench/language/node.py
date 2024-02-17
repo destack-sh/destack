@@ -40,7 +40,7 @@ from bench.language.const import (
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
     NodeSource,
-    NodeStatus,
+    InterpStatus,
     NodeTrackingLevel,
     NodeType,
     NRel,
@@ -64,7 +64,7 @@ from bench.language.setup import (
 )
 from bench.language.property import (
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_ancestor,
     p_child,
     p_regular,
@@ -201,9 +201,13 @@ def _process_struct_base_cls(
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
     is_final: bool = False,
+    is_inlined: bool = False,  # for structs only
     no_ck: bool = False,
 ) -> tuple[type["Node"], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
+    is_node_base = cls.__name__ in ("Node",)
+    is_struct_base = cls.__name__ == "Struct"
+    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
     properties_by_name: dict[str, "Property"] = {METATYPE_PROPERTY.name: metatype}
@@ -262,9 +266,7 @@ def _process_struct_base_cls(
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all components (static and dynamic, least to most specific)
-    is_node_base = cls.__name__ in ("Node",)
-    is_struct_base = cls.__name__ == "Struct"
-    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
+
     reserved_properties: set[str | int] = set(reserved or ())
     for component in chain(reversed(static_components), reversed(dynamic_components)):
         for name, prop in component.__own_properties__.items():
@@ -305,7 +307,7 @@ def _process_struct_base_cls(
     # create class (map properties to dataclass fields)
     # TODO @Cleanup: the ck/package/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
-        # remove :MagicNodeProps if not needed
+        # remove :MagicProps if not needed
         if (prop.name == "bench" and not is_sub_bench) or (
             prop.name == "package" and not is_sub_package
         ):
@@ -423,6 +425,7 @@ def struct_component(
     struct_type: StructType = None,
     reserved: set[str | int] = None,
     is_final: bool = False,
+    is_inlined: bool = False,
 ):
     """
     Mark a class as a struct component (or concrete struct for a StructType).
@@ -430,7 +433,9 @@ def struct_component(
 
     @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
-        cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved, is_final=is_final)
+        cls, properties = _process_struct_base_cls(
+            cls=cls, reserved=reserved, is_final=is_final, is_inlined=is_inlined
+        )
 
         # register struct
         if struct_type:
@@ -452,10 +457,13 @@ def struct(
     reserved: set[str | int] = None,
     index_in_search: bool = False,
     identifier: IdentifierType | None = None,
+    inline: bool = False,
 ):
     @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
     def decorate(cls):
-        cls = struct_component(cls, struct_type=struct_type, reserved=reserved, is_final=True)
+        cls = struct_component(
+            cls, struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
+        )
         cls.__is_indexed_in_search__ = index_in_search
         cls.__identifier_type__ = identifier
         return cls
@@ -717,7 +725,7 @@ def _node_ref_computed_prop(
 def _make_self_method(
     method: _ComponentMethod,
     wraps,
-    to_status: NodeStatus = None,
+    to_status: InterpStatus = None,
 ):
     """Creates method that calls _method_inner for all components in call order"""
 
@@ -787,23 +795,22 @@ class Struct(abc.ABC):
     __properties_mask_unset__: ClassVar[bitarray] = None
 
     __is_struct__: ClassVar[bool] = True
+    __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
-    __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
+    # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
     # id: str = p_system(1)
+    # parent: Struct | Node | None = p_struct_parent(1)
     # parent_id: str | None = p_parent(1)
     # parent_key: str | None = p_system(2)
-    # revision: int = p_system(3)?
     # order_key: str | None = p_internal(4)
 
-    _status: NodeStatus = p_runtime(default=None)
-
-    # _node: Optional["Node"] = p_runtime(default=None) (for real Structs only)
+    _status: InterpStatus = p_runtime(default=None)
 
     def __post_init__(self):
         if self._status is None:
             # not sure if this is totally right... where do we get :StructScope?
-            self._status = NodeStatus.INTERP if _active_session.get() else NodeStatus.SOURCE
+            self._status = InterpStatus.INTERPED if _active_session.get() else InterpStatus.SOURCE
         self._init_self()
 
     def __content_str__(self) -> str:
@@ -964,8 +971,8 @@ class Struct(abc.ABC):
 
     # struct has basic set of lifecycle methods (no index because no scope)
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NodeStatus.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NodeStatus.INTERP)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
     _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
 
@@ -1032,8 +1039,7 @@ def _make_rec_method(
 @node_component
 class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     """
-    A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
-    All nodes have a globally unique id (id).
+    A node in the Bench graph: it's a struct with a globally unique identity.
     Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
     """
 
@@ -1064,10 +1070,10 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     __table__: ClassVar[Table] = UNSET  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
-    # NOTE: ck/package/branch/bench only exist if __is_in_package__/__is_in_bench__ :MagicNodeProps
+    # NOTE: some node identity props (ck/package/bench/etc.) only exist sometimes :MagicProps
     id: UUID = p_system(2, default=None, require=True, autoset=True)
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
-    parent: Optional["Node"] = p_parent(4)
+    parent: Optional["Node"] = p_node_parent(4)
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
     bench: "Bench" = p_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
@@ -1115,7 +1121,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
     _source_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
-    _status: NodeStatus = p_runtime(default=None)
+    _status: InterpStatus = p_runtime(default=None)
     _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
     _is_new: bool = p_runtime(default=False)
     _updated_properties: bitarray | None = p_runtime(default=None)
@@ -1140,10 +1146,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             self._session = _active_session.get()
         # init status
         if self._status is None:
-            self._status = NodeStatus.INTERP if self._session is not None else NodeStatus.SOURCE
+            self._status = (
+                InterpStatus.INTERPED if self._session is not None else InterpStatus.SOURCE
+            )
         self._init_self()
         # track if in session
-        if self._status == NodeStatus.INTERP and self._session is not None:
+        if self._status == InterpStatus.INTERPED and self._session is not None:
             self._interp_self(self, on_notice=self._on_notice)
             self._track_self(self._session)
 
@@ -1356,7 +1364,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     def __setattr__(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self._status == NodeStatus.TRACKED
+        is_tracked = self._status == InterpStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_ephemeral or prop.is_autoset:  # untracked
@@ -1509,7 +1517,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     def _track_inner(self, session: "Session") -> None:
         """Track this object in the given session."""
         self._session = session
-        self._status = NodeStatus.TRACKED
+        self._status = InterpStatus.TRACKED
 
     def _untrack_inner(self) -> None:
         """Stop tracking this object."""
@@ -1574,7 +1582,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
         # validate if in session after all init are done
         if (
-            self._status >= NodeStatus.INTERP
+            self._status >= InterpStatus.INTERPED
             and self._is_new
             and self._session is not None
             and self._session is not UNSET
@@ -1582,10 +1590,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NodeStatus.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NodeStatus.INTERP)
-    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NodeStatus.TRACKED)
-    _untrack_self = _make_self_method(_ComponentMethod.untrack, _untrack_inner, NodeStatus.INTERP)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
+    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, InterpStatus.TRACKED)
+    _untrack_self = _make_self_method(
+        _ComponentMethod.untrack, _untrack_inner, InterpStatus.INTERPED
+    )
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
     _visit_self = _make_self_method(_ComponentMethod.visit, Struct._visit_inner)
 
@@ -1639,7 +1649,7 @@ class Link(Node):
     The reference may be indirect through a value somewhere (which should point to a node).
     """
 
-    parent: Node = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    parent: Node = p_node_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
     )
@@ -1653,7 +1663,7 @@ class Link(Node):
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 
-    parent: Node = p_parent(4, *LINK_PARENT_NODE_TYPES)
+    parent: Node = p_node_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )

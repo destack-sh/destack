@@ -6,7 +6,7 @@ from uuid import UUID
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
 from bench.language.expression import FieldPath
 from bench.language.node import Node, node, Property
-from bench.language.property import p_parent, p_regular
+from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.func import IdEnum
 
@@ -54,7 +54,7 @@ class NoticeError(BenchError, ValueError):
 
 @node(NodeType.NOTICE)
 class Notice(Node):
-    parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union

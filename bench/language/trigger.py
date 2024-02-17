@@ -7,7 +7,7 @@ from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
 from bench.language.node import Node, Struct, node, struct
-from bench.language.property import p_parent, p_regular, Property
+from bench.language.property import p_node_parent, p_regular, Property
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class Schedule(Struct):
 
 @node(NodeType.TRIGGER)
 class Trigger(Node):
-    parent: "Block" = p_parent(4, NodeType.BLOCK)
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
     name: str | None = p_regular(31, default=None)
     active: bool = p_regular(32, default=True)

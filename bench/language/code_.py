@@ -34,7 +34,14 @@ class CodeTransformation:
 class CodeSection(Struct):
     # language: ...
     # kind: ...
-    code: str = p_regular(32)
+    lines: list["CodeLine"] = p_regular(
+        32, require=True, array=True, default_factory=list, struct=StructType.CODE_LINE
+    )
+
+
+@struct(StructType.CODE_LINE)
+class CodeLine(Struct):
+    line: str = p_regular(32)
 
 
 @struct(StructType.CODE)

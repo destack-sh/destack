@@ -9,7 +9,7 @@ from bench.language.graph import NodeListBase
 from bench.language.node import (
     Node,
     NodeList,
-    NodeStatus,
+    InterpStatus,
     NRel,
     _Passthrough,
     node,
@@ -18,7 +18,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_child,
     p_value_runtime,
     p_value_packed,
@@ -60,7 +60,7 @@ class Record(Node, HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
-    parent: "Block" = p_parent(4, NodeType.BLOCK)
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     value_packed: Any = p_value_packed(30)
     secret_value_packed = p_secret_value_packed(31)
     value = p_value_runtime(30, 31, type=4)
@@ -71,7 +71,7 @@ class Record(Node, HasValues):
     def new(
         *args,
         for_parent: "Block" = None,
-        _status: NodeStatus = None,
+        _status: InterpStatus = None,
         _id: UUID = None,
         _ck: UUID = None,
         **kwargs,

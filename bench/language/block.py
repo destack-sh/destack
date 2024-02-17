@@ -14,7 +14,7 @@ from bench.language.node import (
     node_component,
 )
 from bench.language.property import (
-    p_parent,
+    p_node_parent,
     p_child,
     p_value_runtime,
     p_value_packed,
@@ -122,7 +122,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
 class Block(Node, HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
-    parent: Union["Block", "Package"] = p_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
     blocks: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
     badges: NodeList["Badge"] = p_child(NodeType.BADGE)
     fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
