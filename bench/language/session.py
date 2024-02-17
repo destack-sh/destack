@@ -948,8 +948,6 @@ def _pack_and_truncate_value(
 class HasRun(Node):
     """A runnable block"""
 
-    triggers: NodeList["Trigger"] = p_child(NodeType.TRIGGER)
-
     @property
     def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
         """Whether this block is async."""

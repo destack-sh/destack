@@ -1,8 +1,9 @@
 from collections import deque
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, AsyncContextManager, Optional
+from typing import AsyncIterator, AsyncContextManager, Optional, TYPE_CHECKING
 from uuid import UUID
 
+import betterproto
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 import structlog
@@ -27,6 +28,7 @@ from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
 from bench.language.query import StoreEngine, QueryBuilder, FetchOptions
 from bench.proto import wiring
+from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     EditData,
     GraphIoBase,
@@ -46,22 +48,22 @@ from bench.proto.wire import (
     AggregateNodesRequest,
     FlushTransactionResponse,
     FlushTransactionRequest,
+    GraphScope,
 )
-from bench.utils.func import group_by, bytetuple
+from bench.utils.func import group_by, bytetuple, to_uuid
 
 logger = structlog.get_logger(__name__)
 
 EPOCH_BUFFER_SIZE = 1000
 
 
-class GraphIoService(GraphIoBase):
+class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(self, *, bench_id: UUID | None, node_types: bytetuple[NodeType]):
         super().__init__()
         self.epoch: int = 0
         self.recent_epochs: deque[list[EditData]] = deque(maxlen=EPOCH_BUFFER_SIZE)
-        # nocheckin: validate target scope (bench_id or None) per requests
         self.bench_id: UUID | None = bench_id
         self.node_types: bytetuple[NodeType] = node_types
 
@@ -77,6 +79,13 @@ class GraphIoService(GraphIoBase):
     def engines(self) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
+
+    def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
+        """Validate a request message for this service."""
+        scope: GraphScope | None = getattr(request, "scope", None)
+        assert scope is not None, f"{request!r} is missing 'scope' property required for {self!r}"
+        if to_uuid(scope.bench_id) != self.bench_id:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
     @asynccontextmanager
     async def session(self) -> AsyncContextManager[Session]:
