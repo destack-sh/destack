@@ -730,9 +730,15 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(properties_is_system=True),
         PolicyRule(
             "CannotCreateOrDeleteSystemNodesDirectly",
-            text=RichText.plain("System nodes' existence must be managed through special methods."),
+            text=RichText.plain("System nodes existence must be managed through special methods."),
         )
-        .deny(EditType.CREATE, EditType.UPSERT, EditType.DELETE)
+        .deny(
+            EditType.CREATE,
+            EditType.UPSERT,
+            EditType.SOFT_DELETE,
+            EditType.ARCHIVE,
+            EditType.DELETE,
+        )
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(
             "CannotEditHandles",

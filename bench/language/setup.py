@@ -36,7 +36,6 @@ STRUCT_CLASSES: frozenset[type["Struct"]] = frozenset()
 PARENT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 HAS_CHILD_NODE_TYPES: set[NodeType] = set()
-FERTILE_CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
@@ -141,11 +140,6 @@ def _complete_bench_setup():
         for parent_type in node_cls.__parent_property__.reference_types:
             parent_types[node_cls.metatype].add(parent_type)
             child_types[parent_type].add(node_cls.metatype)
-    # fertile child types: child types that can have children
-    fertile_child_types: dict[NodeType, set[NodeType]] = defaultdict(set)
-    for node_type, child_type in child_types.items():
-        for parent_type in child_type:
-            fertile_child_types[parent_type].add(node_type)
     # ancestor/descendant: extend parent/child transitively
     ancestor_types: dict[NodeType, set[NodeType]] = defaultdict(set)
     descendant_types: dict[NodeType, set[NodeType]] = defaultdict(set)
@@ -162,9 +156,8 @@ def _complete_bench_setup():
             descendant_types[node_type].add(new_child)
             descendant_types[node_type] |= descendant_types[new_child]
             new_children.extend(child_types[new_child] - descendant_types[node_type])
-
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
-    global HAS_CHILD_NODE_TYPES, FERTILE_CHILD_NODE_TYPES
+    global HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
         ANCESTOR_NODE_TYPES[node_type] = bytetuple(ancestor_types[node_type], enum_cls=NodeType)
         DESCENDANT_NODE_TYPES[node_type] = bytetuple(descendant_types[node_type], enum_cls=NodeType)
@@ -172,9 +165,6 @@ def _complete_bench_setup():
         CHILD_NODE_TYPES[node_type] = bytetuple(child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.add(node_type)
-        FERTILE_CHILD_NODE_TYPES[node_type] = bytetuple(
-            fertile_child_types[node_type], enum_cls=NodeType
-        )
 
     # check that is_in_package/is_in_bench was declared correctly
     #  (need to set that in @node upfront because traversing parents can only happen in finalization)
