@@ -70,7 +70,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     def on_graph_edited(
         self, edits: list[EditData], source_graph: NodeDataGraph, graph: Optional[NodeGraph] = None
     ):
-        # nocheckin: track and buffer edits for recent epochs
+        # nocheckin: track, buffer and broadcast edits for recent epochs
         self.recent_epochs.appendleft(edits)
         # self.watchers....
         self.epoch += 1

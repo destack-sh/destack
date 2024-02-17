@@ -162,7 +162,7 @@ class FieldPath(Struct):
         return ".".join(str(segment) for segment in self.segments)
 
 
-@struct(StructType.FIELD_PATH_SEGMENT)
+@struct(StructType.FIELD_PATH_SEGMENT, inline=True)
 class FieldPathSegment(Struct):
     """A single segment of a FieldPath."""
 
@@ -191,7 +191,7 @@ class ValueReference(Struct):
 
 @struct(StructType.VALUE_SELECTION)
 class ValueSelection(Struct):
-    """Select a range of values (or a single value) from a Node."""
+    """Select a range from within a Value."""
 
     pass
 

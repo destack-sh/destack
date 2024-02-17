@@ -18,7 +18,7 @@ from bench.language.node import (
     node,
     struct,
 )
-from bench.language.property import p_parent, p_regular, p_internal, p_system, p_kernel
+from bench.language.property import p_node_parent, p_regular, p_internal, p_system, p_kernel
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class Server(Node):
     """A server providing the compute runtime for a Bench."""
 
-    parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
+    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     profile: ServerProfile = p_regular(30)
     image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
@@ -79,7 +79,7 @@ class Store(Node):
     Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
     """
 
-    parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
+    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     kind: StoreKind = p_system(30)
     engine: StoreEngineType = p_system(31)
     name: str = p_regular(32)
@@ -122,7 +122,7 @@ class Drive(Node):
     Virtualizes simple bucket-style access to some S3-like storage.
     """
 
-    parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
+    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     # engine: ...?
     name: str = p_regular(32)
     text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
@@ -140,7 +140,7 @@ class FileRetentionMode(IdEnum):
 class FileContent(Node):
     """(A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512."""
 
-    parent: Drive = p_parent(4, NodeType.DRIVE, is_system=True)
+    parent: Drive = p_node_parent(4, NodeType.DRIVE, is_system=True)
     sha512: str = p_internal(30)
     size: int = p_internal(31, primitive_type=PrimitiveType.INT64)
     type: str = p_internal(32)
@@ -153,4 +153,4 @@ class FileContent(Node):
 class Cache(Node):
     """Cache for ephemeral data."""
 
-    parent: "Bench" = p_parent(4, NodeType.BENCH, is_system=True)
+    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)

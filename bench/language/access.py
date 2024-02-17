@@ -40,7 +40,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_child,
     p_regular,
     p_internal,
@@ -99,7 +99,7 @@ class Badge(Node):
     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
-    parent: Union["Package", "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     type: BadgeType = p_regular(30)
     name: Optional[str] = p_regular(31)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
@@ -129,7 +129,7 @@ class Role(Node):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership"] = p_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    parent: Union["Block", "Membership"] = p_node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
@@ -141,7 +141,7 @@ class Identity(Node):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership", "User"] = p_parent(
+    parent: Union["Block", "Membership", "User"] = p_node_parent(
         4, NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER
     )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)

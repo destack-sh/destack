@@ -411,7 +411,8 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...BASE_PRIVATE_BACKEND_VARS,
               ],
               command: ["/bin/sh", "-c"],
-              args: ["python manage.py migrate && python manage.py s3 create"], // nocheckin: update auto migrate command
+              // TODO @Robustness!: probably don't want to migrate the local Bench DB's all at once
+              args: ["python bench.py sql migrate && python bench.py sql migrate --bench '*'"],
             },
           ],
           containers: [

@@ -19,7 +19,7 @@ from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
     EditType,
-    NodeStatus,
+    InterpStatus,
     NodeType,
     RunErrorKind,
     RunStatus,
@@ -41,7 +41,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_ancestor,
     p_child,
     p_value_runtime,
@@ -89,7 +89,7 @@ MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeTyp
 class Signal(Node, HasValues):
     """A signal emitted in this Bench."""
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     # builtin_type: ...
     type: Optional["Block"] = p_internal(
         31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
@@ -126,7 +126,7 @@ class Log(Node):
      a message, some Access (read, edit, use), etc.
     """
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
     # content
     kind: LogKind = p_system(30)
@@ -433,7 +433,7 @@ class Session(Node):
     A managed session for interacting with Bench nodes and (if on a Server) running them.
     """
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE, is_system=True)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE, is_system=True)
     server: Optional["Server"] = p_system(
         31, require=False, array=False, references=NodeType.SERVER
     )
@@ -831,7 +831,7 @@ class Run(Node, HasValues):
     A 'run' of a block (in a session).
     """
 
-    parent: Union["Session", "Run"] = p_parent(4, NodeType.SESSION, NodeType.RUN)
+    parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = p_ancestor(
         30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
@@ -955,7 +955,7 @@ class HasRun(Node):
 
     def _call_inner(self, *args, **kwargs):
         assert (
-            self.is_attached and self._status == NodeStatus.TRACKED
+            self.is_attached and self._status == InterpStatus.TRACKED
         ), f"cannot call {self!r} (status={self._status!r})"
         try:
             asyncio.get_running_loop()
@@ -1065,7 +1065,7 @@ class RunError(Struct, BenchError):
 class Pause(Node):
     """A resumable interruption in a Run."""
 
-    parent: "Run" = p_parent(4, NodeType.RUN)
+    parent: "Run" = p_node_parent(4, NodeType.RUN)
     session: "Session" = p_ancestor(30, NodeType.SESSION, require=True, store=True)
     # (placeholder)
 

@@ -31,7 +31,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
-from bench.language.property import p_parent, p_regular
+from bench.language.property import p_node_parent, p_regular
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
@@ -56,7 +56,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 class Query(Node):
     """A stored query."""
 
-    parent: Union["Block"] = p_parent(4, NodeType.BLOCK)
+    parent: Union["Block"] = p_node_parent(4, NodeType.BLOCK)
     name: str | None = p_regular(30, default=None)
     order_key: str | None = p_regular(31, default=None)
     node_type: NodeType = p_regular(32)

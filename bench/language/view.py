@@ -8,7 +8,7 @@ from bench.language.node import (
     node_component,
     struct,
 )
-from bench.language.property import p_parent, p_child, p_regular, p_internal
+from bench.language.property import p_node_parent, p_child, p_regular, p_internal
 from bench.language.validation import enum_validator
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum
@@ -54,7 +54,7 @@ class HasViews(Node):
 class View(HasViews):
     """A view of a user interface in a Bench."""
 
-    parent: Union["Space", "View", "Block"] = p_parent(
+    parent: Union["Space", "View", "Block"] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
     type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
@@ -73,7 +73,7 @@ class PageViewMode(IdEnum):
 class Space(HasViews):
     """A space for a user to interact with the Bench."""
 
-    parent: "Package" = p_parent(4, NodeType.PACKAGE)
+    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
     name: str = p_regular(31)
     text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)

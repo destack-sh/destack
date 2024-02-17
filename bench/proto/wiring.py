@@ -14,7 +14,7 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     NodeGraph,
-    NodeStatus,
+    InterpStatus,
     Node,
     Struct,
 )
@@ -179,7 +179,7 @@ def unpack_struct(struct_data: StructDataT) -> StructT:
                 continue
             value = getattr(struct_data, prop.name)
             struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-        return struct_cls(**struct_kwargs, _status=NodeStatus.SOURCE)
+        return struct_cls(**struct_kwargs, _status=InterpStatus.SOURCE)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
@@ -231,7 +231,7 @@ def unpack_node(
                 continue
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-        return node_cls(**node_kwargs, parent=parent, _session=session, _status=NodeStatus.SOURCE)
+        return node_cls(**node_kwargs, parent=parent, _session=session, _status=InterpStatus.SOURCE)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
@@ -301,7 +301,7 @@ def unpack_nodes_inline(
         root._source_graph = root_source_graph
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
-            node._status = NodeStatus.SOURCE
+            node._status = InterpStatus.SOURCE
         unpacked_roots.append(root)
 
     if roots:

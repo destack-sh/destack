@@ -7,7 +7,14 @@ from bench.language.node import (
     Node,
     node,
 )
-from bench.language.property import p_parent, p_child, p_regular, p_system, p_kernel, p_internal
+from bench.language.property import (
+    p_node_parent,
+    p_child,
+    p_regular,
+    p_system,
+    p_kernel,
+    p_internal,
+)
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -36,7 +43,7 @@ class Bench(Node):
     A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
     """
 
-    parent: None = p_parent(4)
+    parent: None = p_node_parent(4)
     main_handle: Optional["Handle"] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Bench
@@ -79,7 +86,7 @@ class Bench(Node):
 class Environment(Node):
     """An environment isolates resources from the rest of a Bench."""
 
-    parent: Bench = p_parent(4, NodeType.BENCH)
+    parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32)
     text: Optional["RichText"] = p_regular(
         34, require=False, array=False, struct=StructType.RICH_TEXT
@@ -101,7 +108,7 @@ class Environment(Node):
 class Branch(Node):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
-    parent: Bench = p_parent(4, NodeType.BENCH)
+    parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32)
     text: Optional["RichText"] = p_regular(
         34, require=False, array=False, struct=StructType.RICH_TEXT
@@ -122,7 +129,7 @@ class Branch(Node):
 class Package(Node):
     """A package is a semi-isolated version of a Bench containing all the source and data."""
 
-    parent: Bench = p_parent(4, NodeType.BENCH)
+    parent: Bench = p_node_parent(4, NodeType.BENCH)
     slug: Optional[str] = p_regular(33)
     text: Optional["RichText"] = p_regular(
         34, require=False, array=False, struct=StructType.RICH_TEXT
@@ -172,7 +179,7 @@ class Dependency(Node):
     """
 
     # dependent
-    parent: Union[Package, "Block"] = p_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union[Package, "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     scopes: list["Block"] = p_regular(30, require=True, array=True, references=NodeType.BLOCK)
 
     # dependency
@@ -186,7 +193,7 @@ class Dependency(Node):
 class Upgrade(Node):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
-    parent: Package = p_parent(4, NodeType.PACKAGE)
+    parent: Package = p_node_parent(4, NodeType.PACKAGE)
 
     name: Optional[str] = p_regular(32)
     text: Optional["RichText"] = p_regular(

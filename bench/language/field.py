@@ -26,7 +26,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_runtime,
-    p_parent,
+    p_node_parent,
     p_value_runtime,
     p_value_packed,
     p_regular,
@@ -232,7 +232,7 @@ class TypeInfo(HasValues):
 class Field(Node, TypeInfo, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
-    parent: Union["Block", None] = p_parent(4, NodeType.BLOCK)
+    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
     name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str | None = p_internal(31, default=None)
     dynamic_key: str | None = p_internal(32, default=None)

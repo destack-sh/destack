@@ -1,10 +1,24 @@
+from dataclasses import dataclass
+import functools
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Optional, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Optional,
+    TypedDict,
+    Union,
+    Generic,
+    TypeVar,
+)
 
 import structlog
 
 from bench.language.const import StructType, NodeType
-from bench.language.node import Node, NodeStatus, Property, struct, Struct, struct_component
+from bench.language.node import Node, InterpStatus, Property, struct, Struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler
@@ -33,12 +47,46 @@ logger = structlog.get_logger(__name__)
 #  also see :StructScope, should be done in one go probably
 
 
-class Value(TypedDict):
+@dataclass(slots=True)
+class Value:
+    # local identity
     id: str
+    parent: Union["Value", Struct, Node]
     parent_id: str | None
     parent_key: str | None
     order_key: str | None
+
+    # content
+    type: "TypeInfo"
     ...  # actual value
+
+    # use
+    ...  # getattr/setattr
+
+
+ValueT = TypeVar("ValueT", bound=Value)
+StructT = TypeVar("StructT", bound=Struct)
+ValueOrStructT = Union[ValueT, StructT]
+
+
+class ValueList(list, Generic[ValueOrStructT]):
+    """A list of Values or Value-like Structs (with local identity, so can't be inlined)."""
+
+    @functools.wraps(list.__init__)
+    def __init__(self, parent: Value | Struct, parent_key: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.parent_key = parent_key
+
+
+class InlinedList(list, Generic[ValueOrStructT]):
+    """A list of inlined Values or Structs (without identity, just for tracking)"""
+
+    @functools.wraps(list.__init__)
+    def __init__(self, parent: Value | Struct, parent_key: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.parent_key = parent_key
 
 
 @struct_component
@@ -115,7 +163,7 @@ def map_value(
         if not isinstance(value, Mapping):
             return None if none_if_invalid else value
         mapped = {}
-        assert type._status >= NodeStatus.INTERP, f"unexpected unresolved type {type}"
+        assert type._status >= InterpStatus.INTERPED, f"unexpected unresolved type {type}"
         for subtype in type.fields:
             source_k, target_k = map_k(subtype)
             if source_k not in value:
@@ -347,137 +395,6 @@ class TypedDict(dict):
 
 def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
     return lambda path: onfn(f"{key}.{path}")
-
-
-def proxy_value(
-    value: Any,
-    onwrite: Callable[[str], None],
-    default_none: bool = False,
-) -> Any:
-    """Recursively proxy the given value, calling onread/onwrite when a key is accessed."""
-    if isinstance(value, dict):
-        return ProxyDict(value, onwrite, default_none=default_none)
-    elif isinstance(value, list):
-        return ProxyList(value)
-    else:
-        return value
-
-
-def unproxy_value(value: Any) -> Any:
-    """Recursively unproxy the given value."""
-    if isinstance(value, ProxyDict):
-        return value._inner
-    elif isinstance(value, ProxyList):
-        return value._inner
-    else:
-        return value
-
-
-class ProxyDict(Mapping):
-    """Proxy a dict, behave as a type dict, calling onread/onwrite when a key is accessed."""
-
-    def __init__(
-        self,
-        inner: dict,
-        onwrite: Callable[[str], None],
-    ):
-        self._inner = inner
-        self._onwrite = onwrite
-
-    def __str__(self):
-        return str(self._inner)
-
-    def __repr__(self):
-        return f"<ProxyDict {self._inner}>"
-
-    def items(self):
-        return self._inner.items()
-
-    def keys(self):
-        return self._inner.keys()
-
-    def values(self):
-        return self._inner.values()
-
-    def __getitem__(self, key: str) -> Any:
-        return self._inner[key]
-
-    def update(self, other: dict) -> None:
-        for key, value in other.items():
-            self[key] = value
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        value = proxy_value(value, _curry_path(self._onwrite, key))
-        self._inner[key] = value
-        self._onwrite(key)
-
-    def __delitem__(self, key: str) -> None:
-        del self._inner[key]
-        self._onwrite(key)
-
-    def __contains__(self, key: str) -> bool:
-        return key in self._inner
-
-    def __len__(self):
-        return len(self._inner)
-
-    def __iter__(self):
-        return iter(self._inner)
-
-    # dot dict
-
-    def __setattr__(self, item, value):
-        if item in ("_inner", "_onwrite"):
-            return super().__setattr__(item, value)
-        self._inner[item] = value
-        self._onwrite(item)
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-
-
-class ProxyList(Collection):
-    """Proxy a list, calling onread and onwrite when a key is accessed."""
-
-    def __init__(self, inner: list, onwrite: Callable[[int], None]):
-        self._inner = inner
-        self._onwrite = onwrite
-
-    def __str__(self):
-        return str(self._inner)
-
-    def __repr__(self):
-        return f"<ProxyList {self._inner}>"
-
-    def __delitem__(self, key: int) -> None:
-        self._onwrite(key)
-        del self._inner[key]
-
-    def __contains__(self, key: Any) -> bool:
-        return key in self._inner
-
-    def __getitem__(self, item: int | slice) -> Any:
-        return self._inner[item]
-
-    def __len__(self):
-        return len(self._inner)
-
-    def __iter__(self):
-        return iter(self._inner)
-
-    def append(self, value: Any) -> None:
-        idx = len(self._inner)
-        self._inner.append(value)
-        self._onwrite(idx)
-
-    def extend(self, value: Any) -> None:
-        for v in value:
-            len(self._inner)
-            self._inner.append(v)
-        self._onwrite("")
 
 
 @struct(StructType.CONTEXT)
