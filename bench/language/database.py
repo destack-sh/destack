@@ -5,7 +5,6 @@ import structlog
 
 from bench.language.const import UNSET, ConditionalOp, NodeType, new_dynamic_node_key, AggregationOp
 from bench.language.expression import C
-from bench.language.graph import NodeListBase
 from bench.language.node import (
     Node,
     NodeList,
@@ -44,9 +43,6 @@ if TYPE_CHECKING:
     from bench.language import Block, Query
 
 logger = structlog.get_logger(__name__)
-
-LOCAL_RECORD_CACHE_LIMIT = 2048
-RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
 @node(
@@ -180,11 +176,11 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
             )
 
 
-class RecordList(NodeListBase[Record], QueryBuilder[Record, RecordData]):
+class RecordList(NodeList[Record], QueryBuilder[Record, RecordData]):
     """A NodeList for remote records."""
 
     def __init__(self, parent: "Node", property: Property):
-        NodeListBase[Record].__init__(self, parent, property)
+        NodeList[Record].__init__(self, parent, property)
         QueryBuilder.__init__(self, node_type=NodeType.RECORD, base=parent, cache=False)
 
     def __str__(self):
@@ -218,9 +214,7 @@ class HasDatabase(Node):
     queries: NodeList["Query"] = p_node_child(
         NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
     )
-    records: RecordList[Record] = p_node_child(
-        NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
-    )
+    records: RecordList[Record] = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
     _table: Optional[Table] = p_runtime(default=None)
 
     def _init_inner(self):

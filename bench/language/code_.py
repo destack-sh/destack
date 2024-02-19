@@ -9,6 +9,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.const import StructType
+from bench.language.graph import ValueList
 from bench.language.node import Node, Struct, struct
 from bench.language.property import p_runtime, p_regular
 from bench.language.value import TypedDict
@@ -30,15 +31,6 @@ class CodeTransformation:
     end_offset: int
 
 
-@struct(StructType.CODE_SECTION)
-class CodeSection(Struct):
-    # language: ...
-    # kind: ...
-    lines: list["CodeLine"] = p_regular(
-        32, require=True, array=True, default_factory=list, struct=StructType.CODE_LINE
-    )
-
-
 @struct(StructType.CODE_LINE)
 class CodeLine(Struct):
     line: str = p_regular(32)
@@ -46,9 +38,8 @@ class CodeLine(Struct):
 
 @struct(StructType.CODE)
 class Code(Struct):
-    sections: list[CodeSection] = p_regular(
-        30, require=True, array=True, default_factory=list, struct=StructType.CODE_SECTION
-    )
+    # language: ...
+    lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
     _is_async: Optional[bool] = p_runtime(default=None)
     _transform: Optional[CodeTransformation] = p_runtime(default=None)

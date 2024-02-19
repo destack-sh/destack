@@ -101,9 +101,7 @@ def _complete_bench_setup():
             # set introspectable properties as <cls>.<property>
             if prop.is_introspectable:
                 setattr(cls, name, prop)
-
-            # ensure the introspected property type works (and cache it)
-            if prop.is_introspectable:
+                # cache the introspected type info
                 prop._as_type  # noqa
 
             # check deferred/encrypted properties
@@ -116,12 +114,12 @@ def _complete_bench_setup():
                 and issubclass(prop.py_type_raw, Struct)
                 and not issubclass(prop.py_type_raw, Node)
             ):
-                if not prop.struct_type:
+                if not prop.reference_struct:
                     raise ValueError(
                         f"cannot store {prop!r} as {prop.py_type_raw!r} (missing struct_type)"
                     )
-                if STRUCT_CLASS_BY_TYPE[prop.struct_type] is not prop.py_type_raw:
-                    raise ValueError(f"{prop!r} {prop.struct_type} != {prop.py_type_raw}")
+                if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
+                    raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
 
         cls.__stored_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
@@ -137,7 +135,7 @@ def _complete_bench_setup():
     parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
     child_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        for parent_type in node_cls.__parent_property__.reference_types:
+        for parent_type in node_cls.__parent_property__.reference_nodes:
             parent_types[node_cls.metatype].add(parent_type)
             child_types[parent_type].add(node_cls.metatype)
     # ancestor/descendant: extend parent/child transitively

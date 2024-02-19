@@ -1,8 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from bench.language.const import StructType
+from bench.language.graph import ValueList
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct
 from bench.language.property import p_regular
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import ValueReference
@@ -10,35 +12,65 @@ if TYPE_CHECKING:
 
 @struct(StructType.TEXT)
 class Text(Struct):
-    spans: list["TextSpan"] = p_regular(32, default_factory=list, struct=StructType.TEXT)
+    lines: list["TextLine"] = p_regular(32, array=True, struct=StructType.TEXT_LINE)
 
     def __content_str__(self):
-        spans_strs: list[str] = [span.__content_str__() for span in self.spans]
-        return "".join(spans_strs)
+        return "\n".join(line.__content_str__() for line in self.lines)
 
     @staticmethod
     def plain(text: str) -> "Text":
-        return Text(spans=[TextSpan(text=text)])
+        return Text(lines=[TextLine.plain(text)])
 
 
-@struct(StructType.TEXT_SPAN)
-class TextSpan(Struct):
-    # plain text
-    content: str | None = p_regular(30, default=None)
-    # mentions
-    node_reference: Node | None = p_regular(
-        31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
-    )
-    value_reference: ValueReference | None = p_regular(
-        32, array=False, default=None, require=False, struct=StructType.VALUE_REFERENCE
-    )
-
+@struct(StructType.TEXT_OPTIONS)
+class TextOptions(Struct):
+    # color?
     # flags
-    is_bold: bool = p_regular(40, default=False)
-    is_italic: bool = p_regular(41, default=False)
-    is_strikethrough: bool = p_regular(42, default=False)
-    is_underline: bool = p_regular(43, default=False)
-    is_code: bool = p_regular(44, default=False)
+    is_bold: bool = p_regular(60, default=False)
+    is_italic: bool = p_regular(61, default=False)
+    is_strikethrough: bool = p_regular(62, default=False)
+    is_underline: bool = p_regular(63, default=False)
+    is_code: bool = p_regular(64, default=False)
+
+
+class TextLineType(IdEnum):
+    PLAIN = 1
+    # heading
+    HEADING_SMALL = 6
+    HEADING_MEDIUM = 7
+    HEADING_LARGE = 8
+    # callout
+    CALLOUT_INFO = 12
+    CALLOUT_WARNING = 13
+    # list
+    LIST_BULLET = 16
+    LIST_NUMBERED = 17
+
+
+@struct(StructType.TEXT_LINE)
+class TextLine(TextOptions):
+    type: TextLineType = p_regular(30, default=TextLineType.PLAIN)
+    spans: list["TextSpan"] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
+
+    def __content_str__(self):
+        return "".join(span.__content_str__() for span in self.spans)
+
+    @staticmethod
+    def plain(text: str) -> "TextLine":
+        return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text)])
+
+
+@struct(StructType.TEXT_SPAN, inline=True)
+class TextSpan(TextOptions):
+    # plain text
+    content: str | None = p_regular(33, default=None)
+    # mentions
+    node_reference: Optional[Node] = p_regular(
+        34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
+    )
+    value_reference: Optional["ValueReference"] = p_regular(
+        35, array=False, default=None, require=False, struct=StructType.VALUE_REFERENCE
+    )
 
     def __content_str__(self):
         if self.content:

@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import InterpStatus, NodeType, NRel
+from bench.language.const import InterpStatus, NodeType, NRel, EMPTY_LIST
 from bench.language.setup import CHILD_NODE_TYPES
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -22,7 +22,7 @@ from bench.proto.wire import AnyNodeData
 from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, Node
+    from bench.language import Node, Property, Node, Field
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -214,10 +214,10 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         node: NodeT,
         child_node_type: NodeType | None = None,
         recursive: bool = False,
-    ) -> tuple["NodeT", ...] | list["NodeT"]:
+    ) -> list["NodeT"]:
         assert isinstance(node.id, UUID), f"expected Node, got {node!r}"
         if not CHILD_NODE_TYPES[node.metatype]:
-            return ()
+            return EMPTY_LIST
         if not recursive:
             if child_node_type is not None:  # best case
                 return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
@@ -336,7 +336,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
 
     def collect_descendants(
         self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
-    ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
+    ) -> list["NodeDataT"]:
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
         if not recursive:
             if child_node_type is not None:
@@ -455,42 +455,42 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         node: NodeT,
         child_node_type: NodeType | None = None,
         recursive: bool = False,
-    ) -> tuple["NodeT", ...] | list["NodeT"]:
+    ) -> list["NodeT"]:
         assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
         if not CHILD_NODE_TYPES[node.metatype]:
-            return ()
+            return EMPTY_LIST
         node_ck = node.ck
         if not recursive:
             if child_node_type is not None:
-                return tuple(
+                return [
                     child
-                    for child in self.nodes_by_parent_ck.get(node_ck, ())
+                    for child in self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
                     if child.metatype == child_node_type
-                )
+                ]
             else:
-                return tuple(self.nodes_by_parent_ck.get(node_ck, ()))
+                return self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
         else:
             descendants: list[NodeT] = []
             if child_node_type:
                 queue = deque(
                     child
-                    for child in self.nodes_by_parent_ck.get(node_ck, ())
+                    for child in self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
                     if child.metatype == child_node_type
                 )
             else:
-                queue = deque(self.nodes_by_parent_ck.get(node_ck, ()))
+                queue = deque(self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST))
             while queue:
                 current_nodes = queue.popleft()
                 descendants.append(current_nodes)
-                children = self.nodes_by_parent_ck.get(current_nodes.ck, ())
+                children = self.nodes_by_parent_ck.get(current_nodes.ck, EMPTY_LIST)
                 if len(children) > 0:
                     queue.extend(children)
             return descendants
 
 
-class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
+class NodeList(abc.ABC, Collection, Generic[NodeT]):
     """
-    A list of node descendants for a parent's property.
+    A list of node descendants of a parent's property.
     This is the primary way of adding, removing and accessing regular node relations.
     """
 
@@ -509,7 +509,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         from bench.language.node import NODE_CLASS_BY_TYPE
 
-        node_cls = NODE_CLASS_BY_TYPE[self._property.reference_types[0]]
+        node_cls = NODE_CLASS_BY_TYPE[self._property.reference_nodes[0]]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(
@@ -548,25 +548,29 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         raise NotImplementedError
 
 
-class NodeList(NodeListBase[NodeT]):
-    # TODO @Cleanup @Architecture: use ReadQuery/WriteQuery in NodeList (with InMemoryGraphEngine to query)
+class InMemoryGraphNodeList(NodeList[NodeT]):
+    # TODO @Cleanup @Architecture: use ReadQuery/WriteQuery in NodeList?
+    #  (with InMemoryGraphEngine to query)
     __slots__ = ("_child_node_type", "_flags")
 
     def __init__(self, parent: "Node", property: "Property"):
         super().__init__(parent, property)
-        assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
-        self._child_node_type: NodeType = property.reference_types[0]
-        self._flags = property.children_flags
+        assert len(property.reference_nodes) == 1, f"cannot have many child types: {property!r}"
+        self._child_node_type: NodeType = property.reference_nodes[0]
+        self._flags = property.reference_flags
 
     def __str__(self):
         return str(self.nodes)
 
     @property
-    def nodes(self) -> tuple[NodeT, ...]:
+    def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
         """Access the computed nodes"""
-        return self._parent._root_graph.collect_descendants(
+        descendants = self._parent._root_graph.collect_descendants(
             self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
         )
+        if self._flags & NRel.ORDERED and len(descendants) > 1:
+            descendants.sort(key=lambda n: n.order_key)
+        return descendants
 
     def append(self, n: NodeT, after: NodeT = None, before: NodeT = None) -> tuple[NodeT, ...]:
         from bench.language.node import Node
@@ -653,16 +657,14 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.KEYED or self._flags & NRel.NAMED):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
-            if obj.metatype != self._property.reference_types[0]:
+            if obj.metatype != self._property.reference_nodes[0]:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self.nodes
         else:
             return False
 
     def __getitem__(self, item: int | slice | str) -> NodeT | list[NodeT]:
-        if isinstance(item, int):
-            return self.nodes[item]
-        elif isinstance(item, slice):
+        if isinstance(item, (int, slice)):
             return self.nodes[item]
         elif isinstance(item, str):
             return self.get(item)
@@ -692,26 +694,49 @@ class NodeList(NodeListBase[NodeT]):
             return False
 
 
-ValueT = TypeVar("ValueT", bound="Value")
-StructT = TypeVar("StructT", bound="Struct")
-ValueOrStructT = Union[ValueT, StructT]
+ValueParentT = TypeVar("ValueParentT", bound=Union["Value", "Struct", "Node"])
 
 
-class ValueList(list, Generic[ValueOrStructT]):
-    """A list of Values or Value-like Structs (with local identity, so can't be inlined)."""
-
-    @functools.wraps(list.__init__)
-    def __init__(self, parent: Union["ValueT", "StructT"], parent_key: str, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.parent = parent
-        self.parent_key = parent_key
-
-
-class InlinedValueList(list, Generic[ValueOrStructT]):
-    """A list of inlined Values or Structs (without identity, just for tracking)"""
+class ValueList(list, Generic[ValueParentT]):
+    """
+    A list of Values or Value-like Structs (with local identity, so can't be inlined).
+    Unlike a NodeList, value lists are actual lists and not computed on access.
+    """
 
     @functools.wraps(list.__init__)
-    def __init__(self, parent: Union["ValueT", "StructT"], parent_key: str, *args, **kwargs):
+    def __init__(
+        self,
+        parent: ValueParentT,
+        parent_prop: Union["Property", "Field"],
+        *args,
+        **kwargs,
+    ):
+        from bench.language.node import Property
+
         super().__init__(*args, **kwargs)
         self.parent = parent
-        self.parent_key = parent_key
+        self.parent_prop = parent_prop
+        self.parent_key = (
+            parent_prop.id if isinstance(parent_prop, Property) else parent_prop.identity_key
+        )
+
+
+class InlinedValueList(list, Generic[ValueParentT]):
+    """A ValueList, but for inlined Values/Structs without identity (for list edit tracking)."""
+
+    @functools.wraps(list.__init__)
+    def __init__(
+        self,
+        parent: ValueParentT,
+        parent_prop: Union["Property", "Field"],
+        *args,
+        **kwargs,
+    ):
+        from bench.language.node import Property
+
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.parent_prop = parent_prop
+        self.parent_key = (
+            parent_prop.id if isinstance(parent_prop, Property) else parent_prop.identity_key
+        )

@@ -116,7 +116,6 @@ class StructType(IdEnum):
     FIELD_PATH = 504
     FIELD_PATH_SEGMENT = 505
     VALUE_REFERENCE = 506
-    VALUE_SELECTION = 507
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
@@ -145,8 +144,7 @@ class StructType(IdEnum):
 
     # code
     CODE = 590
-    CODE_SECTION = 591
-    CODE_LINE = 592
+    CODE_LINE = 591
     RUN_CODE_FRAME = 600
     RUN_ERROR = 601
     # CURSOR?
@@ -157,19 +155,19 @@ class StructType(IdEnum):
 
     # text
     TEXT = 660
-    TEXT_SPAN = 661
+    TEXT_LINE = 661
+    TEXT_SPAN = 662
+    TEXT_OPTIONS = 663
 
     # views
     SPACE_DOCK = 700
     SPACE_DOCK_ITEM = 701
 
-    # ...
-
     # shapes
-    # ...
+    ...
 
     # workspace
-    # ...
+    ...
 
 
 STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
@@ -273,6 +271,8 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
 
 
 class ReferenceKind(IdEnum):
+    """A reference to a Node or Struct - usually both have an identity (except for inlined Structs)."""
+
     NODE_ANCESTOR_ROOT = 1
     NODE_ANCESTOR_FIRST = 2
     NODE_PARENT = 3
@@ -280,6 +280,7 @@ class ReferenceKind(IdEnum):
     NODE_REGULAR = 5
     STRUCT_PARENT = 6
     STRUCT_CHILD = 7
+    PROPERTY = 8
 
     @property
     def is_node_tree(self):

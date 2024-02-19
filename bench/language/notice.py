@@ -60,10 +60,10 @@ class Notice(Node):
     # -> builtin_type / custom_type / ... 'type' as union
     message: str = p_regular(33)
     path: Optional[FieldPath] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.FIELD_PATH
+        34, require=False, array=False, struct=StructType.FIELD_PATH
     )
     properties: Optional[list[Property]] = p_regular(
-        35, default=None, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+        35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     # value_packed, value: ... # custom value
 

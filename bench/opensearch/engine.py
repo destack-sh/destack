@@ -362,10 +362,12 @@ def map_struct_type_to_os_document(
         if prop.is_enum:
             field = os.Field(os.FieldType.KEYWORD)
         elif prop.is_struct:
-            if prop.struct_type in seen_types:
+            if prop.reference_struct in seen_types:
                 continue  # no recursive indexing
-            struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-            mapped = map_struct_type_to_os_document(struct_cls, seen_types + (prop.struct_type,))
+            struct_cls = STRUCT_CLASS_BY_TYPE[prop.reference_struct]
+            mapped = map_struct_type_to_os_document(
+                struct_cls, seen_types + (prop.reference_struct,)
+            )
             field = os.Field(os.FieldType.OBJECT, properties=mapped.fields)
         elif prop.primitive_type == PrimitiveType.JSON:
             field = os.Field(os.FieldType.OBJECT, dynamic="strict")

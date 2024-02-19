@@ -78,9 +78,7 @@ class Space(HasViews):
     name: str = p_regular(31)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33)
-    policies: list["Policy"] | None = p_regular(
-        34, default_factory=list, struct=StructType.POLICY, array=True
-    )
+    policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
     # layout/views/...
     dock: "SpaceDock" = p_regular(35, require=True, array=False, struct=StructType.SPACE_DOCK)
 
@@ -103,5 +101,5 @@ class SpaceDockItem(Struct):
 @struct(StructType.SPACE_DOCK)
 class SpaceDock(Struct):
     items: list[SpaceDockItem] = p_regular(
-        30, require=True, array=True, default_factory=list, struct=StructType.SPACE_DOCK_ITEM
+        30, require=True, array=True, struct=StructType.SPACE_DOCK_ITEM
     )
