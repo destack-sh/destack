@@ -15,7 +15,7 @@ from bench.language.node import (
 )
 from bench.language.property import (
     p_node_parent,
-    p_child,
+    p_node_child,
     p_value_runtime,
     p_value_packed,
     p_secret_value_packed,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         Icon,
         Package,
         Policy,
-        RichText,
+        Text,
         TypeInfo,
     )
 
@@ -123,9 +123,13 @@ class Block(Node, HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    blocks: NodeList["Block"] = p_child(NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
-    badges: NodeList["Badge"] = p_child(NodeType.BADGE)
-    fields: NodeList["Field"] = p_child(NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
+    blocks: NodeList["Block"] = p_node_child(
+        NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
+    )
+    badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
+    fields: NodeList["Field"] = p_node_child(
+        NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
+    )
 
     # core
     type: BlockType = p_internal(30, default=BlockType.BLANK)
@@ -140,8 +144,8 @@ class Block(Node, HasValues):
     builtin_base: Optional["TypeInfo"] = p_regular(37, default=None, struct=StructType.TYPE_INFO)
 
     dynamic_key: str | None = p_internal(40, default=None)
-    text: Optional["RichText"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    text: Optional["Text"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.TEXT
     )
     value_packed: Any = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)

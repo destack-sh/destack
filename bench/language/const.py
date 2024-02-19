@@ -108,6 +108,7 @@ ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 
 
 class StructType(IdEnum):
+    # core
     BENCH_PATH = 500
     NODE_REFERENCE = 501
     PROPERTY_REFERENCE = 502
@@ -116,15 +117,16 @@ class StructType(IdEnum):
     FIELD_PATH_SEGMENT = 505
     VALUE_REFERENCE = 506
     VALUE_SELECTION = 507
-
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
     PROJECTION = 513
 
+    # files
     FILE = 520
     ICON = 521
 
+    # access
     POLICY = 530
     POLICY_RULE = 531
     SUBJECT = 532
@@ -136,10 +138,12 @@ class StructType(IdEnum):
     ...
     READ_OPTIONS = 550
 
+    # expressions
     EXPRESSION = 560
     AGGREGATION = 561
     AGGREGATION_BUCKET = 562
 
+    # code
     CODE = 590
     CODE_SECTION = 591
     CODE_LINE = 592
@@ -151,8 +155,9 @@ class StructType(IdEnum):
     SERVER_IMAGE_REQUIREMENT = 631
     STORE_CREDENTIAL = 632
 
-    RICH_TEXT = 660
-    RICH_TEXT_SPAN = 661
+    # text
+    TEXT = 660
+    TEXT_SPAN = 661
 
     # views
     SPACE_DOCK = 700
@@ -267,23 +272,29 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
     return key
 
 
-class NodeTrackingLevel(IdEnum):
-    NONE = 1
-    ANONYMOUS = 2
-    FULL = 3
+class ReferenceKind(IdEnum):
+    NODE_ANCESTOR_ROOT = 1
+    NODE_ANCESTOR_FIRST = 2
+    NODE_PARENT = 3
+    NODE_CHILD = 4
+    NODE_REGULAR = 5
+    STRUCT_PARENT = 6
+    STRUCT_CHILD = 7
+
+    @property
+    def is_node_tree(self):
+        return self.id <= 4
+
+    @property
+    def is_node(self):
+        return self.id <= 5
+
+    @property
+    def is_struct_tree(self):
+        return self.id > 5
 
 
-class NodeReferenceKind(IdEnum):
-    PARENT = 1
-    ANCESTOR = 2
-    REGULAR = 3
-    CHILD = 4
-
-
-NTL = NodeTrackingLevel
-
-
-class NodeRelationType(enum.IntFlag):
+class NodeRelationFlag(enum.IntFlag):
     """Parent relation between node and descendants."""
 
     DEFAULT = 0  # default inline relation
@@ -295,7 +306,7 @@ class NodeRelationType(enum.IntFlag):
     ORDERED = 2**5  # ordered: Block->Block, Block->Field, ...
 
 
-NRel = NodeRelationType
+NRel = NodeRelationFlag
 
 
 class InterpStatus(IdEnum):
@@ -350,7 +361,7 @@ class UseType(IdEnum):
     PAUSE = 31
     RESUME = 32
     KILL = 33
-    EMIT = 34
+    SEND = 34
     RECEIVE = 35
 
     @property

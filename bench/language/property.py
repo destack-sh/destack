@@ -9,9 +9,9 @@ from uuid import UUID
 from bench.language.const import (
     UNSET,
     StructType,
-    NodeReferenceKind,
+    ReferenceKind,
     NodeType,
-    NodeRelationType,
+    NodeRelationFlag,
     BenchType,
     IN_PACKAGE_NODE_TYPES,
     NRel,
@@ -85,16 +85,14 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
     value_type_info_getter: Callable[["Node"], "TypeInfo"] | None = None  # type info getter
 
-    # node references
-    is_ancestor_nearest: bool | None = None  # for ancestor relations
-    is_ancestor_self: bool | None = None  # for ancestor relations
-    reference_kind: NodeReferenceKind | None = None  # for reference relations
+    # references (nodes and struct/value)
+    reference_kind: ReferenceKind | None = None  # for reference relations
     reference_types: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_wired_ptr: Optional["Property"] = None  # wired reference for references
-    reference_stored_ptrs: tuple["Property", ...] | None = None  # stored reference for references
-    reference_source: Optional["Property"] = None  # for reference relations (reverse)
+    reference_wired_ptr: Optional["Property"] = None  # wired representation
+    reference_stored_ptrs: tuple["Property", ...] | None = None  # stored representation
+    reference_source: Optional["Property"] = None  # for contributed properties
     reference_on_delete: CascadeAction | None = UNSET
-    children_flags: NodeRelationType = NodeRelationType.DEFAULT
+    children_flags: NodeRelationFlag = NodeRelationFlag.DEFAULT
     list_type: type["NodeListBase"] | None = None
 
     _cached_as_ref: Optional["PropertyReference"] = None
@@ -128,8 +126,6 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             "is_internal",
             "is_system",
             "is_kernel",
-            "is_ancestor_nearest",
-            "is_ancestor_self",
             "is_deferred",
             "is_encrypted",
             "struct_type",
@@ -236,19 +232,24 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             # exclude empty references type, TypeInfo can't handle that yet
             and (not self.reference_kind or self.reference_types)
             # exclude ancestor properties (they're computed but would be nice to have :c)
-            and self.reference_kind != NodeReferenceKind.ANCESTOR
+            and self.reference_kind != ReferenceKind.NODE_ANCESTOR_FIRST
             # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )
 
     @property
-    def is_graph_reference(self) -> bool:
-        """Whether this is a node relation property (parent/child/ancestor)."""
-        return self.reference_kind in (
-            NodeReferenceKind.PARENT,
-            NodeReferenceKind.ANCESTOR,
-            NodeReferenceKind.CHILD,
-        )
+    def is_tree_reference(self) -> bool:
+        """Whether this is a tree relation property (parent/child/ancestor)."""
+        return self.reference_kind.is_node_tree
+
+    @property
+    def is_node_reference(self):
+        return self.reference_kind.is_node
+
+    @property
+    def is_struct_reference(self):
+        """Whether this is a reference to a parent struct/value. *Not* an inlined Struct."""
+        return self.reference_kind.is_struct_tree
 
     @property
     def reference_type(self) -> NodeType:
@@ -305,7 +306,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.primitive_type is UNSET and (self.is_graph_reference or self.reference_types):
+        if self.primitive_type is UNSET and (self.is_tree_reference or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
             self.primitive_type = None
@@ -317,7 +318,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             self.is_runtime = self.is_stored
 
         # resolve py type
-        if self.is_ephemeral or self.reference_kind == NodeReferenceKind.CHILD:
+        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILD:
             # can't resolve these because they point to non-Bench types
             self.py_type_stripped = self.py_type_raw
             return
@@ -401,7 +402,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
         assert self.reference_stored_ptrs is None, f"already contributed {self!r}"
 
-        # property references aren't 'real' references, but they use a pointer
+        # property reference
         if self.struct_type == StructType.PROPERTY_REFERENCE:
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
@@ -425,8 +426,27 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             self.is_runtime = True
             return (property_ptr,)
 
+        # struct (parent) references
+        if self.reference_kind == ReferenceKind.STRUCT_PARENT:
+            property_ptr = Property(
+                id=self.id,
+                name=self.name + "_id",
+                component=self.component,
+                primitive_type=PrimitiveType.INT32,
+                reference_kind=ReferenceKind.STRUCT_PARENT,
+                is_runtime=True,
+                is_internal=True,
+                is_wired=True,
+                is_stored=True,
+                is_required=False,
+                is_array=False,
+                default=None,
+                reference_source=self,
+            )
+            self.is_runtime = True
+
         # wired/stored pointer settings for each node reference kind
-        if self.reference_kind == NodeReferenceKind.PARENT:
+        if self.reference_kind == ReferenceKind.NODE_PARENT:
             is_wired = True
             is_stored = True
             is_required = False
@@ -434,7 +454,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             is_computed = False
             is_internal = True
             on_delete = CascadeAction.CASCADE
-        elif self.reference_kind == NodeReferenceKind.ANCESTOR:
+        elif self.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
             is_wired = self.is_wired
@@ -444,7 +464,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             is_computed = True
             is_internal = True
             on_delete = CascadeAction.CASCADE
-        elif self.reference_kind == NodeReferenceKind.REGULAR:
+        elif self.reference_kind == ReferenceKind.NODE_REGULAR:
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             is_wired = True
@@ -482,7 +502,8 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             stored_ptr_props = []
             for ref_type in self.reference_types:  # :RavelReferences
                 store_as_id = (
-                    self.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR)
+                    self.reference_kind
+                    in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR_FIRST)
                     or ref_type not in IN_PACKAGE_NODE_TYPES
                     or ref_type == NodeType.PACKAGE
                 )
@@ -570,7 +591,7 @@ def p_property(
         default=default,
         default_factory=default_factory,
         custom_validate=validate,
-        reference_kind=NodeReferenceKind.REGULAR if references else None,
+        reference_kind=ReferenceKind.NODE_REGULAR if references else None,
         reference_types=try_tuple(references),
         struct_type=struct,
         primitive_type=primitive_type,
@@ -614,7 +635,7 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False):
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
-        reference_kind=NodeReferenceKind.PARENT,
+        reference_kind=ReferenceKind.NODE_PARENT,
         reference_types=tuple(node_type),
         is_internal=True,
         is_stored=False,
@@ -623,26 +644,23 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False):
     )
 
 
-def p_ancestor(
+def p_node_ancestor(
     id: int,
     node_type: NodeType,
-    nearest: bool = True,
-    include_self: bool = True,
     store: bool = False,
     wire: bool = False,
     require: bool = UNSET,
     index_in_pg: bool = False,
+    kind: ReferenceKind = ReferenceKind.NODE_ANCESTOR_FIRST,
 ):
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        reference_kind=NodeReferenceKind.ANCESTOR,
+        reference_kind=kind,
         reference_types=(node_type,),
         is_internal=True,
         is_computed=True,
         is_system=True,
-        is_ancestor_nearest=nearest,
-        is_ancestor_self=include_self,
         is_stored=store,
         is_wired=wire,
         is_required=require,
@@ -650,7 +668,10 @@ def p_ancestor(
     )
 
 
-def p_child(
+p_node_ancestor_root = functools.partial(p_node_ancestor, nearest=False, include_self=False)
+
+
+def p_node_child(
     node_type: NodeType,
     flags: NRel = NRel.DEFAULT,
     custom_list: type["NodeListBase"] = None,
@@ -658,7 +679,7 @@ def p_child(
 ):
     """Computed read/write children or descendants of the given type."""
     return Property(
-        reference_kind=NodeReferenceKind.CHILD,
+        reference_kind=ReferenceKind.NODE_CHILD,
         reference_types=(node_type,),
         children_flags=flags,
         is_internal=True,
@@ -666,6 +687,18 @@ def p_child(
         list_type=custom_list or NodeList,
         is_stored=False,
         alias=alias,
+    )
+
+
+def p_struct_parent(id: int):
+    """The parent of a struct."""
+    return Property(
+        id=id,
+        reference_kind=ReferenceKind.STRUCT_PARENT,
+        reference_types=(),
+        is_internal=True,
+        is_stored=True,
+        is_wired=True,
     )
 
 
@@ -771,8 +804,8 @@ _PROPERTY_SPECIFIERS = (
     p_property,
     p_runtime,
     p_node_parent,
-    p_ancestor,
-    p_child,
+    p_node_ancestor,
+    p_node_child,
     p_value_runtime,
     p_value_packed,
     p_secret_value_packed,

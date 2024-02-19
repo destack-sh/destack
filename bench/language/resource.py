@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.text import RichText
+from bench.language.text import Text
 from bench.language.const import (
     FileStatus,
     NodeType,
@@ -83,7 +83,7 @@ class Store(Node):
     kind: StoreKind = p_system(30)
     engine: StoreEngineType = p_system(31)
     name: str = p_regular(32)
-    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
 
     # base: Optional[Store] ...if shared?
     host: Optional[str] = p_kernel(41, require=False, default=None, sensitive=True)
@@ -125,7 +125,7 @@ class Drive(Node):
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     # engine: ...?
     name: str = p_regular(32)
-    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
 
     host: Optional[str] = p_kernel(40, unique=True)
 

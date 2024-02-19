@@ -26,7 +26,7 @@ from bench.language.const import (
     UseType,
     StructType,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeList, ValueList
 from bench.language.setup import ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES, _COMPLETED_SETUP
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -41,13 +41,13 @@ from bench.language.property import (
     Property,
     p_runtime,
     p_node_parent,
-    p_child,
+    p_node_child,
     p_regular,
     p_internal,
     p_system,
 )
 from bench.language.notice import NoticeHandler
-from bench.language.text import RichText
+from bench.language.text import Text
 from bench.language.user import Membership, User
 from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
@@ -146,7 +146,7 @@ class Identity(Node):
     )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
-    roles: NodeList["Role"] = p_child(NodeType.ROLE)
+    roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
 
 
 @struct(StructType.READ_OPTIONS)
@@ -271,8 +271,10 @@ class Policy(Struct):
     """
 
     name: Optional[str] = p_regular(30, default=None)
-    text: Optional["RichText"] = p_regular(31, default=None, struct=StructType.RICH_TEXT)
-    rules: list["PolicyRule"] = p_regular(32, default_factory=list, struct=StructType.POLICY_RULE)
+    text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
+    rules: ValueList["PolicyRule"] = p_regular(
+        32, default_factory=list, struct=StructType.POLICY_RULE
+    )
     scopes: list["Block"] | None = p_regular(
         33, default=None, require=False, array=True, references=NodeType.BLOCK
     )
@@ -298,7 +300,7 @@ class PolicyRule(Struct):
     """
 
     name: Optional[str] = p_regular(30, default=None)
-    text: Optional["RichText"] = p_regular(31, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
 
     # subject
     # if subject is delegated then it always matches if this rule is present
@@ -718,19 +720,19 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("SystemProtection").append(
         PolicyRule(
             "CannotAccessKernelProperties",
-            text=RichText.plain("Kernel properties are inaccessible outside of the system."),
+            text=Text.plain("Kernel properties are inaccessible outside of the system."),
         )
         .deny()
         .object(properties_is_kernel=True),
         PolicyRule(
             "CannotUpdateSystemProperties",
-            text=RichText.plain("System properties must be edited through designated methods."),
+            text=Text.plain("System properties must be edited through designated methods."),
         )
         .deny(EditType.UPDATE)
         .object(properties_is_system=True),
         PolicyRule(
             "CannotCreateOrDeleteSystemNodesDirectly",
-            text=RichText.plain("System nodes existence must be managed through special methods."),
+            text=Text.plain("System nodes existence must be managed through special methods."),
         )
         .deny(
             EditType.CREATE,
@@ -742,7 +744,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(
             "CannotEditHandles",
-            text=RichText.plain(
+            text=Text.plain(
                 "Handles (like usernames) must be edited through special methods."
                 # (explicitly deny this since handles are owned by the root via OwnerAccess)
             ),
@@ -751,7 +753,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(node_types=(NodeType.HANDLE,)),
         PolicyRule(
             "CannotUpsertLegislativeNodes",
-            text=RichText.plain(
+            text=Text.plain(
                 "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
                 # (we could do it, but it would be confusing and tedious)
             ),
@@ -762,9 +764,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("OwnerAccess").append(
         PolicyRule(
             "OwnerCanDoAnything",
-            text=RichText.plain(
-                "Anyone identified as the owner of a node can always do everything."
-            ),
+            text=Text.plain("Anyone identified as the owner of a node can always do everything."),
         )
         .subject(is_owner=True)
         .allow(),
@@ -772,7 +772,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("StaffAccess").append(
         PolicyRule(
             "StaffCanReadAnythingDuringBeta",
-            text=RichText.plain("During the beta, staff users can access anything."),
+            text=Text.plain("During the beta, staff users can access anything."),
         )
         .subject(is_staff=True)
         .allow(AccessKind.READ),
@@ -780,7 +780,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("MemberAccess").append(
         PolicyRule(
             "MemberCanReadBench",
-            text=RichText.plain(
+            text=Text.plain(
                 "Every member of your Bench/Organization can read its non-sensitive properties."
             ),
         )
@@ -794,7 +794,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("AuthenticatedAccess").append(
         PolicyRule(
             "AuthenticatedCanReadPublic",
-            text=RichText.plain(
+            text=Text.plain(
                 "Authenticated users can read public nodes like User, Organization, Bench, etc.."
             ),
         )
@@ -805,7 +805,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy("AnonymousAccess").append(
         PolicyRule(
             "AnonCanReadHandle",
-            text=RichText.plain(
+            text=Text.plain(
                 "Everyone (incl. anonymous users) can read Handles (to create an account)."
             ),
         )

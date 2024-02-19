@@ -41,14 +41,13 @@ from bench.language.const import (
     UNSET,
     NodeSource,
     InterpStatus,
-    NodeTrackingLevel,
     NodeType,
     NRel,
     StructType,
     _active_session,
-    NodeReferenceKind,
+    ReferenceKind,
 )
-from bench.language.property import Property
+from bench.language.property import Property, p_struct_parent
 from bench.language.graph import (
     DetachedNodeGraph,
     NodeGraph,
@@ -65,8 +64,8 @@ from bench.language.setup import (
 from bench.language.property import (
     p_runtime,
     p_node_parent,
-    p_ancestor,
-    p_child,
+    p_node_ancestor,
+    p_node_child,
     p_regular,
     p_internal,
     p_system,
@@ -107,6 +106,7 @@ if TYPE_CHECKING:
         ValueReference,
         User,
         Run,
+        Value,
     )
     from bench.language.expression import _NodeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -114,8 +114,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def new_struct_id() -> str:
-    return secrets.token_hex(8)
+def new_struct_id() -> int:
+    return secrets.randbits(32)
 
 
 new_node_id = uuid4
@@ -281,7 +281,7 @@ def _process_struct_base_cls(
                     pass  # ignore
             elif not prop._equals_type(existing):
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-            if not is_node and prop.is_graph_reference:
+            if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
         reserved_properties.update(component.__reserved_properties__)
     cls.__reserved_properties__ = frozenset(reserved_properties)
@@ -291,9 +291,11 @@ def _process_struct_base_cls(
         prop: Property
         # collect any extra contributed properties
         if prop.struct_type == StructType.PROPERTY_REFERENCE or prop.reference_kind in (
-            NodeReferenceKind.PARENT,
-            NodeReferenceKind.ANCESTOR,
-            NodeReferenceKind.REGULAR,
+            ReferenceKind.NODE_PARENT,
+            ReferenceKind.NODE_ANCESTOR_FIRST,
+            ReferenceKind.NODE_ANCESTOR_ROOT,
+            ReferenceKind.NODE_REGULAR,
+            ReferenceKind.STRUCT_PARENT,
         ):
             for p in prop._contribute_ptrs():
                 if p.name in properties_by_name:
@@ -305,9 +307,9 @@ def _process_struct_base_cls(
                     setattr(cls, p.name, p)
 
     # create class (map properties to dataclass fields)
-    # TODO @Cleanup: the ck/package/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
         # remove :MagicProps if not needed
+        # TODO @Cleanup: :MagicProps handling is hacky and confusing
         if (prop.name == "bench" and not is_sub_bench) or (
             prop.name == "package" and not is_sub_package
         ):
@@ -318,11 +320,19 @@ def _process_struct_base_cls(
         elif prop.name == "ck" and is_node and (no_ck or not is_sub_package):
             attr = _node_ck_from_id_prop(prop)  # ck == id
             del properties_by_name[name]
+        elif prop.name == "order_key" and prop.id < 30 and (is_node or is_inlined):
+            attr = None
+            del properties_by_name[name]
+
+        # only set attributes in final class to prevent conflicts
+        elif not is_final:
+            attr = None
 
         # map property to class attribute or dataclass field
-        elif not is_final:
-            attr = None  # only set attributes in final class
-        elif prop.reference_kind == NodeReferenceKind.ANCESTOR and not is_node_base:
+        elif (
+            prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST
+            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT
+        ) and not is_node_base:
             if prop.reference_source is None:  # actual ancestor property
                 attr = _node_computed_ancestor_prop(prop)
             else:  # wired pointer to ancestor property
@@ -343,7 +353,7 @@ def _process_struct_base_cls(
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
         # also set extra computed reference properties
-        if prop.reference_kind and not prop.reference_source and prop.reference_wired_ptr:
+        if prop.reference_kind.is_node and not prop.reference_source and prop.reference_wired_ptr:
             for postfix, ref_key, ptr_key in (
                 ("id", "id", "id"),
                 ("ck", "ck", "ck"),
@@ -403,7 +413,12 @@ def _process_struct_base_cls(
     cls.__properties_mask_set__.setall(True)
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
-    # TODO @Performance!: use slots for Struct/Node and in wire types (StructData/NodeData/...)
+    parent_property = cls.__properties__.get("parent", None)
+    if is_node or not is_inlined and parent_property is None:
+        raise ValueError(f"missing parent property for node {cls}")
+    cls.__parent_property__ = parent_property
+
+    # TODO @Performance!: use slots for Struct/Node and wire types (StructData/NodeData/...)
     #  Using slots for our structs bit trickier than it seems because
     #   1) we use dynamic props in Blocks (for now?)
     #   2) lack of betterproto support (unclear how challenging it would be to add)
@@ -503,7 +518,7 @@ def node_component(
         list_properties: dict[str, Property] = {}
         list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
         for prop in properties.values():
-            if prop.reference_kind == NodeReferenceKind.CHILD:
+            if prop.reference_kind == ReferenceKind.NODE_CHILD:
                 if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
                     raise ValueError(f"{cls} is not a Node for {prop}")
                 list_properties[prop.name] = prop
@@ -512,7 +527,7 @@ def node_component(
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
         cls.__ancestor_properties__ = frozendict(
-            {p.name: p for p in props if p.reference_kind == NodeReferenceKind.ANCESTOR}
+            {p.name: p for p in props if p.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST}
         )
 
         # register as concrete node class for node_type
@@ -594,9 +609,6 @@ def node(
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 
-        parent_property = cls.__properties__.get("parent", None)
-        assert parent_property is not None, f"missing parent property for node {cls}"
-        cls.__parent_property__ = parent_property
         cls.__roots__ = bytetuple(roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_sub_package__ = sub_package
@@ -635,21 +647,21 @@ def _node_ck_from_id_prop(prop: Property) -> property:
 def _node_computed_ancestor_prop(prop: Property) -> property:
     """Computed ancestor property for Node instances."""
 
-    if prop.is_ancestor_nearest:
+    if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
 
-        def get_nearest(self: NodeT) -> Optional[NodeT]:
-            parent = self if prop.is_ancestor_self else self.parent
+        def get_ancestor_first(self: NodeT) -> Optional[NodeT]:
+            parent = self
             while parent is not None:
                 if parent.metatype in prop.reference_types:
                     return parent
                 parent = parent.parent
             return None
 
-        get = get_nearest
-    else:
+        get = get_ancestor_first
+    elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT:
 
-        def get_farthest(self: NodeT) -> Optional[NodeT]:
-            parent = self if prop.is_ancestor_self else self.parent
+        def get_ancestor_root(self: NodeT) -> Optional[NodeT]:
+            parent = self.parent
             farthest = None
             while parent is not None:
                 if parent.metatype in prop.reference_types:
@@ -657,7 +669,9 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
                 parent = parent.parent
             return farthest
 
-        get = get_farthest
+        get = get_ancestor_root
+    else:
+        raise ValueError(f"unexpected ancestor reference kind: {prop.reference_kind}")
 
     def set(self: NodeT, value: NodeT):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
@@ -773,6 +787,8 @@ class Struct(abc.ABC):
     __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
     __id_factory__: ClassVar[Callable[[], str]] = new_struct_id
 
+    __parent_property__: ClassVar[Property] = None
+
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __declared_properties__: ClassVar[dict[str, Property]] = {}
@@ -799,17 +815,16 @@ class Struct(abc.ABC):
     __is_node__: ClassVar[bool] = False
 
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
-    # id: str = p_system(1)
-    # parent: Struct | Node | None = p_struct_parent(1)
-    # parent_id: str | None = p_parent(1)
-    # parent_key: str | None = p_system(2)
-    # order_key: str | None = p_internal(4)
+    # nocheckin: implement Struct identity
+    id: int = p_system(1)
+    parent: Union["Struct", "Node", "Value", None] = p_struct_parent(1)
+    # parent_id (1) + parent_key (2)
+    order_key: str | None = p_internal(3)
 
     _status: InterpStatus = p_runtime(default=None)
 
     def __post_init__(self):
         if self._status is None:
-            # not sure if this is totally right... where do we get :StructScope?
             self._status = InterpStatus.INTERPED if _active_session.get() else InterpStatus.SOURCE
         self._init_self()
 
@@ -897,7 +912,7 @@ class Struct(abc.ABC):
     def _init_inner(self):
         # init reference pointers if references are set :NodeReferences
         for prop in self.__reference_properties__.values():
-            if prop.reference_kind == NodeReferenceKind.ANCESTOR:
+            if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
                 continue
             ref = getattr(self, prop.name)
             if prop.reference_wired_ptr is not None and ref:
@@ -969,7 +984,7 @@ class Struct(abc.ABC):
                 if valid is False:
                     on_invalid(self, f"{prop.name}: invalid value", [prop])
 
-    # struct has basic set of lifecycle methods (no index because no scope)
+    # struct has basic set of lifecycle methods
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
     _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
@@ -1053,7 +1068,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties_by_child__: ClassVar[dict[NodeType, tuple[Property, ...]]] = defaultdict(list)
-    __parent_property__: ClassVar[Property] = None
 
     __roots__: ClassVar[bytetuple[NodeType]] = UNSET
     __is_node__: ClassVar[bool] = True
@@ -1075,8 +1089,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_node_parent(4)
     # template: Optional["Node"] = node_template(5)
-    package: "Package" = p_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
-    bench: "Bench" = p_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
+    package: "Package" = p_node_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
+    bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
     source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
@@ -1114,15 +1128,14 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
-    notices: NodeList["Notice"] = p_child(NodeType.NOTICE, NRel.CUMULATIVE)
-    links: NodeList["Link"] = p_child(NodeType.LINK, NRel.CUMULATIVE)
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE, NRel.CUMULATIVE)
+    links: NodeList["Link"] = p_node_child(NodeType.LINK, NRel.CUMULATIVE)
 
     # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
     _source_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
-    _track: NodeTrackingLevel = p_runtime(default=NodeTrackingLevel.FULL)
     _is_new: bool = p_runtime(default=False)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
@@ -1369,7 +1382,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         if prop is not None:
             if prop.is_ephemeral or prop.is_autoset:  # untracked
                 return object.__setattr__(self, key, value)
-            elif prop.reference_kind == NodeReferenceKind.CHILD:
+            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
                 attr = object.__getattribute__(self, key)
                 if attr is None or type(attr) is Property:  # initial set
                     return object.__setattr__(self, key, value)

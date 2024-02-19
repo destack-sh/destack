@@ -19,7 +19,7 @@ from bench.language.property import (
     Property,
     p_runtime,
     p_node_parent,
-    p_child,
+    p_node_child,
     p_value_runtime,
     p_value_packed,
     p_secret_value_packed,
@@ -215,8 +215,10 @@ class RecordList(NodeListBase[Record], QueryBuilder[Record, RecordData]):
 @node_component
 class HasDatabase(Node):
     dynamic_key: str | None = p_internal(UNSET, default=None)
-    queries: NodeList["Query"] = p_child(NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED)
-    records: RecordList[Record] = p_child(
+    queries: NodeList["Query"] = p_node_child(
+        NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
+    )
+    records: RecordList[Record] = p_node_child(
         NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
     )
     _table: Optional[Table] = p_runtime(default=None)
