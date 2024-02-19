@@ -652,7 +652,7 @@ message AccessMatrixData {
   BenchType metatype = 1;
   SubjectData subject = 30;
   repeated SubjectData identities = 32;
-  repeated AccessZoneData scope_zones = 33;
+  repeated AccessZoneData scoped_zones = 33;
   repeated AccessZoneData base_zones = 34;
 }
 
@@ -843,6 +843,21 @@ message PolicyData {
   optional RichTextData text = 31;
   repeated PolicyRuleData rules = 32;
   repeated NodeReferenceData scopes_ptr = 33;
+}
+message PolicyDataTree {
+  BenchType metatype = 1;
+
+}
+
+message StructTree {
+  message SomeStructData {
+    oneof struct {
+      PolicyData policy = 1;
+      PolicyRuleData policy_rule = 2;
+      // ...
+    }
+  }
+  repeated SomeStructData structs = 1;
 }
 
 // A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].

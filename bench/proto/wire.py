@@ -699,7 +699,7 @@ class AccessMatrixData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     subject: "SubjectData" = betterproto.message_field(30)
     identities: List["SubjectData"] = betterproto.message_field(32)
-    scope_zones: List["AccessZoneData"] = betterproto.message_field(33)
+    scoped_zones: List["AccessZoneData"] = betterproto.message_field(33)
     base_zones: List["AccessZoneData"] = betterproto.message_field(34)
 
 

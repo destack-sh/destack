@@ -199,7 +199,8 @@ def describe_type(obj: Any) -> str:
 
 
 TypeAnnotation = typing.NamedTuple(
-    "TypeInfo", [("type", type), ("is_union", bool), ("is_optional", bool), ("is_array", bool)]
+    "TypeAnnotation",
+    [("type", type), ("is_union", bool), ("is_optional", bool), ("is_array", bool)],
 )
 
 

@@ -14,6 +14,7 @@ from bench.language.const import (
     SortOp,
     StructType,
 )
+from bench.language.graph import ValueList
 from bench.language.node import Node, Property, Struct, struct
 from bench.language.property import p_regular
 from bench.language.setup import BENCH_CLASS_BY_TYPE
@@ -59,7 +60,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 }
 
 
-@struct(StructType.NODE_REFERENCE)
+@struct(StructType.NODE_REFERENCE, inline=True)
 class NodeReference(Struct):
     type: NodeType = p_regular(30, require=True)
     id: Optional[UUID] = p_regular(31, default=None)
@@ -123,7 +124,7 @@ class NodeReference(Struct):
             )
 
 
-@struct(StructType.PROPERTY_REFERENCE)
+@struct(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(Struct):
     type: BenchType = p_regular(30, require=True)
     id: int = p_regular(31)
@@ -143,7 +144,7 @@ class PropertyPath(Struct):
     """A path of Node/Struct properties."""
 
     properties: list[Property] = p_regular(
-        30, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+        30, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     def __content_str__(self):
@@ -181,19 +182,14 @@ class ValueReference(Struct):
 
     node: Node = p_regular(30, require=True, array=False, references=(NodeType.BLOCK,))
     path: FieldPath = p_regular(31, require=True, struct=StructType.FIELD_PATH)
+    subvalue_from: Optional[int] = p_regular(32, require=False, default=None)
+    subvalue_to: Optional[int] = p_regular(33, require=False, default=None)
 
     def __content_str__(self):
         if self.node is not None:
             return f"{self.node.absolute_path}.{self.path.__content_str__()}"
         else:
             return f"<detached>:{self.path.__content_str__()}"
-
-
-@struct(StructType.VALUE_SELECTION)
-class ValueSelection(Struct):
-    """Select a range from within a Value."""
-
-    pass
 
 
 __property__ = property
@@ -373,11 +369,11 @@ class Aggregation(Struct):
     count: Optional[int] = p_regular(32, default=None)
     scalar: Optional[float] = p_regular(33, default=None)
     buckets: list["AggregationBucket"] | None = p_regular(
-        34, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
+        34, array=True, struct=StructType.AGGREGATION_BUCKET
     )
 
 
-@struct(StructType.AGGREGATION_BUCKET)
+@struct(StructType.AGGREGATION_BUCKET, inline=True)
 class AggregationBucket(Struct):
     """One bucket of an aggregation histogram."""
 
@@ -386,7 +382,7 @@ class AggregationBucket(Struct):
 
 
 def coerce_conditional(
-    node: Union[Node, type[Node], "HasFields"],
+    node: Union[type[Node], "Block"],
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
     return_none_if_empty: bool = False,
@@ -412,7 +408,7 @@ def coerce_conditional(
         target = None
         if field_key in node.__properties__:
             target = node.__properties__[field_key]
-        elif isinstance(node, Node) and "fields" in node.__list_properties__:
+        elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
             target = node.fields.get(field_key)
         if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
@@ -469,7 +465,7 @@ def coerce_sort(
             target = None
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
-            elif isinstance(node, Node) and "fields" in node.__list_properties__:
+            elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
                 target = node.fields.get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")

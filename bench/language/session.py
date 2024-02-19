@@ -1030,9 +1030,7 @@ class RunError(Struct, BenchError):
     type: str = p_internal(31)
     message: Optional[str] = p_internal(32, default=None)
     node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    traceback: list[RunCodeFrame] = p_internal(
-        34, default_factory=list, struct=StructType.RUN_CODE_FRAME
-    )
+    traceback: list[RunCodeFrame] = p_internal(34, struct=StructType.RUN_CODE_FRAME)
 
     @staticmethod
     def from_exception(e: BaseException, block: Optional["Block"]) -> "RunError":

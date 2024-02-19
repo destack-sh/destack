@@ -36,7 +36,7 @@ class Fabricator:
             enum_cls = cast(type[enum.Enum], prop.py_type_stripped)
             return random.choice(tuple(enum_cls)) if len(enum_cls) > 0 else None
         elif prop.is_struct:
-            return self.fabricate(prop.struct_type, path)
+            return self.fabricate(prop.reference_struct, path)
         elif prop.py_type_stripped == NodeReferenceData:
             return self.fabricate(StructType.NODE_REFERENCE, path)
         elif prop.primitive_type == PrimitiveType.JSON:
@@ -78,7 +78,7 @@ class Fabricator:
                     continue
                 elif prop.reference_kind and not prop.reference_source:
                     continue  # set indirectly via the underlying NodeReference/PropertyReference
-                elif prop.struct_type in path:  # prevent circles
+                elif prop.reference_struct in path:  # prevent circles
                     kwargs[prop.name] = [] if prop.is_array else None
                 elif prop.is_array:
                     len = random.randint(1, 4)

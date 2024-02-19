@@ -57,9 +57,7 @@ class Bench(Node):
         35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
     encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True, sensitive=True)
-    policies: list["Policy"] | None = p_regular(
-        37, default_factory=list, struct=StructType.POLICY, array=True
-    )
+    policies: list["Policy"] | None = p_regular(37, struct=StructType.POLICY, array=True)
 
     # source
     main_package: Optional["Package"] = p_system(
@@ -89,9 +87,7 @@ class Environment(Node):
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    policies: list["Policy"] | None = p_regular(
-        35, default_factory=list, struct=StructType.POLICY, array=True
-    )
+    policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
 
     store: "Store" = p_system(40, require=True, array=False, references=NodeType.STORE)
     search: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
@@ -112,9 +108,7 @@ class Branch(Node):
     main_package: Optional["Package"] = p_system(
         35, require=False, array=False, references=NodeType.PACKAGE
     )
-    policies: list["Policy"] | None = p_regular(
-        36, default_factory=list, struct=StructType.POLICY, array=True
-    )
+    policies: list["Policy"] | None = p_regular(36, struct=StructType.POLICY, array=True)
 
 
 @node(
@@ -128,9 +122,7 @@ class Package(Node):
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     slug: Optional[str] = p_regular(33)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    policies: list["Policy"] | None = p_regular(
-        35, default_factory=list, struct=StructType.POLICY, array=True
-    )
+    policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
     is_partial: bool = p_system(36, default=False)
     paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
     base: Optional["Package"] = p_system(

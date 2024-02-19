@@ -157,21 +157,21 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] = p_regular(30, default_factory=list)
-    descendant_types: list[NodeType] = p_regular(31, default_factory=list)
+    ancestor_types: list[NodeType] = p_regular(30)
+    descendant_types: list[NodeType] = p_regular(31)
     related_properties: list[Property] = p_regular(
-        32, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+        32, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # properties (include/exclude relative to default OR select specific properties)
     include_properties: list[Property] = p_regular(
-        40, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+        40, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     exclude_properties: list[Property] = p_regular(
-        41, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+        41, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     select_properties: list[Property] = p_regular(
-        42, require=False, default_factory=list, array=True, struct=StructType.PROPERTY_REFERENCE
+        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # filters (global + per type)
@@ -257,26 +257,24 @@ class Policy(Struct):
     The scope is determined by where its attached, but may be further restricted using 'scopes'.
 
     The basics of access control:
-     1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
-     2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
-       a. Policies are scoped to the node their definition or
-       b. Delegate is attached to (or less as specified).
+     1. Access is DENIED implicitly unless explicitly and fully ALLOWED.
+     2. Policies are either attached
+        a. directly to nodes (scoped to the node)
+        b. or to a delegate (full scope or less as specified)
      3. Policies are evaluated in order up the node graph, first match decides*.
         (This means you can read a sub block but not its parent.)
      4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 
-     * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
-        is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
-
+     * Conceptually, we do 'ray trace' up the graph for every node/property/...,
+        but actually doing that for every request is prohibitively expensive.
+        Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
     """
 
     name: Optional[str] = p_regular(30, default=None)
     text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
-    rules: ValueList["PolicyRule"] = p_regular(
-        32, default_factory=list, struct=StructType.POLICY_RULE
-    )
+    rules: list["PolicyRule"] = p_regular(32, array=True, struct=StructType.POLICY_RULE)
     scopes: list["Block"] | None = p_regular(
-        33, default=None, require=False, array=True, references=NodeType.BLOCK
+        33, require=False, array=True, references=NodeType.BLOCK
     )
 
     def __content_str__(self) -> str:
@@ -323,7 +321,7 @@ class PolicyRule(Struct):
     object_node_types: Optional[list[NodeType]] = p_regular(80, default=None)
     _object_node_types_mask: bitarray | None = p_runtime(default=None)
     object_properties: list[Property] | None = p_regular(
-        81, require=False, default=None, array=True, struct=StructType.PROPERTY_REFERENCE
+        81, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     object_properties_is_system: Optional[bool] = p_regular(82, default=None)
     object_properties_is_sensitive: Optional[bool] = p_regular(83, default=None)
@@ -611,7 +609,6 @@ class AccessZone(Struct):
     """
 
     id: int = p_system(2, require=True)
-    parent_id: int | None = p_system(4)
     scope_id: str = p_system(30)
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_system(31)
@@ -619,7 +616,7 @@ class AccessZone(Struct):
     rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
 
     def __content_str__(self) -> str:
-        return f"{self.id} for {self._identity or self.identity_id} in {self.scope_id} ({len(self.rules)} rules)"
+        return f"{self.id} for {self._identity or self.identity_id} in {self._scope or self.scope_id} ({len(self.rules)} rules)"
 
 
 @struct(StructType.ACCESS_MATRIX)
@@ -628,7 +625,7 @@ class AccessMatrix(Struct):
 
     subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
     identities: list[Subject] = p_system(32, array=True, struct=StructType.SUBJECT)
-    scope_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
+    scoped_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
     base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
 
     # quick access to the zone (id = index)
@@ -636,10 +633,10 @@ class AccessMatrix(Struct):
     _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
 
     def __content_str__(self) -> str:
-        return f"for {self.subject} ({len(self.identities)} identities, {len(self.scope_zones)} node zones, {len(self.base_zones)} base zones)"
+        return f"for {self.subject} ({len(self.identities)} identities, {len(self.scoped_zones)} node zones, {len(self.base_zones)} base zones)"
 
 
-@struct(StructType.ACCESS)
+@struct(StructType.ACCESS, inline=True)
 class Access(Struct):
     """
     An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -652,10 +649,7 @@ class Access(Struct):
     verb: AccessType = p_system(32, require=True)
     object_type: BenchType = p_system(33, require=True)
     object_properties: list[Property] | None = p_system(
-        34, require=False, array=True, default=None, struct=StructType.PROPERTY_REFERENCE
-    )
-    trace: Optional["AccessTrace"] = p_system(
-        35, require=False, array=False, struct=StructType.ACCESS_TRACE
+        34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # arguments
@@ -888,10 +882,10 @@ def generate_access_matrix(
 
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
-    scope_zones: list[AccessZone] = []
+    scoped_zones: list[AccessZone] = []
     base_zones: list[AccessZone] = []
     matrix = AccessMatrix(
-        subject=subject, scope_zones=scope_zones, base_zones=base_zones, identities=identities
+        subject=subject, scoped_zones=scoped_zones, base_zones=base_zones, identities=identities
     )
     applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
@@ -931,7 +925,6 @@ def generate_access_matrix(
                 if applicable_rules:
                     # we got a new zone with different roles down here
                     zone = AccessZone(
-                        id=len(scope_zones),
                         parent_id=parent_zones_by_identity[identity_id],
                         scope_id=current_node.id,
                         _scope=current_node,
@@ -939,7 +932,7 @@ def generate_access_matrix(
                         _identity=identity,
                         rules=applicable_rules,
                     )
-                    scope_zones.append(zone)
+                    scoped_zones.append(zone)
                     # update parent zones for the next level
                     if current_zones_by_identity is parent_zones_by_identity:  # to list to modify
                         current_zones_by_identity = list(parent_zones_by_identity)
@@ -950,7 +943,7 @@ def generate_access_matrix(
         # update 'lowest zone' shortcuts (per identity)
         for identity_id in range(len(identities)):
             zone_id = current_zones_by_identity[identity_id]
-            zone = scope_zones[zone_id] if zone_id is not None else None
+            zone = scoped_zones[zone_id] if zone_id is not None else None
             matrix._lowest_zone_by_scope[(identity_id, current_node.id)] = zone
 
         # descend into children
@@ -1036,13 +1029,13 @@ def evaluate_access(
     # check the zones for each identity (separately)
     for identity_id in range(len(matrix.identities)):
         base_zone: AccessZone = matrix._base_zone_by_root[(identity_id, root_id)]
-        start_scope_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
+        start_scoped_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
 
         # check cache
         cache_key = _EvalCacheKey(
             object_node_type=object_node_type,
             root_id=root_id,
-            start_scope_id=start_scope_zone.id if start_scope_zone is not None else None,
+            start_scope_id=start_scoped_zone.id if start_scoped_zone is not None else None,
             identity_id=identity_id,
         )
         if cache is not None:
@@ -1079,11 +1072,11 @@ def evaluate_access(
 
                 # advance to the next zone
                 if current_zone.id == base_zone.id:
-                    if start_scope_zone is None:
+                    if start_scoped_zone is None:
                         break  # no scope zones
-                    current_zone = start_scope_zone
-                elif current_zone.parent_id is not None:
-                    current_zone = matrix.scope_zones[current_zone.parent_id]
+                    current_zone = start_scoped_zone
+                elif current_zone.parent.id is not None:
+                    current_zone = matrix.scoped_zones[current_zone.parent_id]
                 else:
                     break  # reached the top
 
@@ -1122,7 +1115,6 @@ def evaluate_access(
             verb=verb,
             object_type=object_node_type,
             object_properties=object_properties,
-            trace=AccessTrace(matched_rules=matched_rules) if trace else None,
         )
         was_cached = False
     else:
@@ -1290,7 +1282,7 @@ def evaluate_edit(
 
 def evaluate_use(
     matrix: AccessMatrix,
-    run_type: UseType,
+    use_type: UseType,
     node: "Block",
     *,
     trace: bool = False,
@@ -1302,7 +1294,7 @@ def evaluate_use(
     node_cls = NODE_CLASS_BY_TYPE[node.metatype]
     _, access, _ = evaluate_access(
         matrix=matrix,
-        verb=run_type,
+        verb=use_type,
         object_node_type=node.metatype,
         object_properties=node_cls.__properties_mask_set__,
         scope_id=str(node.id),

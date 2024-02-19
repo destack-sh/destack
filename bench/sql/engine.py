@@ -217,12 +217,12 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         # references
         if (
-            prop.reference_types
+            prop.reference_nodes
             and prop.name.endswith("_id")
-            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_types[0]].__is_local__
+            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
         ):
-            assert len(prop.reference_types) == 1, f"stored prop {prop!r} has multiple references"
-            column.is_foreign_key_to = get_bench_table_name(prop.reference_types[0])
+            assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
+            column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
             assert isinstance(prop.reference_on_delete, CascadeAction)
             column.on_delete = prop.reference_on_delete
 
@@ -1023,9 +1023,9 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_array and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
+        proto_cls = PROTO_CLASS_BY_TYPE[prop.reference_struct]
         value = wiring.unpack_json_value(value)
-        return proto_cls().from_robust_dict(value, prop.struct_type)
+        return proto_cls().from_robust_dict(value, prop.reference_struct)
     elif prop.is_enum:
         return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
     elif prop.primitive_type == PrimitiveType.DATETIME:
@@ -1293,7 +1293,7 @@ async def pg_get_node_data_graph(
                     filter = C(
                         op=ConditionalOp.IN,
                         property=parent_property,
-                        value=parents_by_type[parent_property.reference_types[0]],
+                        value=parents_by_type[parent_property.reference_nodes[0]],
                     )
                     parents_filters.append(filter)
                 parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)

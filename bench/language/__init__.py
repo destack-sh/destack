@@ -1,6 +1,7 @@
+from .graph import ValueList, InlinedValueList
 from .property import Property
 from .setup import _complete_bench_setup
-from .value import Context, InlinedValueList, ValueList, Value
+from .value import Context, Value
 from ..sql.core import PrimitiveType
 from .access import (
     Access,
@@ -16,7 +17,7 @@ from .access import (
 )
 from .bench import Bench, Branch, Dependency, Environment, Package, Upgrade
 from .block import Block
-from .code_ import Code, CodeSection
+from .code_ import Code, CodeLine
 from .const import (
     VERSION,
     AccessType,
@@ -44,7 +45,6 @@ from .expression import (
     PropertyReference,
     S,
     ValueReference,
-    ValueSelection,
 )
 from .field import Field, TypeInfo
 from .file import File, Icon
@@ -68,7 +68,7 @@ from .user import Client, Handle, Organization, User
 from .validation import ValidationError
 from .view import Space, SpaceDock, View, ViewType
 
-# NOTE! *All* these imports are auto-imported as prelude in user code.
+# NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
     "Access",
@@ -86,7 +86,7 @@ __all__ = [
     "Cache",
     "Client",
     "Code",
-    "CodeSection",
+    "CodeLine",
     "ConditionalOp",
     "Context",
     "Dependency",
@@ -126,8 +126,6 @@ __all__ = [
     "Record",
     "render",
     "Request",
-    "Text",
-    "TextSpan",
     "Role",
     "Run",
     "S",
@@ -146,6 +144,8 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
+    "Text",
+    "TextSpan",
     "Transaction",
     "Trigger",
     "TriggerType",
@@ -156,7 +156,6 @@ __all__ = [
     "Value",
     "ValueList",
     "ValueReference",
-    "ValueSelection",
     "VERSION",
     "View",
     "ViewType",

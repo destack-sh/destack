@@ -42,6 +42,8 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(slots=True)
 class Value:
+    """A value with fields and an identity (not inlined)."""
+
     # local identity (matches Struct)
     id: int
     parent: Union["Value", Struct, Node, None]
@@ -51,6 +53,7 @@ class Value:
 
     # content
     _type: "TypeInfo"
+    _key: Union[Property, "Field"] | None
     _value: dict[str, Any]
 
     # use

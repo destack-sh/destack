@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
+from bench.language.graph import ValueList
 from bench.language.node import (
     Node,
     NodeList,
@@ -159,9 +160,7 @@ class Block(Node, HasValues):
     reference: Optional["Block"] = p_regular(
         46, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] | None = p_regular(
-        47, default_factory=list, struct=StructType.POLICY
-    )
+    delegated_policies: list["Policy"] | None = p_regular(47, struct=StructType.POLICY)
 
     # flags
     is_page: bool = p_regular(60, default=False)  # on its own page
@@ -170,9 +169,8 @@ class Block(Node, HasValues):
     is_intrinsic: bool = p_system(63, default=False)  # provided by the system
     is_protocol: bool = p_regular(64, default=False)  # has a protocol
     is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
+    # paused_at acts like a flag (see setter/getter below)
     paused_at: datetime | None = p_internal(66, default=None)  # triggers <=block are paused
-
-    # (this is basically a flag but is_paused propagates down the tree)
     # is_frozen? (read-only in instances of template)
 
     @staticmethod
