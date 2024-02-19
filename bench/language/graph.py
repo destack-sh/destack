@@ -1,5 +1,6 @@
 import abc
 from collections import defaultdict, deque
+import functools
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -18,8 +19,7 @@ from bench.language.setup import CHILD_NODE_TYPES
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData
-from bench.utils.fractional import generate_key_between, generate_n_keys_between
-from bench.utils.func import nextn
+from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, Node
@@ -568,29 +568,6 @@ class NodeList(NodeListBase[NodeT]):
             self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
         )
 
-    def _ok_bounds(
-        self, after: NodeT = None, before: NodeT = None
-    ) -> tuple[Optional[str], Optional[str]]:
-        """Gets the order key bounds after the given (default to last)."""
-        assert self._flags & NRel.ORDERED, f"cannot get order key for {self!r}"
-        if after is not None:
-            next_ok = nextn(
-                n.order_key
-                for n in self.nodes
-                if n.order_key > after.order_key and n.parent == after.parent
-            )
-            return after.order_key, next_ok
-        elif before is not None:
-            last_ok = nextn(
-                n.order_key
-                for n in reversed(self.nodes)
-                if n.order_key < before.order_key and n.parent == before.parent
-            )
-            return last_ok, before.order_key
-        else:
-            last_ok = nextn((n.order_key for n in reversed(self.nodes) if n.parent == self._parent))
-            return last_ok, None
-
     def append(self, n: NodeT, after: NodeT = None, before: NodeT = None) -> tuple[NodeT, ...]:
         from bench.language.node import Node
 
@@ -622,7 +599,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # assign order key to ordered nodes
         if self._flags & NRel.ORDERED and n.order_key is None:
-            n.order_key = generate_key_between(*self._ok_bounds(after, before))
+            n.order_key = generate_key_between(*get_key_bounds(self.nodes, after, before))
 
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
@@ -636,7 +613,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
         if self._flags & NRel.ORDERED:
-            oks = generate_n_keys_between(*self._ok_bounds(after, before), n=len(nodes))
+            oks = generate_n_keys_between(*get_key_bounds(self.nodes, after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
 
@@ -713,3 +690,28 @@ class NodeList(NodeListBase[NodeT]):
             return self.nodes == other
         else:
             return False
+
+
+ValueT = TypeVar("ValueT", bound="Value")
+StructT = TypeVar("StructT", bound="Struct")
+ValueOrStructT = Union[ValueT, StructT]
+
+
+class ValueList(list, Generic[ValueOrStructT]):
+    """A list of Values or Value-like Structs (with local identity, so can't be inlined)."""
+
+    @functools.wraps(list.__init__)
+    def __init__(self, parent: Union["ValueT", "StructT"], parent_key: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.parent_key = parent_key
+
+
+class InlinedValueList(list, Generic[ValueOrStructT]):
+    """A list of inlined Values or Structs (without identity, just for tracking)"""
+
+    @functools.wraps(list.__init__)
+    def __init__(self, parent: Union["ValueT", "StructT"], parent_key: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.parent_key = parent_key

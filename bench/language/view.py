@@ -8,13 +8,13 @@ from bench.language.node import (
     node_component,
     struct,
 )
-from bench.language.property import p_node_parent, p_child, p_regular, p_internal
+from bench.language.property import p_node_parent, p_node_child, p_regular, p_internal
 from bench.language.validation import enum_validator
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Package, Policy, RichText
+    from bench.language import Block, Icon, Package, Policy, Text
 
 
 class ViewType(IdEnum):
@@ -47,7 +47,7 @@ class ViewType(IdEnum):
 
 @node_component
 class HasViews(Node):
-    views: list["View"] = p_child(NodeType.VIEW)
+    views: list["View"] = p_node_child(NodeType.VIEW)
 
 
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
@@ -76,7 +76,7 @@ class Space(HasViews):
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
     name: str = p_regular(31)
-    text: Optional["RichText"] = p_regular(32, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33)
     policies: list["Policy"] | None = p_regular(
         34, default_factory=list, struct=StructType.POLICY, array=True

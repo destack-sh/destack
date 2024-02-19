@@ -2,7 +2,9 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
-from typing import Optional
+from typing import Optional, TypeVar, Collection
+
+from bench.utils.func import nextn
 
 # base digits in lexicographical order
 BASE_10_DIGITS = "0123456789"
@@ -225,3 +227,20 @@ def generate_n_keys_between(
 
 
 INTEGER_MINUS_ONE = generate_key_between(None, INTEGER_ZERO)
+
+ElementT = TypeVar("ElementT")
+
+
+def get_key_bounds(
+    elements: list[ElementT] | tuple[ElementT, ...], after: ElementT = None, before: ElementT = None
+) -> tuple[Optional[str], Optional[str]]:
+    """Gets the order key bounds after the given (default to last)."""
+    if after is not None:
+        next_ok = nextn(e.order_key for e in elements if e.order_key > after.order_key)
+        return after.order_key, next_ok
+    elif before is not None:
+        last_ok = nextn(e.order_key for e in reversed(elements) if e.order_key < before.order_key)
+        return last_ok, before.order_key
+    else:
+        last_ok = nextn((e.order_key for e in reversed(elements)))
+        return last_ok, None

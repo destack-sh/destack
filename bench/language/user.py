@@ -16,7 +16,7 @@ from bench.language.node import (
 )
 from bench.language.property import (
     p_node_parent,
-    p_child,
+    p_node_child,
     p_regular,
     p_internal,
     p_system,
@@ -30,7 +30,7 @@ from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, RichText, Role, Server, Space, Block, Package
+    from bench.language import Bench, Text, Role, Server, Space, Block, Package
 
 
 @node(
@@ -64,10 +64,10 @@ class User(Node):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE
     )
-    handles: NodeList[Handle] = p_child(NodeType.HANDLE)
+    handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: Optional[str] = p_regular(33, default=None)
-    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     email: str = p_system(35, defer=True, unique=True, sensitive=True)
     main_bench: Optional["Bench"] = p_system(
         36, array=False, require=False, references=NodeType.BENCH
@@ -111,10 +111,10 @@ class Organization(Node):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Organization
-    handles: NodeList[Handle] = p_child(NodeType.HANDLE)
+    handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33)
-    text: Optional["RichText"] = p_regular(34, default=None, struct=StructType.RICH_TEXT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     main_bench: Optional["Bench"] = p_system(
         36, array=False, require=False, references=NodeType.BENCH
     )
@@ -171,7 +171,7 @@ class Membership(Node):
     is_owner: bool = p_regular(31, default=False)
 
     # roles are defined (and resolved) in the main bench
-    roles: NodeList["Role"] = p_child(NodeType.ROLE)
+    roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
 
 
 @node(NodeType.INVITE)
@@ -214,9 +214,7 @@ class Notification(Node, HasValues):
 
     # content
     title: Optional[str] = p_regular(40)
-    text: Optional["RichText"] = p_regular(
-        41, require=False, array=False, struct=StructType.RICH_TEXT
-    )
+    text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
     value: Any = p_value_runtime(42, 43)

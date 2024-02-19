@@ -1,6 +1,6 @@
 from .property import Property
 from .setup import _complete_bench_setup
-from .value import Context
+from .value import Context, InlinedValueList, ValueList, Value
 from ..sql.core import PrimitiveType
 from .access import (
     Access,
@@ -62,7 +62,7 @@ from .session import (
     Transaction,
     Run,
 )
-from .text import RichText, RichTextSpan
+from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
@@ -101,6 +101,7 @@ __all__ = [
     "Handle",
     "Icon",
     "Identity",
+    "InlinedValueList",
     "Link",
     "Log",
     "Node",
@@ -117,6 +118,7 @@ __all__ = [
     "PolicyEffect",
     "PolicyRule",
     "PrimitiveType",
+    "Property",
     "PropertyPath",
     "PropertyReference",
     "Query",
@@ -124,8 +126,8 @@ __all__ = [
     "Record",
     "render",
     "Request",
-    "RichText",
-    "RichTextSpan",
+    "Text",
+    "TextSpan",
     "Role",
     "Run",
     "S",
@@ -144,14 +146,15 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
-    "Property",
     "Transaction",
     "Trigger",
     "TriggerType",
     "TypeInfo",
-    "User",
     "Upgrade",
+    "User",
     "ValidationError",
+    "Value",
+    "ValueList",
     "ValueReference",
     "ValueSelection",
     "VERSION",

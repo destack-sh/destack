@@ -1,36 +1,36 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bench.language.const import StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct
 from bench.language.property import p_regular
 
 if TYPE_CHECKING:
-    from bench.language import FieldPath
+    from bench.language import ValueReference
 
 
-@struct(StructType.RICH_TEXT)
-class RichText(Struct):
-    spans: list["RichTextSpan"] = p_regular(30, default_factory=list, struct=StructType.RICH_TEXT)
+@struct(StructType.TEXT)
+class Text(Struct):
+    spans: list["TextSpan"] = p_regular(32, default_factory=list, struct=StructType.TEXT)
 
     def __content_str__(self):
         spans_strs: list[str] = [span.__content_str__() for span in self.spans]
         return "".join(spans_strs)
 
     @staticmethod
-    def plain(text: str) -> "RichText":
-        return RichText(spans=[RichTextSpan(text=text)])
+    def plain(text: str) -> "Text":
+        return Text(spans=[TextSpan(text=text)])
 
 
-@struct(StructType.RICH_TEXT_SPAN)
-class RichTextSpan(Struct):
+@struct(StructType.TEXT_SPAN)
+class TextSpan(Struct):
     # plain text
-    text: str | None = p_regular(30, default="")
+    content: str | None = p_regular(30, default=None)
     # mentions
-    reference: Node | None = p_regular(
+    node_reference: Node | None = p_regular(
         31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
-    path: Optional["FieldPath"] = p_regular(
-        32, array=False, default=None, require=False, struct=StructType.FIELD_PATH
+    value_reference: ValueReference | None = p_regular(
+        32, array=False, default=None, require=False, struct=StructType.VALUE_REFERENCE
     )
 
     # flags
@@ -41,9 +41,9 @@ class RichTextSpan(Struct):
     is_code: bool = p_regular(44, default=False)
 
     def __content_str__(self):
-        if self.text:
-            return self.text
-        elif self.reference:
-            return f"@{self.reference.name}"
+        if self.content:
+            return self.content
+        elif self.node_reference:
+            return f"@{self.node_reference!r}"
         else:
             return ""

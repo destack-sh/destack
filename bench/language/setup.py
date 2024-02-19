@@ -89,7 +89,7 @@ def _complete_bench_setup():
 
             if prop.reference_wired_ptr or prop.reference_stored_ptrs:
                 # Properties with reference ptrs (like Node.parent -> parent_ptr/parent_id)
-                #  aren't stored directly, we just use is_wired/is_stored to indicate what
+                #  aren't wired/stored directly, we just use is_wired/is_stored to indicate what
                 #  the contributed properties should do. Now that they're all contributed,
                 #  we can set them to False, so they don't get indexed.
                 prop.is_wired = False

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import functools
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -11,8 +10,6 @@ from typing import (
     Optional,
     TypedDict,
     Union,
-    Generic,
-    TypeVar,
 )
 
 import structlog
@@ -40,53 +37,24 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-# nocheckin: implement new value system
-#  store everything as 'structs' with id in a map of sub-values?
-#   (should support powerful atomic & patched edits later)
-#  .. shouldn't we store all structs like that then though? not just values?
-#  also see :StructScope, should be done in one go probably
+# nocheckin: implement Value
 
 
 @dataclass(slots=True)
 class Value:
-    # local identity
-    id: str
-    parent: Union["Value", Struct, Node]
-    parent_id: str | None
+    # local identity (matches Struct)
+    id: int
+    parent: Union["Value", Struct, Node, None]
+    parent_id: int | None
     parent_key: str | None
     order_key: str | None
 
     # content
-    type: "TypeInfo"
-    ...  # actual value
+    _type: "TypeInfo"
+    _value: dict[str, Any]
 
     # use
     ...  # getattr/setattr
-
-
-ValueT = TypeVar("ValueT", bound=Value)
-StructT = TypeVar("StructT", bound=Struct)
-ValueOrStructT = Union[ValueT, StructT]
-
-
-class ValueList(list, Generic[ValueOrStructT]):
-    """A list of Values or Value-like Structs (with local identity, so can't be inlined)."""
-
-    @functools.wraps(list.__init__)
-    def __init__(self, parent: Value | Struct, parent_key: str, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.parent = parent
-        self.parent_key = parent_key
-
-
-class InlinedList(list, Generic[ValueOrStructT]):
-    """A list of inlined Values or Structs (without identity, just for tracking)"""
-
-    @functools.wraps(list.__init__)
-    def __init__(self, parent: Value | Struct, parent_key: str, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.parent = parent
-        self.parent_key = parent_key
 
 
 @struct_component

@@ -9,7 +9,7 @@ from bench.language.node import (
 )
 from bench.language.property import (
     p_node_parent,
-    p_child,
+    p_node_child,
     p_regular,
     p_system,
     p_kernel,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         Organization,
         Package,
         Policy,
-        RichText,
+        Text,
         Server,
         Space,
         Store,
@@ -47,11 +47,11 @@ class Bench(Node):
     main_handle: Optional["Handle"] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE
     )  # not actually optional but Handle.parent = Bench
-    handles: NodeList["Handle"] = p_child(NodeType.HANDLE)
+    handles: NodeList["Handle"] = p_node_child(NodeType.HANDLE)
     slug: str = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33)
-    text: Optional["RichText"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    text: Optional["Text"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT
     )
     owner: Union["User", "Organization"] = p_system(
         35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
@@ -71,15 +71,15 @@ class Bench(Node):
     main_branch: Optional["Branch"] = p_regular(
         42, require=False, array=False, references=NodeType.BRANCH
     )
-    packages: NodeList["Package"] = p_child(NodeType.PACKAGE)
-    environments: NodeList["Environment"] = p_child(NodeType.ENVIRONMENT)
-    branches: NodeList["Branch"] = p_child(NodeType.BRANCH)
+    packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
+    environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
+    branches: NodeList["Branch"] = p_node_child(NodeType.BRANCH)
 
     # resources
-    servers: NodeList["Server"] = p_child(NodeType.SERVER)
-    stores: NodeList["Store"] = p_child(NodeType.STORE)
-    drives: NodeList["Drive"] = p_child(NodeType.DRIVE)
-    caches: NodeList["Cache"] = p_child(NodeType.CACHE)
+    servers: NodeList["Server"] = p_node_child(NodeType.SERVER)
+    stores: NodeList["Store"] = p_node_child(NodeType.STORE)
+    drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
+    caches: NodeList["Cache"] = p_node_child(NodeType.CACHE)
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
@@ -88,9 +88,7 @@ class Environment(Node):
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32)
-    text: Optional["RichText"] = p_regular(
-        34, require=False, array=False, struct=StructType.RICH_TEXT
-    )
+    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(
         35, default_factory=list, struct=StructType.POLICY, array=True
     )
@@ -110,9 +108,7 @@ class Branch(Node):
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32)
-    text: Optional["RichText"] = p_regular(
-        34, require=False, array=False, struct=StructType.RICH_TEXT
-    )
+    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     main_package: Optional["Package"] = p_system(
         35, require=False, array=False, references=NodeType.PACKAGE
     )
@@ -131,9 +127,7 @@ class Package(Node):
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     slug: Optional[str] = p_regular(33)
-    text: Optional["RichText"] = p_regular(
-        34, require=False, array=False, struct=StructType.RICH_TEXT
-    )
+    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(
         35, default_factory=list, struct=StructType.POLICY, array=True
     )
@@ -147,9 +141,9 @@ class Package(Node):
     )
     branch: Branch = p_system(40, require=True, array=False, references=NodeType.BRANCH)
 
-    blocks: NodeList["Block"] = p_child(NodeType.BLOCK)
-    spaces: NodeList["Space"] = p_child(NodeType.SPACE)
-    dependencies: NodeList["Dependency"] = p_child(NodeType.DEPENDENCY)
+    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
+    spaces: NodeList["Space"] = p_node_child(NodeType.SPACE)
+    dependencies: NodeList["Dependency"] = p_node_child(NodeType.DEPENDENCY)
 
     @property
     def name(self):
@@ -196,6 +190,4 @@ class Upgrade(Node):
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
 
     name: Optional[str] = p_regular(32)
-    text: Optional["RichText"] = p_regular(
-        34, require=False, array=False, struct=StructType.RICH_TEXT
-    )
+    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)

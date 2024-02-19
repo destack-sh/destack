@@ -28,8 +28,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.field import TypeInfo
-from bench.language.graph import NodeList
-from bench.language.text import RichText
+from bench.language.text import Text
 from bench.language.node import (
     Node,
     Struct,
@@ -42,14 +41,15 @@ from bench.language.property import (
     Property,
     p_runtime,
     p_node_parent,
-    p_ancestor,
-    p_child,
+    p_node_ancestor,
+    p_node_child,
     p_value_runtime,
     p_value_packed,
     p_secret_value_packed,
     p_internal,
     p_system,
     p_value_dynamic,
+    p_node_ancestor_root,
 )
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.value import HasValues
@@ -69,7 +69,6 @@ if TYPE_CHECKING:
         PrimitiveType,
         Server,
         Struct,
-        Trigger,
         Request,
     )
 
@@ -134,8 +133,8 @@ class Log(Node):
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
     message: Optional[str] = p_internal(34, default=None)  # the rendered 'text' (if any)
-    text: Optional[RichText] = p_internal(
-        35, default=None, require=False, array=False, struct=StructType.RICH_TEXT
+    text: Optional[Text] = p_internal(
+        35, default=None, require=False, array=False, struct=StructType.TEXT
     )
     value_dynamic: Any | None = p_value_dynamic(36)
     request: Optional["Request"] = p_system(
@@ -832,18 +831,11 @@ class Run(Node, HasValues):
     """
 
     parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
-    session: "Session" = p_ancestor(
+    session: "Session" = p_node_ancestor(
         30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
-    root: Optional["Run"] = p_ancestor(
-        31,
-        NodeType.RUN,
-        require=False,
-        nearest=False,
-        include_self=False,
-        store=True,
-        wire=True,
-        index_in_pg=True,
+    root: Optional["Run"] = p_node_ancestor_root(
+        31, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
     )
     server: Optional["Server"] = p_internal(
         32, index_in_pg=True, require=False, array=False, references=NodeType.SERVER
@@ -869,7 +861,7 @@ class Run(Node, HasValues):
     value: Any = p_value_runtime(54, 55)
     error: Optional["RunError"] = p_internal(56, default=None, primitive_type=PrimitiveType.JSON)
 
-    runs: list["Run"] = p_child(NodeType.RUN)
+    runs: list["Run"] = p_node_child(NodeType.RUN)
 
     # inline_runs: list["Run"] = p_internal(60, require=False, array=True, struct=NodeType.RUN)?
 
@@ -1066,7 +1058,7 @@ class Pause(Node):
     """A resumable interruption in a Run."""
 
     parent: "Run" = p_node_parent(4, NodeType.RUN)
-    session: "Session" = p_ancestor(30, NodeType.SESSION, require=True, store=True)
+    session: "Session" = p_node_ancestor(30, NodeType.SESSION, require=True, store=True)
     # (placeholder)
 
 
