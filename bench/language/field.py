@@ -4,8 +4,6 @@ from typing import Any, Optional, Union
 import structlog
 
 from bench.language.const import (
-    NODE_TYPES,
-    STRUCT_TYPES,
     BenchError,
     BenchType,
     BlockType,
@@ -122,7 +120,7 @@ class TypeInfoBase(HasValues):
     scale: Optional[int] = p_regular(48, require=False, default=None)
     # default for this type :GeneralizeHasValue
     default_packed: Optional[Any] = p_value_packed(49)
-    default = p_value_runtime(49)
+    default = p_value_runtime(packed=49)
 
     # flags
     is_array: bool = p_regular(50, default=False)
@@ -159,15 +157,6 @@ class TypeInfoBase(HasValues):
         else:
             self._resolved_type = self
 
-    def extend(self, **kwargs) -> "TypeInfo":
-        """Returns a new type that is the same as this one, but with the given properties overridden."""
-        combined_kwargs = {
-            prop.name: getattr(self, prop.name) for prop in TypeInfo.__runtime_properties__.values()
-        }
-        for k, v in kwargs.items():
-            combined_kwargs[k] = v
-        return TypeInfo(**combined_kwargs)
-
     @property
     def resolved_type(self) -> "TypeInfo":
         """
@@ -195,23 +184,6 @@ class TypeInfoBase(HasValues):
         if self.base_type:
             key += "-" + self.base_type.dynamic_key
         return key
-
-    @property
-    def base_type_type(self) -> Optional[BlockType]:
-        if self.base_type:
-            return self.base_type.type
-        else:
-            return None
-
-    @property
-    def is_reference(self) -> bool:
-        """Whether this is a"""
-        return self.bench_type in NODE_TYPES
-
-    @property
-    def is_struct(self):
-        """Whether this is a built-in struct type."""
-        return self.bench_type in STRUCT_TYPES
 
     @property
     def is_nested(self) -> bool:

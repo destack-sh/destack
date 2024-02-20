@@ -4,7 +4,6 @@ from typing import Optional, AsyncContextManager, Any
 import boto3
 import psycopg
 import structlog
-from botocore.config import Config
 
 from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
 from bench.language.const import ABOVE_SOURCE_NODE_TYPES

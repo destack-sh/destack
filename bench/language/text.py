@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.const import StructType
-from bench.language.graph import ValueList
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct
+from bench.language.node import Struct, struct, struct_component, Node, LINK_TARGET_NODE_TYPES
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import ValueReference
+    pass
 
 
 @struct(StructType.TEXT)
@@ -22,7 +21,7 @@ class Text(Struct):
         return Text(lines=[TextLine.plain(text)])
 
 
-@struct(StructType.TEXT_OPTIONS)
+@struct_component
 class TextOptions(Struct):
     # color?
     # flags
@@ -40,8 +39,7 @@ class TextLineType(IdEnum):
     HEADING_MEDIUM = 7
     HEADING_LARGE = 8
     # callout
-    CALLOUT_INFO = 12
-    CALLOUT_WARNING = 13
+    CALLOUT = 12
     # list
     LIST_BULLET = 16
     LIST_NUMBERED = 17
@@ -65,16 +63,13 @@ class TextSpan(TextOptions):
     # plain text
     content: str | None = p_regular(33, default=None)
     # mentions
-    node_reference: Optional[Node] = p_regular(
+    node: Optional[Node] = p_regular(
         34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
-    )
-    value_reference: Optional["ValueReference"] = p_regular(
-        35, array=False, default=None, require=False, struct=StructType.VALUE_REFERENCE
     )
 
     def __content_str__(self):
         if self.content:
-            return self.content
+            return repr(self.content)
         elif self.node_reference:
             return f"@{self.node_reference!r}"
         else:

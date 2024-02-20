@@ -53,6 +53,7 @@ from bench.language.graph import (
     NodeGraph,
     NodeList,
     NodeDataGraph,
+    ValueList,
 )
 from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
@@ -107,6 +108,7 @@ if TYPE_CHECKING:
         User,
         Run,
         Value,
+        Field,
     )
     from bench.language.expression import _NodeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -115,7 +117,10 @@ logger = structlog.get_logger(__name__)
 
 
 def new_struct_id() -> int:
-    return secrets.randbits(32)
+    id = secrets.randbits(32)
+    if id < 0:
+        id = -id
+    return id
 
 
 new_node_id = uuid4
@@ -234,6 +239,15 @@ def _process_struct_base_cls(
                 if grandparent not in static_components:
                     static_components.append(grandparent)
 
+    # check components
+    for component in chain(static_components[1:], dynamic_components):
+        if component.__name__ in CORE_TYPES:
+            continue  # ignore base classes
+        if is_node and component.__is_struct_inlined__:
+            raise ValueError(f"node {cls} has inlined struct {component}")
+        if is_inlined and component.metatype and not component.__is_struct_inlined__:
+            raise ValueError(f"struct {cls} has non-inlined struct {component}")
+
     # collect properties from this
     declared_properties: dict[str, Property] = {}
     for name, prop in list(cls.__dict__.items()):
@@ -299,7 +313,7 @@ def _process_struct_base_cls(
             ReferenceKind.STRUCT_PARENT,
             ReferenceKind.PROPERTY,
         ):
-            for p in prop._contribute_ptrs():
+            for p in prop._contribute_ptrs(is_inlined=is_inlined):
                 if p.name in properties_by_name:
                     raise ValueError(
                         f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
@@ -330,7 +344,6 @@ def _process_struct_base_cls(
             setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
         if is_struct and is_inlined:
             _remove_prop("order_key")
-            _remove_prop("parent")
 
     # create class (map properties to dataclass fields)
     for name, prop in list(properties_by_name.items()):
@@ -384,6 +397,7 @@ def _process_struct_base_cls(
     # register components and index properties
     cls.__static_components__ = tuple(static_components)
     cls.__dynamic_components__ = tuple(dynamic_components or ())
+    cls.__is_struct_inlined__ = is_inlined
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
@@ -799,6 +813,7 @@ class Struct(abc.ABC):
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
+    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
 
     __parent_property__: ClassVar[Property] = None
@@ -826,19 +841,20 @@ class Struct(abc.ABC):
     __properties_mask_set__: ClassVar[bitarray] = None
     __properties_mask_unset__: ClassVar[bitarray] = None
 
-    __is_struct__: ClassVar[bool] = True
+    __is_struct_only__: ClassVar[bool] = True
     __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
     id: int = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
-    if TYPE_CHECKING:  # contributed via parent
+    if TYPE_CHECKING:  # contributed via parent, stored/wired only if not inlined
         parent_id: int | None  # (3)
         parent_key: str | None  # (4)
     order_key: str | None = p_internal(5, default=None)
 
     _status: InterpStatus = p_runtime(default=None)
+    _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
         if self._status is None:
@@ -856,9 +872,9 @@ class Struct(abc.ABC):
     def __repr__(self):
         content_str = str(self)
         if content_str:
-            return f"<{self.__class__.__name__} {content_str}>"
+            return f"<{self.__class__.__name__} {content_str} @ {self.id}>"
         else:
-            return f"<{self.__class__.__name__} @ {id(self)}>"
+            return f"<{self.__class__.__name__} @ {self.id}>"
 
     @classmethod
     def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
@@ -926,25 +942,169 @@ class Struct(abc.ABC):
         return True
 
     def __eq__(self, other):
-        return self.equals_content(other)
+        if other is None or self.metatype != other.metatype:
+            return False
+        return self.id == other.id
+
+    def __setattr__(self, key, value):
+        """Sets *any* attribute on this node (incl. slots)."""
+        is_tracked = self._status == InterpStatus.TRACKED
+        prop = self.__properties__.get(key)
+        if prop is not None:
+            if prop.is_ephemeral or prop.is_autoset:  # untracked
+                return object.__setattr__(self, key, value)
+            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
+                attr = object.__getattribute__(self, key)
+                if attr is None or type(attr) is Property:  # initial set
+                    return object.__setattr__(self, key, value)
+                else:
+                    return attr.set(value)  # has its own set
+            elif (
+                prop.reference_kind == ReferenceKind.STRUCT_CHILD
+                and self._status is not None
+                and value is not None
+            ):
+                # copy struct if needed (only after init since child struct needs our id)
+                if prop.is_array:
+                    value = ValueList._lazy_copy_for(value, self, prop)
+                else:
+                    value = value._lazy_copy_to(self, prop)
+            elif prop.is_computed:
+                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
+
+            # validate set
+            if is_tracked:
+                prev = getattr(self, key)
+                object.__setattr__(self, key, value)
+                try:
+                    self._validate_self((prop,), on_invalid=on_invalid_raise)
+                except ValidationError:  # reset on error
+                    object.__setattr__(self, key, prev)
+                    raise
+            else:
+                object.__setattr__(self, key, value)
+
+            # update reference pointers
+            if prop.reference_wired_ptr is not None:
+                object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
+
+            # report edit
+            if is_tracked:
+                self._updated_self((prop,))
+            return
+
+        if is_tracked:
+            # also try first full passthrough target (if any)
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    setattr(target, key, value)
+                    return  # success
+
+        # report set error with additional info
+        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
+        did_you_mean = did_you_mean_str(candidates, key)
+        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+
+    def __getattr__(self, item):
+        # when using slots so this is not an instance attribute
+        attr = UNSET
+        # prefer components methods
+        for component in self._components:
+            attr = getattr(component, item, UNSET)
+            if attr is not UNSET:
+                break
+        # check passthrough targets if tracked in session
+        if attr is UNSET and self._status == InterpStatus.TRACKED:
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    attr = getattr(target, item, UNSET)
+                elif mode == _Passthrough.Scope:
+                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
+                    attr = target.get(item) or UNSET
+                if attr is not UNSET:
+                    break
+        # attribute could be property, method, or just plain value
+        if attr is not UNSET:
+            if isinstance(attr, property):
+                return attr.fget(self)
+            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
+                return functools.partial(attr, self)
+            else:
+                return attr
+
+        # report get error with additional info
+        candidates = {
+            # own properties
+            **{
+                p.name: p
+                for p in self.__properties__.values()
+                if p.reference_kind or not p.is_ephemeral
+            },
+            # public methods
+            **{m: None for m in dir(self) if not m.startswith("_")},
+        }
+        did_you_mean = did_you_mean_str(candidates, item)
+        raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+
+    def _lazy_copy_to(
+        self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]
+    ) -> "Struct":
+        """Create a copy of this struct for the given parent/prop if it's assigned and different."""
+        assert self.__is_struct_only__, f"cannot copy non-struct {self!r}"
+        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        if self.parent is None:  # not assigned
+            self.parent = parent
+            self.parent_key = prop_key
+            return self
+        if self.parent == parent and self.parent_key == prop_key:  # already the same
+            return self
+        copy = self._copy_to(parent, prop)
+        return copy
+
+    def _copy_to(self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]):
+        kwargs = {
+            p.name: getattr(self, p.name)
+            for p in self.__properties__.values()
+            if p.is_runtime and not p.is_ephemeral and not p.is_computed
+        }
+        kwargs["parent"] = parent
+        kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        copy = self.__class__(**kwargs)
+        return copy
+
+    def _walk_structs(self) -> Iterable["Struct"]:
+        for prop in self.__struct_properties__.values():
+            value = getattr(self, prop.name)
+            if value is None:
+                continue
+            elif not prop.is_array:
+                yield from value._walk_self()
+            elif len(value) > 0:
+                for item in value:
+                    yield from item._walk_self()
 
     def _init_inner(self):
-        # init struct value lists
+        # init struct references (and maybe copy them)
         for prop in self.__struct_reference_properties__.values():
-            if prop.reference_kind == ReferenceKind.STRUCT_CHILD and prop.is_array:
+            if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 existing = getattr(self, prop.name, None)
-                if existing is None:
+                if prop.is_array:
                     self.__dict__[prop.name] = prop.reference_list_type(self, prop)
-        # init reference pointers if references are set :NodeReferences
+                    if existing:  # will auto copy if needed
+                        self.__dict__[prop.name].extend(existing)
+                elif existing is not None:
+                    self.__dict__[prop.name] = existing._lazy_copy_to(self, prop)
+
+        # init reference pointers if references are set
         for prop in self.__node_reference_properties__.values():
             if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
                 continue
-            ref = getattr(self, prop.name)
-            if prop.reference_wired_ptr is not None and ref:
-                if prop.is_array:
-                    self.__dict__[prop.reference_wired_ptr.name] = [r.to_ref() for r in ref]
-                else:
-                    self.__dict__[prop.reference_wired_ptr.name] = ref.to_ref()
+            if prop.reference_wired_ptr is not None:
+                value = getattr(self, prop.name)
+                if value is not None:  # keep old value)
+                    self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(value)
 
     def _clear_inner(self, scope: Optional["Node"] = None):
         pass
@@ -952,7 +1112,7 @@ class Struct(abc.ABC):
     def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
-        # resolve node references :NodeReferences
+        # resolve node references
         for prop in self.__node_reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
                 continue  # already resolved
@@ -989,7 +1149,7 @@ class Struct(abc.ABC):
                 setattr(self, prop.name, ptr.resolve())
 
     def _visit_inner(self, visitor: "NodeVisitor"):
-        # visit node references :NodeReferences
+        # visit node references
         for prop in self.__node_reference_properties__.values():
             value = getattr(self, prop.name)
             if isinstance(value, Node):
@@ -1011,12 +1171,27 @@ class Struct(abc.ABC):
                 if valid is False:
                     on_invalid(self, f"{prop.name}: invalid value", [prop])
 
-    # struct has basic set of lifecycle methods
+    def _updated_inner(self, properties: tuple[Property, ...]) -> None:
+        """Called when properties in this struct have been updated successfully."""
+        if self._status == InterpStatus.TRACKED:
+            if self.__is_node__:
+                self: "Node"
+                if not self._is_new:
+                    if self._updated_properties is None:
+                        self._updated_properties = bitarray(self.__max_property_ord__ + 1)
+                    for prop in properties:
+                        self._updated_properties[prop.ord] = True
+                        self._session.update(self, properties=properties)
+            else:  # is struct
+                if self.parent is not None:
+                    self.parent._updated_inner(properties)
+
     _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
     _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
     _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
+    _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
     def _walk_self(self) -> Iterable["Struct"]:
         yield self
@@ -1088,7 +1263,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     metatype: ClassVar[NodeType]
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __identifier_type__: ClassVar[IdentifierType | None] = None
     __id_factory__: ClassVar[Callable[[], UUID]] = None
 
@@ -1096,6 +1270,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     __node_list_properties__: ClassVar[dict[str, Property]] = {}
 
     __roots__: ClassVar[bytetuple[NodeType]] = UNSET
+    __is_struct_only__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = True
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
@@ -1163,7 +1338,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
-    _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
         # init ck/id/timestamps
@@ -1401,127 +1575,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         """Hard delete this node. Forever. Irreversibly."""
         raise NotImplementedError
 
-    def __setattr__(self, key, value):
-        """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self._status == InterpStatus.TRACKED
-        prop = self.__properties__.get(key)
-        if prop is not None:
-            if prop.is_ephemeral or prop.is_autoset:  # untracked
-                return object.__setattr__(self, key, value)
-            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
-                attr = object.__getattribute__(self, key)
-                if attr is None or type(attr) is Property:  # initial set
-                    return object.__setattr__(self, key, value)
-                else:
-                    return attr.set(value)  # has its own set
-            elif prop.is_computed:
-                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
-
-            if is_tracked:
-                # validated set
-                prev = getattr(self, key)
-                object.__setattr__(self, key, value)
-                try:
-                    self._validate_self((prop,), on_invalid=on_invalid_raise)
-                    self._updated_self((prop,))
-                except ValidationError:  # reset on error
-                    object.__setattr__(self, key, prev)
-                    raise
-            else:
-                object.__setattr__(self, key, value)
-
-            if prop.reference_wired_ptr:
-                # update reference pointer  :NodeReferences
-                from bench.language.expression import NodeReference
-
-                wired_name = prop.reference_wired_ptr.name
-                if prop.is_array:
-                    object.__setattr__(
-                        self,
-                        wired_name,
-                        [NodeReference.from_node(n) for n in (value or ())],
-                    )
-                elif value:
-                    object.__setattr__(self, wired_name, NodeReference.from_node(value))
-                else:
-                    object.__setattr__(self, wired_name, None)
-            if is_tracked and self._session is not None and not self._is_new:
-                # update in session
-                if self._updated_properties is None:
-                    self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                self._updated_properties[prop.ord] = True
-                self._session.update(self, properties=(prop,))
-            return
-
-        if is_tracked:
-            # also try first full passthrough target (if any)
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    setattr(target, key, value)
-                    return  # success
-
-        # report set error with additional info
-        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-        did_you_mean = did_you_mean_str(candidates, key)
-        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
-
-    def __getattr__(self, item):
-        # we're using slots so this is not an instance attribute
-
-        attr = UNSET
-        # prefer components methods
-        for component in self._components:
-            attr = getattr(component, item, UNSET)
-            if attr is not UNSET:
-                break
-        # check passthrough targets if tracked in session
-        if attr is UNSET and self._session is not None:
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    attr = getattr(target, item, UNSET)
-                elif mode == _Passthrough.Scope:
-                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
-                    attr = target.get(item) or UNSET
-                if attr is not UNSET:
-                    break
-        # attribute could be property, method, or just plain value
-        if attr is not UNSET:
-            if isinstance(attr, property):
-                return attr.fget(self)
-            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
-                return functools.partial(attr, self)
-            else:
-                return attr
-
-        # report get error with additional info
-        candidates = {
-            # own properties
-            **{
-                p.name: p
-                for p in self.__properties__.values()
-                if p.reference_kind or not p.is_ephemeral
-            },
-            # public methods
-            **{m: None for m in dir(self) if not m.startswith("_")},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
-
-    def _walk_structs(self) -> Iterable["Struct"]:
-        for prop in self.__struct_properties__.values():
-            value = getattr(self, prop.name)
-            if value is None:
-                continue
-            elif not prop.is_array:
-                yield from value._walk_self()
-            elif len(value) > 0:
-                for item in value:
-                    yield from item._walk_self()
-
-    # abstract :ComponentMethods in addition to Struct
-
     def _on_notice(
         self,
         subject: "Node",
@@ -1574,10 +1627,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     def _detached_inner(self) -> None:
         """Called when this node is detached from a package."""
-        pass
-
-    def _updated_inner(self, properties: Collection[Property]) -> None:
-        """Called when this node is updated."""
         pass
 
     _call_inner = _make_inner_dunder_method(_ComponentMethod.call)
@@ -1640,7 +1689,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     _untrack_self = _make_self_method(
         _ComponentMethod.untrack, _untrack_inner, InterpStatus.INTERPED
     )
-    _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
     _visit_self = _make_self_method(_ComponentMethod.visit, Struct._visit_inner)
 
     def _walk_rec(self) -> Iterable["Node"]:

@@ -105,7 +105,8 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return pack_struct(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
-    elif prop.reference_kind is not None:
+    elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
+        # struct references are just integers
         return NodeReferenceData(
             metatype=wire.BenchType.NODE_REFERENCE,
             type=pack_enum(BenchType, value.type),
@@ -132,7 +133,8 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             return unpack_struct(value)
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
-        elif prop.reference_kind is not None:
+        elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
+            # struct references are just integers
             return NodeReference(
                 type=unpack_enum(NodeType, value.type),
                 id=to_uuid(value.id),

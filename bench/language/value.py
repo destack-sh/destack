@@ -62,6 +62,16 @@ class Value:
     # use
     ...  # getattr/setattr
 
+    @property
+    def _status(self) -> InterpStatus | None:
+        if self.parent is None:
+            return None
+        else:
+            return self.parent._status
+
+    def _updated_self(self, properties: tuple[Union[Property, "Field"], ...]):
+        raise NotImplementedError("@Incomplete")
+
 
 @struct_component
 class HasValues(Struct):

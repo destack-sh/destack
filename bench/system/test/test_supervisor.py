@@ -157,7 +157,7 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
             assert read_target.slug == target.slug
             if is_target_self:  # we should be able to read our own sensitive data
                 assert read_target.email == target.email
-            else:  # but not others'‚
+            else:  # but not others
                 assert not read_target.email
 
             # update the User's full name

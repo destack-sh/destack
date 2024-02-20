@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.16.0"
+VERSION = "2024.02.20.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -138,10 +138,7 @@ class BenchType(betterproto.Enum):
     PATH_TOKEN = 502
     NODE_REFERENCE = 503
     PROPERTY_REFERENCE = 504
-    PROPERTY_PATH = 505
-    FIELD_PATH = 506
-    FIELD_PATH_SEGMENT = 507
-    VALUE_REFERENCE = 508
+    VALUE_REFERENCE = 505
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
@@ -170,7 +167,6 @@ class BenchType(betterproto.Enum):
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
-    TEXT_OPTIONS = 663
     SPACE_DOCK = 700
     SPACE_DOCK_ITEM = 701
 
@@ -452,6 +448,39 @@ class OrganizationStatus(betterproto.Enum):
     ACTIVATED = 10
 
 
+class PathSegmentType(betterproto.Enum):
+    UNSPECIFIED = 0
+    BENCH = 1
+    ENVIRONMENT = 2
+    BRANCH = 3
+    PACKAGE = 4
+    BLOCK = 5
+    SUB_BLOCK = 6
+    PROPERTY = 7
+    CURRENT = 10
+    CURRENT_PARENT = 11
+    CURRENT_PACKAGE = 12
+    CURRENT_MODULE = 13
+    CURRENT_PAGE = 14
+    CURRENT_SOURCE_MODULE = 15
+    CURRENT_UNIQUE = 16
+    FILTER = 20
+
+
+class PathTokenType(betterproto.Enum):
+    UNSPECIFIED = 0
+    SLASH = 1
+    COLON = 2
+    DOT = 3
+    AT = 4
+    DOLLAR = 5
+    CARET = 6
+    TILDE = 7
+    DOUBLE_DOT = 8
+    NAME = 10
+    EXPRESSION = 11
+
+
 class PolicyEffect(betterproto.Enum):
     UNSPECIFIED = 0
     ALLOW = 1
@@ -596,10 +625,7 @@ class StructType(betterproto.Enum):
     PATH_TOKEN = 502
     NODE_REFERENCE = 503
     PROPERTY_REFERENCE = 504
-    PROPERTY_PATH = 505
-    FIELD_PATH = 506
-    FIELD_PATH_SEGMENT = 507
-    VALUE_REFERENCE = 508
+    VALUE_REFERENCE = 505
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
@@ -628,7 +654,6 @@ class StructType(betterproto.Enum):
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
-    TEXT_OPTIONS = 663
     SPACE_DOCK = 700
     SPACE_DOCK_ITEM = 701
 
@@ -639,8 +664,7 @@ class TextLineType(betterproto.Enum):
     HEADING_SMALL = 6
     HEADING_MEDIUM = 7
     HEADING_LARGE = 8
-    CALLOUT_INFO = 12
-    CALLOUT_WARNING = 13
+    CALLOUT = 12
     LIST_BULLET = 16
     LIST_NUMBERED = 17
 
@@ -784,7 +808,7 @@ class AggregationBucketData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CodeData(betterproto.Message):
     """
-    Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -798,7 +822,7 @@ class CodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CodeLineData(betterproto.Message):
     """
-    CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -846,28 +870,6 @@ class ExpressionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class FieldPathData(betterproto.Message):
-    """A path of built-in Node/Struct properties and user-defined Fields."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    segments: List["FieldPathSegmentData"] = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
-class FieldPathSegmentData(betterproto.Message):
-    """A single segment of a FieldPath."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(30, optional=True)
-    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
     """A reference to a file stored somewhere."""
 
@@ -887,7 +889,7 @@ class FileData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -904,7 +906,7 @@ class IconData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NodeReferenceData(betterproto.Message):
     """
-    NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.InterpStatus = None)
+    NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -949,7 +951,7 @@ class PathData(betterproto.Message):
      symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
      ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 
-     NOT YET SUPPORTED:
+     also relative:
      / -> package (=Package)
      $ -> module (=Block|Package)
      ^ -> page (=Block)
@@ -974,32 +976,31 @@ class PathData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    bench_slug: Optional[str] = betterproto.string_field(30, optional=True)
-    block_path: List[str] = betterproto.string_field(31)
-    sub_node_path: List[str] = betterproto.string_field(32)
-    field_path: List[str] = betterproto.string_field(33)
-    branch_slug: Optional[str] = betterproto.string_field(34, optional=True)
-    package_slug: Optional[str] = betterproto.string_field(35, optional=True)
+    segments: List["PathSegmentData"] = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
 class PathSegmentData(betterproto.Message):
     """
-    PathSegment(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+    PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
+    type: "PathSegmentType" = betterproto.enum_field(31)
+    name: Optional[str] = betterproto.string_field(32, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class PathTokenData(betterproto.Message):
     """
-    PathToken(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+    PathToken(type: bench.language.path.PathTokenType = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
+    type: "PathTokenType" = betterproto.enum_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -1083,21 +1084,9 @@ class ProjectionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PropertyPathData(betterproto.Message):
-    """A path of Node/Struct properties."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.InterpStatus = None)
+    PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1145,7 +1134,7 @@ class RequestData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     """
-    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1165,7 +1154,7 @@ class RunCodeFrameData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
     """
-    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1198,7 +1187,7 @@ class ScheduleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ServerImageData(betterproto.Message):
     """
-    ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1215,7 +1204,7 @@ class ServerImageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ServerImageRequirementData(betterproto.Message):
     """
-    ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1230,7 +1219,7 @@ class ServerImageRequirementData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SpaceDockData(betterproto.Message):
     """
-    SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1244,7 +1233,7 @@ class SpaceDockData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SpaceDockItemData(betterproto.Message):
     """
-    SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1258,7 +1247,7 @@ class SpaceDockItemData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StoreCredentialData(betterproto.Message):
     """
-    StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1298,7 +1287,7 @@ class SubjectData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextData(betterproto.Message):
     """
-    Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+    Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1312,7 +1301,7 @@ class TextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextLineData(betterproto.Message):
     """
-    TextLine(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None)
+    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1330,34 +1319,15 @@ class TextLineData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class TextOptionsData(betterproto.Message):
-    """
-    TextOptions(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    is_bold: bool = betterproto.bool_field(60)
-    is_italic: bool = betterproto.bool_field(61)
-    is_strikethrough: bool = betterproto.bool_field(62)
-    is_underline: bool = betterproto.bool_field(63)
-    is_code: bool = betterproto.bool_field(64)
-
-
-@dataclass(eq=False, repr=False)
 class TextSpanData(betterproto.Message):
     """
-    TextSpan(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, content: str | None = None, node_reference: Optional[bench.language.node.Node] = None, value_reference: Optional[ForwardRef('ValueReference')] = None, node_reference_ptr: 'NodeReference' = None)
+    TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
     content: Optional[str] = betterproto.string_field(33, optional=True)
-    node_reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    value_reference: Optional["ValueReferenceData"] = betterproto.message_field(35, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     is_bold: bool = betterproto.bool_field(60)
     is_italic: bool = betterproto.bool_field(61)
     is_strikethrough: bool = betterproto.bool_field(62)
@@ -1368,7 +1338,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1402,8 +1372,7 @@ class ValueReferenceData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    node_ptr: "NodeReferenceData" = betterproto.message_field(30)
-    path: "FieldPathData" = betterproto.message_field(31)
+    path: "PathData" = betterproto.message_field(31)
     subvalue_from: Optional[int] = betterproto.int32_field(32, optional=True)
     subvalue_to: Optional[int] = betterproto.int32_field(33, optional=True)
 
@@ -1891,7 +1860,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1910,7 +1879,7 @@ class NoticeData(betterproto.Message):
     kind: "NoticeKind" = betterproto.enum_field(30)
     type: "NoticeType" = betterproto.enum_field(31)
     message: str = betterproto.string_field(33)
-    path: Optional["FieldPathData"] = betterproto.message_field(34, optional=True)
+    path: Optional["PathData"] = betterproto.message_field(34, optional=True)
     properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
 
 
@@ -2306,7 +2275,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -4085,82 +4054,78 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    FieldData,
-    EnvironmentData,
-    BlockData,
-    PackageData,
-    CacheData,
-    BenchData,
-    DriveData,
-    HandleData,
-    MembershipData,
-    BranchData,
-    BadgeData,
-    LinkData,
-    ViewData,
-    OrganizationData,
-    ServerData,
-    IdentityData,
-    NotificationData,
-    FileContentData,
-    UserData,
-    TriggerData,
-    ClientData,
-    SpaceData,
-    RoleData,
     RecordData,
-    SignalData,
     SkipData,
-    PauseData,
-    RunData,
-    StoreData,
-    LogData,
+    BranchData,
     UpgradeData,
-    InviteData,
-    DependencyData,
-    NoticeData,
+    StoreData,
+    UserData,
+    ViewData,
     SessionData,
+    PackageData,
+    ServerData,
+    ClientData,
+    RoleData,
+    SpaceData,
     QueryData,
+    OrganizationData,
+    IdentityData,
+    LinkData,
+    HandleData,
+    FileContentData,
+    SignalData,
+    BlockData,
+    NotificationData,
+    BenchData,
+    EnvironmentData,
+    InviteData,
+    DriveData,
+    TriggerData,
+    NoticeData,
+    CacheData,
+    DependencyData,
+    BadgeData,
+    PauseData,
+    MembershipData,
+    FieldData,
+    RunData,
+    LogData,
 ]
 AnyStructData = Union[
-    AccessTraceData,
-    SpaceDockData,
-    NodeReferenceData,
-    TextData,
-    SubjectData,
-    TextLineData,
-    RunCodeFrameData,
-    PathTokenData,
-    ProjectionData,
-    RequestData,
-    StoreCredentialData,
-    PropertyReferenceData,
-    ScheduleData,
-    AggregationData,
-    IconData,
-    TextSpanData,
-    TextOptionsData,
-    CodeData,
-    FieldPathData,
-    FileData,
-    AccessZoneData,
-    ReadOptionsData,
-    ContextData,
-    ServerImageRequirementData,
-    TypeInfoData,
     ExpressionData,
-    SpaceDockItemData,
-    PathData,
-    RunErrorData,
-    FieldPathSegmentData,
-    ValueReferenceData,
-    AccessData,
     PolicyRuleData,
-    CodeLineData,
-    PropertyPathData,
-    AggregationBucketData,
-    PolicyData,
+    TextSpanData,
+    SpaceDockItemData,
+    RequestData,
+    PathTokenData,
+    RunErrorData,
+    ServerImageRequirementData,
+    NodeReferenceData,
+    CodeData,
     AccessMatrixData,
+    ContextData,
+    TextData,
+    PathData,
     PathSegmentData,
+    TextLineData,
+    PropertyReferenceData,
+    AggregationBucketData,
     ServerImageData,
+    ReadOptionsData,
+    FileData,
+    CodeLineData,
+    PolicyData,
+    SubjectData,
+    AccessZoneData,
+    TypeInfoData,
+    AccessData,
+    RunCodeFrameData,
+    SpaceDockData,
+    ScheduleData,
+    ValueReferenceData,
+    ProjectionData,
+    StoreCredentialData,
+    IconData,
+    AccessTraceData,
+    AggregationData,
 ]

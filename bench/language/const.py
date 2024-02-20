@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.16.0"
+VERSION = "2024.02.20.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -51,6 +51,7 @@ class NodeType(IdEnum):
     # COMMENT = ...
     # REACTION = ...
     # LOCK?
+    # BREAKPOINT?
 
     # session/runtime
     SESSION = 50  # (local)
@@ -114,10 +115,7 @@ class StructType(IdEnum):
     PATH_TOKEN = 502
     NODE_REFERENCE = 503
     PROPERTY_REFERENCE = 504
-    PROPERTY_PATH = 505
-    FIELD_PATH = 506
-    FIELD_PATH_SEGMENT = 507
-    VALUE_REFERENCE = 508
+    VALUE_REFERENCE = 505
     TYPE_INFO = 510
     CONTEXT = 511
     SCHEDULE = 512
@@ -159,7 +157,6 @@ class StructType(IdEnum):
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
-    TEXT_OPTIONS = 663
 
     # views
     SPACE_DOCK = 700

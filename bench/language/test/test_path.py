@@ -1,6 +1,6 @@
 import pytest
 
-from bench.language.path import Path, InvalidBenchPath
+from bench.language.path import Path
 
 
 @pytest.mark.skip("@Incomplete :BenchPath")

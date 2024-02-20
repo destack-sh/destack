@@ -1,4 +1,4 @@
-from .graph import ValueList, InlinedValueList
+from .graph import ValueList
 from .property import Property
 from .setup import _complete_bench_setup
 from .value import Context, Value
@@ -39,9 +39,7 @@ from .expression import (
     Aggregation,
     C,
     Expression,
-    FieldPath,
     NodeReference,
-    PropertyPath,
     PropertyReference,
     S,
     ValueReference,
@@ -94,14 +92,12 @@ __all__ = [
     "Environment",
     "Expression",
     "Field",
-    "FieldPath",
     "File",
     "FileContent",
     "FormatHint",
     "Handle",
     "Icon",
     "Identity",
-    "InlinedValueList",
     "Link",
     "Log",
     "Node",
@@ -119,7 +115,6 @@ __all__ = [
     "PolicyRule",
     "PrimitiveType",
     "Property",
-    "PropertyPath",
     "PropertyReference",
     "Query",
     "ReadOptions",
