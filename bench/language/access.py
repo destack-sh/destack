@@ -608,14 +608,14 @@ class AccessZone(Struct):
     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
-    scope_id: UUID = p_system(30)
+    scope_id: str = p_system(30)
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_system(31)
     _identity: Optional[Identity] = p_runtime(default=None)
     rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
 
     def __content_str__(self) -> str:
-        return f"{self._identity or self.identity_id} in {self._scope or self.scope_id}: {len(self.rules)} rules"
+        return f"{(self._identity or self.identity_id)!r} in {self._scope or self.scope_id}: {len(self.rules)} rules"
 
 
 @struct(StructType.ACCESS_MATRIX)
@@ -628,11 +628,12 @@ class AccessMatrix(Struct):
     base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
 
     # quick access to the zone (id = index)
+    _scoped_zones_by_id: dict[int, AccessZone] = p_runtime(default_factory=dict)
     _lowest_zone_by_scope: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
     _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
 
     def __content_str__(self) -> str:
-        return f"{self.subject}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
+        return f"{self.subject!r}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
 
 
 @struct(StructType.ACCESS, inline=True)
@@ -881,15 +882,11 @@ def generate_access_matrix(
 
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
-    scoped_zones: list[AccessZone] = []
-    base_zones: list[AccessZone] = []
-    matrix = AccessMatrix(
-        subject=subject, scoped_zones=scoped_zones, base_zones=base_zones, identities=identities
-    )
+    matrix = AccessMatrix(subject=subject, identities=identities)
     applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
-        current_node: AnyNodeData, owner: Owner, parent_zones_by_identity: tuple[int | None, ...]
+        current_node: AnyNodeData, owner: Owner, parent_zones_by_identity: dict[int, int]
     ):
         """Generates any new applicable access zones downstream from the node for all identities."""
 
@@ -912,9 +909,9 @@ def generate_access_matrix(
 
         # gather all the policy rules that apply in this context (per identity)
         applied_policies = applied_policies_by_node_id.get(current_node.id, ())
-        current_zones_by_identity = parent_zones_by_identity
+        new_zones_by_identity: dict[int, int | None] | None = None
         if applied_policies:
-            for identity_id, identity in enumerate(identities):
+            for identity in identities:
                 applicable_rules = tuple(
                     rule
                     for policy in applied_policies
@@ -924,36 +921,41 @@ def generate_access_matrix(
                 if applicable_rules:
                     # we got a new zone with different roles down here
                     zone = AccessZone(
-                        parent_id=parent_zones_by_identity[identity_id],
+                        parent_id=parent_zones_by_identity.get(identity.id),
                         scope_id=current_node.id,
                         _scope=current_node,
-                        identity_id=identity_id,
+                        identity_id=identity.id,
                         _identity=identity,
                         rules=applicable_rules,
                     )
-                    scoped_zones.append(zone)
+                    matrix.scoped_zones.append(zone)
+                    matrix._scoped_zones_by_id[zone.id] = zone
                     # update parent zones for the next level
-                    if current_zones_by_identity is parent_zones_by_identity:  # to list to modify
-                        current_zones_by_identity = list(parent_zones_by_identity)
-                        current_zones_by_identity[identity_id] = zone.id
-        if current_zones_by_identity is not parent_zones_by_identity:  # back to tuple if modified
-            current_zones_by_identity = tuple(current_zones_by_identity)
+                    if new_zones_by_identity is None:
+                        new_zones_by_identity = {}
+                    new_zones_by_identity[identity.id] = zone.id
+        if new_zones_by_identity is None:
+            new_zones_by_identity = parent_zones_by_identity
+        else:  # merge update
+            for identity_id, zone_id in parent_zones_by_identity.items():
+                if identity_id not in new_zones_by_identity:
+                    new_zones_by_identity[identity_id] = zone_id
 
         # update 'lowest zone' shortcuts (per identity)
-        for identity_id in range(len(identities)):
-            zone_id = current_zones_by_identity[identity_id]
-            zone = scoped_zones[zone_id] if zone_id is not None else None
-            matrix._lowest_zone_by_scope[(identity_id, current_node.id)] = zone
+        for identity in identities:
+            zone_id = new_zones_by_identity.get(identity.id)
+            zone = matrix._scoped_zones_by_id[zone_id] if zone_id is not None else None
+            matrix._lowest_zone_by_scope[(identity.id, current_node.id)] = zone
 
         # descend into children
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
         current_type: NodeType = wiring.unpack_enum(NodeType, current_node.metatype)
         for child_type in CHILD_NODE_TYPES[current_type]:
             for child_node in graph.iter_descendants(current_node, child_type):
-                _assign_access_zones(child_node, owner, current_zones_by_identity)
+                _assign_access_zones(child_node, owner, new_zones_by_identity)
 
     # start at root
-    root_zones_by_identity = tuple(None for _ in identities)
+    root_zones_by_identity = {}
     for root in roots:
         # figure out owner
         root_type = wiring.unpack_enum(NodeType, root.metatype)
@@ -967,7 +969,7 @@ def generate_access_matrix(
 
         # base zones are checked before all others (typically for system policies)
         #  but are specific to each root (=owner)
-        for identity_id, identity in enumerate(identities):
+        for identity in identities:
             base_rules = tuple(
                 rule
                 for policy in base_policies
@@ -975,16 +977,15 @@ def generate_access_matrix(
                 if rule.matches_subject(identity, owner)
             )
             base_zone = AccessZone(
-                id=len(base_zones),
                 scope_id=root.id,
                 _scope=root,
                 parent_id=None,
-                identity_id=identity_id,
+                identity_id=identity.id,
                 _identity=identity,
                 rules=base_rules,
             )
-            base_zones.append(base_zone)
-            matrix._base_zone_by_root[(identity_id, root.id)] = base_zone
+            matrix.base_zones.append(base_zone)
+            matrix._base_zone_by_root[(identity.id, root.id)] = base_zone
 
         # add nested zones if there are any legislative nodes down here
         _assign_access_zones(root, owner, root_zones_by_identity)
@@ -1026,16 +1027,16 @@ def evaluate_access(
     num_cached_identities = 0
 
     # check the zones for each identity (separately)
-    for identity_id in range(len(matrix.identities)):
-        base_zone: AccessZone = matrix._base_zone_by_root[(identity_id, root_id)]
-        start_scoped_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
+    for identity in matrix.identities:
+        base_zone: AccessZone = matrix._base_zone_by_root[(identity.id, root_id)]
+        start_scoped_zone: AccessZone | None = matrix._lowest_zone_by_scope[(identity.id, scope_id)]
 
         # check cache
         cache_key = _EvalCacheKey(
             object_node_type=object_node_type,
             root_id=root_id,
             start_scope_id=start_scoped_zone.id if start_scoped_zone is not None else None,
-            identity_id=identity_id,
+            identity_id=identity.id,
         )
         if cache is not None:
             allowed_properties = cache.get(cache_key)
