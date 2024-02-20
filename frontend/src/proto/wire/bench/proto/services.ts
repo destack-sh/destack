@@ -19,7 +19,7 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { RunErrorData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
-import { BenchPathData } from "./lang";
+import { PathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
 import { EditData } from "./common";
@@ -647,9 +647,9 @@ export interface RunProxyBlockRequest {
     block: {
         oneofKind: "path";
         /**
-         * @generated from protobuf field: symbolx.bench.BenchPathData path = 1;
+         * @generated from protobuf field: symbolx.bench.PathData path = 1;
          */
-        path: BenchPathData;
+        path: PathData;
     } | {
         oneofKind: "reference";
         /**
@@ -2857,7 +2857,7 @@ export const DownloadFilesResponse = new DownloadFilesResponse$Type();
 class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
     constructor() {
         super("symbolx.bench.RunProxyBlockRequest", [
-            { no: 1, name: "path", kind: "message", oneof: "block", T: () => BenchPathData },
+            { no: 1, name: "path", kind: "message", oneof: "block", T: () => PathData },
             { no: 2, name: "reference", kind: "message", oneof: "block", T: () => NodeReferenceData },
             { no: 3, name: "inputs", kind: "message", T: () => Struct },
             { no: 4, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -2880,10 +2880,10 @@ class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchPathData path */ 1:
+                case /* symbolx.bench.PathData path */ 1:
                     message.block = {
                         oneofKind: "path",
-                        path: BenchPathData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).path)
+                        path: PathData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).path)
                     };
                     break;
                 case /* symbolx.bench.NodeReferenceData reference */ 2:
@@ -2916,9 +2916,9 @@ class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
         return message;
     }
     internalBinaryWrite(message: RunProxyBlockRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchPathData path = 1; */
+        /* symbolx.bench.PathData path = 1; */
         if (message.block.oneofKind === "path")
-            BenchPathData.internalBinaryWrite(message.block.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            PathData.internalBinaryWrite(message.block.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData reference = 2; */
         if (message.block.oneofKind === "reference")
             NodeReferenceData.internalBinaryWrite(message.block.reference, writer.tag(2, WireType.LengthDelimited).fork(), options).join();

@@ -61,8 +61,7 @@ def _on_completing_setup(func: Callable = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     global FINAL_BENCH_CLASSES, BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
-    from bench.language import const
-    from bench.language.node import Node, Struct
+    from bench.language import const, Node, Struct, Value
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
@@ -71,7 +70,7 @@ def _complete_bench_setup():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
     FINAL_BENCH_CLASSES = frozenset(FINAL_BENCH_CLASSES_BY_NAME.values())
-    BENCH_CLASSES = frozenset(chain(FINAL_BENCH_CLASSES_BY_NAME.values(), get_subclasses(Struct)))
+    BENCH_CLASSES = frozenset(chain(get_subclasses(Struct), (Value,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASSES_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:

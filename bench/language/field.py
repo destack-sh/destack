@@ -19,9 +19,9 @@ from bench.language.expression import _TypeExpressionBase
 from bench.language.node import (
     Node,
     NodeList,
-    Struct,
     node,
     struct,
+    struct_component,
 )
 from bench.language.property import (
     Property,
@@ -74,8 +74,8 @@ class TypeError(BenchError, TypeError):
         self.suberrors = suberrors or []
 
 
-@struct(StructType.TYPE_INFO)
-class TypeInfo(HasValues):
+@struct_component
+class TypeInfoBase(HasValues):
     """
     A type is a kind of value that can go somewhere, typically a field.
 
@@ -228,8 +228,13 @@ class TypeInfo(HasValues):
             return None
 
 
+@struct(StructType.TYPE_INFO)
+class TypeInfo(TypeInfoBase):
+    pass
+
+
 @node(NodeType.FIELD)
-class Field(Node, TypeInfo, _TypeExpressionBase):
+class Field(Node, TypeInfoBase, _TypeExpressionBase):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
@@ -252,7 +257,6 @@ class Field(Node, TypeInfo, _TypeExpressionBase):
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
     # is_indexed: bool = ... # for record fields
     # is_unique: bool = ... # for record fields (only?)
-    # is_sensitive: bool = ...
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

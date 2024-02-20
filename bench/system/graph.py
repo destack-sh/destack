@@ -235,7 +235,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                     missing = tuple(r for r in node_references if str(r.id) not in graph)
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"edited scopes not found: {missing}")
 
-            # evaluate the edits
+            # nocheckin: validate the edits (where? in tx when applying to source?)
+
+            # evaluate edit access
             matrix = generate_access_matrix(subject, graph)
             evaluated_request = evaluate_edit(matrix, graph, request.edits)
             await self.check_and_log_request(evaluated_request)

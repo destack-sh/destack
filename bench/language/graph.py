@@ -154,7 +154,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_parent_id_and_type.clear()
 
     def add(self, node: NodeT):
-        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
         if node.id in self.nodes_by_id:
             existing = self.nodes_by_id[node.id]
             raise ValueError(
@@ -167,7 +167,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
 
     def update(self, node: NodeT):
-        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
         old = self.nodes_by_id.get(node.id)
         if old is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
@@ -182,7 +182,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                 self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
 
     def remove(self, node: NodeT):
-        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
 
         queue = deque([node])
         if node.parent is not None:
@@ -287,7 +287,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         self.nodes_by_parent_id_and_type.clear()
 
     def add(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
         if node.id in self.nodes_by_id:
             existing = self.nodes_by_id[node.id]
             raise ValueError(
@@ -300,7 +300,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
 
     def update(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
         old = self.nodes_by_id.get(node.id)
         if old is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
@@ -313,7 +313,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
 
     def remove(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
         if node.parent_ptr is not None:
             self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].remove(node)
         queue = deque([node])
@@ -720,9 +720,13 @@ class ValueList(list, Generic[ValueParentT]):
             parent_prop.id if isinstance(parent_prop, Property) else parent_prop.identity_key
         )
 
+    # nocheckin: set/copy/assign struct identity (id, parent, order_key)
+    #  in ValueList and on every __set__ in Value/Struct/Node
+    #  and track changes :StructScope
+
 
 class InlinedValueList(list, Generic[ValueParentT]):
-    """A ValueList, but for inlined Values/Structs without identity (for list edit tracking)."""
+    """A ValueList, but for inlined Values/Structs with id {node.id!r}entity (for list edit tracking)."""
 
     @functools.wraps(list.__init__)
     def __init__(
