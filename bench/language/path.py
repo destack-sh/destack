@@ -1,9 +1,13 @@
 import re
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Mapping
 
-from bench.language.const import StructType
+from bench.language.const import StructType, NodeType
 from bench.language.node import struct, Struct
 from bench.language.property import p_regular
+from bench.utils.func import IdEnum
+
+if TYPE_CHECKING:
+    from bench.language import Node
 
 
 class InvalidBenchPath(ValueError):
@@ -15,14 +19,79 @@ IDENTIFIER_PATTERN = re.compile(r"[\w ]+")
 RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
 
 
-@struct(StructType.PATH_SEGMENT, inline=True)
-class PathSegment(Struct):
-    pass
+class PathTokenType(IdEnum):
+    # special
+    SLASH = 1
+    COLON = 2
+    DOT = 3
+    AT = 4
+    DOLLAR = 5
+    CARET = 6
+    TILDE = 7
+    DOUBLE_DOT = 8
+
+    # dynamic
+    NAME = 10
+    EXPRESSION = 11
+
+
+PATH_TOKEN_TO_STR: Mapping[PathTokenType, str] = {
+    PathTokenType.SLASH: "/",
+    PathTokenType.COLON: ":",
+    PathTokenType.DOT: ".",
+    PathTokenType.AT: "@",
+    PathTokenType.DOLLAR: "$",
+    PathTokenType.CARET: "^",
+    PathTokenType.TILDE: "~",
+    PathTokenType.DOUBLE_DOT: "..",
+}
 
 
 @struct(StructType.PATH_TOKEN, inline=True)
 class PathToken(Struct):
-    pass
+    type: PathTokenType = p_regular(31)
+
+
+class PathSegmentType(IdEnum):
+    # specific
+    BENCH = 1
+    ENVIRONMENT = 2
+    BRANCH = 3
+    PACKAGE = 4
+    BLOCK = 5
+    SUB_BLOCK = 6
+    PROPERTY = 7
+    # relative
+    CURRENT = 10
+    CURRENT_PARENT = 11
+    CURRENT_PACKAGE = 12
+    CURRENT_MODULE = 13
+    CURRENT_PAGE = 14
+    CURRENT_SOURCE_MODULE = 15
+    CURRENT_UNIQUE = 16
+    # conditional
+    FILTER = 20
+
+
+@struct(StructType.PATH_SEGMENT, inline=True)
+class PathSegment(Struct):
+    type: PathSegmentType = p_regular(31)
+    name: Optional[str] = p_regular(32, default=None)
+    reference: Optional["Node"] = p_regular(
+        33,
+        require=False,
+        array=False,
+        default=None,
+        references=(
+            NodeType.BENCH,
+            NodeType.ENVIRONMENT,
+            NodeType.BRANCH,
+            NodeType.PACKAGE,
+            NodeType.BLOCK,
+            NodeType.FIELD,
+            NodeType.VIEW,
+        ),
+    )
 
 
 @struct(StructType.PATH)
@@ -60,13 +129,13 @@ class Path(Struct):
     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 
-    NOT YET SUPPORTED:
-        / -> package (=Package)
-        $ -> module (=Block|Package)
-        ^ -> page (=Block)
-        $User -> module-unique node (=Block|View)
-        ~ -> source module root (like $ but for templated)
-        [<expr like ck=...>] -> dynamic Expression filter
+    also relative:
+    / -> package (=Package)
+    $ -> module (=Block|Package)
+    ^ -> page (=Block)
+    $User -> module-unique node (=Block|View)
+    ~ -> source module root (like $ but for templated)
+    [<expr like ck=...>] -> dynamic Expression filter
 
     ''
     ERROR (invalid, empty path)
@@ -80,23 +149,15 @@ class Path(Struct):
     For absolute paths, the bench name is required.
     """
 
-    bench_slug: Optional[str] = p_regular(30, default=None)
-    block_path: list[str, ...] = p_regular(31, array=True)
-    sub_node_path: list[str, ...] = p_regular(32, array=True)
-    field_path: list[str, ...] = p_regular(33, array=True)
-
-    branch_slug: Optional[str] = p_regular(34, default=None)  # (not yet supported)
-    package_slug: Optional[str] = p_regular(35, default=None)  # (not yet supported)
+    segments: list[PathSegment] = p_regular(
+        31, require=True, array=True, struct=StructType.PATH_SEGMENT
+    )
 
     def __content_str__(self) -> str:
-        path_str = self.bench_slug or ""
-        if self.block_path:
-            path_str += "/" + "/".join(self.block_path)
-        if self.sub_node_path:
-            path_str += ":" + "/".join(self.sub_node_path)
-        if self.field_path:
-            path_str += "." + ".".join(self.field_path)
-        return path_str
+        return self.render()
+
+    def render(self) -> str:
+        return "@Incomplete"
 
     @property
     def is_absolute(self) -> bool:

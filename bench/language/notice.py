@@ -4,14 +4,13 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
-from bench.language.expression import FieldPath
 from bench.language.node import Node, node, Property
 from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package
+    from bench.language import Block, Package, Path
 
 
 class NoticeType(IdEnum):
@@ -59,9 +58,7 @@ class Notice(Node):
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
     message: str = p_regular(33)
-    path: Optional[FieldPath] = p_regular(
-        34, require=False, array=False, struct=StructType.FIELD_PATH
-    )
+    path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
     properties: Optional[list[Property]] = p_regular(
         35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
@@ -84,7 +81,7 @@ class NoticeHandler:
         subject: Node,
         type: NoticeType,
         message: Optional[str] = None,
-        path: Optional[FieldPath] = None,
+        path: Optional["Path"] = None,
         properties: Optional[list[Property] | tuple[Property, ...]] = None,
     ):
         pass
@@ -94,7 +91,7 @@ def on_warning_raise(
     subject: "Node",
     type: "NoticeType",
     message: Optional[str] = None,
-    path: Optional["FieldPath"] = None,
+    path: Optional["Path"] = None,
     properties: list["Property"] | None = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):

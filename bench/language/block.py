@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
-from bench.language.graph import ValueList
 from bench.language.node import (
     Node,
     NodeList,

@@ -235,7 +235,7 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -266,7 +266,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -399,60 +399,6 @@ export interface ExpressionData {
     sortMode?: SortMode;
 }
 /**
- * A path of built-in Node/Struct properties and user-defined Fields.
- *
- * @generated from protobuf message symbolx.bench.FieldPathData
- */
-export interface FieldPathData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.FieldPathSegmentData segments = 30;
-     */
-    segments: FieldPathSegmentData[];
-}
-/**
- * A single segment of a FieldPath.
- *
- * @generated from protobuf message symbolx.bench.FieldPathSegmentData
- */
-export interface FieldPathSegmentData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 30;
-     */
-    propertyPtr?: PropertyReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 31;
-     */
-    fieldPtr?: NodeReferenceData;
-}
-/**
  * A reference to a file stored somewhere.
  *
  * @generated from protobuf message symbolx.bench.FileData
@@ -504,7 +450,7 @@ export interface FileData {
     externalUrl?: string;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -547,7 +493,7 @@ export interface IconData {
     image?: FileData;
 }
 /**
- * NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.InterpStatus = None)
+ * NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.NodeReferenceData
  */
@@ -606,7 +552,7 @@ export interface NodeReferenceData {
  * symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
  * ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
  *
- * NOT YET SUPPORTED:
+ * also relative:
  * / -> package (=Package)
  * $ -> module (=Block|Package)
  * ^ -> page (=Block)
@@ -649,32 +595,12 @@ export interface PathData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: optional string bench_slug = 30;
+     * @generated from protobuf field: repeated symbolx.bench.PathSegmentData segments = 31;
      */
-    benchSlug?: string;
-    /**
-     * @generated from protobuf field: repeated string block_path = 31;
-     */
-    blockPath: string[];
-    /**
-     * @generated from protobuf field: repeated string sub_node_path = 32;
-     */
-    subNodePath: string[];
-    /**
-     * @generated from protobuf field: repeated string field_path = 33;
-     */
-    fieldPath: string[];
-    /**
-     * @generated from protobuf field: optional string branch_slug = 34;
-     */
-    branchSlug?: string;
-    /**
-     * @generated from protobuf field: optional string package_slug = 35;
-     */
-    packageSlug?: string;
+    segments: PathSegmentData[];
 }
 /**
- * PathSegment(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+ * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -687,9 +613,21 @@ export interface PathSegmentData {
      * @generated from protobuf field: int32 id = 2;
      */
     id: number;
+    /**
+     * @generated from protobuf field: symbolx.bench.PathSegmentType type = 31;
+     */
+    type: PathSegmentType;
+    /**
+     * @generated from protobuf field: optional string name = 32;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 33;
+     */
+    referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+ * PathToken(type: bench.language.path.PathTokenType = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -702,6 +640,10 @@ export interface PathTokenData {
      * @generated from protobuf field: int32 id = 2;
      */
     id: number;
+    /**
+     * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
+     */
+    type: PathTokenType;
 }
 /**
  * A policy regulating access to nodes within its scope.
@@ -883,38 +825,7 @@ export interface ProjectionData {
     orderKey?: string;
 }
 /**
- * A path of Node/Struct properties.
- *
- * @generated from protobuf message symbolx.bench.PropertyPathData
- */
-export interface PropertyPathData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData properties_ptr = 30;
-     */
-    propertiesPtr: PropertyReferenceData[];
-}
-/**
- * PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.InterpStatus = None)
+ * PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -1036,7 +947,7 @@ export interface RequestData {
     transactionId?: string;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -1083,7 +994,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1173,7 +1084,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.ServerImageData
  */
@@ -1216,7 +1127,7 @@ export interface ServerImageData {
     requirements: ServerImageRequirementData[];
 }
 /**
- * ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.ServerImageRequirementData
  */
@@ -1251,7 +1162,7 @@ export interface ServerImageRequirementData {
     version: string;
 }
 /**
- * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockData
  */
@@ -1282,7 +1193,7 @@ export interface SpaceDockData {
     items: SpaceDockItemData[];
 }
 /**
- * SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockItemData
  */
@@ -1313,7 +1224,7 @@ export interface SpaceDockItemData {
     hidden: boolean;
 }
 /**
- * StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.StoreCredentialData
  */
@@ -1420,7 +1331,7 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+ * Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1451,7 +1362,7 @@ export interface TextData {
     lines: TextLineData[];
 }
 /**
- * TextLine(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None)
+ * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -1506,54 +1417,7 @@ export interface TextLineData {
     isCode: boolean;
 }
 /**
- * TextOptions(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.TextOptionsData
- */
-export interface TextOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: bool is_bold = 60;
-     */
-    isBold: boolean;
-    /**
-     * @generated from protobuf field: bool is_italic = 61;
-     */
-    isItalic: boolean;
-    /**
-     * @generated from protobuf field: bool is_strikethrough = 62;
-     */
-    isStrikethrough: boolean;
-    /**
-     * @generated from protobuf field: bool is_underline = 63;
-     */
-    isUnderline: boolean;
-    /**
-     * @generated from protobuf field: bool is_code = 64;
-     */
-    isCode: boolean;
-}
-/**
- * TextSpan(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, content: str | None = None, node_reference: Optional[bench.language.node.Node] = None, value_reference: Optional[ForwardRef('ValueReference')] = None, node_reference_ptr: 'NodeReference' = None)
+ * TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1571,13 +1435,9 @@ export interface TextSpanData {
      */
     content?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_reference_ptr = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 34;
      */
-    nodeReferencePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ValueReferenceData value_reference = 35;
-     */
-    valueReference?: ValueReferenceData;
+    nodePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: bool is_bold = 60;
      */
@@ -1600,7 +1460,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1705,13 +1565,9 @@ export interface ValueReferenceData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 30;
+     * @generated from protobuf field: symbolx.bench.PathData path = 31;
      */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.FieldPathData path = 31;
-     */
-    path?: FieldPathData;
+    path?: PathData;
     /**
      * @generated from protobuf field: optional int32 subvalue_from = 32;
      */
@@ -3170,7 +3026,7 @@ export interface BaseNodeData {
     updatedByPtr?: NodeReferenceData;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3240,9 +3096,9 @@ export interface NoticeData {
      */
     message: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FieldPathData path = 34;
+     * @generated from protobuf field: optional symbolx.bench.PathData path = 34;
      */
-    path?: FieldPathData;
+    path?: PathData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData properties_ptr = 35;
      */
@@ -4384,7 +4240,7 @@ export interface StoreData {
     extraCredentials: StoreCredentialData[];
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -5301,21 +5157,9 @@ export enum BenchType {
      */
     PROPERTY_REFERENCE = 504,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_PATH = 505;
+     * @generated from protobuf enum value: BENCH_TYPE_VALUE_REFERENCE = 505;
      */
-    PROPERTY_PATH = 505,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_PATH = 506;
-     */
-    FIELD_PATH = 506,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_PATH_SEGMENT = 507;
-     */
-    FIELD_PATH_SEGMENT = 507,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VALUE_REFERENCE = 508;
-     */
-    VALUE_REFERENCE = 508,
+    VALUE_REFERENCE = 505,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 510;
      */
@@ -5428,10 +5272,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 662;
      */
     TEXT_SPAN = 662,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_OPTIONS = 663;
-     */
-    TEXT_OPTIONS = 663,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK = 700;
      */
@@ -6366,6 +6206,124 @@ export enum OrganizationStatus {
     ACTIVATED = 10
 }
 /**
+ * @generated from protobuf enum symbolx.bench.PathSegmentType
+ */
+export enum PathSegmentType {
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BENCH = 1;
+     */
+    BENCH = 1,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_ENVIRONMENT = 2;
+     */
+    ENVIRONMENT = 2,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BRANCH = 3;
+     */
+    BRANCH = 3,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_PACKAGE = 4;
+     */
+    PACKAGE = 4,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BLOCK = 5;
+     */
+    BLOCK = 5,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_SUB_BLOCK = 6;
+     */
+    SUB_BLOCK = 6,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_PROPERTY = 7;
+     */
+    PROPERTY = 7,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT = 10;
+     */
+    CURRENT = 10,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PARENT = 11;
+     */
+    CURRENT_PARENT = 11,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PACKAGE = 12;
+     */
+    CURRENT_PACKAGE = 12,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_MODULE = 13;
+     */
+    CURRENT_MODULE = 13,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PAGE = 14;
+     */
+    CURRENT_PAGE = 14,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_SOURCE_MODULE = 15;
+     */
+    CURRENT_SOURCE_MODULE = 15,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_UNIQUE = 16;
+     */
+    CURRENT_UNIQUE = 16,
+    /**
+     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_FILTER = 20;
+     */
+    FILTER = 20
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PathTokenType
+ */
+export enum PathTokenType {
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_SLASH = 1;
+     */
+    SLASH = 1,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_COLON = 2;
+     */
+    COLON = 2,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOT = 3;
+     */
+    DOT = 3,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_AT = 4;
+     */
+    AT = 4,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOLLAR = 5;
+     */
+    DOLLAR = 5,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CARET = 6;
+     */
+    CARET = 6,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_TILDE = 7;
+     */
+    TILDE = 7,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOUBLE_DOT = 8;
+     */
+    DOUBLE_DOT = 8,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_NAME = 10;
+     */
+    NAME = 10,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_EXPRESSION = 11;
+     */
+    EXPRESSION = 11
+}
+/**
  * @generated from protobuf enum symbolx.bench.PolicyEffect
  */
 export enum PolicyEffect {
@@ -6807,21 +6765,9 @@ export enum StructType {
      */
     PROPERTY_REFERENCE = 504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_PATH = 505;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE_REFERENCE = 505;
      */
-    PROPERTY_PATH = 505,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FIELD_PATH = 506;
-     */
-    FIELD_PATH = 506,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FIELD_PATH_SEGMENT = 507;
-     */
-    FIELD_PATH_SEGMENT = 507,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE_REFERENCE = 508;
-     */
-    VALUE_REFERENCE = 508,
+    VALUE_REFERENCE = 505,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 510;
      */
@@ -6935,10 +6881,6 @@ export enum StructType {
      */
     TEXT_SPAN = 662,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_OPTIONS = 663;
-     */
-    TEXT_OPTIONS = 663,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK = 700;
      */
     SPACE_DOCK = 700,
@@ -6972,13 +6914,9 @@ export enum TextLineType {
      */
     HEADING_LARGE = 8,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT_INFO = 12;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 12;
      */
-    CALLOUT_INFO = 12,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT_WARNING = 13;
-     */
-    CALLOUT_WARNING = 13,
+    CALLOUT = 12,
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_BULLET = 16;
      */
@@ -8112,159 +8050,6 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
  */
 export const ExpressionData = new ExpressionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FieldPathData$Type extends MessageType<FieldPathData> {
-    constructor() {
-        super("symbolx.bench.FieldPathData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "segments", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FieldPathSegmentData }
-        ]);
-    }
-    create(value?: PartialMessage<FieldPathData>): FieldPathData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.segments = [];
-        if (value !== undefined)
-            reflectionMergePartial<FieldPathData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FieldPathData): FieldPathData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated symbolx.bench.FieldPathSegmentData segments */ 30:
-                    message.segments.push(FieldPathSegmentData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FieldPathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.FieldPathSegmentData segments = 30; */
-        for (let i = 0; i < message.segments.length; i++)
-            FieldPathSegmentData.internalBinaryWrite(message.segments[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FieldPathData
- */
-export const FieldPathData = new FieldPathData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FieldPathSegmentData$Type extends MessageType<FieldPathSegmentData> {
-    constructor() {
-        super("symbolx.bench.FieldPathSegmentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
-            { no: 31, name: "field_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<FieldPathSegmentData>): FieldPathSegmentData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        if (value !== undefined)
-            reflectionMergePartial<FieldPathSegmentData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FieldPathSegmentData): FieldPathSegmentData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 30:
-                    message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 31:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FieldPathSegmentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional symbolx.bench.PropertyReferenceData property_ptr = 30; */
-        if (message.propertyPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData field_ptr = 31; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FieldPathSegmentData
- */
-export const FieldPathSegmentData = new FieldPathSegmentData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
@@ -8572,21 +8357,14 @@ class PathData$Type extends MessageType<PathData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "bench_slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "block_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "sub_node_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "field_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "branch_slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "package_slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 31, name: "segments", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathSegmentData }
         ]);
     }
     create(value?: PartialMessage<PathData>): PathData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
-        message.blockPath = [];
-        message.subNodePath = [];
-        message.fieldPath = [];
+        message.segments = [];
         if (value !== undefined)
             reflectionMergePartial<PathData>(this, message, value);
         return message;
@@ -8611,23 +8389,8 @@ class PathData$Type extends MessageType<PathData> {
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
                     break;
-                case /* optional string bench_slug */ 30:
-                    message.benchSlug = reader.string();
-                    break;
-                case /* repeated string block_path */ 31:
-                    message.blockPath.push(reader.string());
-                    break;
-                case /* repeated string sub_node_path */ 32:
-                    message.subNodePath.push(reader.string());
-                    break;
-                case /* repeated string field_path */ 33:
-                    message.fieldPath.push(reader.string());
-                    break;
-                case /* optional string branch_slug */ 34:
-                    message.branchSlug = reader.string();
-                    break;
-                case /* optional string package_slug */ 35:
-                    message.packageSlug = reader.string();
+                case /* repeated symbolx.bench.PathSegmentData segments */ 31:
+                    message.segments.push(PathSegmentData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -8656,24 +8419,9 @@ class PathData$Type extends MessageType<PathData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* optional string bench_slug = 30; */
-        if (message.benchSlug !== undefined)
-            writer.tag(30, WireType.LengthDelimited).string(message.benchSlug);
-        /* repeated string block_path = 31; */
-        for (let i = 0; i < message.blockPath.length; i++)
-            writer.tag(31, WireType.LengthDelimited).string(message.blockPath[i]);
-        /* repeated string sub_node_path = 32; */
-        for (let i = 0; i < message.subNodePath.length; i++)
-            writer.tag(32, WireType.LengthDelimited).string(message.subNodePath[i]);
-        /* repeated string field_path = 33; */
-        for (let i = 0; i < message.fieldPath.length; i++)
-            writer.tag(33, WireType.LengthDelimited).string(message.fieldPath[i]);
-        /* optional string branch_slug = 34; */
-        if (message.branchSlug !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.branchSlug);
-        /* optional string package_slug = 35; */
-        if (message.packageSlug !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.packageSlug);
+        /* repeated symbolx.bench.PathSegmentData segments = 31; */
+        for (let i = 0; i < message.segments.length; i++)
+            PathSegmentData.internalBinaryWrite(message.segments[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -8689,13 +8437,17 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
     constructor() {
         super("symbolx.bench.PathSegmentData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathSegmentType", PathSegmentType, "PATH_SEGMENT_TYPE_"] },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "reference_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PathSegmentData>): PathSegmentData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<PathSegmentData>(this, message, value);
         return message;
@@ -8710,6 +8462,15 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
                     break;
                 case /* int32 id */ 2:
                     message.id = reader.int32();
+                    break;
+                case /* symbolx.bench.PathSegmentType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string name */ 32:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 33:
+                    message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -8729,6 +8490,15 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
         /* int32 id = 2; */
         if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
+        /* symbolx.bench.PathSegmentType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.NodeReferenceData reference_ptr = 33; */
+        if (message.referencePtr)
+            NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -8744,13 +8514,15 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PathTokenData>): PathTokenData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<PathTokenData>(this, message, value);
         return message;
@@ -8765,6 +8537,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
                     break;
                 case /* int32 id */ 2:
                     message.id = reader.int32();
+                    break;
+                case /* symbolx.bench.PathTokenType type */ 31:
+                    message.type = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -8784,6 +8559,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         /* int32 id = 2; */
         if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
+        /* symbolx.bench.PathTokenType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -9186,90 +8964,6 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
  * @generated MessageType for protobuf message symbolx.bench.ProjectionData
  */
 export const ProjectionData = new ProjectionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PropertyPathData$Type extends MessageType<PropertyPathData> {
-    constructor() {
-        super("symbolx.bench.PropertyPathData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<PropertyPathData>): PropertyPathData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.propertiesPtr = [];
-        if (value !== undefined)
-            reflectionMergePartial<PropertyPathData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyPathData): PropertyPathData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData properties_ptr */ 30:
-                    message.propertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PropertyPathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.PropertyReferenceData properties_ptr = 30; */
-        for (let i = 0; i < message.propertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.propertiesPtr[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PropertyPathData
- */
-export const PropertyPathData = new PropertyPathData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
     constructor() {
@@ -10758,130 +10452,13 @@ class TextLineData$Type extends MessageType<TextLineData> {
  */
 export const TextLineData = new TextLineData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TextOptionsData$Type extends MessageType<TextOptionsData> {
-    constructor() {
-        super("symbolx.bench.TextOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "is_bold", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_italic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_strikethrough", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<TextOptionsData>): TextOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.isBold = false;
-        message.isItalic = false;
-        message.isStrikethrough = false;
-        message.isUnderline = false;
-        message.isCode = false;
-        if (value !== undefined)
-            reflectionMergePartial<TextOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextOptionsData): TextOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* bool is_bold */ 60:
-                    message.isBold = reader.bool();
-                    break;
-                case /* bool is_italic */ 61:
-                    message.isItalic = reader.bool();
-                    break;
-                case /* bool is_strikethrough */ 62:
-                    message.isStrikethrough = reader.bool();
-                    break;
-                case /* bool is_underline */ 63:
-                    message.isUnderline = reader.bool();
-                    break;
-                case /* bool is_code */ 64:
-                    message.isCode = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TextOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* bool is_bold = 60; */
-        if (message.isBold !== false)
-            writer.tag(60, WireType.Varint).bool(message.isBold);
-        /* bool is_italic = 61; */
-        if (message.isItalic !== false)
-            writer.tag(61, WireType.Varint).bool(message.isItalic);
-        /* bool is_strikethrough = 62; */
-        if (message.isStrikethrough !== false)
-            writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
-        /* bool is_underline = 63; */
-        if (message.isUnderline !== false)
-            writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* bool is_code = 64; */
-        if (message.isCode !== false)
-            writer.tag(64, WireType.Varint).bool(message.isCode);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TextOptionsData
- */
-export const TextOptionsData = new TextOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TextSpanData$Type extends MessageType<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "node_reference_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "value_reference", kind: "message", T: () => ValueReferenceData },
+            { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "is_bold", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -10916,11 +10493,8 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
                 case /* optional string content */ 33:
                     message.content = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_reference_ptr */ 34:
-                    message.nodeReferencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodeReferencePtr);
-                    break;
-                case /* optional symbolx.bench.ValueReferenceData value_reference */ 35:
-                    message.valueReference = ValueReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.valueReference);
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 34:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* bool is_bold */ 60:
                     message.isBold = reader.bool();
@@ -10958,12 +10532,9 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* optional string content = 33; */
         if (message.content !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.content);
-        /* optional symbolx.bench.NodeReferenceData node_reference_ptr = 34; */
-        if (message.nodeReferencePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodeReferencePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ValueReferenceData value_reference = 35; */
-        if (message.valueReference)
-            ValueReferenceData.internalBinaryWrite(message.valueReference, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 34; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* bool is_bold = 60; */
         if (message.isBold !== false)
             writer.tag(60, WireType.Varint).bool(message.isBold);
@@ -11169,8 +10740,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "path", kind: "message", T: () => FieldPathData },
+            { no: 31, name: "path", kind: "message", T: () => PathData },
             { no: 32, name: "subvalue_from", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "subvalue_to", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
@@ -11203,11 +10773,8 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 30:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* symbolx.bench.FieldPathData path */ 31:
-                    message.path = FieldPathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
+                case /* symbolx.bench.PathData path */ 31:
+                    message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
                     break;
                 case /* optional int32 subvalue_from */ 32:
                     message.subvalueFrom = reader.int32();
@@ -11242,12 +10809,9 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.NodeReferenceData node_ptr = 30; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FieldPathData path = 31; */
+        /* symbolx.bench.PathData path = 31; */
         if (message.path)
-            FieldPathData.internalBinaryWrite(message.path, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+            PathData.internalBinaryWrite(message.path, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 subvalue_from = 32; */
         if (message.subvalueFrom !== undefined)
             writer.tag(32, WireType.Varint).int32(message.subvalueFrom);
@@ -14401,7 +13965,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NoticeKind", NoticeKind, "NOTICE_KIND_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.NoticeType", NoticeType, "NOTICE_TYPE_"] },
             { no: 33, name: "message", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "path", kind: "message", T: () => FieldPathData },
+            { no: 34, name: "path", kind: "message", T: () => PathData },
             { no: 35, name: "properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
         ]);
     }
@@ -14473,8 +14037,8 @@ class NoticeData$Type extends MessageType<NoticeData> {
                 case /* string message */ 33:
                     message.message = reader.string();
                     break;
-                case /* optional symbolx.bench.FieldPathData path */ 34:
-                    message.path = FieldPathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
+                case /* optional symbolx.bench.PathData path */ 34:
+                    message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData properties_ptr */ 35:
                     message.propertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -14539,9 +14103,9 @@ class NoticeData$Type extends MessageType<NoticeData> {
         /* string message = 33; */
         if (message.message !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.message);
-        /* optional symbolx.bench.FieldPathData path = 34; */
+        /* optional symbolx.bench.PathData path = 34; */
         if (message.path)
-            FieldPathData.internalBinaryWrite(message.path, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            PathData.internalBinaryWrite(message.path, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PropertyReferenceData properties_ptr = 35; */
         for (let i = 0; i < message.propertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.propertiesPtr[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();

@@ -62,6 +62,12 @@ LOGGING = {
 }
 
 
+def _format_duration(_, __, event_dict):
+    if "duration" in event_dict:
+        event_dict["duration"] = f"{event_dict['duration'] * 1000:.2f}ms"
+    return event_dict
+
+
 def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
     if apply_logging:
         logging.config.dictConfig(LOGGING)
@@ -70,6 +76,7 @@ def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
             processors=[
                 structlog.stdlib.filter_by_level,
                 structlog.processors.TimeStamper(fmt="iso"),
+                _format_duration,
                 structlog.stdlib.add_logger_name,
                 structlog.stdlib.add_log_level,
                 structlog.stdlib.PositionalArgumentsFormatter(),

@@ -608,15 +608,14 @@ class AccessZone(Struct):
     Clients use this to indicate access rights, but - obviously - only our copy is binding.
     """
 
-    id: int = p_system(2, require=True)
-    scope_id: str = p_system(30)
+    scope_id: UUID = p_system(30)
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_system(31)
     _identity: Optional[Identity] = p_runtime(default=None)
     rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
 
     def __content_str__(self) -> str:
-        return f"{self.id} for {self._identity or self.identity_id} in {self._scope or self.scope_id} ({len(self.rules)} rules)"
+        return f"{self._identity or self.identity_id} in {self._scope or self.scope_id}: {len(self.rules)} rules"
 
 
 @struct(StructType.ACCESS_MATRIX)
@@ -633,7 +632,7 @@ class AccessMatrix(Struct):
     _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
 
     def __content_str__(self) -> str:
-        return f"for {self.subject} ({len(self.identities)} identities, {len(self.scoped_zones)} node zones, {len(self.base_zones)} base zones)"
+        return f"{self.subject}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
 
 
 @struct(StructType.ACCESS, inline=True)
@@ -677,7 +676,7 @@ class Request(Struct):
 
     subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
     decision: PolicyEffect = p_system(31, require=True)
-    accesses: list[Access] = p_system(32, array=True, require=True, struct=StructType.REQUEST)
+    accesses: list[Access] = p_system(32, array=True, require=True, struct=StructType.ACCESS)
 
     # scope/context
     # bench, package, space, user, ...

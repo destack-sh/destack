@@ -15,14 +15,14 @@ from typing import (
 from uuid import UUID
 
 from bench.language.const import InterpStatus, NodeType, NRel, EMPTY_LIST
-from bench.language.setup import CHILD_NODE_TYPES
+from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData
 from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, Node, Field
+    from bench.language import Node, Property, Node
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -695,6 +695,8 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["Value", "Struct", "Node"])
+ValueT = TypeVar("ValueT", bound=Union["Value", "Struct"])
+ValueProperty = Union["Property", "Field"]
 
 
 class ValueList(list, Generic[ValueParentT]):
@@ -704,43 +706,58 @@ class ValueList(list, Generic[ValueParentT]):
     """
 
     @functools.wraps(list.__init__)
-    def __init__(
-        self,
-        parent: ValueParentT,
-        parent_prop: Union["Property", "Field"],
-        *args,
-        **kwargs,
-    ):
+    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, *args, **kwargs):
         from bench.language.node import Property
 
         super().__init__(*args, **kwargs)
         self.parent = parent
         self.parent_prop = parent_prop
-        self.parent_key = (
-            parent_prop.id if isinstance(parent_prop, Property) else parent_prop.identity_key
-        )
+        if isinstance(parent_prop, Property):
+            self.parent_key = parent_prop.id_as_str
+            struct_cls = STRUCT_CLASS_BY_TYPE[parent_prop.reference_struct]
+            self.is_ordered = not struct_cls.__is_struct_inlined__
+        else:  # Field
+            self.parent_key = parent_prop.identity_key
+            self.is_ordered = True
 
-    # nocheckin: set/copy/assign struct identity (id, parent, order_key)
-    #  in ValueList and on every __set__ in Value/Struct/Node
-    #  and track changes :StructScope
+    def append(self, item: ValueT, after: ValueT = None, before: ValueT = None):
+        item = item._lazy_copy_to(self.parent, self.parent_prop)
+        super().append(item)
+        if self.is_ordered:
+            item.order_key = generate_key_between(*get_key_bounds(self, after, before))
+        self.parent._updated_self((self.parent_prop,))
 
+    def extend(self, items: Collection[ValueT]):
+        super().extend(items)
+        if any(e.parent is not None for e in items):
+            items = [e._copy_to(self.parent, self.parent_prop) for e in items]
+        else:
+            for item in items:
+                item.parent = self.parent
+                item.parent_key = self.parent_key
+        if self.is_ordered:
+            order_keys = generate_n_keys_between(*get_key_bounds(self), n=len(items))
+            for item, order_key in zip(items, order_keys):
+                item.order_key = order_key
+        self.parent._updated_self((self.parent_prop,))
 
-class InlinedValueList(list, Generic[ValueParentT]):
-    """A ValueList, but for inlined Values/Structs with id {node.id!r}entity (for list edit tracking)."""
+    def clear(self):
+        super().clear()
+        self.parent._updated_self((self.parent_prop,))
 
-    @functools.wraps(list.__init__)
-    def __init__(
-        self,
-        parent: ValueParentT,
-        parent_prop: Union["Property", "Field"],
-        *args,
-        **kwargs,
+    @staticmethod
+    def _lazy_copy_for(
+        values: Collection[ValueT], parent: ValueParentT, parent_prop: ValueProperty
     ):
+        """Copies the values in the list if they belong to a different parent."""
         from bench.language.node import Property
 
-        super().__init__(*args, **kwargs)
-        self.parent = parent
-        self.parent_prop = parent_prop
-        self.parent_key = (
-            parent_prop.id if isinstance(parent_prop, Property) else parent_prop.identity_key
+        parent_key = (
+            parent_prop.id_as_str if isinstance(parent_prop, Property) else parent_prop.identity_key
         )
+        if any(
+            v.parent is not None and (v.parent != parent or v.parent_key != parent_key)
+            for v in values
+        ):
+            values = [v._copy_to(parent, parent_prop) for v in values]
+        return ValueList(parent, parent_prop, values)

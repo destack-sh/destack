@@ -12,6 +12,7 @@ from bench.language.const import BenchType, StructType, PrimitiveType, NODE_TYPE
 from bench.language.node import Node, Struct
 from bench.language.setup import NODE_CLASS_BY_TYPE, BENCH_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
+from bench.utils.fractional import INTEGER_ZERO
 
 NodeT = TypeVar("NodeT", bound=Node)
 StructT = TypeVar("StructT", bound=Struct)
@@ -45,6 +46,8 @@ class Fabricator:
                 self.DEFAULT_GENERATORS[str](): self.DEFAULT_GENERATORS[int](),
                 self.DEFAULT_GENERATORS[str](): None,
             }
+        elif prop.name == "order_key":
+            return INTEGER_ZERO
         elif prop.py_type_stripped in self.DEFAULT_GENERATORS:
             return self.DEFAULT_GENERATORS[prop.py_type_stripped]()
         elif prop.primitive_type == PrimitiveType.JSON:

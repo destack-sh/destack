@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import enum
 import functools
+from sys import intern
 from typing import TYPE_CHECKING, Any, Union, Callable, Optional, Iterable
 from uuid import UUID
 
@@ -18,7 +19,7 @@ from bench.language.const import (
     PrimitiveType,
 )
 from bench.language.graph import NodeList, InMemoryGraphNodeList, ValueList
-from bench.language.setup import _on_completing_setup, BENCH_CLASSES_BY_NAME
+from bench.language.setup import _on_completing_setup, BENCH_CLASSES_BY_NAME, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import PropertyValidationHandler
 from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.func import parse_py_annotation, IdEnum, try_tuple
@@ -44,6 +45,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
     # basics
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
+    id_as_str: str | None = None  # str(id)
     ord: int | None = None  # unstable ordinal for bit-packing
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
@@ -102,6 +104,8 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
             self.default = None
+        if self.id is not None:
+            self.id_as_str = intern(str(self.id))
 
     def __str__(self):
         if self.component is None:
@@ -286,11 +290,31 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
     def is_enum(self):
         return isinstance(self.py_type_stripped, enum.EnumMeta)
 
+    def to_wired_ptr(
+        self, ref: Union["Node", "Struct", list["Node"], list["Struct"], None]
+    ) -> Union[Any, None]:
+        if ref is None:
+            return None
+        elif self.is_array:
+            if self.is_node_reference or self.is_property_reference:
+                return [r.to_ref() for r in ref]
+        else:
+            if self.is_node_reference or self.is_property_reference:
+                return ref.to_ref()
+            elif self.is_struct_reference:
+                if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
+                    assert isinstance(ref.id, int), f"expected int id to wire {self!r}: {ref.id}"
+                    return ref.id
+                else:
+                    return None  # not stored
+        raise ValueError(f"unexpected ref {ref!r} for {self!r}")
+
     def _equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
             if k.name in (
                 "id",
+                "id_as_str",
                 "ord",
                 "component",
                 "ignore_conflicts",
@@ -348,7 +372,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 self.primitive_type = PrimitiveType.INT64
             elif getattr(annotation.type, "__is_node__", False):
                 raise ValueError(f"cannot store node directly: {self!r}")
-            elif getattr(annotation.type, "__is_struct__", False):
+            elif getattr(annotation.type, "__is_struct_only__", False):
                 assert self.reference_struct is not None, f"missing struct type for {self!r}"
                 self.primitive_type = PrimitiveType.JSON  # robust json
             else:
@@ -379,6 +403,14 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         # sanity check some stuff
         from bench.language.node import Node
 
+        if (
+            self.component.__is_struct_inlined__
+            and self.reference_kind == ReferenceKind.STRUCT_CHILD
+            and self.reference_struct
+        ):
+            referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
+            if not referenced_struct_cls.__is_struct_inlined__:
+                raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
         if self.is_encrypted and not self.is_sensitive:
             raise ValueError(f"encrypted properties should be sensitive {self!r}")
         if self.is_encrypted and not self.is_deferred:
@@ -392,7 +424,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         ):
             raise ValueError(f"can't use system id {self.id} for {self!r}")
 
-    def _contribute_ptrs(self) -> tuple["Property", ...]:
+    def _contribute_ptrs(self, is_inlined: bool) -> tuple["Property", ...]:
         """
         Contribute the wired and stored pointer properties required by this property.
         NOTE: contribute mutates this property, so can only be called once.
@@ -435,8 +467,8 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 reference_kind=ReferenceKind.STRUCT_PARENT,
                 is_runtime=True,
                 is_internal=True,
-                is_wired=True,
-                is_stored=True,
+                is_wired=not is_inlined,
+                is_stored=not is_inlined,
                 is_required=False,
                 is_array=False,
                 default=None,
@@ -451,8 +483,8 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 reference_kind=ReferenceKind.STRUCT_PARENT,
                 is_runtime=True,
                 is_internal=True,
-                is_wired=True,
-                is_stored=True,
+                is_wired=not is_inlined,
+                is_stored=not is_inlined,
                 is_required=False,
                 is_array=False,
                 default=None,
@@ -618,7 +650,7 @@ def p_property(
     else:
         reference_kind = None
     if array and not (struct or references):
-        assert default is UNSET and default_factory is None, f"can't set default for array"
+        assert default is UNSET and default_factory is None, "can't set default for array"
         default_factory = list
     return Property(
         id=id,

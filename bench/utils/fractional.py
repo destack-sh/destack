@@ -2,7 +2,7 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
-from typing import Optional, TypeVar, Collection
+from typing import Optional, TypeVar
 
 from bench.utils.func import nextn
 

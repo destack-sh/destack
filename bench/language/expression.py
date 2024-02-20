@@ -14,7 +14,6 @@ from bench.language.const import (
     SortOp,
     StructType,
 )
-from bench.language.graph import ValueList
 from bench.language.node import Node, Property, Struct, struct
 from bench.language.property import p_regular
 from bench.language.setup import BENCH_CLASS_BY_TYPE
@@ -23,7 +22,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Field, TypeInfo
+    from bench.language import Block, Expression, Field, TypeInfo, Path
     from bench.language.query import QueryBuilder
 
 #
@@ -139,49 +138,11 @@ class PropertyReference(Struct):
         return bench_cls._resolve_property(self)
 
 
-@struct(StructType.PROPERTY_PATH)
-class PropertyPath(Struct):
-    """A path of Node/Struct properties."""
-
-    properties: list[Property] = p_regular(
-        30, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-
-    def __content_str__(self):
-        return f"{'.'.join(property.name for property in self.properties)}"
-
-
-@struct(StructType.FIELD_PATH)
-class FieldPath(Struct):
-    """A path of built-in Node/Struct properties and user-defined Fields."""
-
-    segments: list["FieldPathSegment"] = p_regular(
-        30, require=True, array=True, struct=StructType.FIELD_PATH_SEGMENT
-    )
-
-    def __content_str__(self):
-        return ".".join(str(segment) for segment in self.segments)
-
-
-@struct(StructType.FIELD_PATH_SEGMENT, inline=True)
-class FieldPathSegment(Struct):
-    """A single segment of a FieldPath."""
-
-    property: Optional[Property] = p_regular(
-        30, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
-    )
-    field: Optional["Field"] = p_regular(31, require=False, array=False, references=NodeType.FIELD)
-
-    def __content_str__(self):
-        return f"{self.property.name}{f'.{self.field}' if self.field else ''}"
-
-
 @struct(StructType.VALUE_REFERENCE)
 class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
-    node: Node = p_regular(30, require=True, array=False, references=(NodeType.BLOCK,))
-    path: FieldPath = p_regular(31, require=True, struct=StructType.FIELD_PATH)
+    path: "Path" = p_regular(31, require=True, struct=StructType.PATH)
     subvalue_from: Optional[int] = p_regular(32, require=False, default=None)
     subvalue_to: Optional[int] = p_regular(33, require=False, default=None)
 

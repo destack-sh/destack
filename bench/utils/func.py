@@ -21,7 +21,6 @@ from bench.utils.utils import sentry_capture
 logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
-
 K = TypeVar("K")
 V = TypeVar("V")
 
