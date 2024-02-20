@@ -14,7 +14,7 @@ from bench.proto.engine import generate_proto_schema
 
 TARGET_PY_DIR = "bench/proto/wire"
 TARGET_PY_FILE = TARGET_PY_DIR + ".py"
-TARGET_TS_DIR = "frontend/src/proto/wire"
+TARGET_TS_DIR = "bench-web/src/proto/wire"
 GENERATED_PROTO_FILE = "bench/proto/lang.proto"
 EXTRA_PROTO_FILES = "bench/proto/services.proto"
 
