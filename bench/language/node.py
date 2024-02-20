@@ -872,7 +872,7 @@ class Struct(abc.ABC):
     def __repr__(self):
         content_str = str(self)
         if content_str:
-            return f"<{self.__class__.__name__} {content_str} @ {self.id}>"
+            return f"<{self.__class__.__name__} {content_str}>"
         else:
             return f"<{self.__class__.__name__} @ {self.id}>"
 
@@ -985,7 +985,7 @@ class Struct(abc.ABC):
                 object.__setattr__(self, key, value)
 
             # update reference pointers
-            if prop.reference_wired_ptr is not None:
+            if self._status is not None and prop.reference_wired_ptr is not None:
                 object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
 
             # report edit
@@ -1086,16 +1086,27 @@ class Struct(abc.ABC):
                     yield from item._walk_self()
 
     def _init_inner(self):
-        # init struct references (and maybe copy them)
         for prop in self.__struct_reference_properties__.values():
+            # copy new structs if needed (now that we have an id for sure)
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 existing = getattr(self, prop.name, None)
                 if prop.is_array:
                     self.__dict__[prop.name] = prop.reference_list_type(self, prop)
-                    if existing:  # will auto copy if needed
+                    if existing:
+                        # will auto copy if needed
                         self.__dict__[prop.name].extend(existing)
                 elif existing is not None:
-                    self.__dict__[prop.name] = existing._lazy_copy_to(self, prop)
+                    if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
+                        self.__dict__[prop.name] = existing._lazy_copy_to(self, prop)
+
+            # init property reference pointers if references are set
+            if prop.reference_kind == ReferenceKind.PROPERTY:
+                existing = getattr(self, prop.name, None)
+                if prop.is_array:
+                    if existing:
+                        self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(existing)
+                elif existing is not None:
+                    self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(existing)
 
         # init reference pointers if references are set
         for prop in self.__node_reference_properties__.values():

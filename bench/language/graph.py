@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import InterpStatus, NodeType, NRel, EMPTY_LIST
+from bench.language.const import InterpStatus, NodeType, NRel, EMPTY_LIST, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -695,7 +695,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["Value", "Struct", "Node"])
-ValueT = TypeVar("ValueT", bound=Union["Value", "Struct"])
+ValueT = TypeVar("ValueT", bound=Union["Value", "Struct", "Property"])
 ValueProperty = Union["Property", "Field"]
 
 
@@ -714,14 +714,20 @@ class ValueList(list, Generic[ValueParentT]):
         self.parent_prop = parent_prop
         if isinstance(parent_prop, Property):
             self.parent_key = parent_prop.id_as_str
-            struct_cls = STRUCT_CLASS_BY_TYPE[parent_prop.reference_struct]
-            self.is_ordered = not struct_cls.__is_struct_inlined__
+            self.is_ordered = (
+                parent_prop.reference_kind == ReferenceKind.STRUCT_CHILD
+                and not STRUCT_CLASS_BY_TYPE[parent_prop.reference_struct].__is_struct_inlined__
+            )
         else:  # Field
             self.parent_key = parent_prop.identity_key
             self.is_ordered = True
+        self.is_property_reference = (
+            isinstance(parent_prop, Property) and parent_prop.is_property_reference
+        )
 
     def append(self, item: ValueT, after: ValueT = None, before: ValueT = None):
-        item = item._lazy_copy_to(self.parent, self.parent_prop)
+        if not self.is_property_reference:
+            item = item._lazy_copy_to(self.parent, self.parent_prop)
         super().append(item)
         if self.is_ordered:
             item.order_key = generate_key_between(*get_key_bounds(self, after, before))
@@ -729,16 +735,17 @@ class ValueList(list, Generic[ValueParentT]):
 
     def extend(self, items: Collection[ValueT]):
         super().extend(items)
-        if any(e.parent is not None for e in items):
-            items = [e._copy_to(self.parent, self.parent_prop) for e in items]
-        else:
-            for item in items:
-                item.parent = self.parent
-                item.parent_key = self.parent_key
-        if self.is_ordered:
-            order_keys = generate_n_keys_between(*get_key_bounds(self), n=len(items))
-            for item, order_key in zip(items, order_keys):
-                item.order_key = order_key
+        if not self.is_property_reference:
+            if any(e.parent is not None for e in items):
+                items = [e._copy_to(self.parent, self.parent_prop) for e in items]
+            else:
+                for item in items:
+                    item.parent = self.parent
+                    item.parent_key = self.parent_key
+            if self.is_ordered:
+                order_keys = generate_n_keys_between(*get_key_bounds(self), n=len(items))
+                for item, order_key in zip(items, order_keys):
+                    item.order_key = order_key
         self.parent._updated_self((self.parent_prop,))
 
     def clear(self):

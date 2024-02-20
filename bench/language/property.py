@@ -644,6 +644,7 @@ def p_property(
     elif struct == StructType.PROPERTY_REFERENCE:
         reference_kind = ReferenceKind.PROPERTY
         struct = None
+        custom_list = ValueList
     elif struct:
         reference_kind = ReferenceKind.STRUCT_CHILD
         custom_list = custom_list or ValueList
