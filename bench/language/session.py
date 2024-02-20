@@ -81,8 +81,8 @@ MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeTyp
 @node(
     NodeType.SIGNAL,
     passthrough=(("value", _Passthrough.Full),),
-    index_in_search=True,
     local=True,
+    index_in_search=True,
     id_factory=UUIDT,
 )
 class Signal(Node, HasValues):
@@ -118,7 +118,7 @@ class LogLevel(IdEnum):
     FATAL = 6
 
 
-@node(NodeType.LOG, stored=False, index_in_search=True, no_ck=True, id_factory=UUIDT)
+@node(NodeType.LOG, stored=True, local=True, index_in_search=True, no_ck=True, id_factory=UUIDT)
 class Log(Node):
     """
     A log (entry) is a timestamped event of something happening:
@@ -143,7 +143,7 @@ class Log(Node):
 
     # context
     session: Optional["Session"] = p_system(
-        40, require=False, array=True, references=NodeType.SESSION
+        40, require=False, array=False, references=NodeType.SESSION
     )
     run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
     block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
@@ -1030,7 +1030,7 @@ class RunError(Struct, BenchError):
     type: str = p_internal(31)
     message: Optional[str] = p_internal(32, default=None)
     node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    traceback: list[RunCodeFrame] = p_internal(34, struct=StructType.RUN_CODE_FRAME)
+    traceback: list[RunCodeFrame] = p_internal(34, array=True, struct=StructType.RUN_CODE_FRAME)
 
     @staticmethod
     def from_exception(e: BaseException, block: Optional["Block"]) -> "RunError":

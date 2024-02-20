@@ -29,7 +29,7 @@ from bench.proto.wire import (
     UploadFilesResponse,
 )
 from bench.system.graph import GraphIoService
-from bench.system.utils import get_s3_client, global_session, validate_bench_data_many
+from bench.system.utils import get_s3_client, global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -161,7 +161,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase, GraphIoService):
     async def upload_files(
         self, subject: Subject, request: "UploadFilesRequest"
     ) -> "UploadFilesResponse":
-        validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
         for file in request.files:
@@ -183,7 +182,6 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase, GraphIoService):
     async def download_files(
         self, subject: Subject, request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
-        validate_bench_data_many(*request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
         for file in request.files:

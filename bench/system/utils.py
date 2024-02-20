@@ -1,21 +1,16 @@
 from contextlib import asynccontextmanager
 from typing import Optional, AsyncContextManager, Any
-from uuid import UUID
 
 import boto3
 import psycopg
 import structlog
 from botocore.config import Config
-from grpclib import GRPCError
-from grpclib import Status as GRPCStatus
 
 from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
 from bench.language.const import ABOVE_SOURCE_NODE_TYPES
 from bench.language.query import PostgresEngine
 from bench.language.resource import StoreCredential, StoreCredentialType
-from bench.proto.wire import AnyNodeData, AnyStructData
 from bench.sql.client import _PgStoreConnection
-from bench.utils.func import uuid_to_str
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -66,28 +61,6 @@ async def global_session(read_only: bool = False) -> AsyncContextManager[Session
         yield session
 
 
-def validate_bench_data(
-    data: AnyNodeData | AnyStructData,
-    in_package: UUID | str | None = None,
-) -> None:
-    """Check that BenchData structs have valid data. Raises gRPC errors."""
-    if data.metatype is None:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing metatype")
-    in_package = uuid_to_str(in_package)
-    if in_package is not None and hasattr(data, "package_id") and data.package_id != in_package:
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT, f"wrong package_id: {data.package_id} != {in_package}"
-        )
-    # TODO @Robustness!: complete validate_bench_data?
-
-
-def validate_bench_data_many(
-    *data: AnyNodeData | AnyStructData, in_package: UUID | None = None
-) -> None:
-    for d in data:
-        validate_bench_data(d, in_package=in_package)
-
-
 _s3_client: Optional["boto3.client"] = None
 
 
@@ -97,6 +70,5 @@ def get_s3_client() -> "boto3.client":
         _s3_client = boto3.client(
             "s3",
             endpoint_url=get_from_env("AWS_ENDPOINT_URL"),
-            config=Config(s3={"addressing_style": "path"}, region_name=get_from_env("AWS_REGION")),
         )
     return _s3_client

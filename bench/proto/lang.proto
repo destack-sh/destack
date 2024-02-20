@@ -39,7 +39,7 @@ enum AccessType {
   ACCESS_TYPE_PAUSE = 31;
   ACCESS_TYPE_RESUME = 32;
   ACCESS_TYPE_KILL = 33;
-  ACCESS_TYPE_EMIT = 34;
+  ACCESS_TYPE_SEND = 34;
   ACCESS_TYPE_RECEIVE = 35;
 }
 
@@ -105,14 +105,15 @@ enum BenchType {
   BENCH_TYPE_CLIENT = 223;
   BENCH_TYPE_MEMBERSHIP = 225;
   BENCH_TYPE_INVITE = 226;
-  BENCH_TYPE_BENCH_PATH = 500;
-  BENCH_TYPE_NODE_REFERENCE = 501;
-  BENCH_TYPE_PROPERTY_REFERENCE = 502;
-  BENCH_TYPE_PROPERTY_PATH = 503;
-  BENCH_TYPE_FIELD_PATH = 504;
-  BENCH_TYPE_FIELD_PATH_SEGMENT = 505;
-  BENCH_TYPE_VALUE_REFERENCE = 506;
-  BENCH_TYPE_VALUE_SELECTION = 507;
+  BENCH_TYPE_PATH = 500;
+  BENCH_TYPE_PATH_SEGMENT = 501;
+  BENCH_TYPE_PATH_TOKEN = 502;
+  BENCH_TYPE_NODE_REFERENCE = 503;
+  BENCH_TYPE_PROPERTY_REFERENCE = 504;
+  BENCH_TYPE_PROPERTY_PATH = 505;
+  BENCH_TYPE_FIELD_PATH = 506;
+  BENCH_TYPE_FIELD_PATH_SEGMENT = 507;
+  BENCH_TYPE_VALUE_REFERENCE = 508;
   BENCH_TYPE_TYPE_INFO = 510;
   BENCH_TYPE_CONTEXT = 511;
   BENCH_TYPE_SCHEDULE = 512;
@@ -132,14 +133,16 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION = 561;
   BENCH_TYPE_AGGREGATION_BUCKET = 562;
   BENCH_TYPE_CODE = 590;
-  BENCH_TYPE_CODE_SECTION = 591;
-  BENCH_TYPE_RUN_CODE_FRAME = 592;
-  BENCH_TYPE_RUN_ERROR = 593;
+  BENCH_TYPE_CODE_LINE = 591;
+  BENCH_TYPE_RUN_CODE_FRAME = 600;
+  BENCH_TYPE_RUN_ERROR = 601;
   BENCH_TYPE_SERVER_IMAGE = 630;
   BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   BENCH_TYPE_STORE_CREDENTIAL = 632;
-  BENCH_TYPE_RICH_TEXT = 660;
-  BENCH_TYPE_RICH_TEXT_SPAN = 661;
+  BENCH_TYPE_TEXT = 660;
+  BENCH_TYPE_TEXT_LINE = 661;
+  BENCH_TYPE_TEXT_SPAN = 662;
+  BENCH_TYPE_TEXT_OPTIONS = 663;
   BENCH_TYPE_SPACE_DOCK = 700;
   BENCH_TYPE_SPACE_DOCK_ITEM = 701;
 }
@@ -304,6 +307,13 @@ enum IdEnum {
   ID_ENUM_UNSPECIFIED = 0;
 }
 
+enum InterpStatus {
+  INTERP_STATUS_UNSPECIFIED = 0;
+  INTERP_STATUS_SOURCE = 1;
+  INTERP_STATUS_INTERPED = 2;
+  INTERP_STATUS_TRACKED = 3;
+}
+
 enum LogKind {
   LOG_KIND_UNSPECIFIED = 0;
   LOG_KIND_MESSAGE = 1;
@@ -320,33 +330,11 @@ enum LogLevel {
   LOG_LEVEL_FATAL = 6;
 }
 
-enum NodeReferenceKind {
-  NODE_REFERENCE_KIND_UNSPECIFIED = 0;
-  NODE_REFERENCE_KIND_PARENT = 1;
-  NODE_REFERENCE_KIND_ANCESTOR = 2;
-  NODE_REFERENCE_KIND_REGULAR = 3;
-  NODE_REFERENCE_KIND_CHILD = 4;
-}
-
 enum NodeSource {
   NODE_SOURCE_UNSPECIFIED = 0;
   NODE_SOURCE_STORE = 1;
   NODE_SOURCE_INTERP = 2;
   NODE_SOURCE_LOCAL = 3;
-}
-
-enum NodeStatus {
-  NODE_STATUS_UNSPECIFIED = 0;
-  NODE_STATUS_SOURCE = 1;
-  NODE_STATUS_INTERP = 2;
-  NODE_STATUS_TRACKED = 3;
-}
-
-enum NodeTrackingLevel {
-  NODE_TRACKING_LEVEL_UNSPECIFIED = 0;
-  NODE_TRACKING_LEVEL_NONE = 1;
-  NODE_TRACKING_LEVEL_ANONYMOUS = 2;
-  NODE_TRACKING_LEVEL_FULL = 3;
 }
 
 enum NodeType {
@@ -466,6 +454,19 @@ enum ReadType {
   READ_TYPE_LIST = 4;
 }
 
+// A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
+enum ReferenceKind {
+  REFERENCE_KIND_UNSPECIFIED = 0;
+  REFERENCE_KIND_NODE_ANCESTOR_ROOT = 1;
+  REFERENCE_KIND_NODE_ANCESTOR_FIRST = 2;
+  REFERENCE_KIND_NODE_PARENT = 3;
+  REFERENCE_KIND_NODE_CHILD = 4;
+  REFERENCE_KIND_NODE_REGULAR = 5;
+  REFERENCE_KIND_STRUCT_PARENT = 6;
+  REFERENCE_KIND_STRUCT_CHILD = 7;
+  REFERENCE_KIND_PROPERTY = 8;
+}
+
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_INTERNAL = 1;
@@ -550,14 +551,15 @@ enum StoreKind {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_BENCH_PATH = 500;
-  STRUCT_TYPE_NODE_REFERENCE = 501;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 502;
-  STRUCT_TYPE_PROPERTY_PATH = 503;
-  STRUCT_TYPE_FIELD_PATH = 504;
-  STRUCT_TYPE_FIELD_PATH_SEGMENT = 505;
-  STRUCT_TYPE_VALUE_REFERENCE = 506;
-  STRUCT_TYPE_VALUE_SELECTION = 507;
+  STRUCT_TYPE_PATH = 500;
+  STRUCT_TYPE_PATH_SEGMENT = 501;
+  STRUCT_TYPE_PATH_TOKEN = 502;
+  STRUCT_TYPE_NODE_REFERENCE = 503;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 504;
+  STRUCT_TYPE_PROPERTY_PATH = 505;
+  STRUCT_TYPE_FIELD_PATH = 506;
+  STRUCT_TYPE_FIELD_PATH_SEGMENT = 507;
+  STRUCT_TYPE_VALUE_REFERENCE = 508;
   STRUCT_TYPE_TYPE_INFO = 510;
   STRUCT_TYPE_CONTEXT = 511;
   STRUCT_TYPE_SCHEDULE = 512;
@@ -577,16 +579,30 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION = 561;
   STRUCT_TYPE_AGGREGATION_BUCKET = 562;
   STRUCT_TYPE_CODE = 590;
-  STRUCT_TYPE_CODE_SECTION = 591;
-  STRUCT_TYPE_RUN_CODE_FRAME = 592;
-  STRUCT_TYPE_RUN_ERROR = 593;
+  STRUCT_TYPE_CODE_LINE = 591;
+  STRUCT_TYPE_RUN_CODE_FRAME = 600;
+  STRUCT_TYPE_RUN_ERROR = 601;
   STRUCT_TYPE_SERVER_IMAGE = 630;
   STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   STRUCT_TYPE_STORE_CREDENTIAL = 632;
-  STRUCT_TYPE_RICH_TEXT = 660;
-  STRUCT_TYPE_RICH_TEXT_SPAN = 661;
+  STRUCT_TYPE_TEXT = 660;
+  STRUCT_TYPE_TEXT_LINE = 661;
+  STRUCT_TYPE_TEXT_SPAN = 662;
+  STRUCT_TYPE_TEXT_OPTIONS = 663;
   STRUCT_TYPE_SPACE_DOCK = 700;
   STRUCT_TYPE_SPACE_DOCK_ITEM = 701;
+}
+
+enum TextLineType {
+  TEXT_LINE_TYPE_UNSPECIFIED = 0;
+  TEXT_LINE_TYPE_PLAIN = 1;
+  TEXT_LINE_TYPE_HEADING_SMALL = 6;
+  TEXT_LINE_TYPE_HEADING_MEDIUM = 7;
+  TEXT_LINE_TYPE_HEADING_LARGE = 8;
+  TEXT_LINE_TYPE_CALLOUT_INFO = 12;
+  TEXT_LINE_TYPE_CALLOUT_WARNING = 13;
+  TEXT_LINE_TYPE_LIST_BULLET = 16;
+  TEXT_LINE_TYPE_LIST_NUMBERED = 17;
 }
 
 // Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -603,7 +619,7 @@ enum UseType {
   USE_TYPE_PAUSE = 31;
   USE_TYPE_RESUME = 32;
   USE_TYPE_KILL = 33;
-  USE_TYPE_EMIT = 34;
+  USE_TYPE_SEND = 34;
   USE_TYPE_RECEIVE = 35;
 }
 
@@ -639,17 +655,21 @@ enum ViewType {
 // (And if object_properties is unset, it applies to all properties.)
 message AccessData {
   BenchType metatype = 1;
+  int32 id = 2;
   AccessMode mode = 30;
   PolicyEffect decision = 31;
   AccessType verb = 32;
   BenchType object_type = 33;
   repeated PropertyReferenceData object_properties_ptr = 34;
-  optional AccessTraceData trace = 35;
 }
 
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
 message AccessMatrixData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   SubjectData subject = 30;
   repeated SubjectData identities = 32;
   repeated AccessZoneData scoped_zones = 33;
@@ -659,6 +679,10 @@ message AccessMatrixData {
 // The trace of evaluating Access.
 message AccessTraceData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   repeated PolicyRuleData matched_rules = 30;
 }
 
@@ -667,7 +691,9 @@ message AccessTraceData {
 message AccessZoneData {
   BenchType metatype = 1;
   int32 id = 2;
-  optional int32 parent_id = 4;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   string scope_id = 30;
   int32 identity_id = 31;
   repeated PolicyRuleData rules = 32;
@@ -676,6 +702,10 @@ message AccessZoneData {
 // The result of an aggregation expression.
 message AggregationData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   AggregationOp op = 30;
   optional bool exists = 31;
   optional int32 count = 32;
@@ -686,8 +716,114 @@ message AggregationData {
 // One bucket of an aggregation histogram.
 message AggregationBucketData {
   BenchType metatype = 1;
+  int32 id = 2;
   google.protobuf.Struct key = 30;
   int32 count = 31;
+}
+
+// Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+message CodeData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  repeated CodeLineData lines = 30;
+}
+
+// CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+message CodeLineData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  string line = 32;
+}
+
+// A semi-magical value that accumulates context down the graph (starting with system context).
+message ContextData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  optional NodeReferenceData bench_ptr = 30;
+  optional NodeReferenceData environment_ptr = 31;
+  optional NodeReferenceData branch_ptr = 32;
+  optional NodeReferenceData package_ptr = 33;
+  optional NodeReferenceData module_ptr = 34;
+  optional NodeReferenceData page_ptr = 35;
+}
+
+// An expression (conditional, aggregation, sort, etc).
+message ExpressionData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  ExpressionOp op = 30;
+  optional NodeReferenceData field_ptr = 31;
+  optional PropertyReferenceData property_ptr = 32;
+  repeated ExpressionData clauses = 35;
+  google.protobuf.Struct value = 36;
+  optional SortMode sort_mode = 37;
+}
+
+// A path of built-in Node/Struct properties and user-defined Fields.
+message FieldPathData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  repeated FieldPathSegmentData segments = 30;
+}
+
+// A single segment of a FieldPath.
+message FieldPathSegmentData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional PropertyReferenceData property_ptr = 30;
+  optional NodeReferenceData field_ptr = 31;
+}
+
+// A reference to a file stored somewhere.
+message FileData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  optional string type = 31;
+  optional string name = 33;
+  optional int32 size = 34;
+  optional string sha512 = 35;
+  optional NodeReferenceData content_ptr = 36;
+  optional string external_url = 37;
+}
+
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+message IconData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  IconKind kind = 30;
+  optional string emoji = 31;
+  optional IconType type = 32;
+  optional FileData image = 33;
+}
+
+// NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.InterpStatus = None)
+message NodeReferenceData {
+  BenchType metatype = 1;
+  NodeType type = 30;
+  optional string id = 31;
+  optional string ck = 32;
+  optional string base_ck = 33;
 }
 
 // A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -723,8 +859,9 @@ message AggregationBucketData {
 // ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 // 
 // NOT YET SUPPORTED:
-// / -> package root (=Package)
-// $ -> module root (=Block|Package)
+// / -> package (=Package)
+// $ -> module (=Block|Package)
+// ^ -> page (=Block)
 // $User -> module-unique node (=Block|View)
 // ~ -> source module root (like $ but for templated)
 // [<expr like ck=...>] -> dynamic Expression filter
@@ -739,8 +876,12 @@ message AggregationBucketData {
 // The general syntax is:
 // [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
 // For absolute paths, the bench name is required.
-message BenchPathData {
+message PathData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   optional string bench_slug = 30;
   repeated string block_path = 31;
   repeated string sub_node_path = 32;
@@ -749,115 +890,43 @@ message BenchPathData {
   optional string package_slug = 35;
 }
 
-// Code(sections: list[bench.language.code_.CodeSection] = <factory>, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, _status: bench.language.const.NodeStatus = None)
-message CodeData {
+// PathSegment(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+message PathSegmentData {
   BenchType metatype = 1;
-  repeated CodeSectionData sections = 30;
+  int32 id = 2;
 }
 
-// CodeSection(code: str = <factory>, _status: bench.language.const.NodeStatus = None)
-message CodeSectionData {
+// PathToken(id: int = <factory>, _status: bench.language.const.InterpStatus = None)
+message PathTokenData {
   BenchType metatype = 1;
-  string code = 32;
-}
-
-// A semi-magical value that accumulates context down the graph (starting with system context).
-message ContextData {
-  BenchType metatype = 1;
-  optional NodeReferenceData environment_ptr = 31;
-  optional NodeReferenceData branch_ptr = 32;
-  optional NodeReferenceData module_ptr = 34;
-  optional NodeReferenceData page_ptr = 35;
-}
-
-// An expression (conditional, aggregation, sort, etc).
-message ExpressionData {
-  BenchType metatype = 1;
-  ExpressionOp op = 30;
-  optional NodeReferenceData field_ptr = 31;
-  optional PropertyReferenceData property_ptr = 32;
-  repeated ExpressionData clauses = 35;
-  google.protobuf.Struct value = 36;
-  optional SortMode sort_mode = 37;
-}
-
-// A path of built-in Node/Struct properties and user-defined Fields.
-message FieldPathData {
-  BenchType metatype = 1;
-  repeated FieldPathSegmentData segments = 30;
-}
-
-// A single segment of a FieldPath.
-message FieldPathSegmentData {
-  BenchType metatype = 1;
-  optional PropertyReferenceData property_ptr = 30;
-  optional NodeReferenceData field_ptr = 31;
-}
-
-// A reference to a file stored somewhere.
-message FileData {
-  BenchType metatype = 1;
-  optional string type = 31;
-  optional string name = 33;
-  optional int32 size = 34;
-  optional string sha512 = 35;
-  optional NodeReferenceData content_ptr = 36;
-  optional string external_url = 37;
-}
-
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = <factory>, _status: bench.language.const.NodeStatus = None)
-message IconData {
-  BenchType metatype = 1;
-  IconKind kind = 30;
-  optional string emoji = 31;
-  optional IconType type = 32;
-  optional FileData image = 33;
-}
-
-// NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
-message NodeReferenceData {
-  BenchType metatype = 1;
-  NodeType type = 30;
-  optional string id = 31;
-  optional string ck = 32;
-  optional string base_ck = 33;
+  int32 id = 2;
 }
 
 // A policy regulating access to nodes within its scope.
 // The scope is determined by where its attached, but may be further restricted using 'scopes'.
 // 
 // The basics of access control:
-// 1. An access is DENYed implicitly unless explicitly and completely ALLOWed.
-// 2. Policies are attached directly to nodes or via delegates (badges, roles, identities, ...).
-// a. Policies are scoped to the node their definition or
-// b. Delegate is attached to (or less as specified).
+// 1. Access is DENIED implicitly unless explicitly and fully ALLOWED.
+// 2. Policies are either attached
+// a. directly to nodes (scoped to the node)
+// b. or to a delegate (full scope or less as specified)
 // 3. Policies are evaluated in order up the node graph, first match decides*.
 // (This means you can read a sub block but not its parent.)
 // 4. Every identity/role/... applicable to a subject is evaluated separately and *any* allow wins.
 // 
-// * Conceptually, we do 'ray trace' up the graph for every node, but actually doing that for every request
-// is prohibitively expensive. Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
+// * Conceptually, we do 'ray trace' up the graph for every node/property/...,
+// but actually doing that for every request is prohibitively expensive.
+// Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   optional string name = 30;
-  optional RichTextData text = 31;
+  optional TextData text = 31;
   repeated PolicyRuleData rules = 32;
   repeated NodeReferenceData scopes_ptr = 33;
-}
-message PolicyDataTree {
-  BenchType metatype = 1;
-
-}
-
-message StructTree {
-  message SomeStructData {
-    oneof struct {
-      PolicyData policy = 1;
-      PolicyRuleData policy_rule = 2;
-      // ...
-    }
-  }
-  repeated SomeStructData structs = 1;
 }
 
 // A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
@@ -865,8 +934,12 @@ message StructTree {
 // (where None/empty -> wildcard, any value -> filter)
 message PolicyRuleData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   optional string name = 30;
-  optional RichTextData text = 31;
+  optional TextData text = 31;
   optional bool subject_is_delegated = 40;
   optional bool subject_is_authenticated = 41;
   optional bool subject_is_staff = 42;
@@ -891,15 +964,23 @@ message PolicyRuleData {
 // - How do we make projections reproducible and inspectable in the editor?
 message ProjectionData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
 }
 
 // A path of Node/Struct properties.
 message PropertyPathData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   repeated PropertyReferenceData properties_ptr = 30;
 }
 
-// PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+// PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.InterpStatus = None)
 message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
@@ -911,6 +992,10 @@ message PropertyReferenceData {
 // This is an addition to primary options (like the filter for a search or aggregation).
 message ReadOptionsData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   repeated NodeType ancestor_types = 30;
   repeated NodeType descendant_types = 31;
   repeated PropertyReferenceData related_properties_ptr = 32;
@@ -923,34 +1008,23 @@ message ReadOptionsData {
 // A request comprising multiple Accesses.
 message RequestData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   SubjectData subject = 30;
   PolicyEffect decision = 31;
   repeated AccessData accesses = 32;
   optional string transaction_id = 40;
 }
 
-// RichText(spans: list['RichTextSpan'] = <factory>, _status: bench.language.const.NodeStatus = None)
-message RichTextData {
-  BenchType metatype = 1;
-  repeated RichTextSpanData spans = 30;
-}
-
-// RichTextSpan(text: str | None = '', reference: bench.language.node.Node | None = None, path: Optional[ForwardRef('FieldPath')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, _status: bench.language.const.NodeStatus = None, reference_ptr: 'NodeReference' = None)
-message RichTextSpanData {
-  BenchType metatype = 1;
-  optional string text = 30;
-  optional NodeReferenceData reference_ptr = 31;
-  optional FieldPathData path = 32;
-  bool is_bold = 40;
-  bool is_italic = 41;
-  bool is_strikethrough = 42;
-  bool is_underline = 43;
-  bool is_code = 44;
-}
-
-// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
+// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   NodeReferenceData node_ptr = 30;
   int32 lineno = 31;
   string name = 32;
@@ -958,9 +1032,13 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = <factory>, _status: bench.language.const.NodeStatus = None, node_ptr: 'NodeReference' = None)
+// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunErrorData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   RunErrorKind kind = 30;
   string type = 31;
   optional string message = 32;
@@ -971,43 +1049,67 @@ message RunErrorData {
 // The time-based schedule of something.
 message ScheduleData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   ScheduleType type = 30;
   optional string timezone = 31;
   optional int32 interval = 32;
   optional string cron = 33;
 }
 
-// ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = <factory>, _status: bench.language.const.NodeStatus = None)
+// ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
 message ServerImageData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   string language = 30;
   string version = 31;
   string platform = 32;
   repeated ServerImageRequirementData requirements = 33;
 }
 
-// ServerImageRequirement(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
+// ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
 message ServerImageRequirementData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   string name = 30;
   string version = 31;
 }
 
-// SpaceDock(items: list[bench.language.view.SpaceDockItem] = <factory>, _status: bench.language.const.NodeStatus = None)
+// SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
 message SpaceDockData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   repeated SpaceDockItemData items = 30;
 }
 
-// SpaceDockItem(hidden: bool = False, _status: bench.language.const.NodeStatus = None)
+// SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
 message SpaceDockItemData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   bool hidden = 31;
 }
 
-// StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, _status: bench.language.const.NodeStatus = None)
+// StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
 message StoreCredentialData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   StoreCredentialType type = 30;
   optional string username = 31;
   optional string password = 32;
@@ -1017,6 +1119,10 @@ message StoreCredentialData {
 // (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message SubjectData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   optional bool is_authenticated = 30;
   optional bool is_staff = 31;
   optional bool is_system = 32;
@@ -1029,33 +1135,67 @@ message SubjectData {
   repeated NodeReferenceData roles_ptr = 46;
 }
 
-// A type is a kind of value that can go somewhere, typically a field.
-// 
-// A type is either:
-// 1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
-// [primitive_type] | [base_type = Block aliased to primitive_type]
-// 2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
-// [bench_type = StructType] | [base_type is newtype with bench_type]
-// 3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-// [bench_type = NodeType] | [base_type = Block aliased to bench_type]
-// 4. reference to a block (value is NodeReference that is an 'instance' of the block)
-// [bench_type = NodeType & base_type = Block]
-// type = Record, base = DatabaseBlock -> values must be Records in that database
-// type = Run, base = Block -> values must be Runs of that block
-// type = Field, base = Block -> values must be a Field in that block
-// type = Signal, base = Block -> values must be Signals of that block type
-// type = Block, base = Block -> values must be Blocks conforming to that block protocol
-// type = Block, base = None -> values must be instances of the resolved type
-// ...
-// 
-// Types may also specify:
-// - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
-// - an additional condition instances must satisfy
-// - combination flags for arrays, optionals, ...
-// 
-// Type checking is done in ./value.py. You'll note that we can only check some things without querying.
+// Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+message TextData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  repeated TextLineData lines = 32;
+}
+
+// TextLine(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None)
+message TextLineData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  TextLineType type = 30;
+  repeated TextSpanData spans = 33;
+  bool is_bold = 60;
+  bool is_italic = 61;
+  bool is_strikethrough = 62;
+  bool is_underline = 63;
+  bool is_code = 64;
+}
+
+// TextOptions(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None)
+message TextOptionsData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  bool is_bold = 60;
+  bool is_italic = 61;
+  bool is_strikethrough = 62;
+  bool is_underline = 63;
+  bool is_code = 64;
+}
+
+// TextSpan(is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, parent_id: int = None, parent_key: str = None, content: str | None = None, node_reference: Optional[bench.language.node.Node] = None, value_reference: Optional[ForwardRef('ValueReference')] = None, node_reference_ptr: 'NodeReference' = None)
+message TextSpanData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional string content = 33;
+  optional NodeReferenceData node_reference_ptr = 34;
+  optional ValueReferenceData value_reference = 35;
+  bool is_bold = 60;
+  bool is_italic = 61;
+  bool is_strikethrough = 62;
+  bool is_underline = 63;
+  bool is_code = 64;
+}
+
+// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
 message TypeInfoData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
@@ -1074,13 +1214,14 @@ message TypeInfoData {
 // Reference a value at a path of a Node.
 message ValueReferenceData {
   BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
   NodeReferenceData node_ptr = 30;
   FieldPathData path = 31;
-}
-
-// Select a range of values (or a single value) from a Node.
-message ValueSelectionData {
-  BenchType metatype = 1;
+  optional int32 subvalue_from = 32;
+  optional int32 subvalue_to = 33;
 }
 
 // Attach a badge to a node with an inline definition.
@@ -1127,7 +1268,7 @@ message BenchData {
   optional NodeReferenceData main_handle_ptr = 31;
   string slug = 32;
   string name = 33;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional NodeReferenceData owner_ptr = 35;
   optional string encryption_key = 36;
   repeated PolicyData policies = 37;
@@ -1159,7 +1300,7 @@ message BlockData {
   repeated NodeReferenceData bases_ptr = 36;
   optional TypeInfoData builtin_base = 37;
   optional string dynamic_key = 40;
-  optional RichTextData text = 41;
+  optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
   optional CodeData code = 44;
@@ -1189,7 +1330,7 @@ message BranchData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional NodeReferenceData main_package_ptr = 35;
   repeated PolicyData policies = 36;
 }
@@ -1267,7 +1408,7 @@ message DriveData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   string name = 32;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional string host = 40;
 }
 
@@ -1285,7 +1426,7 @@ message EnvironmentData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   repeated PolicyData policies = 35;
   NodeReferenceData store_ptr = 40;
   NodeReferenceData search_ptr = 41;
@@ -1312,7 +1453,7 @@ message FieldData {
   optional string name = 30;
   optional string order_key = 31;
   optional string dynamic_key = 32;
-  optional RichTextData text = 33;
+  optional TextData text = 33;
   optional google.protobuf.Struct value_packed = 34;
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
@@ -1450,10 +1591,10 @@ message LogData {
   optional string logger = 32;
   optional string event = 33;
   optional string message = 34;
-  optional RichTextData text = 35;
+  optional TextData text = 35;
   optional google.protobuf.Struct value_dynamic = 36;
   optional RequestData request = 37;
-  repeated NodeReferenceData session_ptr = 40;
+  optional NodeReferenceData session_ptr = 40;
   optional NodeReferenceData run_ptr = 41;
   optional NodeReferenceData block_ptr = 42;
 }
@@ -1475,13 +1616,14 @@ message MembershipData {
   bool is_owner = 31;
 }
 
-// A node in the Bench graph: it's a struct with an identity, so it can relate nodes in a graph.
-// All nodes have a globally unique id (id).
+// A node in the Bench graph: it's a struct with a globally unique identity.
 // Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1492,7 +1634,7 @@ message BaseNodeData {
   optional NodeReferenceData updated_by_ptr = 18;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: 'PropertyReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1536,7 +1678,7 @@ message NotificationData {
   optional NodeReferenceData sender_ptr = 35;
   optional NodeReferenceData sender_bench_ptr = 36;
   optional string title = 40;
-  optional RichTextData text = 41;
+  optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
 }
@@ -1558,7 +1700,7 @@ message OrganizationData {
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   string name = 33;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional NodeReferenceData main_bench_ptr = 36;
   OrganizationStatus status = 37;
 }
@@ -1577,7 +1719,7 @@ message PackageData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string slug = 33;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   repeated PolicyData policies = 35;
   bool is_partial = 36;
   optional google.protobuf.Timestamp paused_at = 37;
@@ -1802,7 +1944,7 @@ message SpaceData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   string name = 31;
-  optional RichTextData text = 32;
+  optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
   SpaceDockData dock = 35;
@@ -1825,7 +1967,7 @@ message StoreData {
   StoreKind kind = 30;
   StoreEngineType engine = 31;
   string name = 32;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional string host = 41;
   optional string database = 42;
   optional string schema = 43;
@@ -1833,7 +1975,7 @@ message StoreData {
   repeated StoreCredentialData extra_credentials = 45;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 3>, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, _updated_properties: bitarray.bitarray | None = None, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1871,7 +2013,7 @@ message UpgradeData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
 }
 
 // A Bench user.
@@ -1890,7 +2032,7 @@ message UserData {
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   optional string name = 33;
-  optional RichTextData text = 34;
+  optional TextData text = 34;
   optional string email = 35;
   optional NodeReferenceData main_bench_ptr = 36;
   UserStatus status = 37;

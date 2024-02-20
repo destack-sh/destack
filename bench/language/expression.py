@@ -204,7 +204,7 @@ class Expression(Struct):
     property: Optional[Property] = p_regular(
         32, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    clauses: list["Expression"] | None = p_regular(35, default=None, struct=StructType.EXPRESSION)
+    clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value: Any = p_regular(36, default=None, primitive_type=PrimitiveType.JSON)
     sort_mode: Optional[SortMode] = p_regular(37, default=None)
 

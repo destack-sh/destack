@@ -51,7 +51,7 @@ class ServerImage(Struct):
     version: str = p_regular(31)
     platform: str = p_regular(32)
     requirements: list["ServerImageRequirement"] = p_regular(
-        33, struct=StructType.SERVER_IMAGE_REQUIREMENT
+        33, array=True, struct=StructType.SERVER_IMAGE_REQUIREMENT
     )
 
 

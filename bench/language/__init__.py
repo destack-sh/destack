@@ -50,7 +50,7 @@ from .field import Field, TypeInfo
 from .file import File, Icon
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
-from .path import BenchPath
+from .path import Path
 from .projection import NodeVisitor
 from .query import Query
 from .render import render
@@ -78,7 +78,7 @@ __all__ = [
     "Badge",
     "Bench",
     "BenchError",
-    "BenchPath",
+    "Path",
     "Block",
     "BlockType",
     "Branch",

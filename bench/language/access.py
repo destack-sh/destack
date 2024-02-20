@@ -26,7 +26,7 @@ from bench.language.const import (
     UseType,
     StructType,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeList, ValueList
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.setup import ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES, _COMPLETED_SETUP
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -157,8 +157,8 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] = p_regular(30)
-    descendant_types: list[NodeType] = p_regular(31)
+    ancestor_types: list[NodeType] = p_regular(30, array=True, require=False)
+    descendant_types: list[NodeType] = p_regular(31, array=True, require=False)
     related_properties: list[Property] = p_regular(
         32, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
@@ -313,12 +313,12 @@ class PolicyRule(Struct):
 
     # verb
     effect: PolicyEffect = p_regular(60, default=PolicyEffect.DENY)
-    verbs: list[AccessType] | None = p_regular(61, default=None)
-    verb_kinds: list[AccessKind] | None = p_regular(62, default=None)
+    verbs: list[AccessType] | None = p_regular(61, array=True)
+    verb_kinds: list[AccessKind] | None = p_regular(62, array=True)
     _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard, except for _properties_is_<...>)
-    object_node_types: Optional[list[NodeType]] = p_regular(80, default=None)
+    object_node_types: Optional[list[NodeType]] = p_regular(80, array=True)
     _object_node_types_mask: bitarray | None = p_runtime(default=None)
     object_properties: list[Property] | None = p_regular(
         81, require=False, array=True, struct=StructType.PROPERTY_REFERENCE

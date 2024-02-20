@@ -214,7 +214,7 @@ def _resolve_py_type(py_type: type | str | typing.ForwardRef, type_map: dict[str
         return py_type
 
 
-def parse_py_type(
+def parse_py_annotation(
     py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
 ) -> TypeAnnotation:
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
@@ -238,7 +238,7 @@ def parse_py_type(
             py_type = actual_types[0]
             py_type = _resolve_py_type(py_type, type_map)
     # strip list
-    if typing.get_origin(py_type) is list or typing.get_origin(py_type) is tuple:
+    if typing.get_origin(py_type) in (list, tuple):
         py_type = typing.get_args(py_type)[0]
         py_type = _resolve_py_type(py_type, type_map)
         is_array = True
@@ -333,6 +333,7 @@ def get_subclasses(cls, seen=None):
     """Gets all subclasses of a class recursively."""
     seen = seen or set()
     seen.add(cls)
+    yield cls
     for subclass in cls.__subclasses__():
         if subclass not in seen:
             yield from get_subclasses(subclass, seen=seen)

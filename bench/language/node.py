@@ -212,7 +212,6 @@ def _process_struct_base_cls(
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
     properties_by_name: dict[str, "Property"] = {METATYPE_PROPERTY.name: metatype}
-    static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined in non-base classes
     CORE_TYPES = ("Struct", "Node")
@@ -224,23 +223,16 @@ def _process_struct_base_cls(
                 raise ValueError(f"forbidden method {name} defined in {cls}")
 
     # collect static components from class hierarchy
+    static_components: list[type["Node"] | type["Struct"]] = [cls]
     for base in cls.__bases__:
-        if base.__name__ in ("Struct", "Node", "ABC"):
+        if base.__name__ in ("ABC",):
             continue
         if hasattr(base, "__properties__"):
             base: type["Struct"]
             static_components.append(base)
-            for gp in base.__static_components__:
-                if gp.__name__ not in CORE_TYPES and gp not in static_components:
-                    static_components.append(gp)
-    if cls.__name__ not in ("Struct", "Node"):
-        if issubclass(cls, Node):
-            static_components.append(Node)
-            static_components.append(Struct)
-        elif issubclass(cls, Struct):
-            static_components.append(Struct)
-        else:
-            raise ValueError(f"invalid struct base {cls}")
+            for grandparent in base.__static_components__:
+                if grandparent not in static_components:
+                    static_components.append(grandparent)
 
     # collect properties from this
     declared_properties: dict[str, Property] = {}
@@ -276,15 +268,19 @@ def _process_struct_base_cls(
                 continue
             existing = properties_by_name.get(name, None)
             # override parent prop & id with more specific values
-            if existing is None or name.startswith("parent") or existing.id is UNSET:
+            if (
+                existing is None
+                or name == "id"
+                or name.startswith("parent")
+                or existing.id is UNSET
+            ):
                 if prop.is_ephemeral or component not in dynamic_components:
                     prop = prop.clone()
                     prop.component = cls
                     properties_by_name[name] = prop
                 else:
                     pass  # ignore
-            # ignore 'id', Node.id is different from Struct.id
-            elif prop.name != "id" and not prop._equals_type(existing):
+            elif not prop._equals_type(existing):
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
@@ -331,6 +327,7 @@ def _process_struct_base_cls(
             _remove_prop("package")
         if is_node and (no_ck or not is_sub_package):
             _remove_prop("ck")
+            setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
         if is_struct and is_inlined:
             _remove_prop("order_key")
             _remove_prop("parent")
@@ -351,10 +348,10 @@ def _process_struct_base_cls(
                 attr = _node_computed_ancestor_ptr_prop(prop)
         elif prop.is_computed or not prop.is_runtime:
             attr = UNSET
-        elif prop.default is not UNSET:
-            attr = dataclasses.field(default=prop.default)
         elif prop.default_factory is not None:
             attr = dataclasses.field(default_factory=prop.default_factory)
+        elif prop.default is not UNSET:
+            attr = dataclasses.field(default=prop.default)
         else:
             attr = _required_prop(prop)
         # set attribute and annotation accordingly
@@ -376,7 +373,7 @@ def _process_struct_base_cls(
                 )
                 setattr(cls, prop.name + "_" + postfix, computed_prop)
 
-    # collect methods implemented in this class (specifically)
+    # collect component methods implemented in this component
     for meth_type in _ComponentMethod:
         meth = getattr(cls, meth_type.inner, None)
         if meth is not None and not any(
@@ -834,10 +831,11 @@ class Struct(abc.ABC):
     __is_node__: ClassVar[bool] = False
 
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
-    # nocheckin: implement Struct identity
     id: int = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
-    # parent_id (3) + parent_key (4) (contributed via parent)
+    if TYPE_CHECKING:  # contributed via parent
+        parent_id: int | None  # (3)
+        parent_key: str | None  # (4)
     order_key: str | None = p_internal(5, default=None)
 
     _status: InterpStatus = p_runtime(default=None)
@@ -916,6 +914,8 @@ class Struct(abc.ABC):
         if other is None or self.metatype != other.metatype:
             return False
         for prop in self.__wired_properties__.values():
+            if prop.id < 5:
+                continue  # ignore struct identity
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
             if self_value != other_value and (
@@ -1434,9 +1434,17 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
                 # update reference pointer  :NodeReferences
                 from bench.language.expression import NodeReference
 
-                object.__setattr__(
-                    self, prop.reference_wired_ptr.name, NodeReference.from_node(value)
-                )
+                wired_name = prop.reference_wired_ptr.name
+                if prop.is_array:
+                    object.__setattr__(
+                        self,
+                        wired_name,
+                        [NodeReference.from_node(n) for n in (value or ())],
+                    )
+                elif value:
+                    object.__setattr__(self, wired_name, NodeReference.from_node(value))
+                else:
+                    object.__setattr__(self, wired_name, None)
             if is_tracked and self._session is not None and not self._is_new:
                 # update in session
                 if self._updated_properties is None:
@@ -1455,8 +1463,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
         # report set error with additional info
         candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-        if isinstance(self, Node):
-            candidates.update(cast(Node, self)._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 

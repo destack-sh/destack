@@ -42,7 +42,10 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(slots=True)
 class Value:
-    """A value with fields and an identity (not inlined)."""
+    """
+    Any value with fields and an identity that's not a Node (and not inlined).
+
+    """
 
     # local identity (matches Struct)
     id: int

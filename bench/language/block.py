@@ -138,7 +138,7 @@ class Block(Node, HasValues):
     name: str | None = p_regular(32, default=None, validate=validate_name)
     order_key: str | None = p_internal(33, default=None)
     visibility: NodeVisibility = p_regular(34, default=NodeVisibility.ALL)
-    policies: list["Policy"] | None = p_regular(35, default=None, struct=StructType.POLICY)
+    policies: list["Policy"] | None = p_regular(35, array=True, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(
         36, default=None, require=False, array=True, references=NodeType.BLOCK
     )
@@ -160,7 +160,7 @@ class Block(Node, HasValues):
     reference: Optional["Block"] = p_regular(
         46, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] | None = p_regular(47, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] | None = p_regular(47, array=True, struct=StructType.POLICY)
 
     # flags
     is_page: bool = p_regular(60, default=False)  # on its own page

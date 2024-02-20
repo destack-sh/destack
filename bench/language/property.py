@@ -21,7 +21,7 @@ from bench.language.graph import NodeList, InMemoryGraphNodeList, ValueList
 from bench.language.setup import _on_completing_setup, BENCH_CLASSES_BY_NAME
 from bench.language.validation import PropertyValidationHandler
 from bench.sql.core import CascadeAction, Column, Table
-from bench.utils.func import parse_py_type, IdEnum, try_tuple
+from bench.utils.func import parse_py_annotation, IdEnum, try_tuple
 
 if TYPE_CHECKING:
     from bench.language import Node, Struct, TypeInfo, PropertyReference
@@ -112,8 +112,10 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
         non_default = []
         if self.id is not None:
             non_default.append(str(self.id))
-        if isinstance(self.py_type_stripped, type):
-            non_default.append(self.py_type_stripped.__name__)
+        if self.reference_kind:
+            non_default.append(self.reference_kind.bench_name)
+        elif self.primitive_type is not UNSET:
+            non_default.append(self.primitive_type.bench_name)
         for k in (
             "alias",
             "is_array",
@@ -197,7 +199,11 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             assert self.component is not None, f"{self!r} is not finalized"
             from bench.language.expression import PropertyReference
 
-            if self.reference_kind and len(self.reference_nodes) == 1:
+            if (
+                self.reference_kind
+                and self.reference_kind.is_node
+                and len(self.reference_nodes) == 1
+            ):
                 references_type = self.reference_nodes[0]
             else:
                 references_type = None
@@ -232,7 +238,8 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             # exclude empty references type, TypeInfo can't handle that yet
             and (not self.reference_kind or self.reference_nodes)
             # exclude ancestor properties (they're computed but would be nice to have :c)
-            and self.reference_kind != ReferenceKind.NODE_ANCESTOR_FIRST
+            and self.reference_kind
+            not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
             # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )
@@ -319,13 +326,11 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             self.py_type_stripped = self.py_type_raw
             return
 
-        # get py type
-        annotation = parse_py_type(self.py_type_raw, BENCH_CLASSES_BY_NAME)
-        # resolve manually if needed
+        # update/check info from annotation
+        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASSES_BY_NAME)
         self.py_type_stripped = annotation.type
-        # update info from annotation
-        if self.is_array is UNSET:
-            self.is_array = annotation.is_array
+        if annotation.is_array != self.is_array:
+            raise ValueError(f"array mismatch for {self!r} (expected is_array={self.is_array})")
         if self.is_required is UNSET:
             self.is_required = not annotation.is_optional
         if not self.is_required and self.default is UNSET and self.default_factory is None:
@@ -403,7 +408,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw="PropertyReference",
+                py_type_raw=list["PropertyReference"] if self.is_array else "PropertyReference",
                 reference_struct=StructType.PROPERTY_REFERENCE,
                 is_runtime=True,
                 is_internal=self.is_internal,
@@ -426,6 +431,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 name=self.name + "_id",
                 component=self.component,
                 primitive_type=PrimitiveType.INT32,
+                py_type_raw=int,
                 reference_kind=ReferenceKind.STRUCT_PARENT,
                 is_runtime=True,
                 is_internal=True,
@@ -437,10 +443,11 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 reference_source=self,
             )
             parent_key = Property(
-                id=self.id,
+                id=self.id + 1,
                 name=self.name + "_key",
                 component=self.component,
                 primitive_type=PrimitiveType.STRING,
+                py_type_raw=str,
                 reference_kind=ReferenceKind.STRUCT_PARENT,
                 is_runtime=True,
                 is_internal=True,
@@ -497,7 +504,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw="NodeReference",
+                py_type_raw=list["NodeReference"] if is_array else "NodeReference",
                 reference_kind=self.reference_kind,
                 reference_nodes=self.reference_nodes,
                 reference_source=self,
@@ -530,7 +537,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
                     id=self.id,
                     name=prop_name,
                     component=self.component,
-                    py_type_raw=UUID,
+                    py_type_raw=list[UUID] if is_array else UUID,
                     reference_kind=self.reference_kind,
                     reference_nodes=(ref_type,),
                     reference_source=self,
@@ -592,17 +599,14 @@ def p_property(
     wire: bool = True,
     primitive_type: PrimitiveType = UNSET,
     index_in_pg: bool = False,
-    array: bool = UNSET,
+    array: bool = False,
     defer: bool = False,
     encrypt: bool = False,
     unique: bool = False,
     sensitive: bool = False,
-    list: type["ValueList"] | None = None,
+    custom_list: type["ValueList"] | None = None,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
 ):
-    if array is True and not (struct or references):
-        assert default is UNSET and default_factory is None, f"can't set default for array"
-        default_factory = list
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR
     elif struct == StructType.PROPERTY_REFERENCE:
@@ -610,9 +614,12 @@ def p_property(
         struct = None
     elif struct:
         reference_kind = ReferenceKind.STRUCT_CHILD
-        list = list or ValueList
+        custom_list = custom_list or ValueList
     else:
         reference_kind = None
+    if array and not (struct or references):
+        assert default is UNSET and default_factory is None, f"can't set default for array"
+        default_factory = list
     return Property(
         id=id,
         description=description,
@@ -623,7 +630,7 @@ def p_property(
         reference_kind=reference_kind,
         reference_nodes=try_tuple(references),
         reference_struct=struct,
-        reference_list_type=list,
+        reference_list_type=custom_list,
         is_internal=internal,
         is_system=system,
         is_kernel=kernel,
@@ -687,6 +694,7 @@ def p_node_ancestor(
         id=id,
         reference_kind=kind,
         reference_nodes=(node_type,),
+        is_array=False,
         is_internal=True,
         is_computed=True,
         is_system=True,
@@ -713,6 +721,7 @@ def p_node_child(
         reference_flags=flags,
         is_internal=True,
         is_required=True,
+        is_array=True,
         reference_list_type=list or InMemoryGraphNodeList,
         is_stored=False,
         alias=alias,
@@ -728,6 +737,7 @@ def p_struct_parent(id: int):
         is_internal=True,
         is_stored=True,
         is_wired=True,
+        is_array=False,
     )
 
 
@@ -754,6 +764,7 @@ def p_value_runtime(
         is_ephemeral=True,
         is_required=False,
         is_value_runtime=True,
+        is_array=False,
         default=None,
         value_packed_ptr=packed,
         secret_value_packed_ptr=secret_packed,
@@ -774,6 +785,7 @@ def p_value_packed(id: int) -> Property:
         is_system=True,
         is_stored=True,
         is_wired=True,
+        is_array=False,
     )
 
 
@@ -792,6 +804,7 @@ def p_secret_value_packed(id: int) -> Property:
         is_sensitive=True,
         is_encrypted=True,
         is_deferred=True,
+        is_array=False,
     )
 
 
@@ -807,6 +820,7 @@ def p_value_dynamic(id: int) -> Property:
         is_system=True,
         is_stored=True,
         is_wired=True,
+        is_array=False,
     )
 
 
