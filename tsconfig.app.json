@@ -3,13 +3,13 @@
   "include": [
     "env.d.ts",
     "package.json",
-    "frontend/src/**/*",
-    "frontend/src/**/*.ts",
-    "frontend/src/**/*.vue",
+    "bench-web/src/**/*",
+    "bench-web/src/**/*.ts",
+    "bench-web/src/**/*.vue",
     "codegen.ts",
     "codegen.ts"
   ],
-  "exclude": ["frontend/src/**/__tests__/*"],
+  "exclude": ["bench-web/src/**/__tests__/*"],
   "compilerOptions": {
     "resolveJsonModule": true,
     "composite": true,
@@ -19,7 +19,7 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./frontend/src/*"]
+      "@/*": ["./bench-web/src/*"]
     },
     "lib": ["es2019", "dom"]
   }

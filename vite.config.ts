@@ -42,10 +42,10 @@ export default defineConfig(({ command, mode }) => {
       monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] }),
       reloadOnVersionChange(),
     ],
-    root: "./frontend",
+    root: "./bench-web",
     resolve: {
       alias: {
-        "@": fileURLToPath(new URL("./frontend/src", import.meta.url)),
+        "@": fileURLToPath(new URL("./bench-web/src", import.meta.url)),
       },
     },
     build: {

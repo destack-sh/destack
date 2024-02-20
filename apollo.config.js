@@ -4,6 +4,6 @@ module.exports = {
       name: "bench",
       url: "http://localhost:8000/graphql",
     },
-    includes: ["frontend/src/**/*.vue", "frontend/src/**/*.js", "frontend/src/**/*.ts"],
+    includes: ["bench-web/src/**/*.vue", "bench-web/src/**/*.js", "bench-web/src/**/*.ts"],
   },
 };
