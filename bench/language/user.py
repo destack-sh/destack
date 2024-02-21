@@ -21,6 +21,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.validation import validate_name
 from bench.language.value import HasValues
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
@@ -62,7 +63,7 @@ class User(Node):
     )
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: Optional[str] = p_regular(33, default=None)
+    name: Optional[str] = p_regular(33, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     email: str = p_system(35, defer=True, unique=True, sensitive=True)
     main_bench: Optional["Bench"] = p_system(
@@ -109,7 +110,7 @@ class Organization(Node):
     )  # not actually optional but Handle.parent = Organization
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33)
+    name: str = p_regular(33, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     main_bench: Optional["Bench"] = p_system(
         36, array=False, require=False, references=NodeType.BENCH
@@ -131,8 +132,8 @@ class Client(Node):
 
     parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
-    name: Optional[str] = p_regular(32, default=None)
-    device_name: str = p_regular(33)
+    name: Optional[str] = p_regular(32, default=None, validate=validate_name)
+    device_name: str = p_regular(33, validate=validate_name)
     browser_name: Optional[str] = p_regular(34, default=None)
     last_seen_at: datetime = p_system(35)
     logged_in_at: Optional[datetime] = p_system(36, default=None)

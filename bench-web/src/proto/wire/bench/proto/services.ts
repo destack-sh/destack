@@ -6,7 +6,6 @@
 //
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
-import { ServerData } from "./lang";
 import { ServiceType } from "@protobuf-ts/runtime-rpc";
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
@@ -698,6 +697,20 @@ export interface RunProxyBlockResponse {
      * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 2;
      */
     error?: RunErrorData;
+}
+// 
+// Runtime service
+// 
+
+/**
+ * @generated from protobuf message symbolx.bench.RestartRuntimeRequest
+ */
+export interface RestartRuntimeRequest {
+}
+/**
+ * @generated from protobuf message symbolx.bench.RestartRuntimeResponse
+ */
+export interface RestartRuntimeResponse {
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
@@ -3042,6 +3055,56 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
  * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockResponse
  */
 export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RestartRuntimeRequest$Type extends MessageType<RestartRuntimeRequest> {
+    constructor() {
+        super("symbolx.bench.RestartRuntimeRequest", []);
+    }
+    create(value?: PartialMessage<RestartRuntimeRequest>): RestartRuntimeRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RestartRuntimeRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartRuntimeRequest): RestartRuntimeRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RestartRuntimeRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RestartRuntimeRequest
+ */
+export const RestartRuntimeRequest = new RestartRuntimeRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RestartRuntimeResponse$Type extends MessageType<RestartRuntimeResponse> {
+    constructor() {
+        super("symbolx.bench.RestartRuntimeResponse", []);
+    }
+    create(value?: PartialMessage<RestartRuntimeResponse>): RestartRuntimeResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RestartRuntimeResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartRuntimeResponse): RestartRuntimeResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RestartRuntimeResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RestartRuntimeResponse
+ */
+export const RestartRuntimeResponse = new RestartRuntimeResponse$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -3074,9 +3137,9 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.BenchHost
+ * @generated ServiceType for protobuf service symbolx.bench.Host
  */
-export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
+export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
@@ -3092,12 +3155,8 @@ export const BenchHost = new ServiceType("symbolx.bench.BenchHost", [
     { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.Server
+ * @generated ServiceType for protobuf service symbolx.bench.Runtime
  */
-export const Server = new ServiceType("symbolx.bench.Server", [
-    { name: "RestartServer", options: {}, I: RestartServerRequest, O: ServerData }
+export const Runtime = new ServiceType("symbolx.bench.Runtime", [
+    { name: "Restart", options: {}, I: RestartRuntimeRequest, O: RestartRuntimeResponse }
 ]);
-/**
- * @generated ServiceType for protobuf service symbolx.bench.ServerProcess
- */
-export const ServerProcess = new ServiceType("symbolx.bench.ServerProcess", []);

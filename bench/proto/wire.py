@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.21.2"
+VERSION = "2024.02.21.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,12 +13,19 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -2757,6 +2764,16 @@ class RunProxyBlockResponse(betterproto.Message):
     error: Optional["RunErrorData"] = betterproto.message_field(2, optional=True)
 
 
+@dataclass(eq=False, repr=False)
+class RestartRuntimeRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class RestartRuntimeResponse(betterproto.Message):
+    pass
+
+
 class GraphIoStub(betterproto.ServiceStub):
     async def get_nodes(
         self,
@@ -3120,7 +3137,7 @@ class SupervisorStub(betterproto.ServiceStub):
             yield response
 
 
-class BenchHostStub(betterproto.ServiceStub):
+class HostStub(betterproto.ServiceStub):
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -3130,7 +3147,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "GetNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/GetNodes",
+            "/symbolx.bench.Host/GetNodes",
             request,
             GetNodesResponse,
             timeout=timeout,
@@ -3147,7 +3164,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/SearchNodes",
+            "/symbolx.bench.Host/SearchNodes",
             request,
             SearchNodesResponse,
             timeout=timeout,
@@ -3164,7 +3181,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "AggregateNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/AggregateNodes",
+            "/symbolx.bench.Host/AggregateNodes",
             request,
             AggregateNodesResponse,
             timeout=timeout,
@@ -3181,7 +3198,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CommitTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CommitTransaction",
+            "/symbolx.bench.Host/CommitTransaction",
             request,
             CommitTransactionResponse,
             timeout=timeout,
@@ -3198,7 +3215,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "FlushTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/FlushTransaction",
+            "/symbolx.bench.Host/FlushTransaction",
             request,
             FlushTransactionResponse,
             timeout=timeout,
@@ -3215,7 +3232,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CompleteTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CompleteTransaction",
+            "/symbolx.bench.Host/CompleteTransaction",
             request,
             CompleteTransactionResponse,
             timeout=timeout,
@@ -3232,7 +3249,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CancelTransactionResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/CancelTransaction",
+            "/symbolx.bench.Host/CancelTransaction",
             request,
             CancelTransactionResponse,
             timeout=timeout,
@@ -3249,7 +3266,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> AsyncIterator["WatchEditsResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.BenchHost/WatchEdits",
+            "/symbolx.bench.Host/WatchEdits",
             request,
             WatchEditsResponse,
             timeout=timeout,
@@ -3267,7 +3284,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "UploadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/UploadFiles",
+            "/symbolx.bench.Host/UploadFiles",
             request,
             UploadFilesResponse,
             timeout=timeout,
@@ -3284,7 +3301,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "DownloadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/DownloadFiles",
+            "/symbolx.bench.Host/DownloadFiles",
             request,
             DownloadFilesResponse,
             timeout=timeout,
@@ -3301,7 +3318,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PingServerResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/RestartServer",
+            "/symbolx.bench.Host/RestartServer",
             request,
             PingServerResponse,
             timeout=timeout,
@@ -3318,7 +3335,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PingServerResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/PingServer",
+            "/symbolx.bench.Host/PingServer",
             request,
             PingServerResponse,
             timeout=timeout,
@@ -3335,7 +3352,7 @@ class BenchHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "RunProxyBlockResponse":
         return await self._unary_unary(
-            "/symbolx.bench.BenchHost/RunProxyBlock",
+            "/symbolx.bench.Host/RunProxyBlock",
             request,
             RunProxyBlockResponse,
             timeout=timeout,
@@ -3344,27 +3361,23 @@ class BenchHostStub(betterproto.ServiceStub):
         )
 
 
-class ServerStub(betterproto.ServiceStub):
-    async def restart_server(
+class RuntimeStub(betterproto.ServiceStub):
+    async def restart(
         self,
-        request: "RestartServerRequest",
+        request: "RestartRuntimeRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "ServerData":
+    ) -> "RestartRuntimeResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Server/RestartServer",
+            "/symbolx.bench.Runtime/Restart",
             request,
-            ServerData,
+            RestartRuntimeResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
-
-
-class ServerProcessStub(betterproto.ServiceStub):
-    pass
 
 
 class GraphIoBase(ServiceBase):
@@ -3772,7 +3785,7 @@ class SupervisorBase(ServiceBase):
         }
 
 
-class BenchHostBase(ServiceBase):
+class HostBase(ServiceBase):
     async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -3940,79 +3953,79 @@ class BenchHostBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.BenchHost/GetNodes": grpclib.const.Handler(
+            "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
                 self.__rpc_get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 GetNodesRequest,
                 GetNodesResponse,
             ),
-            "/symbolx.bench.BenchHost/SearchNodes": grpclib.const.Handler(
+            "/symbolx.bench.Host/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
             ),
-            "/symbolx.bench.BenchHost/AggregateNodes": grpclib.const.Handler(
+            "/symbolx.bench.Host/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.BenchHost/CommitTransaction": grpclib.const.Handler(
+            "/symbolx.bench.Host/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitTransactionRequest,
                 CommitTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/FlushTransaction": grpclib.const.Handler(
+            "/symbolx.bench.Host/FlushTransaction": grpclib.const.Handler(
                 self.__rpc_flush_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 FlushTransactionRequest,
                 FlushTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/CompleteTransaction": grpclib.const.Handler(
+            "/symbolx.bench.Host/CompleteTransaction": grpclib.const.Handler(
                 self.__rpc_complete_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CompleteTransactionRequest,
                 CompleteTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/CancelTransaction": grpclib.const.Handler(
+            "/symbolx.bench.Host/CancelTransaction": grpclib.const.Handler(
                 self.__rpc_cancel_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CancelTransactionRequest,
                 CancelTransactionResponse,
             ),
-            "/symbolx.bench.BenchHost/WatchEdits": grpclib.const.Handler(
+            "/symbolx.bench.Host/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
-            "/symbolx.bench.BenchHost/UploadFiles": grpclib.const.Handler(
+            "/symbolx.bench.Host/UploadFiles": grpclib.const.Handler(
                 self.__rpc_upload_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 UploadFilesRequest,
                 UploadFilesResponse,
             ),
-            "/symbolx.bench.BenchHost/DownloadFiles": grpclib.const.Handler(
+            "/symbolx.bench.Host/DownloadFiles": grpclib.const.Handler(
                 self.__rpc_download_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DownloadFilesRequest,
                 DownloadFilesResponse,
             ),
-            "/symbolx.bench.BenchHost/RestartServer": grpclib.const.Handler(
+            "/symbolx.bench.Host/RestartServer": grpclib.const.Handler(
                 self.__rpc_restart_server,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RestartServerRequest,
                 PingServerResponse,
             ),
-            "/symbolx.bench.BenchHost/PingServer": grpclib.const.Handler(
+            "/symbolx.bench.Host/PingServer": grpclib.const.Handler(
                 self.__rpc_ping_server,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PingServerRequest,
                 PingServerResponse,
             ),
-            "/symbolx.bench.BenchHost/RunProxyBlock": grpclib.const.Handler(
+            "/symbolx.bench.Host/RunProxyBlock": grpclib.const.Handler(
                 self.__rpc_run_proxy_block,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RunProxyBlockRequest,
@@ -4021,112 +4034,108 @@ class BenchHostBase(ServiceBase):
         }
 
 
-class ServerBase(ServiceBase):
-    async def restart_server(
-        self, subject: "Subject", request: "RestartServerRequest"
-    ) -> "ServerData":
+class RuntimeBase(ServiceBase):
+    async def restart(
+        self, subject: "Subject", request: "RestartRuntimeRequest"
+    ) -> "RestartRuntimeResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_restart_server(
-        self, stream: "grpclib.server.Stream[RestartServerRequest, ServerData]"
+    async def __rpc_restart(
+        self,
+        stream: "grpclib.server.Stream[RestartRuntimeRequest, RestartRuntimeResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.restart_server(request)
+        response = await self.restart(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Server/RestartServer": grpclib.const.Handler(
-                self.__rpc_restart_server,
+            "/symbolx.bench.Runtime/Restart": grpclib.const.Handler(
+                self.__rpc_restart,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RestartServerRequest,
-                ServerData,
+                RestartRuntimeRequest,
+                RestartRuntimeResponse,
             ),
         }
 
 
-class ServerProcessBase(ServiceBase):
-    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
-        return {}
-
+import bench.proto.monkey  # noqa
 
 from typing import Union  # noqa
 
-import bench.proto.monkey  # noqa
-
 AnyNodeData = Union[
-    UpgradeData,
-    SkipData,
-    OrganizationData,
-    HandleData,
-    FileContentData,
     ClientData,
-    MembershipData,
-    NoticeData,
-    ViewData,
-    BlockData,
-    PackageData,
-    IdentityData,
-    RecordData,
-    UserData,
-    CacheData,
-    DependencyData,
-    QueryData,
-    SessionData,
-    DriveData,
-    SpaceData,
+    EnvironmentData,
     BenchData,
-    LinkData,
+    FileContentData,
+    BadgeData,
+    MembershipData,
+    QueryData,
+    PauseData,
+    SkipData,
     BranchData,
     RunData,
+    UpgradeData,
+    CacheData,
     SignalData,
-    BadgeData,
-    TriggerData,
-    FieldData,
-    EnvironmentData,
-    InviteData,
-    PauseData,
-    NotificationData,
+    RecordData,
+    NoticeData,
+    DriveData,
+    SpaceData,
+    ViewData,
+    DependencyData,
+    IdentityData,
+    OrganizationData,
+    BlockData,
+    HandleData,
     RoleData,
+    TriggerData,
+    UserData,
+    LinkData,
+    InviteData,
     LogData,
+    NotificationData,
+    PackageData,
     ServerData,
+    SessionData,
     StoreData,
+    FieldData,
 ]
 AnyStructData = Union[
+    AccessTraceData,
     PathTokenData,
-    NodeReferenceData,
-    RunErrorData,
-    CodeData,
-    SpaceDockData,
+    RunCodeFrameData,
+    ValueReferenceData,
+    ContextData,
     PathData,
     ProjectionData,
-    ScheduleData,
-    AccessData,
-    RequestData,
-    AccessZoneData,
-    TextLineData,
-    ValueReferenceData,
-    ReadOptionsData,
-    ServerImageData,
-    AggregationBucketData,
-    ExpressionData,
-    CodeLineData,
-    FileData,
     TypeInfoData,
-    SubjectData,
-    RunCodeFrameData,
-    ContextData,
-    StoreCredentialData,
-    PolicyRuleData,
-    TextData,
-    TextSpanData,
-    IconData,
-    AccessMatrixData,
+    SpaceDockData,
+    ScheduleData,
+    CodeData,
+    TextLineData,
+    RequestData,
     AggregationData,
+    NodeReferenceData,
+    ExpressionData,
+    ServerImageData,
+    TextSpanData,
+    FileData,
+    ReadOptionsData,
+    RunErrorData,
+    CodeLineData,
+    StoreCredentialData,
+    AccessMatrixData,
+    IconData,
+    PolicyRuleData,
+    SubjectData,
+    AggregationBucketData,
+    AccessZoneData,
+    PropertyReferenceData,
     PathSegmentData,
     SpaceDockItemData,
     ServerImageRequirementData,
     PolicyData,
-    AccessTraceData,
-    PropertyReferenceData,
+    TextData,
+    AccessData,
 ]

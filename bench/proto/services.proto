@@ -218,10 +218,21 @@ service GraphIO {
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
 
-// Global control plane: all the global stuff like Benches, Users, etc..
-// Will probably shard this at some point.
-// Frontend connects to this directly.
+// Global control plane: create & manage the global stuff like Benches, Users, etc..
 service Supervisor {
+  //
+  // Global IO for non-source nodes outside Benches :GraphIO
+  //
+
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
   //
   // User management
   //
@@ -241,19 +252,6 @@ service Supervisor {
 
   // Create a Bench.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
-
-  //
-  // General IO for non-source nodes :GraphIO
-  //
-
-  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
-  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
-  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
-  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 }
 
 //
@@ -294,10 +292,8 @@ message RunProxyBlockResponse {
 }
 
 
-// The Bench host managing the runtime for all its packages.
-// Service is scoped to bench_id.
-// Frontend connects to this directly.
-service BenchHost {
+// The host providing access and the persistent 'system-side' OS for a Bench.
+service Host {
   //
   // General IO for nodes in this Bench only :GraphIO
   //
@@ -334,19 +330,16 @@ service BenchHost {
 }
 
 //
-// Server node
+// Runtime service
 //
 
-// A user Server providing an isolated Bench runtime to execute user stuff.
-// Service is scoped to bench_id/server_id.
-// Not directly accessible from the outside.
-service Server {
-  // Restart this server immediately.
-  rpc RestartServer(RestartServerRequest) returns (ServerData);
+message RestartRuntimeRequest {
+}
+message RestartRuntimeResponse {
 }
 
-// The actual server process executing a Bench 'thread'.
-// Service is scoped to bench_id/server_id/server_process_id.
-// Not directly accessible from the outside.
-service ServerProcess {
+// A Runtime for running a Bench in an isolated environment.
+service Runtime {
+  // Restart this server immediately.
+  rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
 }

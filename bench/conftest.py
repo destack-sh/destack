@@ -1,6 +1,8 @@
+from contextlib import contextmanager
 import os
 from typing import TYPE_CHECKING
 
+import grpclib
 import psycopg
 import pytest
 from pytest_asyncio import is_async_test
@@ -80,3 +82,10 @@ async def fabricator() -> "Fabricator":
     from bench.language.test.fabricator import Fabricator
 
     yield Fabricator(seed=42)
+
+
+@contextmanager
+def raises_grpc_error(status: grpclib.const.Status):
+    with pytest.raises(grpclib.GRPCError) as exc_info:
+        yield
+    assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"

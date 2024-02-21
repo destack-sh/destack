@@ -1,5 +1,4 @@
 import enum
-import re
 from typing import TYPE_CHECKING, Union
 
 import betterproto
@@ -63,12 +62,7 @@ def on_invalid_raise(
     raise ValidationError(subject, message, properties, cause)
 
 
-# :NameValidation
-# names can be alphanumeric, hyphen, underscore, dot, spaces (but no tabs or newlines)
-# leading and trailing spaces are fine
-
-MAX_NAME_LENGTH = 256
-NAME_REGEX = re.compile(r"^[a-zA-Z0-9_.\-:/ \xa0]*$")
+MAX_NAME_LENGTH = 128
 
 
 def validate_name(value: str, on_invalid: PropertyValidationHandler):
@@ -76,17 +70,9 @@ def validate_name(value: str, on_invalid: PropertyValidationHandler):
         on_invalid(f"not a string ({type(value)})")
     if len(value) > MAX_NAME_LENGTH:
         on_invalid(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
-    if not NAME_REGEX.match(value):
-        on_invalid(f"invalid characters ('{value}')")
 
 
-MAX_TEXT_LENGTH = 2048
-
-# not used in packages right now?
-MAX_DESCRIPTION_LENGTH = 512
-
-
-# TODO :Cleanup :Robustness: turn validators into Validators, compile constraints into SQL
+# TODO :Cleanup :Robustness: compile constraints into SQL
 
 
 # NOTE: we cache these validators not for performance but for reference equality

@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -6,6 +5,7 @@ from uuid import uuid4
 import grpclib
 import pytest
 
+from bench.conftest import raises_grpc_error
 from bench.language import Client, ReadOptions, User
 from bench.language.const import PUBLIC_NODE_TYPES, ROOT_NODE_TYPES, EditType, NodeType
 from bench.language.expression import A
@@ -30,13 +30,6 @@ from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
-
-
-@contextmanager
-def raises_grpc_error(status: grpclib.const.Status):
-    with pytest.raises(grpclib.GRPCError) as exc_info:
-        yield
-    assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
 
 
 async def test_user_auth_flow(supervisor: SupervisorStub):

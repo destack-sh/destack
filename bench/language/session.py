@@ -54,7 +54,7 @@ from bench.language.property import (
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
+from bench.proto.wire import HostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
@@ -439,7 +439,7 @@ class Session(Node):
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
-    _host: Optional["BenchHostStub"] = p_runtime(default=None)
+    _host: Optional["HostStub"] = p_runtime(default=None)
 
     # runtime
     _stacktrace: list["Run"] | None = p_runtime(default=None)
@@ -494,7 +494,7 @@ class Session(Node):
         return self.closed_at is not None
 
     @property
-    def host(self) -> "BenchHostStub":
+    def host(self) -> "HostStub":
         """The remote host."""
         assert self._host is not None, f"host not available in {self!r}"
         return self._host

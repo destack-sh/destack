@@ -4,8 +4,10 @@ import secrets
 from typing import NamedTuple, cast
 from uuid import uuid4
 
+import grpclib
 import structlog
 
+from bench.conftest import raises_grpc_error
 from bench.language import Node, Property, User
 from bench.language.const import EditType, NodeType, PrimitiveType, UserStatus
 from bench.language.node import new_struct_id
@@ -208,3 +210,22 @@ async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
         scope=GraphScope(),
         seed=42,
     )
+
+
+async def test_supervisor_invalid_node(some_user: UserHandle, supervisor: SupervisorStub):
+    """Update a User property to an invalid value, should be rejected."""
+
+    user = some_user.user
+    user.name = ""
+    edit = EditData(
+        id=new_struct_id(),
+        type=wiring.pack_enum(EditType, EditType.UPDATE),
+        node_type=wiring.pack_enum(NodeType, NodeType.USER),
+        node=wiring.wrap_some_node(wiring.pack_node(user)),
+        properties=[User.name.id],
+    )
+    with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
+        _ = await supervisor.commit_transaction(
+            CommitTransactionRequest(scope=GraphScope(), id=str(uuid4()), edits=[edit]),
+            metadata=some_user.headers,
+        )
