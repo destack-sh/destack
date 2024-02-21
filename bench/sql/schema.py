@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.02.21.1"
+VERSION = "2024.02.21.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -829,7 +829,7 @@ FIELD_TABLE = Table(
         Column("precision", PrimitiveType.INT32, is_nullable=True),
         Column("scale", PrimitiveType.INT32, is_nullable=True),
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("is_array", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, default="false"),

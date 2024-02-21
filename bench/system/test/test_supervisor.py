@@ -161,7 +161,6 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
                     _ = await supervisor.commit_transaction(
                         commit_req, metadata=actor_handle.headers
                     )
-
             # update the User's client's device name
             target_data = target_handle.client._to_data()
             target_data.device_name = f"{actor.name}'s Puppet Device"

@@ -911,7 +911,7 @@ def _pack_and_truncate_value(
 
     def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
         if type.primitive_type == PrimitiveType.VECTOR:
-            if type.is_array:
+            if type.is_list:
                 return []
             else:
                 return None

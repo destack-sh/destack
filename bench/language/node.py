@@ -729,12 +729,10 @@ def _node_ref_computed_prop(
 ) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
-    is_array = ref_prop.is_array
-
     def get(self: NodeT) -> Optional[Any]:
         ref = getattr(self, ref_prop.name)
         ptr = getattr(self, ptr_prop.name)
-        if is_array:
+        if ref_prop.is_list:
             if ref:
                 return tuple(getattr(r, key_ref) for r in ref or ())
             else:
@@ -953,7 +951,7 @@ class Struct(abc.ABC):
                 and value is not None
             ):
                 # copy struct if needed (only after init since child struct needs our id)
-                if prop.is_array:
+                if prop.is_list:
                     value = ValueList._lazy_copy_for(value, self, prop)
                 else:
                     value = value._lazy_copy_to(self, prop)
@@ -1067,7 +1065,7 @@ class Struct(abc.ABC):
             value = getattr(self, prop.name)
             if value is None:
                 continue
-            elif not prop.is_array:
+            elif not prop.is_list:
                 yield from value._walk_self()
             elif len(value) > 0:
                 for item in value:
@@ -1078,7 +1076,7 @@ class Struct(abc.ABC):
             # copy new structs if needed (now that we have an id for sure)
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 existing = getattr(self, prop.name, None)
-                if prop.is_array:
+                if prop.is_list:
                     self.__dict__[prop.name] = prop.reference_list_type(self, prop)
                     if existing:
                         # will auto copy if needed
@@ -1090,7 +1088,7 @@ class Struct(abc.ABC):
             # init property reference pointers if references are set
             if prop.reference_kind == ReferenceKind.PROPERTY:
                 existing = getattr(self, prop.name, None)
-                if prop.is_array:
+                if prop.is_list:
                     if existing:
                         self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(existing)
                 elif existing is not None:
@@ -1118,7 +1116,7 @@ class Struct(abc.ABC):
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:
                 continue
-            if prop.is_array:
+            if prop.is_list:
                 ptr = cast(list["NodeReference"], ptr)
                 resolved = []
                 for p in ptr:
@@ -1140,7 +1138,7 @@ class Struct(abc.ABC):
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:
                 continue
-            if prop.is_array:
+            if prop.is_list:
                 ptr = cast(list["PropertyReference"], ptr)
                 setattr(self, prop.name, [p.resolve() for p in ptr])
             else:
@@ -1197,7 +1195,7 @@ class Struct(abc.ABC):
         for prop in self.__struct_properties__.values():
             value = getattr(self, prop.name)
             if value:
-                if prop.is_array:
+                if prop.is_list:
                     for item in value:
                         yield from item._walk_self()
                 else:

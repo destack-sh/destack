@@ -1460,7 +1460,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1526,9 +1526,9 @@ export interface TypeInfoData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_array = 50;
+     * @generated from protobuf field: bool is_list = 50;
      */
-    isArray: boolean;
+    isList: boolean;
     /**
      * @generated from protobuf field: bool is_required = 51;
      */
@@ -2447,9 +2447,9 @@ export interface FieldData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_array = 50;
+     * @generated from protobuf field: bool is_list = 50;
      */
-    isArray: boolean;
+    isList: boolean;
     /**
      * @generated from protobuf field: bool is_required = 51;
      */
@@ -10595,7 +10595,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 49, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 50, name: "is_array", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 50, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 51, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 52, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -10605,7 +10605,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         message.metatype = 0;
         message.id = 0;
         message.visibility = 0;
-        message.isArray = false;
+        message.isList = false;
         message.isRequired = false;
         message.isSecret = false;
         if (value !== undefined)
@@ -10662,8 +10662,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional google.protobuf.Struct default_packed */ 49:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_array */ 50:
-                    message.isArray = reader.bool();
+                case /* bool is_list */ 50:
+                    message.isList = reader.bool();
                     break;
                 case /* bool is_required */ 51:
                     message.isRequired = reader.bool();
@@ -10728,9 +10728,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional google.protobuf.Struct default_packed = 49; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_array = 50; */
-        if (message.isArray !== false)
-            writer.tag(50, WireType.Varint).bool(message.isArray);
+        /* bool is_list = 50; */
+        if (message.isList !== false)
+            writer.tag(50, WireType.Varint).bool(message.isList);
         /* bool is_required = 51; */
         if (message.isRequired !== false)
             writer.tag(51, WireType.Varint).bool(message.isRequired);
@@ -12485,7 +12485,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 49, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 50, name: "is_array", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 50, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 51, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 52, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -12501,7 +12501,7 @@ class FieldData$Type extends MessageType<FieldData> {
         message.source = 0;
         message.revision = 0n;
         message.visibility = 0;
-        message.isArray = false;
+        message.isList = false;
         message.isRequired = false;
         message.isSecret = false;
         message.isInput = false;
@@ -12600,8 +12600,8 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct default_packed */ 49:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_array */ 50:
-                    message.isArray = reader.bool();
+                case /* bool is_list */ 50:
+                    message.isList = reader.bool();
                     break;
                 case /* bool is_required */ 51:
                     message.isRequired = reader.bool();
@@ -12714,9 +12714,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct default_packed = 49; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_array = 50; */
-        if (message.isArray !== false)
-            writer.tag(50, WireType.Varint).bool(message.isArray);
+        /* bool is_list = 50; */
+        if (message.isList !== false)
+            writer.tag(50, WireType.Varint).bool(message.isList);
         /* bool is_required = 51; */
         if (message.isRequired !== false)
             writer.tag(51, WireType.Varint).bool(message.isRequired);

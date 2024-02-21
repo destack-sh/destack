@@ -389,7 +389,7 @@ LOCAL_DOCUMENTS: tuple[os.Document, ...] = tuple(
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
-    elif prop.is_array and not ignore_array:
+    elif prop.is_list and not ignore_array:
         return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_struct(value)
@@ -404,7 +404,7 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
-    elif prop.is_array and not ignore_array:
+    elif prop.is_list and not ignore_array:
         return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return unpack_struct(value)
