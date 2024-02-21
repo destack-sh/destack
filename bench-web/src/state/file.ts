@@ -89,7 +89,7 @@ export function provideFileState(file: Ref<FileState | null>) {
     return result;
   });
 
-  // TODO @Cleanup: use module.orderStatements here (like in StatementExplorer)
+  // TODO :Cleanup: use module.orderStatements here (like in StatementExplorer)
   const ordered = computed(() => orderStatements(file.value?.statementsUnordered ?? []));
   const statements = computed(() => ordered.value.ordered.map((positioned) => positioned.statement));
   const depths = computed(() => ordered.value.ordered.map((positioned) => positioned.depth));
@@ -151,7 +151,7 @@ export type StatementLocation = {
   orderKey: string;
 };
 
-// TODO @Cleanup @Architecture: decouple navigation from file context? it's all a bit convoluted..
+// TODO :Cleanup :Architecture: decouple navigation from file context? it's all a bit convoluted..
 export type NavigationContext = FileContext & {
   current: CurrentNavigationContext;
 

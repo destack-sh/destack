@@ -43,6 +43,6 @@ const icon = computed(() => {
 });
 </script>
 <template>
-  <!-- TODO @Cleanup: merge TypePreview component into call sites (just use getIcon function above) -->
+  <!-- TODO :Cleanup: merge TypePreview component into call sites (just use getIcon function above) -->
   <component :is="icon" class="h-4 w-4" />
 </template>

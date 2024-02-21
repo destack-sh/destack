@@ -36,7 +36,7 @@ export function valueRef<T>(value: T) {
         return value;
       },
       set(newValue: T) {
-        // TODO @Performance: find better ways to implement value ref semantics
+        // TODO :Performance: find better ways to implement value ref semantics
         const newValueType = typeof newValue;
         const valueType = typeof value;
         if (newValueType == valueType) {

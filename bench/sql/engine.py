@@ -16,11 +16,11 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from bitarray import bitarray
 import cachetools
 import psycopg
 import pytz
 import structlog
+from bitarray import bitarray
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
@@ -29,33 +29,28 @@ from bench.language import (
     ConditionalOp,
     Field,
     Package,
+    Property,
+    Store,
     StoreEngineType,
     TypeInfo,
-    Store,
-    Property,
 )
 from bench.language.access import ReadOptions
 from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
-from bench.language.node import (
-    NODE_CLASS_BY_TYPE,
-    UNSET,
-    Node,
-    derive_package_node_id,
-)
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, derive_package_node_id
 from bench.language.query import StoreEngineIncapableError
-from bench.language.setup import PARENT_NODE_TYPES, NODE_CLASSES
+from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import (
     current_pg_crypto_key,
-    pg_cursor_to_store,
-    pg_cursor,
     get_pg_connection_str,
+    pg_cursor,
+    pg_cursor_to_store,
 )
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
@@ -181,7 +176,7 @@ def get_bench_table_name(node_type: NodeType) -> str:
 
 
 def map_node_class_to_pg_table(node: type[Node]) -> Table:
-    # TODO @Robustness: add Bench check constraints in Postgres
+    # TODO :Robustness: add Bench check constraints in Postgres
     table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = [*(node.__extra_constraints__ or ())]
@@ -570,7 +565,7 @@ async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list
     return await cur.fetchall()
 
 
-# TODO @Cleanup @Security: parameterize pg crypto key per database & pass more selectively
+# TODO :Cleanup :Security: parameterize pg crypto key per database & pass more selectively
 
 
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
@@ -1270,7 +1265,7 @@ async def pg_get_node_data_graph(
             current_parents = next_parents
 
     # select descendants (recursively)
-    # TODO @Performance!: recurse read nodes up?/down in SQL
+    # TODO :Performance!: recurse read nodes up?/down in SQL
     #  (take advantage of the ancestry graph to optimize this)
     if options.descendant_types:
         current_parents: list[wire.AnyNodeData] = root_nodes
@@ -1364,7 +1359,7 @@ async def pg_search_nodes_data_graph(
         return roots, graph
 
 
-# TODO @Performance: use psycopg3/postgres pipelining to batch edits?
+# TODO :Performance: use psycopg3/postgres pipelining to batch edits?
 
 
 async def pg_write_edits(
@@ -1970,7 +1965,7 @@ async def pg_duplicate_records(
         raise ValueError(f"target {target_table!r} is not a superset of source {source_table!r}")
     target_package_id = target_database.package.id
 
-    # TODO @Performance: duplicate records within same database directly in postgres
+    # TODO :Performance: duplicate records within same database directly in postgres
     where = where & C(
         ConditionalOp.EQUALS, field_key="block_key", value=source_database.dynamic_key
     )

@@ -22,7 +22,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Field, TypeInfo, Path
+    from bench.language import Block, Field, TypeInfo, Path
     from bench.language.query import QueryBuilder
 
 #

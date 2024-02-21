@@ -627,6 +627,7 @@ enum TextLineType {
   TEXT_LINE_TYPE_CALLOUT = 12;
   TEXT_LINE_TYPE_LIST_BULLET = 16;
   TEXT_LINE_TYPE_LIST_NUMBERED = 17;
+  TEXT_LINE_TYPE_DIVIDER = 21;
 }
 
 // Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -1578,7 +1579,7 @@ message LogData {
   optional NodeReferenceData block_ptr = 42;
 }
 
-// A membership to this Bench (or its owner if it's the main Bench).
+// A membership to this Bench (and its owner if it's the main Bench).
 message MembershipData {
   BenchType metatype = 1;
   string id = 2;
@@ -1862,8 +1863,9 @@ message SessionData {
   optional NodeReferenceData server_ptr = 31;
   optional google.protobuf.Timestamp opened_at = 32;
   optional google.protobuf.Timestamp closed_at = 33;
-  bool is_runtime = 34;
-  bool is_read_only = 35;
+  optional float duration = 34;
+  bool is_runtime = 40;
+  bool is_read_only = 41;
 }
 
 // A signal emitted in this Bench.
@@ -1992,7 +1994,8 @@ message UpgradeData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
-  optional TextData text = 34;
+  optional string title = 34;
+  optional TextData text = 35;
 }
 
 // A Bench user.

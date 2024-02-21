@@ -26,14 +26,14 @@ async def shell(bench: str = None):
         async with global_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
     logger.info("lang.shell", bench=bench)
-    raise NotImplementedError("TODO @Dev: shell.session")
+    raise NotImplementedError("TODO :Incomplete: shell.session")
 
 
 @app.command(help="Plots the node type ancestry graph.")
 @_async_to_sync_blocking
 async def plot():
-    import networkx as nx
     import matplotlib.pyplot as plt
+    import networkx as nx
 
     g = nx.DiGraph()
     for node_type in NODE_TYPES:

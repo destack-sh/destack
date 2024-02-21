@@ -3,7 +3,7 @@ import pytest
 from bench.language.path import Path
 
 
-@pytest.mark.skip("@Incomplete :BenchPath")
+@pytest.mark.skip(":Incomplete :BenchPath")
 @pytest.mark.parametrize(
     ("path_str", "expected"),
     [],

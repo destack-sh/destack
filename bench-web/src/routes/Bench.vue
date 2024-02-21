@@ -223,7 +223,7 @@ watchEffect(() => {
 });
 
 // get project content
-// TODO @Performance: consolidate project version load into project load (if version to view == head)
+// TODO :Performance: consolidate project version load into project load (if version to view == head)
 const { error: versionError, result: versionResult } = useQuery(
   graphql(/* GraphQL */ `
     query projectVersionHeader($id: GlobalID!) {
@@ -307,7 +307,7 @@ watch(
 );
 
 // prevent close if there are inflight ops
-// TODO @UX @Robustness: prompt if unsaved changes doesn't always work
+// TODO @UX :Robustness: prompt if unsaved changes doesn't always work
 const confirmDiscardUnsaved = (e: Event) => {
   if (hasInflightOps.value) {
     e.preventDefault();

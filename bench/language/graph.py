@@ -1,6 +1,6 @@
 import abc
-from collections import defaultdict, deque
 import functools
+from collections import defaultdict, deque
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import InterpStatus, NodeType, NRel, EMPTY_LIST, ReferenceKind
+from bench.language.const import EMPTY_LIST, InterpStatus, NodeType, NRel, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -22,7 +22,8 @@ from bench.proto.wire import AnyNodeData
 from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, Node
+    # noinspection PyUnresolvedReferences
+    from bench.language import Node, Property, Value, Struct, Field
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -549,7 +550,7 @@ class NodeList(abc.ABC, Collection, Generic[NodeT]):
 
 
 class InMemoryGraphNodeList(NodeList[NodeT]):
-    # TODO @Cleanup @Architecture: use ReadQuery/WriteQuery in NodeList?
+    # TODO :Cleanup :Architecture: use ReadQuery/WriteQuery in NodeList?
     #  (with InMemoryGraphEngine to query)
     __slots__ = ("_child_node_type", "_flags")
 

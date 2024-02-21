@@ -2,8 +2,9 @@ import abc
 import dataclasses
 import enum
 import functools
-import secrets
 import inspect
+import math
+import secrets
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -26,7 +27,6 @@ from typing import (
     final,
 )
 from uuid import UUID, uuid4
-import math
 
 import structlog
 from bitarray import bitarray
@@ -39,39 +39,34 @@ from bench.language.const import (
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
-    NodeSource,
     InterpStatus,
+    NodeSource,
     NodeType,
     NRel,
+    ReferenceKind,
     StructType,
     _active_session,
-    ReferenceKind,
 )
-from bench.language.property import Property, p_struct_parent
-from bench.language.graph import (
-    DetachedNodeGraph,
-    NodeGraph,
-    NodeList,
-    NodeDataGraph,
-    ValueList,
-)
-from bench.language.setup import (
-    STRUCT_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-    NODE_COMPONENT_CLASS_BY_NAME,
-    HAS_CHILD_NODE_TYPES,
-    _on_completing_setup,
-)
+from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList, ValueList
 from bench.language.property import (
-    p_runtime,
-    p_node_parent,
+    _PROPERTY_SPECIFIERS,
+    METATYPE_PROPERTY,
+    Property,
+    p_internal,
     p_node_ancestor,
     p_node_child,
+    p_node_parent,
     p_regular,
-    p_internal,
+    p_runtime,
+    p_struct_parent,
     p_system,
-    METATYPE_PROPERTY,
-    _PROPERTY_SPECIFIERS,
+)
+from bench.language.setup import (
+    HAS_CHILD_NODE_TYPES,
+    NODE_CLASS_BY_TYPE,
+    NODE_COMPONENT_CLASS_BY_NAME,
+    STRUCT_CLASS_BY_TYPE,
+    _on_completing_setup,
 )
 from bench.language.validation import (
     PropertyValidationHandler,
@@ -80,14 +75,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.wire import AnyNodeData, AnyStructData, SomeNodeData
-from bench.sql.core import (
-    Constraint,
-    ConstraintType,
-    Index,
-    IndexType,
-    PrimitiveType,
-    Table,
-)
+from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import bytetuple, did_you_mean_str
@@ -96,6 +84,7 @@ from bench.utils.utils import frozendict
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
+        Field,
         FieldPath,
         NodeReference,
         NodeVisitor,
@@ -103,12 +92,11 @@ if TYPE_CHECKING:
         NoticeType,
         Package,
         PropertyReference,
-        Session,
-        ValueReference,
-        User,
         Run,
+        Session,
+        User,
         Value,
-        Field,
+        ValueReference,
     )
     from bench.language.expression import _NodeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -447,7 +435,7 @@ def _process_struct_base_cls(
         raise ValueError(f"missing parent property for node {cls}")
     cls.__parent_property__ = parent_property
 
-    # TODO @Performance!: use slots for Struct/Node and wire types (StructData/NodeData/...)
+    # TODO :Performance!: use slots for Struct/Node and wire types (StructData/NodeData/...)
     #  Using slots everywhere is made trickier than it seems because
     #   1) some weird runtime errors
     #   2) we use dynamic props in Blocks (for now?)

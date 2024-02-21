@@ -116,7 +116,7 @@ export function getTriggerSchedule(
       const intervalReal = interval / INTERVAL_UNITS[intervalUnit];
       humanized = intervalReal == 1 ? `every ${intervalUnit}` : `every ${intervalReal} ${intervalUnit}s`;
 
-      // TODO @Performance: use more optimal algorithm to find past/next occurrences of interval schedule (same in backend)
+      // TODO :Performance: use more optimal algorithm to find past/next occurrences of interval schedule (same in backend)
       const nowSeconds = now.toSeconds();
       let next = TRIGGER_INTERVAL_ORIGIN.toSeconds();
       let previous = next;

@@ -43,12 +43,14 @@ from bench.proto.wire import (
 from bench.utils.func import _auto_async_to_sync, bytetuple
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, ReadOptions, Session, Store
+    from bench.language import Block, Expression, ReadOptions, Session, Store, Field, Property
     from bench.sql.client import _PgStoreConnection
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
-FieldOrProperty = Union["Field", "Property", Any]
+FieldOrProperty = Union[
+    Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
+]
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 

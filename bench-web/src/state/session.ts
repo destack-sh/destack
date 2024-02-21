@@ -290,7 +290,7 @@ export function _useSessions(
         }
       }
     });
-    // TODO @Performance @Robustness: periodically purge stale runs (that are inactive and not the latest for any statement in the module)
+    // TODO :Performance :Robustness: periodically purge stale runs (that are inactive and not the latest for any statement in the module)
   }
 
   function onRunChange(subscriber: (run: Run) => void): () => void {
@@ -329,7 +329,7 @@ export function _useSessions(
 
   // automatically refetch worker sets if they're not ready and the last update is >5s ago
   // (this doesn't actually _do_ anything, it's just to ensure the UI remains fresh)
-  // TODO @Cleanup @Architecture: manual worker set syncing should not be needed?
+  // TODO :Cleanup :Architecture: manual worker set syncing should not be needed?
   watch(
     () => Object.values(workerSets.value).map((w) => w.updatedAt),
     async () => {

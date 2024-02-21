@@ -273,7 +273,7 @@ class Tokenizer(enum.StrEnum):
 
 
 CUSTOM_TOKENIZERS = {
-    # TODO @Performance: character length by tokenizing each character seems pretty inefficient
+    # TODO :Performance: character length by tokenizing each character seems pretty inefficient
     #  (even though this isn't actually stored or indexed directly, just the count)
     # Maybe this should just be a user-side scripted field, but we don't have those yet.
     # Would also be nice later for quantized vector fields.

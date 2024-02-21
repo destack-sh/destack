@@ -8,14 +8,13 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
-    TypedDict,
     Union,
 )
 
 import structlog
 
-from bench.language.const import StructType, NodeType
-from bench.language.node import Node, InterpStatus, Property, struct, Struct, struct_component
+from bench.language.const import NodeType, StructType
+from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler
@@ -23,14 +22,13 @@ from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
     from bench.language import (
-        NodeVisitor,
-        Session,
-        TypeInfo,
         Bench,
-        Environment,
-        Branch,
-        Package,
         Block,
+        Branch,
+        Environment,
+        NodeVisitor,
+        Package,
+        Session,
     )
     from bench.language.field import Field, TypeInfo
 
@@ -70,7 +68,7 @@ class Value:
             return self.parent._status
 
     def _updated_self(self, properties: tuple[Union[Property, "Field"], ...]):
-        raise NotImplementedError("@Incomplete")
+        raise NotImplementedError(":Incomplete")
 
 
 @struct_component
@@ -325,56 +323,6 @@ def pack_value(
         ignore_empty=ignore_empty,
         none_if_invalid=none_if_invalid,
     )
-
-
-class TypedDict(dict):
-    """
-    A dot dict based on a type.
-    Errors on attribute access if the field doesn't exist, otherwise returns the value (or None).
-    """
-
-    _PROPS = ("_type", "_is_output")
-
-    def __init__(self, d: dict, type: "TypeInfo", is_output: bool = None):
-        super().__init__(**d)
-        self._type = type
-        self._is_output = is_output
-
-    def __str__(self):
-        return super().__str__()
-
-    def __repr__(self):
-        kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
-        return f"{self._type.base_type.py_ident}({kwargs_str})"
-
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            field = self._type.fields.get(item)
-            if field and (self._is_output is None or field.is_output == self._is_output):
-                return None
-        raise KeyError(f"no key {item!r} on {self._type!r}")
-
-    def __getattr__(self, item):
-        if item in TypedDict._PROPS:
-            return super().__getattr__(item)
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            field = self._type.fields.get(item)
-            if field and (self._is_output is None or field.is_output == self._is_output):
-                return None
-        raise AttributeError(f"no attribute {item!r} on {self._type!r}")
-
-    def __setattr__(self, name, value):
-        if name in TypedDict._PROPS:
-            return super().__setattr__(name, value)
-
-        field = self._type.fields.get(name)
-        if field and (self._is_output is None or field.is_output == self._is_output):
-            return dict.__setitem__(self, name, value)
-        raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
 
 
 def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:

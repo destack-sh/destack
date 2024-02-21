@@ -210,7 +210,7 @@ export abstract class Panel {
   }
 
   get context(): any {
-    // TODO @Cleanup: this should be typed but TS throws up
+    // TODO :Cleanup: this should be typed but TS throws up
     if (this._context == null) {
       throw new Error(`panel ${this.id} has no context`);
     }
@@ -684,7 +684,7 @@ function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: strin
   bench.version = -1;
   bench.$patch(JSON.parse(state));
   // version check
-  // TODO @Robustness: improve Bench state versioning
+  // TODO :Robustness: improve Bench state versioning
   if (bench.version != BENCH_STATE_VERSION) {
     const version = bench.version;
     bench.$reset(); // reset to initial state

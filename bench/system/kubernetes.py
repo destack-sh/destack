@@ -13,6 +13,7 @@ import structlog
 from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
+from bench.language import Bench
 from bench.language.const import BenchRegion, ServerProfile, ServerStatus
 from bench.utils.env import IS_DEBUG
 from bench.utils.utils import get_from_env
@@ -45,7 +46,7 @@ if KUBERNETES_SERVER_IMAGE is not None and IS_DEBUG:
 
 
 async def init():
-    # TODO @Cleanup: somehow kubernetes asyncio sometimes stalls while authenticating
+    # TODO :Cleanup: somehow kubernetes asyncio sometimes stalls while authenticating
     # so we use the sync kubernetes client, then patch the config into the async client
     global KUBERNETES_AVAILABLE
     if KUBERNETES_KUBECONFIG_PATH is not None:
@@ -180,7 +181,7 @@ class Deployment:
         return f"{SERVER_APP_LABEL}-{self.bench_id}-{self.server_set_id.hex[:6]}"
 
     def to_k8(self: "Deployment", bench: "Bench") -> client.V1Deployment:
-        namespace = settings.KUBERNETES_SERVER_NAMESPACE
+        namespace = KUBERNETES_SERVER_NAMESPACE
         env_vars: dict[str, str] = {
             "SERVER_BENCH_ID": str(self.bench_id),
             "SERVER_SET_ID": str(self.server_set_id),
@@ -238,9 +239,7 @@ class Deployment:
             spec=client.V1PodSpec(
                 containers=[container],
                 image_pull_secrets=[
-                    client.V1LocalObjectReference(
-                        name=settings.KUBERNETES_SERVER_IMAGE_PULL_SECRET_NAME
-                    )
+                    client.V1LocalObjectReference(name=KUBERNETES_SERVER_IMAGE_PULL_SECRET_NAME)
                 ],
                 termination_grace_period_seconds=20,
             ),
@@ -272,36 +271,13 @@ class Deployment:
             ready_replicas=deployment.status.ready_replicas or 0,
         )
 
-    @classmethod
-    def from_model(cls, model: models.ServerSet) -> "Deployment":
-        return cls(
-            bench_id=model.bench_id,
-            server_set_id=model.id,
-            region=model.region,
-            profile=model.profile,
-            target_replicas=model.target_replicas,
-        )
-
-    def to_model(self) -> models.ServerSet:
-        return models.ServerSet(
-            id=self.server_set_id,
-            bench_id=self.bench_id,
-            region=self.region,
-            profile=self.profile,
-            target_replicas=self.target_replicas,
-            active_replicas_ids=self.active_replicas_ids,
-            available_replicas=self.available_replicas,
-            ready_replicas=self.ready_replicas,
-            status=self.status,
-        )
-
 
 def _check_k8_available():
     if not KUBERNETES_AVAILABLE:
         raise RuntimeError("Kubernetes API is not available")
 
 
-async def update_deployments(benches: list[models.Bench], deployments: list[Deployment]) -> None:
+async def update_deployments(benches: list[Bench], deployments: list[Deployment]) -> None:
     """Upserts deployments in k8."""
     _check_k8_available()
     async with client.ApiClient() as api:

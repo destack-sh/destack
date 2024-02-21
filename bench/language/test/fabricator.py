@@ -1,16 +1,16 @@
-from datetime import datetime
 import enum
 import random
 import string
-from typing import cast, TypeVar
 import uuid
+from datetime import datetime
+from typing import TypeVar, cast
 
 import pytz
 
-from bench.language import Property, NodeReference
-from bench.language.const import BenchType, StructType, PrimitiveType, NODE_TYPES, ReferenceKind
+from bench.language import NodeReference, Property
+from bench.language.const import NODE_TYPES, BenchType, PrimitiveType, ReferenceKind, StructType
 from bench.language.node import Node, Struct
-from bench.language.setup import NODE_CLASS_BY_TYPE, BENCH_CLASS_BY_TYPE
+from bench.language.setup import BENCH_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -32,7 +32,7 @@ class Fabricator:
             datetime: lambda: datetime.utcnow().replace(tzinfo=pytz.utc),
         }
 
-    def fabricate_prop_scalar(self, prop: Property, path: tuple[BenchType, ...]) -> any:
+    def fabricate_prop_scalar(self, prop: Property, path: tuple[BenchType, ...] = ()) -> any:
         if prop.is_enum:
             enum_cls = cast(type[enum.Enum], prop.py_type_stripped)
             return random.choice(tuple(enum_cls)) if len(enum_cls) > 0 else None

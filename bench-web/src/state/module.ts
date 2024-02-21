@@ -31,7 +31,7 @@ import { STATEMENT_TYPE_TAGS } from "@/state/statement";
 import { AggregationOp } from "@/proto/wire";
 
 export type NodeBase = { __typename: string; id: string; ck: string; name?: string | null };
-// TODO @Cleanup @Robustness: type module objects more correctly
+// TODO :Cleanup :Robustness: type module objects more correctly
 // full objects
 export type HasCrud = Omit<HasCrudGql, "__typename" | "id">;
 export type HasCrudKey = keyof HasCrud;
@@ -169,7 +169,7 @@ function _useModuleFlat(moduleOrProjectId: Ref<string | null>, options?: { cache
     const fieldsById: GRecord<string, Field> = {};
     const idByCk: GRecord<string, string> = {}; // not comprehensive yet (does not include all module object types)
 
-    // TODO @Cleanup: type module objects more correctly (file/statements/issues)
+    // TODO :Cleanup: type module objects more correctly (file/statements/issues)
     for (const file of module.value.module.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       filesById[file.id] = file;
@@ -233,7 +233,7 @@ function _defaultLibId(name: string): string {
   return uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
 }
 
-// TODO @Robustness: exclude own library if it's a dependency
+// TODO :Robustness: exclude own library if it's a dependency
 const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUuidNamespace
 const DEFAULT_LIBRARIES: GRecord<string, string> = {
   // default libs
@@ -255,7 +255,7 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
   const notices = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Notice));
 
-  // TODO @Performance: cache default libs (and any other static module dependencies)
+  // TODO :Performance: cache default libs (and any other static module dependencies)
   // load default libraries, derive their ids deterministically from their names and current version :BuiltinLibs
   const defaultLibs: GRecord<string, Ref<ModuleIndex | null>> = {};
   for (const name of Object.keys(DEFAULT_LIBRARIES)) {
@@ -489,7 +489,7 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
   }
 
   function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "referenceCk" | "value">) {
-    // TODO @Performance: cache getTypedKey (esp. when without references & value)
+    // TODO :Performance: cache getTypedKey (esp. when without references & value)
     let tag = field.tag;
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
@@ -603,7 +603,7 @@ export type OrderedStatement<T extends OrderableStatement> = {
   renderedDepth: number;
   ancestors: string[];
   statement: T;
-  // TODO @UX @Architecture: statement grouping/nesting should happen on component level
+  // TODO @UX :Architecture: statement grouping/nesting should happen on component level
   //  but that would require somehow managing component instances manually (because of the tree nesting).
   //  This is also why nested grouping is currently broken. :NestedStatementRendering
   isGroupStart?: boolean;

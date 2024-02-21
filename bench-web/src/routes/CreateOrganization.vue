@@ -95,7 +95,7 @@ async function createOrganization() {
       <p class="-mx-4 mt-4 text-lg text-orange-700">A home to your amazing team and bots.</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
-        <!-- TODO @Incomplete: select owner -->
+        <!-- TODO :Incomplete: select owner -->
 
         <!-- Full name -->
         <div class="text-left">

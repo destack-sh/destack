@@ -122,7 +122,7 @@ function toggleContentFold(descendants?: boolean) {
 }
 
 // manage interfaces
-// TODO @Performance: don't instantiate inactive statement parts components
+// TODO :Performance: don't instantiate inactive statement parts components
 //  We currently need to to contribute their available actions, but ideally the
 //  actions and add popovers would be factored out so we don't need their instances.
 
@@ -419,7 +419,7 @@ const {
 function onDragStart(e: DragEvent) {
   if (innerWrapperRef.value == null) return;
   setDragData(e, { type: "Statement", id: statement.value.id });
-  // TODO @Broken @UX: drag image looks horrible sometimes
+  // TODO :Broken @UX: drag image looks horrible sometimes
   // (when statements have large hidden content like Code (Monaco infinite lines view) or Database (horizontal overscroll area))
   e.dataTransfer?.setDragImage(innerWrapperRef.value, 0, 0);
 }
@@ -710,7 +710,7 @@ defineExpose({
     @click="onClickContainer"
     @contextmenu.prevent="showActionsPopover"
   >
-    <!-- TODO @Performance!: fix statement redraw on every statement focus change -->
+    <!-- TODO :Performance!: fix statement redraw on every statement focus change -->
     <!-- {{ console.log("redraw statement", props.statement.type, props.statement.ck) }} -->
     <!-- TODO @UX: group border wrapper (ugly, stupid, too many wrappers... see :NestedStatementRendering) -->
     <!--  (can't put this in outer wrapper because of padding, same with main inner wrapper right below) -->

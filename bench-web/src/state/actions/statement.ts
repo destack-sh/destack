@@ -408,7 +408,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   });
 
   // cut/copy/paste/duplicate
-  // TODO @Cleanup: use custom mime type for copied statements
+  // TODO :Cleanup: use custom mime type for copied statements
   //  Getting DOMException when trying, likely because the new clipboard API doesn't allow this yet.
 
   const copy = provideGlobalAction({
@@ -454,7 +454,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   });
 
   // instance specific actions
-  // TODO @Architecture: statement component instance specific actions should be inlined from statment actions
+  // TODO :Architecture: statement component instance specific actions should be inlined from statment actions
   const run = provideGlobalAction({
     id: "statement.run",
     label: "Run statement",

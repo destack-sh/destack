@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.21.0"
+VERSION = "2024.02.21.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -69,9 +69,9 @@ class NodeType(IdEnum):
 
     # resources (compute/storage/external/etc.)
     SERVER = 160
-    STORE = 161  # 'database' for Postgres/OpenSearch/ClickHouse
-    DRIVE = 162  # 'bucket' for S3/MinIO
-    CACHE = 163  # Redis/Memcached
+    STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
+    DRIVE = 162  # 'bucket' like S3/MinIO, maybe block storage later
+    CACHE = 163  # KV memory store (Redis/Memcached)
     # DOMAIN, EMAIL, ...
     FILE_CONTENT = 180  # in a Drive
 

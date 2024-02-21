@@ -25,7 +25,7 @@ from bench.language.property import (
 )
 from bench.language.session import HasRun
 from bench.language.validation import validate_name
-from bench.language.value import HasValues, TypedDict
+from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import dict_minus
@@ -46,20 +46,7 @@ if TYPE_CHECKING:
 @node_component
 class IsInstantiable(Node):
     def _call_inner(self, *args, **kwargs) -> Any:
-        if self.type == BlockType.CLASS:
-            from bench.language.value import check_type
-
-            inputs = self._inputs_from_args(args, kwargs)
-            check_type(inputs, self)
-            return TypedDict(inputs, self)
-        elif self.type == BlockType.CHOICE:
-            assert len(args) == 1, f"{self!r} must be called with a single argument"
-            resolved = self.fields.get(args[0])
-            if resolved is None:
-                raise ValueError(f"{self!r} has no field {args[0]}")
-            return resolved.field
-        else:
-            raise RuntimeError(f"cannot call instantiate on {self!r}")
+        raise NotImplementedError("create value :Incomplete")
 
 
 _BLOCK_DESCRIPTORS: dict[BlockType, "_BlockTypeDescriptor"] = {}
@@ -170,6 +157,7 @@ class Block(Node, HasValues):
     is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
     # paused_at acts like a flag (see setter/getter below)
     paused_at: datetime | None = p_internal(66, default=None)  # triggers <=block are paused
+
     # is_frozen? (read-only in instances of template)
 
     @staticmethod

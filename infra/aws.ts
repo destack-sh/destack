@@ -457,7 +457,7 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       preferredBackupWindow: "04:00-06:00",
       vpcSecurityGroupIds: [dbSecurityGroup.id],
       enabledCloudwatchLogsExports: ["postgresql"],
-      storageEncrypted: false, // TODO @Security: make rds storage encrypted
+      storageEncrypted: false, // TODO :Security: make rds storage encrypted
     },
     { ...extra, protect: true }
   );

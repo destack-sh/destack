@@ -2,57 +2,52 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import AsyncIterator, AsyncContextManager, Optional, TYPE_CHECKING, Mapping, NamedTuple
+from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 import betterproto
+import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
-import structlog
 
-from bench.language import Subject, NodeReference, ReadOptions, Expression, Session, C
+from bench.language import C, Expression, NodeReference, ReadOptions, Session, Subject
 from bench.language.access import (
-    adapt_read_options,
-    generate_access_matrix,
-    evaluate_and_adapt_read,
-    get_edited_scopes,
-    evaluate_edit,
-    Request,
     AccessError,
+    Request,
+    adapt_read_options,
+    evaluate_and_adapt_read,
+    evaluate_edit,
+    generate_access_matrix,
+    get_edited_scopes,
 )
-from bench.language.const import (
-    NodeType,
-    ABOVE_SOURCE_NODE_TYPES,
-    PolicyEffect,
-    ConditionalOp,
-)
+from bench.language.const import ABOVE_SOURCE_NODE_TYPES, ConditionalOp, NodeType, PolicyEffect
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
-from bench.language.query import StoreEngine, QueryBuilder, FetchOptions
+from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
-    EditData,
-    GraphIoBase,
-    GetNodesResponse,
-    SearchNodesResponse,
+    AggregateNodesRequest,
     AggregateNodesResponse,
+    CancelTransactionRequest,
+    CancelTransactionResponse,
+    CommitTransactionRequest,
     CommitTransactionResponse,
     CompleteTransactionRequest,
     CompleteTransactionResponse,
-    CancelTransactionRequest,
-    CancelTransactionResponse,
+    EditData,
+    FlushTransactionRequest,
+    FlushTransactionResponse,
+    GetNodesRequest,
+    GetNodesResponse,
+    GraphIoBase,
+    GraphScope,
+    SearchNodesRequest,
+    SearchNodesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    GetNodesRequest,
-    SearchNodesRequest,
-    CommitTransactionRequest,
-    AggregateNodesRequest,
-    FlushTransactionResponse,
-    FlushTransactionRequest,
-    GraphScope,
 )
-from bench.utils.func import group_by, bytetuple, to_uuid
+from bench.utils.func import bytetuple, group_by, to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -230,7 +225,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             graph = NodeDataGraph()
             for node_type, node_references in edited_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
-                # TODO @Performance: select only require properties for edit eval (id/policies/...?)
+                # TODO :Performance: select only require properties for edit eval (id/policies/...?)
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
                 query = QueryBuilder(
                     node_type=node_type,
@@ -290,25 +285,29 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
     def adapt_edits(self, watcher: EditWatcher, edits: list[EditData]) -> list[EditData]:
-        # TODO @Broken @Security!: adapt graph edits to watcher's access
-        return [e for e in edits if e.node_type in watcher.node_types]
+        # TODO :Broken :Security!: adapt graph edits to watcher's access
+        adapted_edits = []
+        for edit in edits:
+            node_type = wiring.unpack_enum(NodeType, edit.node_type)
+            if node_type in watcher.node_types:
+                adapted_edits.append(edit)
+        return adapted_edits
 
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        if request.since_epoch > self.epoch:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
         node_types = bytetuple(tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
             wiring.unpack_enum(NodeType, k): wiring.unpack_struct_interp(v)
             for k, v in request.filters.items()
         }
         watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
+        self.watchers.append(watcher)
 
         try:
-            self.watchers.append(watcher)
-
-            # replay recent epochs in order
+            # replay recent epochs
+            if request.since_epoch is not None and request.since_epoch > self.epoch:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
             if request.since_epoch is not None:
                 num_epochs_to_replay = self.epoch - request.since_epoch
                 if num_epochs_to_replay > EPOCH_BUFFER_SIZE:
@@ -317,6 +316,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 for epoch, edits in reversed(self.recent_epochs):
                     if epoch <= request.since_epoch:
                         break
+                    edits = self.adapt_edits(watcher, edits)
                     epochs_to_replay.append((epoch, edits))
                 logger.debug("graph.watch.replay", watcher=watcher)
                 for epoch, edits in epochs_to_replay:

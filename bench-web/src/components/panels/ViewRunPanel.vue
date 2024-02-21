@@ -146,7 +146,7 @@ defineExpose({
       <template v-else-if="run != null">
         <!-- Metadata -->
         <div class="flex flex-row flex-wrap gap-x-5 gap-y-2.5 px-2" :style="{ ...baseTilePositionX }">
-          <!-- TODO @Cleanup: these elements are mostly copied (almost) verbatim from RunsTile -->
+          <!-- TODO :Cleanup: these elements are mostly copied (almost) verbatim from RunsTile -->
           <!-- Statement -->
           <div class="flex flex-col gap-0.5">
             <span class="text-xs font-semibold text-gray-500">Statement</span>
@@ -276,7 +276,7 @@ defineExpose({
           <ErrorTraceback :statement-ck="run.statementCk" :error-nice="run.errorNice" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
-        <!-- TODO @Performance: pass in run to trace tiles (they all use the same data) -->
+        <!-- TODO :Performance: pass in run to trace tiles (they all use the same data) -->
         <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
           <TraceTile :root-id="panel.runId" layout="list" live />
         </ContainerTile>
