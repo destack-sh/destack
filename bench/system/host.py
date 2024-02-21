@@ -18,8 +18,8 @@ from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
-    BenchHostBase,
-    BenchHostStub,
+    HostBase,
+    HostStub,
     DownloadFilesRequest,
     DownloadFilesResponse,
     GraphScope,
@@ -41,16 +41,16 @@ LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
 )
 
 
-class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
+class HostMultiplexer(BenchServiceBase, HostBase):
     """
-    Multiplexes requests per Bench to a BenchHost using gRPC metadata ('bench-id').
+    Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
     Hosts are loaded for all active Benches; new ones 'ping' the multiplexer service to add themselves.
     """
 
     def __init__(self):
         super().__init__()
-        self._bench_hosts: dict[UUID, "BenchHost"] = {}
-        self._bench_hosts_lock = asyncio.Lock()
+        self._hosts: dict[UUID, "Host"] = {}
+        self._hosts_lock = asyncio.Lock()
 
     def __str__(self):
         return "shards=[*]"
@@ -64,14 +64,14 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
 
     def close(self) -> None:
-        for host in self._bench_hosts.values():
+        for host in self._hosts.values():
             host.close()
 
     async def wait_closed(self) -> None:
-        await asyncio.gather(*[host.wait_closed() for host in self._bench_hosts.values()])
+        await asyncio.gather(*[host.wait_closed() for host in self._hosts.values()])
 
-    async def _start_host(self, bench_id: UUID) -> "BenchHost":
-        host = BenchHost(bench_id)
+    async def _start_host(self, bench_id: UUID) -> "Host":
+        host = Host(bench_id)
         await host.start_quick()
         return host
 
@@ -86,14 +86,14 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
             bench_id = to_uuid(scope.bench_id)
 
             # get bench host
-            host = self._bench_hosts.get(bench_id)
+            host = self._hosts.get(bench_id)
             if host is None:
-                async with self._bench_hosts_lock:
+                async with self._hosts_lock:
                     # check again in case another request added it
-                    host = self._bench_hosts.get(bench_id)
+                    host = self._hosts.get(bench_id)
                     if host is None:
                         host = await self._start_host(bench_id)
-                        self._bench_hosts[bench_id] = host
+                        self._hosts[bench_id] = host
 
             # forward to host
             await getattr(host, method_name)(subject, request)
@@ -101,14 +101,14 @@ class BenchHostMultiplexer(BenchServiceBase, BenchHostBase):
         return _multiplexed_rpc
 
 
-class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase, GraphIoService):
+class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
     """
     Host for an (active) Bench package. Manages basically everything that's not actually running it.
     Any Client (frontend, server, ...) connects to this to do anything with the Bench.
     """
 
     def __init__(self, bench_id: UUID, package_id: UUID):
-        BenchServiceBase.__init__(self, loopback_stub_to=BenchHostStub)
+        BenchServiceBase.__init__(self, loopback_stub_to=HostStub)
         GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self.package_id = package_id

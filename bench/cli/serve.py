@@ -6,7 +6,7 @@ import typer
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.proto.services import BenchServer
-from bench.system.host import BenchHostMultiplexer
+from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env
@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 async def system(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.system", host=host, port=port)
-    services = [Supervisor(), BenchHostMultiplexer()]
+    services = [Supervisor(), HostMultiplexer()]
     server = BenchServer(services)
     if IS_DEBUG and watch:
         # noinspection PyAsyncCall

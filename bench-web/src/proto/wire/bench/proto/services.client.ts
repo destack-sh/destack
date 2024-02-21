@@ -6,10 +6,10 @@
 //
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
-import { ServerProcess } from "./services";
-import { Server } from "./services";
-import type { ServerData } from "./lang";
-import { BenchHost } from "./services";
+import { Runtime } from "./services";
+import type { RestartRuntimeResponse } from "./services";
+import type { RestartRuntimeRequest } from "./services";
+import { Host } from "./services";
 import type { RunProxyBlockResponse } from "./services";
 import type { RunProxyBlockRequest } from "./services";
 import type { PingServerRequest } from "./services";
@@ -403,7 +403,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     }
 }
 /**
- * The Bench host managing the runtime for all its packages.
+ * The Host managing access and providing the persistent OS for the Bench.
  * Service is scoped to bench_id.
  * Frontend connects to this directly.
  *
@@ -411,9 +411,9 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
  * General IO for nodes in this Bench only :GraphIO
  *
  *
- * @generated from protobuf service symbolx.bench.BenchHost
+ * @generated from protobuf service symbolx.bench.Host
  */
-export interface IBenchHostClient {
+export interface IHostClient {
     /**
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -486,7 +486,7 @@ export interface IBenchHostClient {
     runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse>;
 }
 /**
- * The Bench host managing the runtime for all its packages.
+ * The Host managing access and providing the persistent OS for the Bench.
  * Service is scoped to bench_id.
  * Frontend connects to this directly.
  *
@@ -494,12 +494,12 @@ export interface IBenchHostClient {
  * General IO for nodes in this Bench only :GraphIO
  *
  *
- * @generated from protobuf service symbolx.bench.BenchHost
+ * @generated from protobuf service symbolx.bench.Host
  */
-export class BenchHostClient implements IBenchHostClient, ServiceInfo {
-    typeName = BenchHost.typeName;
-    methods = BenchHost.methods;
-    options = BenchHost.options;
+export class HostClient implements IHostClient, ServiceInfo {
+    typeName = Host.typeName;
+    methods = Host.methods;
+    options = Host.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
@@ -612,72 +612,41 @@ export class BenchHostClient implements IBenchHostClient, ServiceInfo {
         return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }
-// 
-// Server node
-// 
-
 /**
  * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
  * Not directly accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.Server
+ * @generated from protobuf service symbolx.bench.Runtime
  */
-export interface IServerClient {
+export interface IRuntimeClient {
     /**
      * Restart this server immediately.
      *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.ServerData);
+     * @generated from protobuf rpc: Restart(symbolx.bench.RestartRuntimeRequest) returns (symbolx.bench.RestartRuntimeResponse);
      */
-    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, ServerData>;
+    restart(input: RestartRuntimeRequest, options?: RpcOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse>;
 }
-// 
-// Server node
-// 
-
 /**
  * A user Server providing an isolated Bench runtime to execute user stuff.
  * Service is scoped to bench_id/server_id.
  * Not directly accessible from the outside.
  *
- * @generated from protobuf service symbolx.bench.Server
+ * @generated from protobuf service symbolx.bench.Runtime
  */
-export class ServerClient implements IServerClient, ServiceInfo {
-    typeName = Server.typeName;
-    methods = Server.methods;
-    options = Server.options;
+export class RuntimeClient implements IRuntimeClient, ServiceInfo {
+    typeName = Runtime.typeName;
+    methods = Runtime.methods;
+    options = Runtime.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
      * Restart this server immediately.
      *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.ServerData);
+     * @generated from protobuf rpc: Restart(symbolx.bench.RestartRuntimeRequest) returns (symbolx.bench.RestartRuntimeResponse);
      */
-    restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, ServerData> {
+    restart(input: RestartRuntimeRequest, options?: RpcOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartServerRequest, ServerData>("unary", this._transport, method, opt, input);
-    }
-}
-/**
- * The actual server process executing a Bench 'thread'.
- * Service is scoped to bench_id/server_id/server_process_id.
- * Not directly accessible from the outside.
- *
- * @generated from protobuf service symbolx.bench.ServerProcess
- */
-export interface IServerProcessClient {
-}
-/**
- * The actual server process executing a Bench 'thread'.
- * Service is scoped to bench_id/server_id/server_process_id.
- * Not directly accessible from the outside.
- *
- * @generated from protobuf service symbolx.bench.ServerProcess
- */
-export class ServerProcessClient implements IServerProcessClient, ServiceInfo {
-    typeName = ServerProcess.typeName;
-    methods = ServerProcess.methods;
-    options = ServerProcess.options;
-    constructor(private readonly _transport: RpcTransport) {
+        return stackIntercept<RestartRuntimeRequest, RestartRuntimeResponse>("unary", this._transport, method, opt, input);
     }
 }
