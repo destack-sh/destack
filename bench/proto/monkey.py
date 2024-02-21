@@ -382,7 +382,7 @@ BetterprotoStruct.from_dict = _PatchedStruct.from_dict
 BetterprotoStruct.to_dict = _PatchedStruct.to_dict
 
 # add custom encode/decode methods for headers to RpcMetadata
-from bench.proto.wire import RpcMetadata
+from bench.proto.wire import RpcMetadata  # noqa
 
 
 class _PatchedRpcMetadata(RpcMetadata):

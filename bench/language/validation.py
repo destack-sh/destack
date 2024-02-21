@@ -8,9 +8,9 @@ import cachetools
 from bench.language.const import BenchError
 
 if TYPE_CHECKING:
-    from bench.proto.wire import AnyNodeData, AnyStructData
-    from bench.language.node import Struct, Node, Property
     from bench.language import Property
+    from bench.language.node import Node, Struct
+    from bench.proto.wire import AnyNodeData, AnyStructData
 
 
 class ValidationError(BenchError, ValueError):
@@ -86,7 +86,7 @@ MAX_TEXT_LENGTH = 2048
 MAX_DESCRIPTION_LENGTH = 512
 
 
-# TODO @Cleanup @Robustness: turn validators into Validators, compile constraints into SQL
+# TODO :Cleanup :Robustness: turn validators into Validators, compile constraints into SQL
 
 
 # NOTE: we cache these validators not for performance but for reference equality

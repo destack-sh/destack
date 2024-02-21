@@ -104,7 +104,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     @final
     def _validate_request(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message."""
-        ...  # TODO @Robustness!: BenchServiceBase.validate_request
+        ...  # TODO :Robustness!: BenchServiceBase.validate_request
         self._validate_request_self(subject, request)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
@@ -142,7 +142,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
                     log.info(rpc_name)
                     request = await stream.recv_message()
-                    self._validate_request(request)
+                    self._validate_request(subject, request)
                     async for response in func(subject, request):
                         log.debug(f"{rpc_name}.stream", response=response)
                         await stream.send_message(response)

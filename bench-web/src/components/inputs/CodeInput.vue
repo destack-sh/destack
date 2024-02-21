@@ -29,7 +29,7 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- TODO @Robustness: auto-detect highlight language (but make it consistent across rows?) -->
+  <!-- TODO :Robustness: auto-detect highlight language (but make it consistent across rows?) -->
   <CodeBlock
     v-if="preview"
     :model-value="modelValue ?? ''"

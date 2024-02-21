@@ -124,7 +124,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   function beginBatchChange() {
     // used when we need to add/remove columns since directly writing columnRefs via :ref
     // seems to trigger a re-render frame for every row + modified column
-    // TODO @Performance @Robustness: improve grid update batching
+    // TODO :Performance :Robustness: improve grid update batching
     //  For instance this doesn't work for other connected clients in multiplayer since they
     //  will be receiving the changes via the direct mutation.
     columnRefsBatchChange = {};

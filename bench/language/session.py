@@ -28,50 +28,41 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.field import TypeInfo
-from bench.language.text import Text
 from bench.language.node import (
     Node,
     Struct,
     _Passthrough,
+    new_struct_id,
     node,
     node_component,
     struct,
-    new_struct_id,
 )
 from bench.language.property import (
     Property,
-    p_runtime,
-    p_node_parent,
-    p_node_ancestor,
-    p_node_child,
-    p_value_runtime,
-    p_value_packed,
-    p_secret_value_packed,
     p_internal,
+    p_node_ancestor,
+    p_node_ancestor_root,
+    p_node_child,
+    p_node_parent,
+    p_runtime,
+    p_secret_value_packed,
     p_system,
     p_value_dynamic,
-    p_node_ancestor_root,
+    p_value_packed,
+    p_value_runtime,
 )
 from bench.language.query import StoreConnection, StoreEngine
+from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.proto.wire import BenchHostStub, EditData, GraphScope, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
-from bench.utils.func import _auto_async_to_sync, uuid_to_str, IdEnum, bytetuple
+from bench.utils.func import IdEnum, _auto_async_to_sync, bytetuple, uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import (
-        BenchError,
-        Block,
-        Node,
-        Package,
-        PrimitiveType,
-        Server,
-        Struct,
-        Request,
-    )
+    from bench.language import Block, Package, Request, Server
 
 logger = structlog.get_logger(__name__)
 
@@ -162,7 +153,7 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
-    TODO @Cleanup: Transaction should be a Struct (or maybe even Node?) (along with Edit)
+    TODO :Cleanup: Transaction should be a Struct (or maybe even Node?) (along with Edit)
       (but we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
@@ -236,7 +227,7 @@ class Transaction:
 
         from bench.proto import wiring
 
-        # TODO @Performance: pack only edited node properties
+        # TODO :Performance: pack only edited node properties
         node_data = n._to_data()
         if n._updated_properties:
             properties = n._unmask_properties_ids(n._updated_properties)
@@ -399,7 +390,7 @@ class Transaction:
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
         log = logger.bind(edits=len(self.edits), transaction=self)
 
-        # TODO @Robustness!: use :2PC in Transaction.commit
+        # TODO :Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
         for engine in self.session._engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
@@ -439,8 +430,10 @@ class Session(Node):
     )
     opened_at: Optional[datetime] = p_system(32, default=None)
     closed_at: Optional[datetime] = p_system(33, default=None)
-    is_runtime: bool = p_system(34, default=False)
-    is_read_only: bool = p_system(35, default=False)
+    duration: Optional[float] = p_system(34, default=None)
+
+    is_runtime: bool = p_system(40, default=False)
+    is_read_only: bool = p_system(41, default=False)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -566,13 +559,13 @@ class Session(Node):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
-        logger.debug("session.close")
 
         # close transaction
         await self._tx.close()
 
         # close session
         self.closed_at = utcnow_with_tz()
+        self.duration = (self.closed_at - self.opened_at).total_seconds()
         _active_session.set(None)
 
         # close runtime
@@ -580,6 +573,7 @@ class Session(Node):
             self._stdout_collector.stop()
             self._stderr_collector.stop()
             self._flush_session_loop.cancel()
+        logger.debug("session.close", duration=self.duration)
 
     async def __aenter__(self):
         await self.open()
@@ -1064,7 +1058,7 @@ class Pause(Node):
 #
 # Log collection
 # (will obviously move out soon)
-# TODO @Performance!: revamp contextual stdout/stderr capture
+# TODO :Performance!: revamp contextual stdout/stderr capture
 
 stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
 stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
@@ -1082,7 +1076,7 @@ class _ContextRedirectedStream:
         ret = self.native.write(data)
         track = self.contextvar.get()
         if track and (data != "\n" or self._just_saw_newline):
-            # TODO @Robustness: figure out better way of collecting stdout/stderr
+            # TODO :Robustness: figure out better way of collecting stdout/stderr
             #  This is very hacky because we don't know who called print and want to skip
             #  some of our own log messages. Unfortunately we can't just trivially
             #  provide a custom 'print' since many libraries use the real 'print' internally (?)

@@ -25,7 +25,8 @@ from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.func import parse_py_annotation, IdEnum, try_tuple
 
 if TYPE_CHECKING:
-    from bench.language import Node, Struct, TypeInfo, PropertyReference
+    # noinspection PyUnresolvedReferences
+    from bench.language import Node, Struct, TypeInfo, PropertyReference, NodeReference
     from bench.language.expression import _TypeExpressionBase
 
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {

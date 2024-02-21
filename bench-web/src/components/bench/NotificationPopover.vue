@@ -112,7 +112,7 @@ const { getTimeFromNowString } = useTimeFromNow();
 </script>
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
-    <!-- TODO @Cleanup: no idea why mt-1 is necessary on notifications popover button for horizontal alignment with other buttons -->
+    <!-- TODO :Cleanup: no idea why mt-1 is necessary on notifications popover button for horizontal alignment with other buttons -->
     <PopoverButton
       class="mt-1 rounded-sm p-1 text-sm text-orange-600 outline-none transition-colors hover:bg-orange-100"
       :class="{

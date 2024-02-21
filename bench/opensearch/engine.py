@@ -9,21 +9,16 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language import C, ConditionalOp, Field, Package, SortMode, SortOp, Property
+from bench.language import C, ConditionalOp, Field, Package, Property, SortMode, SortOp
 from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
 from bench.language.database import HasDatabase
-from bench.language.expression import (
-    METATYPE_KEY,
-    Expression,
-    ExpressionOps,
-    S,
-)
+from bench.language.expression import METATYPE_KEY, Expression, ExpressionOps, S
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Struct
-from bench.language.query import StoreEngineIncapableError, StoreEngineError
-from bench.proto import wire, wiring
-from bench.proto.wire import EditData
+from bench.language.query import StoreEngineError, StoreEngineIncapableError
 from bench.opensearch import core as os
 from bench.opensearch.client import get_os_errors, os_client
+from bench.proto import wire, wiring
+from bench.proto.wire import EditData
 from bench.sql.core import PrimitiveType
 
 logger = structlog.get_logger(__name__)
@@ -58,7 +53,7 @@ def map_field_to_os_field(field: Field) -> os.Field:
 async def update_local_os_schema(package: Package, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a package
-    TODO @Performance: update OS schema more efficiently on type changes
+    TODO :Performance: update OS schema more efficiently on type changes
     """
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
@@ -173,7 +168,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
     elif cond.op == ConditionalOp.STARTS_WITH:
         return {"match_phrase_prefix": {key: cond.value.lower()}}
     elif cond.op == ConditionalOp.NEAR:
-        # TODO @Performance @Robustness: tune knn k relative to database and query limit
+        # TODO :Performance :Robustness: tune knn k relative to database and query limit
         return {"knn": {key: {"vector": cond.value, "k": ctx.root_limit * 3}}}
     elif cond.op == ConditionalOp.EXISTS:
         return {"exists": {"field": key}}
@@ -516,7 +511,7 @@ GLOBAL_INDEX_SHARDS = 5
 GLOBAL_INDEX_REPLICAS = 1
 BENCH_INDEX_SHARDS = 1
 BENCH_INDEX_REPLICAS = 0
-BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
+BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO :Performance: reconsider OS mapping limit
 
 
 def _collect_fields(docs: Iterable[os.Document]) -> dict[str, os.Field]:

@@ -5,51 +5,31 @@ from uuid import uuid4
 
 import grpclib
 import pytest
-from grpclib.testing import ChannelFor
 
 from bench.language import Client, ReadOptions, User
-from bench.language.const import (
-    NodeType,
-    PUBLIC_NODE_TYPES,
-    EditType,
-    ROOT_NODE_TYPES,
-)
+from bench.language.const import PUBLIC_NODE_TYPES, ROOT_NODE_TYPES, EditType, NodeType
 from bench.language.expression import A
 from bench.language.node import new_struct_id
 from bench.language.user import UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
-    SupervisorStub,
+    AggregateNodesRequest,
+    AggregationOp,
+    CommitTransactionRequest,
+    EditData,
+    GetNodesRequest,
     LoginUserRequest,
     LogoutUserRequest,
-    GetNodesRequest,
     RpcMetadata,
-    SignupUserRequest,
-    EditData,
-    CommitTransactionRequest,
     SearchNodesRequest,
-    AggregationOp,
-    AggregateNodesRequest,
+    SignupUserRequest,
+    SupervisorStub,
 )
-from bench.system.supervisor import Supervisor
-from bench.system.test.conftest import make_user_handle, UserHandle
+from bench.system.test.conftest import UserHandle, make_new_user_handle
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
-
-
-@pytest.fixture(scope="function")
-async def supervisor() -> SupervisorStub:
-    service = Supervisor()
-    await service.start_quick()
-    try:
-        async with ChannelFor([service]) as channel:
-            stub = SupervisorStub(channel)
-            yield stub
-    finally:
-        service.close()
-        await service.wait_closed()
 
 
 @contextmanager
@@ -78,7 +58,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
     assert signup_rep.user.slug == str(user.slug)
     assert signup_rep.user.id == str(user.id)
 
-    # TODO @Security: user email confirmation etc.
+    # TODO :Security: user email confirmation etc.
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
@@ -135,9 +115,9 @@ async def test_cross_user_protection(supervisor: SupervisorStub):
     user_a = User(slug="alice", name="Alice", email="alice@bench.app", status=UserStatus.REGISTERED)
     user_b = User(slug="bob", name="Bob", email="bob@bench.app", status=UserStatus.REGISTERED)
     user_c = User(slug="carol", name="Carol", email="carol@bench.app", status=UserStatus.REGISTERED)
-    handle_a = await make_user_handle(supervisor, user_a)
-    handle_b = await make_user_handle(supervisor, user_b)
-    handle_c = await make_user_handle(supervisor, user_c)
+    handle_a = await make_new_user_handle(supervisor, user_a)
+    handle_b = await make_new_user_handle(supervisor, user_b)
+    handle_c = await make_new_user_handle(supervisor, user_c)
     all_handles = (handle_a, handle_b, handle_c)
 
     # cross-test user access/actions

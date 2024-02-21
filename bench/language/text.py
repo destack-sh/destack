@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.const import StructType
-from bench.language.node import Struct, struct, struct_component, Node, LINK_TARGET_NODE_TYPES
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct, struct_component
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -43,6 +43,8 @@ class TextLineType(IdEnum):
     # list
     LIST_BULLET = 16
     LIST_NUMBERED = 17
+    # divider
+    DIVIDER = 21
 
 
 @struct(StructType.TEXT_LINE)

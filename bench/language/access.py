@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Optional, Self, Union, NamedTuple, Any
+from typing import TYPE_CHECKING, Any, Collection, NamedTuple, Optional, Self, Union
 from uuid import UUID
 
 from bitarray import bitarray
@@ -23,11 +23,10 @@ from bench.language.const import (
     NodeType,
     PolicyEffect,
     ReadType,
-    UseType,
     StructType,
+    UseType,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
-from bench.language.setup import ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES, _COMPLETED_SETUP
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     Node,
@@ -37,16 +36,17 @@ from bench.language.node import (
     node,
     struct,
 )
+from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
-    p_runtime,
-    p_node_parent,
-    p_node_child,
-    p_regular,
     p_internal,
+    p_node_child,
+    p_node_parent,
+    p_regular,
+    p_runtime,
     p_system,
 )
-from bench.language.notice import NoticeHandler
+from bench.language.setup import _COMPLETED_SETUP, ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES
 from bench.language.text import Text
 from bench.language.user import Membership, User
 from bench.language.validation import ValidationError
@@ -840,7 +840,7 @@ def adapt_read_options(
     if NodeType.BENCH in root_node_cls.__roots__:
         options.related_properties.append((Bench.owner,))
 
-    # TODO @Performance @Security: also pre-filter read options for owner?
+    # TODO :Performance :Security: also pre-filter read options for owner?
 
     return options
 
@@ -1147,19 +1147,19 @@ def evaluate_and_adapt_read(
 
     # adapt & filter nodes
     verb = ReadType.GET  # same for all?
-    for node in graph.nodes:
-        object_node_type: NodeType = wiring.unpack_enum(NodeType, node.metatype)
+    for n in graph.nodes:
+        object_node_type: NodeType = wiring.unpack_enum(NodeType, n.metatype)
         object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
         object_properties: bitarray = object_node_cls.__properties_mask_set__
 
-        root = graph.get_root(node)  # a bit inefficient?
+        root = graph.get_root(n)  # a bit inefficient?
         adapted_properties, access, was_cached = evaluate_access(
             matrix=matrix,
             verb=verb,
             object_node_type=object_node_type,
             object_properties=object_properties,
             root_id=root.id,
-            scope_id=node.id,
+            scope_id=n.id,
             mode=AccessMode.ADAPTIVE,
             trace=trace,
             cache=cache,
@@ -1167,34 +1167,34 @@ def evaluate_and_adapt_read(
         if not was_cached:
             accesses.append(access)
         if access.decision == PolicyEffect.DENY:
-            skips[node.id] = UNSET  # mark as skipped
+            skips[n.id] = UNSET  # mark as skipped
         elif adapted_properties == object_properties:
-            visible_nodes.append(node)
+            visible_nodes.append(n)
         else:
             node_cls = NODE_CLASS_BY_TYPE[object_node_type]
             # prune node properties to only allowed ones
             if not adapt_nodes_in_place:
-                # TODO @Performance: avoid copying properties that we'll prune anyway
-                node = wiring.copy_struct_data(node)
+                # TODO :Performance: avoid copying properties that we'll prune anyway
+                n = wiring.copy_struct_data(n)
             pruned_properties = object_properties & (object_properties ^ adapted_properties)
             for pruned_prop_ord in pruned_properties.search(True):
                 prop = node_cls.__properties_in_order__[pruned_prop_ord]
-                setattr(node, prop.name, None)
-            visible_nodes.append(node)
+                setattr(n, prop.name, None)
+            visible_nodes.append(n)
 
     # add any required skipped nodes back in (as Skips)
-    for node in visible_nodes:
-        if node.parent_ptr is not None and skips.get(node.parent_ptr.id, None) is UNSET:
+    for n in visible_nodes:
+        if n.parent_ptr is not None and skips.get(n.parent_ptr.id, None) is UNSET:
             skip = wire.SkipData(
                 metatype=wire.NodeType.SKIP,
-                id=node.id,
-                ck=getattr(node, "ck", None),
-                parent_ptr=node.parent_ptr,
-                revision=node.revision,
-                order_key=getattr(node, "order_key", None),
-                type=node.metatype,
+                id=n.id,
+                ck=getattr(n, "ck", None),
+                parent_ptr=n.parent_ptr,
+                revision=n.revision,
+                order_key=getattr(n, "order_key", None),
+                type=n.metatype,
             )
-            skips[node.parent_ptr.id] = skip
+            skips[n.parent_ptr.id] = skip
             visible_nodes.append(skip)
 
     if required_nodes and any(n.id in skips for n in required_nodes):
@@ -1211,7 +1211,7 @@ def evaluate_edit(
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
-    TODO @Broken @Security: verify equivalent 'use' access for the edits
+    TODO :Broken :Security: verify equivalent 'use' access for the edits
      (e.g. create Run with base=Block <=> run Block, create Signal with base=Block <=> emit Block)
     """
     from bench.proto import wiring

@@ -11,7 +11,6 @@ from more_itertools import first, last
 from bench.language.const import StructType
 from bench.language.node import Node, Struct, struct
 from bench.language.property import p_runtime, p_regular
-from bench.language.value import TypedDict
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
@@ -74,7 +73,7 @@ class Code(Struct):
             session._run_exception(self, exception)
             raise
         session._run_exit(self, result if not self._export else None)
-        return _to_outputs_dict(self, result)
+        raise NotImplementedError("code to value :Incomplete")
 
     def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
@@ -87,7 +86,7 @@ class Code(Struct):
             session._run_exception(self, exception)
             raise
         session._run_exit(self, result if not self._export else None)
-        return _to_outputs_dict(self, result)
+        raise NotImplementedError("code to value :Incomplete")
 
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -111,15 +110,6 @@ def _do_exec_get_globals(code: str | types.CodeType, globals: dict[str, Any]) ->
     globals_local = {**globals}
     exec(code, globals_local)
     return globals_local
-
-
-def _to_outputs_dict(code: "HasCode", result: Any) -> TypedDict:
-    if isinstance(result, TypedDict):
-        return result
-    elif result is None:
-        return TypedDict({}, code, is_output=True)
-    else:
-        return TypedDict(result, code, is_output=True)
 
 
 def _install_package(name: str, timeout: int = 300, try_import: str = None) -> None:

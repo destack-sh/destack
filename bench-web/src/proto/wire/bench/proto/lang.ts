@@ -2907,7 +2907,7 @@ export interface LogData {
     blockPtr?: NodeReferenceData;
 }
 /**
- * A membership to this Bench (or its owner if it's the main Bench).
+ * A membership to this Bench (and its owner if it's the main Bench).
  *
  * @generated from protobuf message symbolx.bench.MembershipData
  */
@@ -3918,11 +3918,15 @@ export interface SessionData {
      */
     closedAt?: Timestamp;
     /**
-     * @generated from protobuf field: bool is_runtime = 34;
+     * @generated from protobuf field: optional float duration = 34;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: bool is_runtime = 40;
      */
     isRuntime: boolean;
     /**
-     * @generated from protobuf field: bool is_read_only = 35;
+     * @generated from protobuf field: bool is_read_only = 41;
      */
     isReadOnly: boolean;
 }
@@ -4381,7 +4385,11 @@ export interface UpgradeData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     * @generated from protobuf field: optional string title = 34;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
      */
     text?: TextData;
 }
@@ -6928,7 +6936,11 @@ export enum TextLineType {
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_NUMBERED = 17;
      */
-    LIST_NUMBERED = 17
+    LIST_NUMBERED = 17,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 21;
+     */
+    DIVIDER = 21
 }
 /**
  * Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -15731,8 +15743,9 @@ class SessionData$Type extends MessageType<SessionData> {
             { no: 31, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "opened_at", kind: "message", T: () => Timestamp },
             { no: 33, name: "closed_at", kind: "message", T: () => Timestamp },
-            { no: 34, name: "is_runtime", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 35, name: "is_read_only", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 34, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 40, name: "is_runtime", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "is_read_only", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SessionData>): SessionData {
@@ -15801,10 +15814,13 @@ class SessionData$Type extends MessageType<SessionData> {
                 case /* optional google.protobuf.Timestamp closed_at */ 33:
                     message.closedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.closedAt);
                     break;
-                case /* bool is_runtime */ 34:
+                case /* optional float duration */ 34:
+                    message.duration = reader.float();
+                    break;
+                case /* bool is_runtime */ 40:
                     message.isRuntime = reader.bool();
                     break;
-                case /* bool is_read_only */ 35:
+                case /* bool is_read_only */ 41:
                     message.isReadOnly = reader.bool();
                     break;
                 default:
@@ -15867,12 +15883,15 @@ class SessionData$Type extends MessageType<SessionData> {
         /* optional google.protobuf.Timestamp closed_at = 33; */
         if (message.closedAt)
             Timestamp.internalBinaryWrite(message.closedAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_runtime = 34; */
+        /* optional float duration = 34; */
+        if (message.duration !== undefined)
+            writer.tag(34, WireType.Bit32).float(message.duration);
+        /* bool is_runtime = 40; */
         if (message.isRuntime !== false)
-            writer.tag(34, WireType.Varint).bool(message.isRuntime);
-        /* bool is_read_only = 35; */
+            writer.tag(40, WireType.Varint).bool(message.isRuntime);
+        /* bool is_read_only = 41; */
         if (message.isReadOnly !== false)
-            writer.tag(35, WireType.Varint).bool(message.isReadOnly);
+            writer.tag(41, WireType.Varint).bool(message.isReadOnly);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16752,7 +16771,8 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "message", T: () => TextData }
+            { no: 34, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "text", kind: "message", T: () => TextData }
         ]);
     }
     create(value?: PartialMessage<UpgradeData>): UpgradeData {
@@ -16813,7 +16833,10 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData text */ 34:
+                case /* optional string title */ 34:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 default:
@@ -16870,9 +16893,12 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.TextData text = 34; */
+        /* optional string title = 34; */
+        if (message.title !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

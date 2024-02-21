@@ -1,28 +1,24 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import (
     NodeType,
-    StructType,
-    OrganizationStatus,
-    UserStatus,
     NotificationKind,
+    OrganizationStatus,
+    StructType,
+    UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import (
-    Node,
-    node,
-    _Passthrough,
-)
+from bench.language.node import Node, _Passthrough, node
 from bench.language.property import (
-    p_node_parent,
-    p_node_child,
-    p_regular,
     p_internal,
-    p_system,
     p_kernel,
-    p_value_packed,
+    p_node_child,
+    p_node_parent,
+    p_regular,
     p_secret_value_packed,
+    p_system,
+    p_value_packed,
     p_value_runtime,
 )
 from bench.language.value import HasValues
@@ -30,7 +26,7 @@ from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Text, Role, Server, Space, Block, Package
+    from bench.language import Bench, Block, Package, Role, Server, Space, Text
 
 
 @node(
@@ -163,7 +159,7 @@ class Client(Node):
 @node(NodeType.MEMBERSHIP)
 class Membership(Node):
     """
-    A membership to this Bench (or its owner if it's the main Bench).
+    A membership to this Bench (and its owner if it's the main Bench).
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)

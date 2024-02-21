@@ -1,8 +1,8 @@
 import re
-from typing import Optional, TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Mapping, Optional
 
-from bench.language.const import StructType, NodeType
-from bench.language.node import struct, Struct
+from bench.language.const import NodeType, StructType
+from bench.language.node import Struct, struct
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -157,7 +157,7 @@ class Path(Struct):
         return self.render()
 
     def render(self) -> str:
-        return "@Incomplete"
+        return ":Incomplete"
 
     @property
     def is_absolute(self) -> bool:
@@ -170,4 +170,4 @@ class Path(Struct):
     @staticmethod
     def parse(path: str) -> "Path":
         """Parses a path string into a BenchPath."""
-        raise NotImplementedError("TODO @Incomplete :BenchPath")
+        raise NotImplementedError("TODO :Incomplete :BenchPath")

@@ -8,7 +8,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Badge, Client, User, Server
+from bench.language import Badge, Client, Server, User
 from bench.language.access import Subject
 from bench.language.const import NodeType
 from bench.language.query import NodeNotFoundError
@@ -149,7 +149,7 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
         if client is None:
             return Subject(is_authenticated=False, badge=badge)
         elif client.parent_type == NodeType.USER:
-            # TODO @Broken: fetch subject memberships/owned/roles
+            # TODO :Broken: fetch subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
             return Subject(
                 is_authenticated=True,

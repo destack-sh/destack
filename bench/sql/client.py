@@ -1,17 +1,17 @@
-from contextlib import asynccontextmanager
 import contextvars
 import re
+from contextlib import asynccontextmanager
 from typing import Any, AsyncContextManager
 
 import psycopg
-from psycopg.rows import dict_row
 import psycopg_pool
-from psycopg_pool import AsyncConnectionPool
 import structlog
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from bench.language import Store, StoreEngineType
 
-# TODO @Robustness: figure out how to fix the psycopg pool warning
+# TODO :Robustness: figure out how to fix the psycopg pool warning
 #  (what we're doing should be fine according to docs and the warning)
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 

@@ -21,7 +21,7 @@ const actions = computed(() => [
     action: () => {
       // TODO @UX: confirm before making database global/local?
       //  (maybe add general confirm option to actions)
-      // TODO @UX @Robustness: prevent morph to versioned if record count is too large
+      // TODO @UX :Robustness: prevent morph to versioned if record count is too large
       // TODO @UX: localizing database after global does not actually copy it
       ops.statement.morph(null, props.statement.id, props.statement, {
         ...props.statement,

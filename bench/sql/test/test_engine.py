@@ -15,8 +15,8 @@ from bench.sql.engine import (
     pg_delete,
     pg_insert,
     pg_select,
-    pg_update_variable,
     pg_update_constant,
+    pg_update_variable,
     pg_upsert,
 )
 from bench.sql.migration import force_create_tables
@@ -79,8 +79,7 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
 
 @pytest.fixture(autouse=True, scope="module")
 async def test_tables():
-    from bench.sql.client import pg_cursor
-    from bench.sql.client import get_pg_connection_str
+    from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.system.utils import GLOBAL_STORE
 
     async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
@@ -164,4 +163,4 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows == target_rows
 
 
-# TODO @Test: test node-level operations
+# TODO :Test: test node-level operations

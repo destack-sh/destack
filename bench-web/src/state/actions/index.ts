@@ -100,7 +100,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
 
   // if this action can be reused just return a ref to the existing action
   if (mode == "global" && actionsStore.has(action.id)) {
-    // TODO @Robustness: error if registered actions are different
+    // TODO :Robustness: error if registered actions are different
     return computed(() => actionsStore.action(action.id));
   }
 

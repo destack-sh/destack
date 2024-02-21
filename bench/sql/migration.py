@@ -769,7 +769,7 @@ async def introspect_tables_from_pg(
 
     # columns
     if include_columns:
-        # TODO @Performance: improve introspect tables performance
+        # TODO :Performance: improve introspect tables performance
         #  (maybe the big joins in this query are the bottleneck)
         columns_query = """
 SELECT 

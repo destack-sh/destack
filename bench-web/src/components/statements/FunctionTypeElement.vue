@@ -236,7 +236,7 @@ defineExpose({
       class="mt-2 h-5 w-5 self-start text-gray-700"
     />
     <!-- Outputs -->
-    <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
+    <!-- TODO :Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
     <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
       <template v-for="field of outputs" :key="field.id">
         <FieldInterface

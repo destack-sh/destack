@@ -276,7 +276,7 @@ function runTests(bigString: string, func: any, digits: string = BASE_95_DIGITS)
     .join("\n");
 }
 
-// TODO @Cleanup: use vitest to test fractional
+// TODO :Cleanup: use vitest to test fractional
 // console.log(
 //   runTests(
 //     `

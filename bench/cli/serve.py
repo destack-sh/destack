@@ -24,6 +24,7 @@ async def system(host: str, port: int, watch: bool = False):
     services = [Supervisor(), BenchHostMultiplexer()]
     server = BenchServer(services)
     if IS_DEBUG and watch:
+        # noinspection PyAsyncCall
         asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)
@@ -43,6 +44,7 @@ async def runtime(host: str, port: int, watch: bool = False):
     server = BenchServer(services)
 
     if IS_DEBUG and watch:
+        # noinspection PyAsyncCall
         asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)

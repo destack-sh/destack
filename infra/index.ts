@@ -190,7 +190,7 @@ const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPasswo
 });
 const redisWorkerUser = new aws.elasticache.User("redisRestrictedUser", {
   engine: "REDIS",
-  // TODO @Security!: don't give worker user full Redis access
+  // TODO :Security!: don't give worker user full Redis access
   accessString: "on ~* -@all +get +set +ping +incrby +expire +multi +exec",
   userId: "worker",
   userName: "worker",
@@ -411,7 +411,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...BASE_PRIVATE_BACKEND_VARS,
               ],
               command: ["/bin/sh", "-c"],
-              // TODO @Robustness!: probably don't want to migrate the local Bench DB's all at once
+              // TODO :Robustness!: probably don't want to migrate the local Bench DB's all at once
               args: ["python bench.py sql migrate && python bench.py sql migrate --bench '*'"],
             },
           ],
@@ -531,7 +531,7 @@ const monitoringNamespace = new k8s.core.v1.Namespace(
   { metadata: { name: "monitoring" } },
   { provider: eksCluster.provider }
 );
-// TODO @Infra @Broken: setting up monitoring with the proper service account fails
+// TODO @Infra :Broken: setting up monitoring with the proper service account fails
 //  which means that kubernetes metrics aren't properly reported
 //  It fails because both we and the chart try to create the service account secret
 //  (even though the chart shouldn't, we disable its service account to give it our own...)

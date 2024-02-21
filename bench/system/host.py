@@ -12,7 +12,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Organization, Package, User
-from bench.language.access import ReadOptions, Subject
+from bench.language.access import Subject
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, IN_BENCH_NODE_TYPES
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph
@@ -138,14 +138,15 @@ class BenchHost(BenchServiceBase[BenchHostStub], BenchHostBase, GraphIoService):
         return self._package
 
     async def start_quick(self) -> None:
-        async with global_session() as session:
-            self._bench: Bench = await pg_get_node(
-                session=session,
-                root_type=NodeType.BENCH,
-                root_id=self.bench_id,
-                options=ReadOptions(related_properties=(Bench.owner, Bench.head)),
-            )
-            self._owner = self._bench.owner
+        async with global_session():
+            pass
+            # self._bench: Bench = await pg_get_node(
+            #     session=session,
+            #     root_type=NodeType.BENCH,
+            #     root_id=self.bench_id,
+            #     options=ReadOptions(related_properties=(Bench.owner, Bench.head)),
+            # )
+            # self._owner = self._bench.owner
             # self._package: Package = await pg_get_node(
             #     session=session,
             #     root_type=NodeType.PACKAGE,

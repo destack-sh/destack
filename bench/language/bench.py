@@ -3,17 +3,14 @@ from typing import TYPE_CHECKING, Collection, Optional, Union
 
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
-from bench.language.node import (
-    Node,
-    node,
-)
+from bench.language.node import Node, node
 from bench.language.property import (
-    p_node_parent,
+    p_internal,
+    p_kernel,
     p_node_child,
+    p_node_parent,
     p_regular,
     p_system,
-    p_kernel,
-    p_internal,
 )
 from bench.utils.casing import IdentifierType
 
@@ -22,15 +19,13 @@ if TYPE_CHECKING:
         Block,
         Cache,
         Drive,
-        Environment,
         Handle,
         Organization,
-        Package,
         Policy,
-        Text,
         Server,
         Space,
         Store,
+        Text,
         User,
     )
 
@@ -182,4 +177,6 @@ class Upgrade(Node):
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
 
     name: Optional[str] = p_regular(32)
-    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
+
+    title: Optional[str] = p_regular(34)
+    text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)

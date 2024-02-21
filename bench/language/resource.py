@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.text import Text
 from bench.language.const import (
     FileStatus,
     NodeType,
@@ -12,13 +11,9 @@ from bench.language.const import (
     StoreKind,
     StructType,
 )
-from bench.language.node import (
-    Node,
-    Struct,
-    node,
-    struct,
-)
-from bench.language.property import p_node_parent, p_regular, p_internal, p_system, p_kernel
+from bench.language.node import Node, Struct, node, struct
+from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
+from bench.language.text import Text
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum
 
@@ -112,7 +107,7 @@ class Store(Node):
     )
 
     def __content_str__(self) -> str:
-        return f"{self.kind.bench_name} ({self.engine.bench_name})"
+        return f"{self.kind.bench_name}: {self.engine.bench_name}"
 
 
 @node(NodeType.DRIVE)
