@@ -2039,6 +2039,7 @@ message ViewData {
   ViewType type = 30;
   optional string name = 31;
   optional IconData icon = 32;
+  bool is_visible = 60;
 }
 
 message SomeNodeData {

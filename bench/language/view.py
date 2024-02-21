@@ -63,6 +63,9 @@ class View(HasViews):
         32, default=None, require=False, array=False, struct=StructType.ICON
     )
 
+    # flags
+    is_visible: bool = p_regular(60, default=True)
+
 
 class PageViewMode(IdEnum):
     NOTEBOOK = 1

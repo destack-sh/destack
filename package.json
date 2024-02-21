@@ -1,6 +1,6 @@
 {
   "name": "bench",
-  "version": "2024.02.20.2",
+  "version": "2024.02.21.0",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=16.x"
