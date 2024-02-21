@@ -21,15 +21,7 @@ from bench.language.validation import ValidationHandler
 from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Branch,
-        Environment,
-        NodeVisitor,
-        Package,
-        Session,
-    )
+    from bench.language import Bench, Block, Branch, Environment, NodeVisitor, Package, Session
     from bench.language.field import Field, TypeInfo
 
 logger = structlog.get_logger(__name__)
@@ -124,7 +116,7 @@ def map_value(
     if premap_v:
         value = premap_v(value, type, ignore_array)
 
-    if type.is_array and not ignore_array:
+    if type.is_list and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             # type error, ignore here
             return None if none_if_invalid else value
@@ -181,7 +173,7 @@ def walk_value(
     """Yields all flat values in the instantiated value recursively."""
     get_k = get_k or (lambda f: f.py_ident)
 
-    if type.is_array and not ignore_array:
+    if type.is_list and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             return  # type error, ignore here
         for item in value:
@@ -221,7 +213,7 @@ def check_type(
     # optional / list types
     if not type.is_required and value is None:
         return
-    elif type.is_array and not ignore_array:
+    elif type.is_list and not ignore_array:
         if _check(isinstance(value, Collection)):
             for item in value:
                 check_type(item, type, get_k=get_k, on_invalid=on_invalid, ignore_array=True)

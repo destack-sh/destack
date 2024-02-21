@@ -2,15 +2,7 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
-from bench.proto.core import (
-    Enum,
-    EnumValue,
-    Field,
-    FieldType,
-    Message,
-    ProtoObject,
-    ProtoSchema,
-)
+from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoObject, ProtoSchema
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
@@ -52,7 +44,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             name=prop.name,
             type=proto_t,
             optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
-            repeated=prop.is_array,
+            repeated=prop.is_list,
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
@@ -61,7 +53,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             name=prop.name,
             type=field_type,
             optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
-            repeated=prop.is_array,
+            repeated=prop.is_list,
         )
     elif prop.reference_kind is not None:
         return Field(
@@ -69,7 +61,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             name=prop.name,
             type="NodeReferenceData",
             optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
-            repeated=prop.is_array,
+            repeated=prop.is_list,
         )
     else:
         raise TypeError(f"cannot map {prop.primitive_type.bench_name} to proto type: {prop!r}")

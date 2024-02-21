@@ -125,7 +125,7 @@ def render_value(
     """Renders the given value as a Python string."""
     get_k = get_k or (lambda f: f.py_ident)
 
-    if type.is_array and not ignore_array:
+    if type.is_list and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             return repr(value)  # not sure what to do here?
         elements = [

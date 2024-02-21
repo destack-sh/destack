@@ -86,8 +86,8 @@ class Fabricator:
                 ):
                     continue  # set indirectly via the underlying NodeReference/PropertyReference
                 elif prop.reference_struct in path:  # prevent circles
-                    kwargs[prop.name] = [] if prop.is_array else None
-                elif prop.is_array:
+                    kwargs[prop.name] = [] if prop.is_list else None
+                elif prop.is_list:
                     len = random.randint(1, 4)
                     kwargs[prop.name] = [self.fabricate_prop_scalar(prop, path) for _ in range(len)]
                 else:

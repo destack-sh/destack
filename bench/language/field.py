@@ -14,21 +14,15 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.expression import _TypeExpressionBase
-from bench.language.node import (
-    Node,
-    NodeList,
-    node,
-    struct,
-    struct_component,
-)
+from bench.language.node import Node, NodeList, node, struct, struct_component
 from bench.language.property import (
     Property,
-    p_runtime,
-    p_node_parent,
-    p_value_runtime,
-    p_value_packed,
-    p_regular,
     p_internal,
+    p_node_parent,
+    p_regular,
+    p_runtime,
+    p_value_packed,
+    p_value_runtime,
 )
 from bench.language.validation import validate_name
 from bench.language.value import HasValues
@@ -123,7 +117,7 @@ class TypeInfoBase(HasValues):
     default = p_value_runtime(packed=49)
 
     # flags
-    is_array: bool = p_regular(50, default=False)
+    is_list: bool = p_regular(50, default=False)
     is_required: bool = p_regular(51, default=False)
     is_secret: bool = p_regular(52, default=False)
     # is_instance to disambiguate?
@@ -146,7 +140,7 @@ class TypeInfoBase(HasValues):
         if self.condition:
             info_str += f" [{self.condition}]"
 
-        flags = tuple(f for f in ("is_array", "is_required", "is_secret") if getattr(self, f))
+        flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
         if flags:
             info_str += f" ({', '.join(flags)})"
         return info_str
@@ -171,7 +165,7 @@ class TypeInfoBase(HasValues):
         """The identity of this type for storing. Different keys mean you won't get the value back out."""
         assert self.primitive_type is not None, f"no column type in {self!r}"
         key = str(self.primitive_type.id)
-        if self.is_array:
+        if self.is_list:
             key += "a"
         if self.is_secret:
             key += "e"
@@ -248,7 +242,7 @@ class Field(Node, TypeInfoBase, _TypeExpressionBase):
 
         flags = tuple(
             f
-            for f in ("is_array", "is_required", "is_secret", "is_input", "is_output", "is_option")
+            for f in ("is_list", "is_required", "is_secret", "is_input", "is_output", "is_option")
             if getattr(self, f)
         )
         if flags:

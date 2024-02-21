@@ -9,18 +9,12 @@ import betterproto
 import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
+from bench.language import Property
 from bench.language.const import BenchType, NodeType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import (
-    NODE_CLASS_BY_TYPE,
-    NodeGraph,
-    InterpStatus,
-    Node,
-    Struct,
-)
-from bench.language.property import METATYPE_PROPERTY
-from bench.language import Property
+from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, Struct
 from bench.language.notice import NoticeHandler, on_warning_raise
+from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.proto import wire
@@ -61,7 +55,7 @@ def copy_struct_data(data: StructDataT) -> StructDataT:
             value = getattr(data, prop.name)
             if value is None or value == "" and not prop.is_required:
                 data_kwargs[prop.name] = None
-            elif prop.is_array:
+            elif prop.is_list:
                 if prop.is_struct:
                     data_kwargs[prop.name] = [copy_struct_data(v) for v in value]
                 else:
@@ -99,7 +93,7 @@ def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
-    elif prop.is_array and not ignore_array:
+    elif prop.is_list and not ignore_array:
         return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_struct(value)
@@ -127,7 +121,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     try:
         if value is None:
             return None
-        elif prop.is_array and not ignore_array:
+        elif prop.is_list and not ignore_array:
             return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
         elif prop.is_struct:
             return unpack_struct(value)

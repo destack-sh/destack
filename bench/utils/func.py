@@ -1,20 +1,20 @@
 import asyncio
 import enum
 import functools
-from sys import intern
 import types
 import typing
 from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
+from sys import intern
 from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
 from uuid import UUID
 
+import structlog
 from asgiref.sync import async_to_sync
 from bitarray import bitarray
-from more_itertools import first
-import structlog
 from cachetools import cached
+from more_itertools import first
 
 from bench.utils.utils import sentry_capture
 
@@ -199,7 +199,7 @@ def describe_type(obj: Any) -> str:
 
 TypeAnnotation = typing.NamedTuple(
     "TypeAnnotation",
-    [("type", type), ("is_union", bool), ("is_optional", bool), ("is_array", bool)],
+    [("type", type), ("is_union", bool), ("is_optional", bool), ("is_list", bool)],
 )
 
 
@@ -219,7 +219,7 @@ def parse_py_annotation(
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
     is_union = False
     is_optional = False
-    is_array = False
+    is_list = False
     if not isinstance(py_type, type):
         py_type = _resolve_py_type(py_type, type_map)
     # strip optional
@@ -240,8 +240,8 @@ def parse_py_annotation(
     if typing.get_origin(py_type) in (list, tuple):
         py_type = typing.get_args(py_type)[0]
         py_type = _resolve_py_type(py_type, type_map)
-        is_array = True
-    return TypeAnnotation(py_type, is_union, is_optional, is_array)
+        is_list = True
+    return TypeAnnotation(py_type, is_union, is_optional, is_list)
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -359,7 +359,7 @@ class IdEnum(enum.IntEnum):
 
     @functools.cached_property
     def bench_name(self):
-        from bench.utils.casing import to_casing, Casing
+        from bench.utils.casing import Casing, to_casing
 
         return to_casing(self.name, Casing.CAMEL)
 

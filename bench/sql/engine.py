@@ -191,7 +191,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         column = Column(
             name=prop.name,
             type=prop.primitive_type,
-            is_array=prop.is_array,
+            is_array=prop.is_list,
             is_nullable=not prop.is_required,
             is_encrypted=prop.is_encrypted,
             is_primary_key=prop.name == "id",
@@ -300,7 +300,7 @@ def map_database_to_pg_table(database: Block) -> Table:
             _source=str(field.ck),
             name=get_field_column_name(field),
             type=type.primitive_type,
-            is_array=type.is_array,
+            is_array=type.is_list,
             is_nullable=True,
             is_encrypted=type.is_secret,
         )
@@ -996,7 +996,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     """Packs the value of a struct property for storage in Postgres."""
     if value is None:
         return None
-    elif prop.is_array and not ignore_array:
+    elif prop.is_list and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         value = value.to_robust_dict()
@@ -1015,7 +1015,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     """Unpacks the value of a struct property from Postgres."""
     if value is None:
         return None
-    elif prop.is_array and not ignore_array:
+    elif prop.is_list and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         proto_cls = PROTO_CLASS_BY_TYPE[prop.reference_struct]
@@ -1068,7 +1068,7 @@ def _pg_pack_reference_column_into_row(
 
     assert prop.reference_source is not None, f"no reference source for {prop!r}"
     is_ck = prop.name.endswith("_ck")
-    if prop.is_array:
+    if prop.is_list:
         reference_type_id = prop.reference_type.id
         row[prop.name] = []
         for ptr in value:
@@ -1113,7 +1113,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                 # ravel reference from per-type columns :RavelReferences
                 assert prop.reference_source is not None, f"no reference source for {prop!r}"
                 is_ck = name.endswith("_ck")
-                if prop.is_array:
+                if prop.is_list:
                     ptrs = getattr(data, prop.reference_source.reference_wired_ptr.name)
                     if ptrs is None:
                         ptrs: list[NodeReferenceData] = []
