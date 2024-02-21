@@ -36,6 +36,7 @@ from bench.language.node import (
     node,
     node_component,
     struct,
+    new_struct_id,
 )
 from bench.language.property import (
     Property,
@@ -249,6 +250,7 @@ class Transaction:
         else:
             scope = EMPTY_SCOPE
         edit = EditData(
+            id=new_struct_id(),
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
@@ -287,26 +289,25 @@ class Transaction:
     def update(self, n: Node, subject: EditSubject | None, properties: tuple[Property, ...]):
         from bench.proto import wiring
 
-        edit = self._pending_updates_idx.get(n)
-        if edit is None:
+        existing_edit_idx = self._pending_updates_idx.get(n)
+        if existing_edit_idx is None:
             # new update
             edit = self._make_edit(EditType.UPDATE, n, subject)
             engine = self._add_pending_edit(edit)
             self._pending_updates_idx[n] = engine.id, len(self.edits) - 1
-            return
-
-        # update existing edit in place
-        #  (to avoid re-packing everything for successive updates)
-        engine_id, current_update_idx = edit
-        edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
-        edit.properties = n._unmask_properties_ids(n._updated_properties)
-        node_data = wiring.unwrap_some_node(edit.node)
-        for prop in properties:
-            if prop.reference_wired_ptr:
-                prop = prop.reference_wired_ptr
-            value = getattr(n, prop.name)
-            value = wiring._pack_struct_prop(prop, value, ignore_array=False)
-            setattr(node_data, prop.name, value)
+        else:
+            # update existing edit in place
+            #  (to avoid re-packing everything for successive updates)
+            engine_id, current_update_idx = existing_edit_idx
+            edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
+            edit.properties = n._unmask_properties_ids(n._updated_properties)
+            node_data = wiring.unwrap_some_node(edit.node)
+            for prop in properties:
+                if prop.reference_wired_ptr:
+                    prop = prop.reference_wired_ptr
+                value = getattr(n, prop.name)
+                value = wiring._pack_struct_prop(prop, value, ignore_array=False)
+                setattr(node_data, prop.name, value)
 
     def move(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.MOVE, n, subject)

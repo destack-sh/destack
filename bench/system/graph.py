@@ -1,6 +1,8 @@
+import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, AsyncContextManager, Optional, TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import AsyncIterator, AsyncContextManager, Optional, TYPE_CHECKING, Mapping, NamedTuple
 from uuid import UUID
 
 import betterproto
@@ -54,7 +56,25 @@ from bench.utils.func import group_by, bytetuple, to_uuid
 
 logger = structlog.get_logger(__name__)
 
-EPOCH_BUFFER_SIZE = 1000
+EPOCH_BUFFER_SIZE = 1000  # every epoch is a set of edits
+
+
+class Epoch(NamedTuple):
+    epoch: int
+    edits: list[EditData]
+
+
+@dataclass(slots=True)
+class EditWatcher:
+    """An active subscriber to the watch_edits server stream."""
+
+    subject: Subject
+    node_types: bytetuple[NodeType]
+    filters: Mapping[NodeType, Expression]
+    sink: asyncio.Queue[Epoch] = field(default_factory=asyncio.Queue)
+
+    def __str__(self):
+        return f"{self.subject}: {'|'.join(n.bench_name for n in self.node_types.tuple)} [{self.filters}]"
 
 
 class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object):
@@ -63,17 +83,10 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     def __init__(self, *, bench_id: UUID | None, node_types: bytetuple[NodeType]):
         super().__init__()
         self.epoch: int = 0
-        self.recent_epochs: deque[list[EditData]] = deque(maxlen=EPOCH_BUFFER_SIZE)
+        self.recent_epochs: deque[Epoch] = deque(maxlen=EPOCH_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
         self.node_types: bytetuple[NodeType] = node_types
-
-    def on_graph_edited(
-        self, edits: list[EditData], source_graph: NodeDataGraph, graph: Optional[NodeGraph] = None
-    ):
-        # nocheckin: track, buffer and broadcast edits for recent epochs
-        self.recent_epochs.appendleft(edits)
-        # self.watchers....
-        self.epoch += 1
+        self.watchers: list[EditWatcher] = []
 
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
@@ -265,7 +278,54 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    def on_graph_edited(
+        self, edits: list[EditData], source_graph: NodeDataGraph, graph: Optional[NodeGraph] = None
+    ):
+        self.epoch += 1
+        self.recent_epochs.append(Epoch(self.epoch, edits))
+        # notify watchers
+        for watcher in self.watchers:
+            adapted_edits = self.adapt_edits(watcher, edits)
+            if adapted_edits:
+                watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
+
+    def adapt_edits(self, watcher: EditWatcher, edits: list[EditData]) -> list[EditData]:
+        # TODO @Broken @Security!: adapt graph edits to watcher's access
+        return [e for e in edits if e.node_type in watcher.node_types]
+
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        if request.since_epoch > self.epoch:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
+        node_types = bytetuple(tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
+        filters: dict[NodeType, Expression] = {
+            wiring.unpack_enum(NodeType, k): wiring.unpack_struct_interp(v)
+            for k, v in request.filters.items()
+        }
+        watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
+
+        try:
+            self.watchers.append(watcher)
+
+            # replay recent epochs in order
+            if request.since_epoch is not None:
+                num_epochs_to_replay = self.epoch - request.since_epoch
+                if num_epochs_to_replay > EPOCH_BUFFER_SIZE:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
+                epochs_to_replay = []
+                for epoch, edits in reversed(self.recent_epochs):
+                    if epoch <= request.since_epoch:
+                        break
+                    epochs_to_replay.append((epoch, edits))
+                logger.debug("graph.watch.replay", watcher=watcher)
+                for epoch, edits in epochs_to_replay:
+                    yield WatchEditsResponse(edits=edits, epoch=epoch)
+
+            # listen for new epochs
+            logger.debug("graph.watch.listen", watcher=watcher)
+            while True:
+                epoch = await watcher.sink.get()
+                yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
+        finally:
+            self.watchers.remove(watcher)

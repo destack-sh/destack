@@ -4550,6 +4550,10 @@ export interface ViewData {
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 32;
      */
     icon?: IconData;
+    /**
+     * @generated from protobuf field: bool is_visible = 60;
+     */
+    isVisible: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -17097,7 +17101,8 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "icon", kind: "message", T: () => IconData }
+            { no: 32, name: "icon", kind: "message", T: () => IconData },
+            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -17108,6 +17113,7 @@ class ViewData$Type extends MessageType<ViewData> {
         message.source = 0;
         message.revision = 0n;
         message.type = 0;
+        message.isVisible = false;
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
         return message;
@@ -17164,6 +17170,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.IconData icon */ 32:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* bool is_visible */ 60:
+                    message.isVisible = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17225,6 +17234,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.IconData icon = 32; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible = 60; */
+        if (message.isVisible !== false)
+            writer.tag(60, WireType.Varint).bool(message.isVisible);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.20.2"
+VERSION = "2024.02.21.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -963,6 +963,7 @@ VIEW_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("is_visible", PrimitiveType.BOOLEAN, default="true"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),

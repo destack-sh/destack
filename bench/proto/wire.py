@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.20.2"
+VERSION = "2024.02.21.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2369,6 +2369,7 @@ class ViewData(betterproto.Message):
     type: "ViewType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(32, optional=True)
+    is_visible: bool = betterproto.bool_field(60)
 
 
 @dataclass(eq=False, repr=False)
@@ -2441,7 +2442,7 @@ class RpcMetadata(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GraphScope(betterproto.Message):
-    """Scope for an operation against the Bench state graph."""
+    """Scope for an operation in the Bench graph."""
 
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     package_id: Optional[str] = betterproto.string_field(4, optional=True)
@@ -2455,29 +2456,29 @@ class EditData(betterproto.Message):
      (Manually defined here since inline Node properties inside structs aren't supported.)
     """
 
-    type: "EditType" = betterproto.enum_field(1)
-    node_type: "NodeType" = betterproto.enum_field(2)
-    node: "SomeNodeData" = betterproto.message_field(3)
-    properties: List[int] = betterproto.sint32_field(4)
-    """Actually changed properties (if updating)."""
+    id: int = betterproto.int32_field(2)
+    type: "EditType" = betterproto.enum_field(30)
+    scope: "GraphScope" = betterproto.message_field(32)
+    node_type: "NodeType" = betterproto.enum_field(33)
+    node: "SomeNodeData" = betterproto.message_field(35)
+    properties: List[int] = betterproto.uint32_field(36)
+    subject: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    seen_epoch: Optional[int] = betterproto.uint64_field(41, optional=True)
+    """
+    The last epoch from the server owning the scope that the client has seen.
+    """
 
-    scope: "GraphScope" = betterproto.message_field(5)
-    """The scope to apply the edit to."""
-
-    subject: Optional["NodeReferenceData"] = betterproto.message_field(6, optional=True)
-    """The User/Run that made the edit."""
-
-    revision: Optional[int] = betterproto.int64_field(7, optional=True)
-    """System-side accepted revision for the edit."""
+    revision: Optional[int] = betterproto.int64_field(42, optional=True)
+    """System-accepted revision for the edit."""
 
 
 @dataclass(eq=False, repr=False)
 class TransactionData(betterproto.Message):
     """Transaction of edits to a Node."""
 
-    id: str = betterproto.string_field(1)
-    origin: "ClientOrigin" = betterproto.message_field(5)
-    edits: List["EditData"] = betterproto.message_field(2)
+    id: str = betterproto.string_field(2)
+    origin: "ClientOrigin" = betterproto.message_field(30)
+    edits: List["EditData"] = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -2571,6 +2572,8 @@ class GetNodesRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     options: Optional["ReadOptionsData"] = betterproto.message_field(3, optional=True)
+    lock_for_update: Optional[bool] = betterproto.bool_field(4, optional=True)
+    skip_locked: Optional[bool] = betterproto.bool_field(5, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2615,7 +2618,6 @@ class AggregateNodesRequest(betterproto.Message):
     filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(5)
     aggregation: "ExpressionData" = betterproto.message_field(6)
-    global_filter: Optional["ExpressionData"] = betterproto.message_field(7, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2688,6 +2690,9 @@ class WatchEditsRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     node_types: List["NodeType"] = betterproto.enum_field(2)
     since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    filters: Dict[int, "ExpressionData"] = betterproto.map_field(
+        4, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -4054,78 +4059,78 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
+    DriveData,
+    BadgeData,
+    CacheData,
+    OrganizationData,
+    FieldData,
+    ClientData,
     RecordData,
-    SkipData,
-    BranchData,
+    TriggerData,
+    BlockData,
+    LinkData,
     UpgradeData,
     StoreData,
+    BranchData,
     UserData,
-    ViewData,
-    SessionData,
-    PackageData,
-    ServerData,
-    ClientData,
-    RoleData,
-    SpaceData,
     QueryData,
-    OrganizationData,
-    IdentityData,
-    LinkData,
-    HandleData,
-    FileContentData,
-    SignalData,
-    BlockData,
-    NotificationData,
-    BenchData,
-    EnvironmentData,
-    InviteData,
-    DriveData,
-    TriggerData,
-    NoticeData,
-    CacheData,
-    DependencyData,
-    BadgeData,
-    PauseData,
-    MembershipData,
-    FieldData,
     RunData,
+    ServerData,
+    NotificationData,
     LogData,
+    ViewData,
+    RoleData,
+    PackageData,
+    NoticeData,
+    HandleData,
+    InviteData,
+    IdentityData,
+    PauseData,
+    DependencyData,
+    SessionData,
+    SignalData,
+    EnvironmentData,
+    SpaceData,
+    SkipData,
+    MembershipData,
+    FileContentData,
+    BenchData,
 ]
 AnyStructData = Union[
-    ExpressionData,
-    PolicyRuleData,
-    TextSpanData,
-    SpaceDockItemData,
-    RequestData,
-    PathTokenData,
-    RunErrorData,
-    ServerImageRequirementData,
-    NodeReferenceData,
-    CodeData,
-    AccessMatrixData,
-    ContextData,
-    TextData,
-    PathData,
-    PathSegmentData,
     TextLineData,
-    PropertyReferenceData,
     AggregationBucketData,
-    ServerImageData,
-    ReadOptionsData,
-    FileData,
-    CodeLineData,
-    PolicyData,
-    SubjectData,
-    AccessZoneData,
-    TypeInfoData,
-    AccessData,
-    RunCodeFrameData,
-    SpaceDockData,
     ScheduleData,
-    ValueReferenceData,
+    ContextData,
     ProjectionData,
+    NodeReferenceData,
     StoreCredentialData,
+    SpaceDockData,
     IconData,
+    PolicyData,
     AccessTraceData,
+    SubjectData,
+    TextSpanData,
+    CodeData,
+    ValueReferenceData,
+    AccessZoneData,
+    ServerImageRequirementData,
+    PathTokenData,
     AggregationData,
+    AccessData,
+    RequestData,
+    PropertyReferenceData,
+    RunCodeFrameData,
+    TextData,
+    ExpressionData,
+    SpaceDockItemData,
+    ReadOptionsData,
+    PathData,
+    PolicyRuleData,
+    AccessMatrixData,
+    PathSegmentData,
+    TypeInfoData,
+    ServerImageData,
+    FileData,
+    RunErrorData,
+    CodeLineData,
 ]
