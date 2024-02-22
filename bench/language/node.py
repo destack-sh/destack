@@ -1329,10 +1329,10 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         references=(NodeType.USER, NodeType.RUN),
     )
     # changed_by (19), active_by (20), ...
-    # for in-source nodes:
+    # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(21)
-    # for instances of templates (with 'template' set)
-    # set_properties: list[int] | None = p_regular(22)
+    # for template instances (= 'template' is set)
+    # set_properties: list[int] = p_regular(22)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

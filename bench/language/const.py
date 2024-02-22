@@ -28,8 +28,7 @@ REVISION_PENDING = -1
 class NodeType(IdEnum):
     # root
     BENCH = 1
-    # source containers
-    # PLACE = 2
+    PLACE = 2
     ENVIRONMENT = 3
     BRANCH = 4
 
@@ -159,13 +158,15 @@ class StructType(IdEnum):
     TEXT_SPAN = 662
 
     # views
-    SPACE_DOCK = 700
-    SPACE_DOCK_ITEM = 701
-
-    # shapes
+    COLOR = 700
     ...
 
-    # workspace
+    # space
+    SPACE_DOCK = 800
+    SPACE_DOCK_ITEM = 801
+    ...
+
+    # shapes
     ...
 
 
@@ -486,10 +487,6 @@ class FormatHint(IdEnum):
     PHONE = 20
     RATING = 21
     SLIDER = 22
-    # boolean
-    TOGGLE = 40
-    CHECKBOX = 41
-    THUMBS = 42
     # files
     IMAGE = 60
     VIDEO = 61
