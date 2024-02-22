@@ -12,6 +12,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
+from bench.language.validation import validate_slug
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -115,7 +116,7 @@ class Package(Node):
     """A package is a semi-isolated version of a Bench containing all the source and data."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    slug: Optional[str] = p_regular(33)
+    slug: Optional[str] = p_regular(33, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
     is_partial: bool = p_system(36, default=False)

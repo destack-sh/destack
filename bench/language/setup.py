@@ -73,6 +73,7 @@ def _complete_bench_setup():
     for bench_t in const.__dict__.values():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
+            FINAL_BENCH_CLASSES.append(bench_t)
     BENCH_CLASSES.extend(chain(get_subclasses(Struct), (Value,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASSES_BY_NAME[cls.__name__] = cls

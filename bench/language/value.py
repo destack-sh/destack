@@ -17,7 +17,7 @@ from bench.language.const import NodeType, StructType
 from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
-from bench.language.validation import ValidationHandler
+from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
@@ -84,12 +84,6 @@ class HasValues(Struct):
 
     def _untrack_inner(self) -> None:
         pass
-
-
-def on_invalid_raise(
-    value: Any, expected: "TypeInfo", message: str = None, suberrors: list[TypeError] = None
-):
-    raise TypeError(value, expected, message, suberrors)
 
 
 def _map_v_noop(value: Any, *args, **kwargs):

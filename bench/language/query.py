@@ -482,7 +482,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def id(self) -> int | str | UUID:
         return hash(self)
 
-    # nocheckin: make StoreEngine.supports conditional on access type
+    # nocheckin: filter StoreEngine.supports by access type (read/write)
     #  (for Host we only want to read from in memory graph, but write to postgres)
     def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
         if scope.bench_id is not None and (

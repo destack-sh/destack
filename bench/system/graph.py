@@ -29,11 +29,16 @@ from bench.language.access import (
     generate_access_matrix,
     get_edited_scopes,
 )
-from bench.language.const import ABOVE_SOURCE_NODE_TYPES, ConditionalOp, NodeType, PolicyEffect
+from bench.language.const import (
+    ConditionalOp,
+    NodeType,
+    PolicyEffect,
+)
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
 from bench.language.session import edit_data_graph
+from bench.language.validation import on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -119,8 +124,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
-        if any(root.type not in ABOVE_SOURCE_NODE_TYPES for root in roots):
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
@@ -163,11 +166,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     async def search_nodes(
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        if request.bases:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        if node_type not in ABOVE_SOURCE_NODE_TYPES:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
         options: ReadOptions = (
@@ -205,8 +204,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         if request.bases:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        if node_type not in ABOVE_SOURCE_NODE_TYPES:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO can't read packages")
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
 
@@ -262,9 +259,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             edit_data_graph(data_graph, request.edits, update_nodes_in_place=False)
             nodes = wiring.unpack_nodes_inline(data_graph)
             for node in nodes:
-                # nocheckin: validate only edited properties?
-                #  (non-default properties aren't loaded so will error if required)
-                node._validate_self()
+                node._validate_self((), on_invalid=on_invalid_raise)
 
             # apply the edits
             session.tx._add_pending_edits(request.edits)

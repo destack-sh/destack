@@ -7,7 +7,7 @@ from bench.language import Client, User
 from bench.language.access import (
     Subject,
 )
-from bench.language.const import OUTSIDE_BENCH_NODE_TYPES
+from bench.language.const import USER_NODE_TYPES
 from bench.language.user import UserStatus
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -36,7 +36,7 @@ logger = structlog.get_logger(__name__)
 class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBase):
     def __init__(self):
         BenchServiceBase.__init__(self, loopback_stub_to=SupervisorStub)
-        GraphIoService.__init__(self, bench_id=None, node_types=OUTSIDE_BENCH_NODE_TYPES)
+        GraphIoService.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
 
     def __str__(self):
         return "shards=[*]"

@@ -78,9 +78,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
         )._to_data(),
     )
     access_metadata = RpcMetadata(
-        client_id=str(client.id),
-        client_kind=wire.ClientKind.USER,
-        client_access_token=login_rep.access_token,
+        client_id=str(client.id), client_access_token=login_rep.access_token
     )
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
     assert len(read_user_rep.nodes) == 2

@@ -6,10 +6,11 @@ import psycopg
 import structlog
 
 from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
-from bench.language.const import ABOVE_SOURCE_NODE_TYPES
+from bench.language.const import USER_NODE_TYPES, NodeType
 from bench.language.query import PostgresEngine
 from bench.language.resource import StoreCredential, StoreCredentialType
 from bench.sql.client import _PgStoreConnection
+from bench.utils.func import bytetuple
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -42,7 +43,7 @@ GLOBAL_STORE = Store(
     ),
 )
 GLOBAL_POSTGRES_ENGINE = PostgresEngine(
-    GLOBAL_STORE, scope=None, node_types=ABOVE_SOURCE_NODE_TYPES
+    GLOBAL_STORE, scope=None, node_types=bytetuple(USER_NODE_TYPES.tuple + (NodeType.BENCH,))
 )
 
 

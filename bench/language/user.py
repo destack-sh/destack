@@ -21,7 +21,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import validate_name
+from bench.language.validation import validate_name, SLUG_REGEX, validate_slug
 from bench.language.value import HasValues
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
             "bench_slug_is_slug",
             ConstraintType.CHECK,
             # ::casts are to match the introspected postgres format
-            condition="((slug)::text ~ '^[a-z0-9-]+$'::text)",
+            condition=f"((slug)::text ~ '{SLUG_REGEX}'::text)",
         ),
     ),
 )
@@ -49,7 +49,7 @@ class Handle(Node):
     parent: Union["User", "Organization", "Bench"] = p_node_parent(
         4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
     )
-    slug: str = p_system(30, unique=True)
+    slug: str = p_system(30, unique=True, validate=validate_slug)
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)

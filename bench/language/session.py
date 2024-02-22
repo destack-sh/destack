@@ -53,6 +53,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.query import StoreConnection, StoreEngine
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.proto.wire import HostStub, EditData, GraphScope, SupervisorStub
@@ -329,16 +330,15 @@ class Transaction:
     # Transaction management
     #
 
-    def canonicalize_edits(self, edits: Collection[EditData]):
+    @staticmethod
+    def canonicalize_edits(now: datetime, edits: Collection[EditData]):
         """
         'Canonicalizes' the edits in place by imputing the tracking info (e.g. 'updated_at', 'updated_by').
-        We do this in the untrusted clients as well as in the system, but only the system counts,
-         because the tracking properties are not directly updatable (only through the edit types).
-        The clients tracking timestamps can drift during sync, but that's okay, we only need existence.
+        We do this in the untrusted runtimes as well as in the system, but only the system counts,
+         because the tracking properties are not directly updatable (being system properties).
         """
         from bench.proto import wiring
 
-        now = utcnow_with_tz()
         for edit in edits:
             node = wiring.unwrap_some_node(edit.node)
             if edit.type in (EditType.CREATE, EditType.UPSERT):
@@ -376,10 +376,11 @@ class Transaction:
         else:
             engines = self.session._engines
         log = logger.bind(edits=len(self.edits), engines=len(engines), transaction=self)
+        now = utcnow_with_tz()
         for engine in engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits:
-                self.canonicalize_edits(pending_edits)
+                Transaction.canonicalize_edits(now, pending_edits)
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.flush(pending_edits)
@@ -393,10 +394,11 @@ class Transaction:
 
         # TODO :Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
+        now = utcnow_with_tz()
         for engine in self.session._engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits or engine.id in self._connections_by_engine_id:
-                self.canonicalize_edits(pending_edits)
+                Transaction.canonicalize_edits(now, pending_edits)
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
@@ -418,7 +420,40 @@ class Transaction:
 def edit_data_graph(
     graph: NodeDataGraph, edits: Collection[EditData], *, update_nodes_in_place: bool = False
 ) -> None:
-    raise NotImplementedError("nocheckin")
+    """Applies the given edits to the given graph."""
+    from bench.proto import wiring
+
+    for edit in edits:
+        node = wiring.unwrap_some_node(edit.node)
+        node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
+
+        if edit.type == EditType.CREATE:
+            graph.add(node)
+        elif edit.type == EditType.UPSERT and node.id not in graph:
+            if node.id in graph:
+                graph.update(node)
+            else:
+                graph.add(node)
+        elif edit.type == EditType.DELETE:
+            graph.remove(node)
+        else:  # some update
+            if edit.type in (EditType.UPDATE, EditType.MOVE):
+                properties = edit.properties
+            elif edit.type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+                properties = (node_cls.archived_at.id,)
+            elif edit.type in (EditType.SOFT_DELETE, EditType.RESTORE):
+                properties = (node_cls.deleted_at.id,)
+            else:
+                raise ValueError(f"unexpected edit type: {edit.type}")
+            node_to_update = graph.get(node.id)
+            assert node_to_update is not None, f"missing node for update: {edit}"
+            if not update_nodes_in_place:
+                node_to_update = wiring.copy_data(node_to_update)
+            for prop_id in properties:
+                prop_name = node_cls.__properties_name_by_id__[prop_id]
+                updated = getattr(node, prop_name)
+                setattr(node_to_update, prop_name, updated)
+            graph.update(node_to_update)
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
@@ -531,7 +566,6 @@ class Session(Node):
                 while True:
                     await asyncio.sleep(session_flush_interval)
                     await self.flush_session()
-                    await self._flush_logs()
 
             self._flush_session_loop = asyncio.create_task(_flush_session_loop())
             self._runs_by_id = {}
@@ -693,9 +727,6 @@ class Session(Node):
     @property
     def stacktrace(self):
         return self._stacktrace
-
-    async def _flush_logs(self) -> None:
-        raise NotImplementedError
 
     def _track_run(self, run: "Run"):
         # replace if already exists by id (runs are updated)

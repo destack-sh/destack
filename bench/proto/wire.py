@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.21.3"
+VERSION = "2024.02.22.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -66,7 +66,7 @@ class AccessType(betterproto.Enum):
     START = 30
     PAUSE = 31
     RESUME = 32
-    KILL = 33
+    STOP = 33
     SEND = 34
     RECEIVE = 35
 
@@ -113,15 +113,17 @@ class BenchType(betterproto.Enum):
     RECORD = 33
     QUERY = 34
     VIEW = 35
-    SESSION = 50
-    RUN = 51
-    PAUSE = 52
-    SIGNAL = 53
-    LOG = 54
-    NOTIFICATION = 55
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
+    MEMBERSHIP = 63
+    INVITE = 64
+    SESSION = 80
+    RUN = 81
+    PAUSE = 82
+    SIGNAL = 83
+    LOG = 84
+    NOTIFICATION = 85
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -131,8 +133,6 @@ class BenchType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    MEMBERSHIP = 225
-    INVITE = 226
     PATH = 500
     PATH_SEGMENT = 501
     PATH_TOKEN = 502
@@ -192,12 +192,6 @@ class BlockType(betterproto.Enum):
     SCREEN = 50
     ROLE = 60
     IDENTITY = 61
-
-
-class ClientKind(betterproto.Enum):
-    UNSPECIFIED = 0
-    USER = 1
-    SERVER = 2
 
 
 class ConditionalOp(betterproto.Enum):
@@ -381,15 +375,17 @@ class NodeType(betterproto.Enum):
     RECORD = 33
     QUERY = 34
     VIEW = 35
-    SESSION = 50
-    RUN = 51
-    PAUSE = 52
-    SIGNAL = 53
-    LOG = 54
-    NOTIFICATION = 55
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
+    MEMBERSHIP = 63
+    INVITE = 64
+    SESSION = 80
+    RUN = 81
+    PAUSE = 82
+    SIGNAL = 83
+    LOG = 84
+    NOTIFICATION = 85
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -399,8 +395,6 @@ class NodeType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    MEMBERSHIP = 225
-    INVITE = 226
 
 
 class NodeVisibility(betterproto.Enum):
@@ -685,7 +679,7 @@ class UseType(betterproto.Enum):
     START = 30
     PAUSE = 31
     RESUME = 32
-    KILL = 33
+    STOP = 33
     SEND = 34
     RECEIVE = 35
 
@@ -1740,7 +1734,9 @@ class InviteData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     source: "NodeSource" = betterproto.enum_field(8)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -1823,7 +1819,9 @@ class MembershipData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     source: "NodeSource" = betterproto.enum_field(8)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -2393,31 +2391,30 @@ class SomeNodeData(betterproto.Message):
     record: "RecordData" = betterproto.message_field(14, group="node")
     query: "QueryData" = betterproto.message_field(15, group="node")
     view: "ViewData" = betterproto.message_field(16, group="node")
-    session: "SessionData" = betterproto.message_field(17, group="node")
-    run: "RunData" = betterproto.message_field(18, group="node")
-    pause: "PauseData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    log: "LogData" = betterproto.message_field(21, group="node")
-    notification: "NotificationData" = betterproto.message_field(22, group="node")
-    badge: "BadgeData" = betterproto.message_field(23, group="node")
-    role: "RoleData" = betterproto.message_field(24, group="node")
-    identity: "IdentityData" = betterproto.message_field(25, group="node")
-    server: "ServerData" = betterproto.message_field(26, group="node")
-    store: "StoreData" = betterproto.message_field(27, group="node")
-    drive: "DriveData" = betterproto.message_field(28, group="node")
-    cache: "CacheData" = betterproto.message_field(29, group="node")
-    file_content: "FileContentData" = betterproto.message_field(30, group="node")
-    handle: "HandleData" = betterproto.message_field(31, group="node")
-    user: "UserData" = betterproto.message_field(32, group="node")
-    organization: "OrganizationData" = betterproto.message_field(33, group="node")
-    client: "ClientData" = betterproto.message_field(34, group="node")
-    membership: "MembershipData" = betterproto.message_field(35, group="node")
-    invite: "InviteData" = betterproto.message_field(36, group="node")
+    badge: "BadgeData" = betterproto.message_field(17, group="node")
+    role: "RoleData" = betterproto.message_field(18, group="node")
+    identity: "IdentityData" = betterproto.message_field(19, group="node")
+    membership: "MembershipData" = betterproto.message_field(20, group="node")
+    invite: "InviteData" = betterproto.message_field(21, group="node")
+    session: "SessionData" = betterproto.message_field(22, group="node")
+    run: "RunData" = betterproto.message_field(23, group="node")
+    pause: "PauseData" = betterproto.message_field(24, group="node")
+    signal: "SignalData" = betterproto.message_field(25, group="node")
+    log: "LogData" = betterproto.message_field(26, group="node")
+    notification: "NotificationData" = betterproto.message_field(27, group="node")
+    server: "ServerData" = betterproto.message_field(28, group="node")
+    store: "StoreData" = betterproto.message_field(29, group="node")
+    drive: "DriveData" = betterproto.message_field(30, group="node")
+    cache: "CacheData" = betterproto.message_field(31, group="node")
+    file_content: "FileContentData" = betterproto.message_field(32, group="node")
+    handle: "HandleData" = betterproto.message_field(33, group="node")
+    user: "UserData" = betterproto.message_field(34, group="node")
+    organization: "OrganizationData" = betterproto.message_field(35, group="node")
+    client: "ClientData" = betterproto.message_field(36, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class ClientOrigin(betterproto.Message):
-    kind: "ClientKind" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     nonce: str = betterproto.string_field(3)
 
@@ -2429,10 +2426,9 @@ class RpcMetadata(betterproto.Message):
      (This is passed as specially encoded headers, but it's nice to have a common definition.)
     """
 
-    client_kind: Optional["ClientKind"] = betterproto.enum_field(1, optional=True)
+    client_id: Optional[str] = betterproto.string_field(2, optional=True)
     """Client"""
 
-    client_id: Optional[str] = betterproto.string_field(2, optional=True)
     client_nonce: Optional[str] = betterproto.string_field(3, optional=True)
     client_access_token: Optional[str] = betterproto.string_field(4, optional=True)
     badge_id: Optional[str] = betterproto.string_field(5, optional=True)
@@ -2914,91 +2910,6 @@ class GraphIoStub(betterproto.ServiceStub):
 
 
 class SupervisorStub(betterproto.ServiceStub):
-    async def signup_user(
-        self,
-        request: "SignupUserRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "SignupUserResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/SignupUser",
-            request,
-            SignupUserResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def change_user_password(
-        self,
-        request: "ChangeUserPasswordRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "ChangeUserPasswordResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/ChangeUserPassword",
-            request,
-            ChangeUserPasswordResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def login_user(
-        self,
-        request: "LoginUserRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "LoginUserResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/LoginUser",
-            request,
-            LoginUserResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def logout_user(
-        self,
-        request: "LogoutUserRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "LogoutUserResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/LogoutUser",
-            request,
-            LogoutUserResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def create_bench(
-        self,
-        request: "CreateBenchRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "CreateBenchResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CreateBench",
-            request,
-            CreateBenchResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -3135,6 +3046,91 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         ):
             yield response
+
+    async def signup_user(
+        self,
+        request: "SignupUserRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SignupUserResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/SignupUser",
+            request,
+            SignupUserResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def change_user_password(
+        self,
+        request: "ChangeUserPasswordRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ChangeUserPasswordResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/ChangeUserPassword",
+            request,
+            ChangeUserPasswordResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def login_user(
+        self,
+        request: "LoginUserRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "LoginUserResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/LoginUser",
+            request,
+            LoginUserResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def logout_user(
+        self,
+        request: "LogoutUserRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "LogoutUserResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/LogoutUser",
+            request,
+            LogoutUserResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def create_bench(
+        self,
+        request: "CreateBenchRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CreateBenchResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/CreateBench",
+            request,
+            CreateBenchResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
 
 
 class HostStub(betterproto.ServiceStub):
@@ -3538,31 +3534,6 @@ class GraphIoBase(ServiceBase):
 
 
 class SupervisorBase(ServiceBase):
-    async def signup_user(
-        self, subject: "Subject", request: "SignupUserRequest"
-    ) -> "SignupUserResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def change_user_password(
-        self, subject: "Subject", request: "ChangeUserPasswordRequest"
-    ) -> "ChangeUserPasswordResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def login_user(
-        self, subject: "Subject", request: "LoginUserRequest"
-    ) -> "LoginUserResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def logout_user(
-        self, subject: "Subject", request: "LogoutUserRequest"
-    ) -> "LogoutUserResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def create_bench(
-        self, subject: "Subject", request: "CreateBenchRequest"
-    ) -> "CreateBenchResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -3602,41 +3573,30 @@ class SupervisorBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def __rpc_signup_user(
-        self, stream: "grpclib.server.Stream[SignupUserRequest, SignupUserResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.signup_user(request)
-        await stream.send_message(response)
+    async def signup_user(
+        self, subject: "Subject", request: "SignupUserRequest"
+    ) -> "SignupUserResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_change_user_password(
-        self,
-        stream: "grpclib.server.Stream[ChangeUserPasswordRequest, ChangeUserPasswordResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.change_user_password(request)
-        await stream.send_message(response)
+    async def change_user_password(
+        self, subject: "Subject", request: "ChangeUserPasswordRequest"
+    ) -> "ChangeUserPasswordResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_login_user(
-        self, stream: "grpclib.server.Stream[LoginUserRequest, LoginUserResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.login_user(request)
-        await stream.send_message(response)
+    async def login_user(
+        self, subject: "Subject", request: "LoginUserRequest"
+    ) -> "LoginUserResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_logout_user(
-        self, stream: "grpclib.server.Stream[LogoutUserRequest, LogoutUserResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.logout_user(request)
-        await stream.send_message(response)
+    async def logout_user(
+        self, subject: "Subject", request: "LogoutUserRequest"
+    ) -> "LogoutUserResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_create_bench(
-        self, stream: "grpclib.server.Stream[CreateBenchRequest, CreateBenchResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.create_bench(request)
-        await stream.send_message(response)
+    async def create_bench(
+        self, subject: "Subject", request: "CreateBenchRequest"
+    ) -> "CreateBenchResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
@@ -3702,38 +3662,44 @@ class SupervisorBase(ServiceBase):
             request,
         )
 
+    async def __rpc_signup_user(
+        self, stream: "grpclib.server.Stream[SignupUserRequest, SignupUserResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.signup_user(request)
+        await stream.send_message(response)
+
+    async def __rpc_change_user_password(
+        self,
+        stream: "grpclib.server.Stream[ChangeUserPasswordRequest, ChangeUserPasswordResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.change_user_password(request)
+        await stream.send_message(response)
+
+    async def __rpc_login_user(
+        self, stream: "grpclib.server.Stream[LoginUserRequest, LoginUserResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.login_user(request)
+        await stream.send_message(response)
+
+    async def __rpc_logout_user(
+        self, stream: "grpclib.server.Stream[LogoutUserRequest, LogoutUserResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.logout_user(request)
+        await stream.send_message(response)
+
+    async def __rpc_create_bench(
+        self, stream: "grpclib.server.Stream[CreateBenchRequest, CreateBenchResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.create_bench(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Supervisor/SignupUser": grpclib.const.Handler(
-                self.__rpc_signup_user,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                SignupUserRequest,
-                SignupUserResponse,
-            ),
-            "/symbolx.bench.Supervisor/ChangeUserPassword": grpclib.const.Handler(
-                self.__rpc_change_user_password,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                ChangeUserPasswordRequest,
-                ChangeUserPasswordResponse,
-            ),
-            "/symbolx.bench.Supervisor/LoginUser": grpclib.const.Handler(
-                self.__rpc_login_user,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                LoginUserRequest,
-                LoginUserResponse,
-            ),
-            "/symbolx.bench.Supervisor/LogoutUser": grpclib.const.Handler(
-                self.__rpc_logout_user,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                LogoutUserRequest,
-                LogoutUserResponse,
-            ),
-            "/symbolx.bench.Supervisor/CreateBench": grpclib.const.Handler(
-                self.__rpc_create_bench,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CreateBenchRequest,
-                CreateBenchResponse,
-            ),
             "/symbolx.bench.Supervisor/GetNodes": grpclib.const.Handler(
                 self.__rpc_get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -3781,6 +3747,36 @@ class SupervisorBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
+            ),
+            "/symbolx.bench.Supervisor/SignupUser": grpclib.const.Handler(
+                self.__rpc_signup_user,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SignupUserRequest,
+                SignupUserResponse,
+            ),
+            "/symbolx.bench.Supervisor/ChangeUserPassword": grpclib.const.Handler(
+                self.__rpc_change_user_password,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ChangeUserPasswordRequest,
+                ChangeUserPasswordResponse,
+            ),
+            "/symbolx.bench.Supervisor/LoginUser": grpclib.const.Handler(
+                self.__rpc_login_user,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                LoginUserRequest,
+                LoginUserResponse,
+            ),
+            "/symbolx.bench.Supervisor/LogoutUser": grpclib.const.Handler(
+                self.__rpc_logout_user,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                LogoutUserRequest,
+                LogoutUserResponse,
+            ),
+            "/symbolx.bench.Supervisor/CreateBench": grpclib.const.Handler(
+                self.__rpc_create_bench,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CreateBenchRequest,
+                CreateBenchResponse,
             ),
         }
 
@@ -4064,78 +4060,78 @@ import bench.proto.monkey  # noqa
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    ClientData,
-    EnvironmentData,
     BenchData,
-    FileContentData,
-    BadgeData,
-    MembershipData,
-    QueryData,
-    PauseData,
-    SkipData,
+    EnvironmentData,
     BranchData,
-    RunData,
-    UpgradeData,
-    CacheData,
-    SignalData,
-    RecordData,
-    NoticeData,
-    DriveData,
-    SpaceData,
-    ViewData,
+    PackageData,
     DependencyData,
-    IdentityData,
-    OrganizationData,
-    BlockData,
-    HandleData,
-    RoleData,
-    TriggerData,
-    UserData,
+    UpgradeData,
+    SpaceData,
     LinkData,
+    SkipData,
+    NoticeData,
+    BlockData,
+    TriggerData,
+    FieldData,
+    RecordData,
+    QueryData,
+    ViewData,
+    BadgeData,
+    RoleData,
+    IdentityData,
+    MembershipData,
     InviteData,
+    SessionData,
+    RunData,
+    PauseData,
+    SignalData,
     LogData,
     NotificationData,
-    PackageData,
     ServerData,
-    SessionData,
     StoreData,
-    FieldData,
+    DriveData,
+    CacheData,
+    FileContentData,
+    HandleData,
+    UserData,
+    OrganizationData,
+    ClientData,
 ]
 AnyStructData = Union[
-    AccessTraceData,
-    PathTokenData,
-    RunCodeFrameData,
-    ValueReferenceData,
-    ContextData,
     PathData,
-    ProjectionData,
-    TypeInfoData,
-    SpaceDockData,
-    ScheduleData,
-    CodeData,
-    TextLineData,
-    RequestData,
-    AggregationData,
+    PathSegmentData,
+    PathTokenData,
     NodeReferenceData,
-    ExpressionData,
-    ServerImageData,
-    TextSpanData,
+    PropertyReferenceData,
+    ValueReferenceData,
+    TypeInfoData,
+    ContextData,
+    ScheduleData,
+    ProjectionData,
     FileData,
-    ReadOptionsData,
-    RunErrorData,
-    CodeLineData,
-    StoreCredentialData,
-    AccessMatrixData,
     IconData,
+    PolicyData,
     PolicyRuleData,
     SubjectData,
-    AggregationBucketData,
     AccessZoneData,
-    PropertyReferenceData,
-    PathSegmentData,
-    SpaceDockItemData,
-    ServerImageRequirementData,
-    PolicyData,
-    TextData,
+    AccessMatrixData,
     AccessData,
+    AccessTraceData,
+    RequestData,
+    ReadOptionsData,
+    ExpressionData,
+    AggregationData,
+    AggregationBucketData,
+    CodeData,
+    CodeLineData,
+    RunCodeFrameData,
+    RunErrorData,
+    ServerImageData,
+    ServerImageRequirementData,
+    StoreCredentialData,
+    TextData,
+    TextLineData,
+    TextSpanData,
+    SpaceDockData,
+    SpaceDockItemData,
 ]

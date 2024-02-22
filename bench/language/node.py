@@ -400,7 +400,14 @@ def _process_struct_base_cls(
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
     )
     cls.__tracked_properties__ = frozendict(
-        {p.name: p for p in props if not p.is_ephemeral and not p.is_computed}
+        {
+            p.name: p
+            for p in props
+            if not p.is_ephemeral
+            and not p.is_autoset
+            and not p.is_computed
+            and not p.reference_source
+        }
     )
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__node_reference_properties__ = frozendict(
@@ -1153,14 +1160,18 @@ class Struct(abc.ABC):
                 visitor.visit_reference(value)
 
     def _validate_inner(
-        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
-        """Validate cross-property constraints given the modified properties."""
-        # since this is the root package, we also validate the properties directly
+        """Validate properties for illegal values that shouldn't or cannot be stored."""
+
+        if properties == ():  # validate all
+            properties = self.__tracked_properties__.values()
         for prop in properties:
             value = getattr(self, prop.name)
             if value is None:
-                if prop.is_required:
+                # TODO :Robustness: track whether property was deferred
+                #  (so we can validate it appropriately, and probably a bunch of other stuff)
+                if prop.is_required and not (prop.is_sensitive or prop.is_deferred):
                     on_invalid(self, f"{prop.name} is required", [prop])
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_invalid)

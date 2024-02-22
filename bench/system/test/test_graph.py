@@ -216,7 +216,7 @@ async def test_supervisor_invalid_node(some_user: UserHandle, supervisor: Superv
     """Update a User property to an invalid value, should be rejected."""
 
     user = some_user.user
-    user.name = ""
+    user.name = "thisiswaytoolong" * 64
     edit = EditData(
         id=new_struct_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),

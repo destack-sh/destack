@@ -1194,7 +1194,7 @@ def evaluate_and_adapt_read(
             # prune node properties to only allowed ones
             if not adapt_nodes_in_place:
                 # TODO :Performance: avoid copying properties that we'll prune anyway
-                n = wiring.copy_struct_data(n)
+                n = wiring.copy_data(n)
             pruned_properties = object_properties & (object_properties ^ adapted_properties)
             for pruned_prop_ord in pruned_properties.search(True):
                 prop = node_cls.__properties_in_order__[pruned_prop_ord]
