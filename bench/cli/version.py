@@ -32,8 +32,8 @@ def bump(revision: int = typer.Option(None)):
         Path("bench/language/const.py").read_text().replace(current_version, new_version)
     )
     Path("version").write_text(new_version)
-    with open("package.json", "r") as f:
+    with open("bench-web/package.json", "r") as f:
         package = json.load(f)
         package["version"] = new_version
-    with open("package.json", "w") as f:
+    with open("bench-web/package.json", "w") as f:
         json.dump(package, f, indent=2)

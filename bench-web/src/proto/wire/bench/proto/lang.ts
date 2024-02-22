@@ -297,6 +297,41 @@ export interface CodeLineData {
     line: string;
 }
 /**
+ * A color value.
+ *
+ * @generated from protobuf message symbolx.bench.ColorData
+ */
+export interface ColorData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 5;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.ColorType type = 31;
+     */
+    type: ColorType;
+    /**
+     * @generated from protobuf field: optional string hex = 33;
+     */
+    hex?: string;
+}
+/**
  * A semi-magical value that accumulates context down the graph (starting with system context).
  *
  * @generated from protobuf message symbolx.bench.ContextData
@@ -4571,13 +4606,29 @@ export interface ViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 32;
+     * @generated from protobuf field: optional string title = 32;
+     */
+    title?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 33;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf field: bool is_visible = 80;
      */
     isVisible: boolean;
+    /**
+     * @generated from protobuf field: bool is_disabled = 81;
+     */
+    isDisabled: boolean;
+    /**
+     * @generated from protobuf field: bool is_loading = 82;
+     */
+    isLoading: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -5301,13 +5352,17 @@ export enum BenchType {
      */
     TEXT_SPAN = 662,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK = 700;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 700;
      */
-    SPACE_DOCK = 700,
+    COLOR = 700,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK_ITEM = 701;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK = 800;
      */
-    SPACE_DOCK_ITEM = 701
+    SPACE_DOCK = 800,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK_ITEM = 801;
+     */
+    SPACE_DOCK_ITEM = 801
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -5393,6 +5448,113 @@ export enum BlockType {
      * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 61;
      */
     IDENTITY = 61
+}
+/**
+ * Built-in color types a la SwiftUI or Tailwind.
+ *
+ * @generated from protobuf enum symbolx.bench.ColorType
+ */
+export enum ColorType {
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_PRIMARY = 1;
+     */
+    PRIMARY = 1,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_SECONDARY = 2;
+     */
+    SECONDARY = 2,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_ACCENT = 3;
+     */
+    ACCENT = 3,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_SUCCESS = 10;
+     */
+    SUCCESS = 10,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_HINT = 11;
+     */
+    HINT = 11,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_INFO = 12;
+     */
+    INFO = 12,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_WARNING = 13;
+     */
+    WARNING = 13,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_ERROR = 14;
+     */
+    ERROR = 14,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_BLACK = 30;
+     */
+    BLACK = 30,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_BLUE = 31;
+     */
+    BLUE = 31,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_BROWN = 32;
+     */
+    BROWN = 32,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_CLEAR = 33;
+     */
+    CLEAR = 33,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_CYAN = 34;
+     */
+    CYAN = 34,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_GRAY = 35;
+     */
+    GRAY = 35,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_GREEN = 36;
+     */
+    GREEN = 36,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_INDIGO = 37;
+     */
+    INDIGO = 37,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_MINT = 38;
+     */
+    MINT = 38,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_ORANGE = 39;
+     */
+    ORANGE = 39,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_PINK = 40;
+     */
+    PINK = 40,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_PURPLE = 41;
+     */
+    PURPLE = 41,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_RED = 42;
+     */
+    RED = 42,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_TEAL = 43;
+     */
+    TEAL = 43,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_WHITE = 44;
+     */
+    WHITE = 44,
+    /**
+     * @generated from protobuf enum value: COLOR_TYPE_YELLOW = 45;
+     */
+    YELLOW = 45
 }
 /**
  * @generated from protobuf enum symbolx.bench.ConditionalOp
@@ -5780,18 +5942,6 @@ export enum FormatHint {
      * @generated from protobuf enum value: FORMAT_HINT_SLIDER = 22;
      */
     SLIDER = 22,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_TOGGLE = 40;
-     */
-    TOGGLE = 40,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_CHECKBOX = 41;
-     */
-    CHECKBOX = 41,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_THUMBS = 42;
-     */
-    THUMBS = 42,
     /**
      * @generated from protobuf enum value: FORMAT_HINT_IMAGE = 60;
      */
@@ -6892,13 +7042,17 @@ export enum StructType {
      */
     TEXT_SPAN = 662,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK = 700;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 700;
      */
-    SPACE_DOCK = 700,
+    COLOR = 700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK_ITEM = 701;
+     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK = 800;
      */
-    SPACE_DOCK_ITEM = 701
+    SPACE_DOCK = 800,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK_ITEM = 801;
+     */
+    SPACE_DOCK_ITEM = 801
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -7049,13 +7203,13 @@ export enum ViewType {
      */
     WATCH = 12,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TESTING = 13;
+     * @generated from protobuf enum value: VIEW_TYPE_TEST = 13;
      */
-    TESTING = 13,
+    TEST = 13,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BENCH = 14;
+     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 14;
      */
-    BENCH = 14,
+    RESOURCE = 14,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 15;
      */
@@ -7069,25 +7223,157 @@ export enum ViewType {
      */
     ACCESS = 17,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOW_GROUP = 40;
+     * @generated from protobuf enum value: VIEW_TYPE_WINDOW_GROUP = 50;
      */
-    WINDOW_GROUP = 40,
+    WINDOW_GROUP = 50,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 41;
+     * @generated from protobuf enum value: VIEW_TYPE_TAB_GROUP = 52;
      */
-    WINDOW = 41,
+    TAB_GROUP = 52,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PANEL = 42;
+     * @generated from protobuf enum value: VIEW_TYPE_STEP_GROUP = 55;
      */
-    PANEL = 42,
+    STEP_GROUP = 55,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 60;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 57;
      */
-    SPACER = 60,
+    SPLIT = 57,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 61;
+     * @generated from protobuf enum value: VIEW_TYPE_STACK = 60;
      */
-    DIVIDER = 61
+    STACK = 60,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DISCLOSURE = 61;
+     */
+    DISCLOSURE = 61,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_GRID = 62;
+     */
+    GRID = 62,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_GRID_ROW = 63;
+     */
+    GRID_ROW = 63,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_LIST = 70;
+     */
+    LIST = 70,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 71;
+     */
+    TABLE = 71,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_FEED = 72;
+     */
+    FEED = 72,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 75;
+     */
+    GROUP = 75,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_FORM = 76;
+     */
+    FORM = 76,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_MENU = 77;
+     */
+    MENU = 77,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 80;
+     */
+    SPACER = 80,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 81;
+     */
+    DIVIDER = 81,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 82;
+     */
+    PROGRESS = 82,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 83;
+     */
+    SHAPE = 83,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 84;
+     */
+    AVATAR = 84,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 100;
+     */
+    ICON = 100,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 101;
+     */
+    IMAGE = 101,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 102;
+     */
+    VIDEO = 102,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 103;
+     */
+    AUDIO = 103,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 104;
+     */
+    DOCUMENT = 104,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 120;
+     */
+    BUTTON = 120,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 121;
+     */
+    LINK = 121,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 160;
+     */
+    VALUE = 160,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 170;
+     */
+    TOGGLE = 170,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX = 171;
+     */
+    CHECKBOX = 171,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX_GROUP = 172;
+     */
+    CHECKBOX_GROUP = 172,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 173;
+     */
+    SLIDER = 173,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 180;
+     */
+    TEXT = 180,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 181;
+     */
+    CODE = 181,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 182;
+     */
+    JSON = 182,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 190;
+     */
+    PICKER = 190,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DATE_PICKER = 191;
+     */
+    DATE_PICKER = 191,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR_PICKER = 192;
+     */
+    COLOR_PICKER = 192,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_FILE_PICKER = 193;
+     */
+    FILE_PICKER = 193
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -7826,6 +8112,97 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
  * @generated MessageType for protobuf message symbolx.bench.CodeLineData
  */
 export const CodeLineData = new CodeLineData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ColorData$Type extends MessageType<ColorData> {
+    constructor() {
+        super("symbolx.bench.ColorData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
+            { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ColorData>): ColorData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ColorData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ColorData): ColorData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 5:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.ColorType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string hex */ 33:
+                    message.hex = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 5; */
+        if (message.orderKey !== undefined)
+            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.ColorType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string hex = 33; */
+        if (message.hex !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.hex);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ColorData
+ */
+export const ColorData = new ColorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ContextData$Type extends MessageType<ContextData> {
     constructor() {
@@ -17156,8 +17533,12 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "icon", kind: "message", T: () => IconData },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "text", kind: "message", T: () => TextData },
+            { no: 35, name: "icon", kind: "message", T: () => IconData },
+            { no: 80, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -17169,6 +17550,8 @@ class ViewData$Type extends MessageType<ViewData> {
         message.revision = 0n;
         message.type = 0;
         message.isVisible = false;
+        message.isDisabled = false;
+        message.isLoading = false;
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
         return message;
@@ -17223,11 +17606,23 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.IconData icon */ 32:
+                case /* optional string title */ 32:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 33:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* bool is_visible */ 60:
+                case /* bool is_visible */ 80:
                     message.isVisible = reader.bool();
+                    break;
+                case /* bool is_disabled */ 81:
+                    message.isDisabled = reader.bool();
+                    break;
+                case /* bool is_loading */ 82:
+                    message.isLoading = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17286,12 +17681,24 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.IconData icon = 32; */
+        /* optional string title = 32; */
+        if (message.title !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 33; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_visible = 60; */
+            IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible = 80; */
         if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
+            writer.tag(80, WireType.Varint).bool(message.isVisible);
+        /* bool is_disabled = 81; */
+        if (message.isDisabled !== false)
+            writer.tag(81, WireType.Varint).bool(message.isDisabled);
+        /* bool is_loading = 82; */
+        if (message.isLoading !== false)
+            writer.tag(82, WireType.Varint).bool(message.isLoading);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

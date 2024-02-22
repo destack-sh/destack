@@ -12,7 +12,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import validate_slug
+from bench.language.validation import validate_name, validate_slug
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class Bench(Node):
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_node_child(NodeType.HANDLE)
     slug: str = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33)
+    name: str = p_regular(33, validate=validate_name)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
@@ -81,7 +81,7 @@ class Environment(Node):
     """An environment isolates resources from the rest of a Bench."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: Optional[str] = p_regular(32)
+    name: Optional[str] = p_regular(32, validate=validate_name)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
 
@@ -99,7 +99,7 @@ class Branch(Node):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: Optional[str] = p_regular(32)
+    name: Optional[str] = p_regular(32, validate=validate_name)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     main_package: Optional["Package"] = p_system(
         35, require=False, array=False, references=NodeType.PACKAGE
@@ -176,8 +176,6 @@ class Upgrade(Node):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
-
-    name: Optional[str] = p_regular(32)
-
+    name: Optional[str] = p_regular(32, validate=validate_name)
     title: Optional[str] = p_regular(34)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)

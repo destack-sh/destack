@@ -1,27 +1,20 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import (
-    Node,
-    Struct,
-    node,
-    node_component,
-    struct,
-)
-from bench.language.property import p_node_parent, p_node_child, p_regular, p_internal
+from bench.language.node import Node, Struct, node, node_component, struct
+from bench.language.property import p_internal, p_node_child, p_node_parent, p_regular
 from bench.language.validation import enum_validator, validate_name
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Text, Icon, Policy, Package, Block
+    from bench.language import Block, Icon, Package, Policy, Text
 
 
 class ViewType(IdEnum):
     # 'intrinsic' roots for editor
-    DOCK = 1
-    PAGE = 2
-    BLOCK = 3
+    PAGE = 1
+    BLOCK = 2
     EXPLORER = 10
     HISTORY = 11
     WATCH = 12
@@ -97,7 +90,7 @@ class ColorType(IdEnum):
     HINT = 11
     INFO = 12
     WARNING = 13
-    ERROR = 12
+    ERROR = 14
     # actual
     BLACK = 30
     BLUE = 31
