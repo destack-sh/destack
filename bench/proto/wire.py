@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.22.0"
+VERSION = "2024.02.22.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -167,8 +160,9 @@ class BenchType(betterproto.Enum):
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
-    SPACE_DOCK = 700
-    SPACE_DOCK_ITEM = 701
+    COLOR = 700
+    SPACE_DOCK = 800
+    SPACE_DOCK_ITEM = 801
 
 
 class BlockType(betterproto.Enum):
@@ -192,6 +186,36 @@ class BlockType(betterproto.Enum):
     SCREEN = 50
     ROLE = 60
     IDENTITY = 61
+
+
+class ColorType(betterproto.Enum):
+    """Built-in color types a la SwiftUI or Tailwind."""
+
+    UNSPECIFIED = 0
+    PRIMARY = 1
+    SECONDARY = 2
+    ACCENT = 3
+    SUCCESS = 10
+    HINT = 11
+    INFO = 12
+    WARNING = 13
+    ERROR = 14
+    BLACK = 30
+    BLUE = 31
+    BROWN = 32
+    CLEAR = 33
+    CYAN = 34
+    GRAY = 35
+    GREEN = 36
+    INDIGO = 37
+    MINT = 38
+    ORANGE = 39
+    PINK = 40
+    PURPLE = 41
+    RED = 42
+    TEAL = 43
+    WHITE = 44
+    YELLOW = 45
 
 
 class ConditionalOp(betterproto.Enum):
@@ -304,9 +328,6 @@ class FormatHint(betterproto.Enum):
     PHONE = 20
     RATING = 21
     SLIDER = 22
-    TOGGLE = 40
-    CHECKBOX = 41
-    THUMBS = 42
     IMAGE = 60
     VIDEO = 61
     AUDIO = 62
@@ -648,8 +669,9 @@ class StructType(betterproto.Enum):
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
-    SPACE_DOCK = 700
-    SPACE_DOCK_ITEM = 701
+    COLOR = 700
+    SPACE_DOCK = 800
+    SPACE_DOCK_ITEM = 801
 
 
 class TextLineType(betterproto.Enum):
@@ -699,16 +721,49 @@ class ViewType(betterproto.Enum):
     EXPLORER = 10
     HISTORY = 11
     WATCH = 12
-    TESTING = 13
-    BENCH = 14
+    TEST = 13
+    RESOURCE = 14
     INSPECTOR = 15
     LIBRARY = 16
     ACCESS = 17
-    WINDOW_GROUP = 40
-    WINDOW = 41
-    PANEL = 42
-    SPACER = 60
-    DIVIDER = 61
+    WINDOW_GROUP = 50
+    TAB_GROUP = 52
+    STEP_GROUP = 55
+    SPLIT = 57
+    STACK = 60
+    DISCLOSURE = 61
+    GRID = 62
+    GRID_ROW = 63
+    LIST = 70
+    TABLE = 71
+    FEED = 72
+    GROUP = 75
+    FORM = 76
+    MENU = 77
+    SPACER = 80
+    DIVIDER = 81
+    PROGRESS = 82
+    SHAPE = 83
+    AVATAR = 84
+    ICON = 100
+    IMAGE = 101
+    VIDEO = 102
+    AUDIO = 103
+    DOCUMENT = 104
+    BUTTON = 120
+    LINK = 121
+    VALUE = 160
+    TOGGLE = 170
+    CHECKBOX = 171
+    CHECKBOX_GROUP = 172
+    SLIDER = 173
+    TEXT = 180
+    CODE = 181
+    JSON = 182
+    PICKER = 190
+    DATE_PICKER = 191
+    COLOR_PICKER = 192
+    FILE_PICKER = 193
 
 
 @dataclass(eq=False, repr=False)
@@ -826,6 +881,19 @@ class CodeLineData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     line: str = betterproto.string_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class ColorData(betterproto.Message):
+    """A color value."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(5, optional=True)
+    type: "ColorType" = betterproto.enum_field(31)
+    hex: Optional[str] = betterproto.string_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2369,8 +2437,12 @@ class ViewData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     type: "ViewType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(32, optional=True)
-    is_visible: bool = betterproto.bool_field(60)
+    title: Optional[str] = betterproto.string_field(32, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(33, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
+    is_visible: bool = betterproto.bool_field(80)
+    is_disabled: bool = betterproto.bool_field(81)
+    is_loading: bool = betterproto.bool_field(82)
 
 
 @dataclass(eq=False, repr=False)
@@ -4055,9 +4127,9 @@ class RuntimeBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
+
+import bench.proto.monkey  # noqa
 
 AnyNodeData = Union[
     BenchData,
@@ -4132,6 +4204,7 @@ AnyStructData = Union[
     TextData,
     TextLineData,
     TextSpanData,
+    ColorData,
     SpaceDockData,
     SpaceDockItemData,
 ]

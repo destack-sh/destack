@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.22.0"
+VERSION = "2024.02.22.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -28,7 +28,7 @@ REVISION_PENDING = -1
 class NodeType(IdEnum):
     # root
     BENCH = 1
-    PLACE = 2
+    # PLACE = 2 # isn't Place == Client?
     ENVIRONMENT = 3
     BRANCH = 4
 

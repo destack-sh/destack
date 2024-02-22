@@ -139,8 +139,9 @@ enum BenchType {
   BENCH_TYPE_TEXT = 660;
   BENCH_TYPE_TEXT_LINE = 661;
   BENCH_TYPE_TEXT_SPAN = 662;
-  BENCH_TYPE_SPACE_DOCK = 700;
-  BENCH_TYPE_SPACE_DOCK_ITEM = 701;
+  BENCH_TYPE_COLOR = 700;
+  BENCH_TYPE_SPACE_DOCK = 800;
+  BENCH_TYPE_SPACE_DOCK_ITEM = 801;
 }
 
 enum BlockType {
@@ -164,6 +165,35 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 50;
   BLOCK_TYPE_ROLE = 60;
   BLOCK_TYPE_IDENTITY = 61;
+}
+
+// Built-in color types a la SwiftUI or Tailwind.
+enum ColorType {
+  COLOR_TYPE_UNSPECIFIED = 0;
+  COLOR_TYPE_PRIMARY = 1;
+  COLOR_TYPE_SECONDARY = 2;
+  COLOR_TYPE_ACCENT = 3;
+  COLOR_TYPE_SUCCESS = 10;
+  COLOR_TYPE_HINT = 11;
+  COLOR_TYPE_INFO = 12;
+  COLOR_TYPE_WARNING = 13;
+  COLOR_TYPE_ERROR = 14;
+  COLOR_TYPE_BLACK = 30;
+  COLOR_TYPE_BLUE = 31;
+  COLOR_TYPE_BROWN = 32;
+  COLOR_TYPE_CLEAR = 33;
+  COLOR_TYPE_CYAN = 34;
+  COLOR_TYPE_GRAY = 35;
+  COLOR_TYPE_GREEN = 36;
+  COLOR_TYPE_INDIGO = 37;
+  COLOR_TYPE_MINT = 38;
+  COLOR_TYPE_ORANGE = 39;
+  COLOR_TYPE_PINK = 40;
+  COLOR_TYPE_PURPLE = 41;
+  COLOR_TYPE_RED = 42;
+  COLOR_TYPE_TEAL = 43;
+  COLOR_TYPE_WHITE = 44;
+  COLOR_TYPE_YELLOW = 45;
 }
 
 enum ConditionalOp {
@@ -274,9 +304,6 @@ enum FormatHint {
   FORMAT_HINT_PHONE = 20;
   FORMAT_HINT_RATING = 21;
   FORMAT_HINT_SLIDER = 22;
-  FORMAT_HINT_TOGGLE = 40;
-  FORMAT_HINT_CHECKBOX = 41;
-  FORMAT_HINT_THUMBS = 42;
   FORMAT_HINT_IMAGE = 60;
   FORMAT_HINT_VIDEO = 61;
   FORMAT_HINT_AUDIO = 62;
@@ -608,8 +635,9 @@ enum StructType {
   STRUCT_TYPE_TEXT = 660;
   STRUCT_TYPE_TEXT_LINE = 661;
   STRUCT_TYPE_TEXT_SPAN = 662;
-  STRUCT_TYPE_SPACE_DOCK = 700;
-  STRUCT_TYPE_SPACE_DOCK_ITEM = 701;
+  STRUCT_TYPE_COLOR = 700;
+  STRUCT_TYPE_SPACE_DOCK = 800;
+  STRUCT_TYPE_SPACE_DOCK_ITEM = 801;
 }
 
 enum TextLineType {
@@ -657,16 +685,49 @@ enum ViewType {
   VIEW_TYPE_EXPLORER = 10;
   VIEW_TYPE_HISTORY = 11;
   VIEW_TYPE_WATCH = 12;
-  VIEW_TYPE_TESTING = 13;
-  VIEW_TYPE_BENCH = 14;
+  VIEW_TYPE_TEST = 13;
+  VIEW_TYPE_RESOURCE = 14;
   VIEW_TYPE_INSPECTOR = 15;
   VIEW_TYPE_LIBRARY = 16;
   VIEW_TYPE_ACCESS = 17;
-  VIEW_TYPE_WINDOW_GROUP = 40;
-  VIEW_TYPE_WINDOW = 41;
-  VIEW_TYPE_PANEL = 42;
-  VIEW_TYPE_SPACER = 60;
-  VIEW_TYPE_DIVIDER = 61;
+  VIEW_TYPE_WINDOW_GROUP = 50;
+  VIEW_TYPE_TAB_GROUP = 52;
+  VIEW_TYPE_STEP_GROUP = 55;
+  VIEW_TYPE_SPLIT = 57;
+  VIEW_TYPE_STACK = 60;
+  VIEW_TYPE_DISCLOSURE = 61;
+  VIEW_TYPE_GRID = 62;
+  VIEW_TYPE_GRID_ROW = 63;
+  VIEW_TYPE_LIST = 70;
+  VIEW_TYPE_TABLE = 71;
+  VIEW_TYPE_FEED = 72;
+  VIEW_TYPE_GROUP = 75;
+  VIEW_TYPE_FORM = 76;
+  VIEW_TYPE_MENU = 77;
+  VIEW_TYPE_SPACER = 80;
+  VIEW_TYPE_DIVIDER = 81;
+  VIEW_TYPE_PROGRESS = 82;
+  VIEW_TYPE_SHAPE = 83;
+  VIEW_TYPE_AVATAR = 84;
+  VIEW_TYPE_ICON = 100;
+  VIEW_TYPE_IMAGE = 101;
+  VIEW_TYPE_VIDEO = 102;
+  VIEW_TYPE_AUDIO = 103;
+  VIEW_TYPE_DOCUMENT = 104;
+  VIEW_TYPE_BUTTON = 120;
+  VIEW_TYPE_LINK = 121;
+  VIEW_TYPE_VALUE = 160;
+  VIEW_TYPE_TOGGLE = 170;
+  VIEW_TYPE_CHECKBOX = 171;
+  VIEW_TYPE_CHECKBOX_GROUP = 172;
+  VIEW_TYPE_SLIDER = 173;
+  VIEW_TYPE_TEXT = 180;
+  VIEW_TYPE_CODE = 181;
+  VIEW_TYPE_JSON = 182;
+  VIEW_TYPE_PICKER = 190;
+  VIEW_TYPE_DATE_PICKER = 191;
+  VIEW_TYPE_COLOR_PICKER = 192;
+  VIEW_TYPE_FILE_PICKER = 193;
 }
 
 // An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -758,6 +819,17 @@ message CodeLineData {
   optional string parent_key = 4;
   optional string order_key = 5;
   string line = 32;
+}
+
+// A color value.
+message ColorData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  ColorType type = 31;
+  optional string hex = 33;
 }
 
 // A semi-magical value that accumulates context down the graph (starting with system context).
@@ -2039,8 +2111,12 @@ message ViewData {
   optional NodeReferenceData updated_by_ptr = 18;
   ViewType type = 30;
   optional string name = 31;
-  optional IconData icon = 32;
-  bool is_visible = 60;
+  optional string title = 32;
+  optional TextData text = 33;
+  optional IconData icon = 35;
+  bool is_visible = 80;
+  bool is_disabled = 81;
+  bool is_loading = 82;
 }
 
 message SomeNodeData {
