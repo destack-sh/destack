@@ -40,13 +40,13 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 StructT = TypeVar("StructT", bound=Struct)
-StructDataT = TypeVar("StructDataT", bound=AnyStructData)
+StructDataT = TypeVar("StructDataT", bound=Union[AnyStructData, AnyNodeData])
 
 
-def copy_struct_data(data: StructDataT) -> StructDataT:
+def copy_data(data: StructDataT) -> StructDataT:
     """Deepcopy a struct data object."""
-    data_cls = PROTO_CLASS_BY_TYPE[data.metatype.name]
-    bench_cls = BENCH_CLASS_BY_TYPE[data.metatype.name]
+    data_cls = PROTO_CLASS_BY_TYPE[data.metatype]
+    bench_cls = BENCH_CLASS_BY_TYPE[data.metatype]
     data_kwargs = {}
     try:
         for prop in bench_cls.__wired_properties__.values():
@@ -57,11 +57,11 @@ def copy_struct_data(data: StructDataT) -> StructDataT:
                 data_kwargs[prop.name] = None
             elif prop.is_list:
                 if prop.is_struct:
-                    data_kwargs[prop.name] = [copy_struct_data(v) for v in value]
+                    data_kwargs[prop.name] = [copy_data(v) for v in value]
                 else:
                     data_kwargs[prop.name] = list(value)
             elif prop.is_struct:
-                data_kwargs[prop.name] = copy_struct_data(value)
+                data_kwargs[prop.name] = copy_data(value)
             elif prop.primitive_type == PrimitiveType.JSON:
                 data_kwargs[prop.name] = copy(value)
             else:

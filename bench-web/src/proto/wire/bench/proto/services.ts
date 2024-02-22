@@ -647,9 +647,9 @@ export interface DownloadFilesResponse {
     expiresAt?: Timestamp;
 }
 /**
- * @generated from protobuf message symbolx.bench.RunProxyBlockRequest
+ * @generated from protobuf message symbolx.bench.RunIntrinsicBlockRequest
  */
-export interface RunProxyBlockRequest {
+export interface RunIntrinsicBlockRequest {
     /**
      * @generated from protobuf oneof: block
      */
@@ -686,9 +686,9 @@ export interface RunProxyBlockRequest {
     runCk: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.RunProxyBlockResponse
+ * @generated from protobuf message symbolx.bench.RunIntrinsicBlockResponse
  */
-export interface RunProxyBlockResponse {
+export interface RunIntrinsicBlockResponse {
     /**
      * @generated from protobuf field: google.protobuf.Struct outputs = 1;
      */
@@ -2912,9 +2912,9 @@ class DownloadFilesResponse$Type extends MessageType<DownloadFilesResponse> {
  */
 export const DownloadFilesResponse = new DownloadFilesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
+class RunIntrinsicBlockRequest$Type extends MessageType<RunIntrinsicBlockRequest> {
     constructor() {
-        super("symbolx.bench.RunProxyBlockRequest", [
+        super("symbolx.bench.RunIntrinsicBlockRequest", [
             { no: 1, name: "path", kind: "message", oneof: "block", T: () => PathData },
             { no: 2, name: "reference", kind: "message", oneof: "block", T: () => NodeReferenceData },
             { no: 3, name: "inputs", kind: "message", T: () => Struct },
@@ -2923,17 +2923,17 @@ class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
             { no: 6, name: "run_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<RunProxyBlockRequest>): RunProxyBlockRequest {
+    create(value?: PartialMessage<RunIntrinsicBlockRequest>): RunIntrinsicBlockRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.block = { oneofKind: undefined };
         message.timeoutMs = 0;
         message.runId = "";
         message.runCk = "";
         if (value !== undefined)
-            reflectionMergePartial<RunProxyBlockRequest>(this, message, value);
+            reflectionMergePartial<RunIntrinsicBlockRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyBlockRequest): RunProxyBlockRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicBlockRequest): RunIntrinsicBlockRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2973,7 +2973,7 @@ class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: RunProxyBlockRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunIntrinsicBlockRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.PathData path = 1; */
         if (message.block.oneofKind === "path")
             PathData.internalBinaryWrite(message.block.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -2999,24 +2999,24 @@ class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockRequest
+ * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicBlockRequest
  */
-export const RunProxyBlockRequest = new RunProxyBlockRequest$Type();
+export const RunIntrinsicBlockRequest = new RunIntrinsicBlockRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
+class RunIntrinsicBlockResponse$Type extends MessageType<RunIntrinsicBlockResponse> {
     constructor() {
-        super("symbolx.bench.RunProxyBlockResponse", [
+        super("symbolx.bench.RunIntrinsicBlockResponse", [
             { no: 1, name: "outputs", kind: "message", T: () => Struct },
             { no: 2, name: "error", kind: "message", T: () => RunErrorData }
         ]);
     }
-    create(value?: PartialMessage<RunProxyBlockResponse>): RunProxyBlockResponse {
+    create(value?: PartialMessage<RunIntrinsicBlockResponse>): RunIntrinsicBlockResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<RunProxyBlockResponse>(this, message, value);
+            reflectionMergePartial<RunIntrinsicBlockResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyBlockResponse): RunProxyBlockResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicBlockResponse): RunIntrinsicBlockResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -3038,7 +3038,7 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: RunProxyBlockResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunIntrinsicBlockResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* google.protobuf.Struct outputs = 1; */
         if (message.outputs)
             Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -3052,9 +3052,9 @@ class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockResponse
+ * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicBlockResponse
  */
-export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
+export const RunIntrinsicBlockResponse = new RunIntrinsicBlockResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartRuntimeRequest$Type extends MessageType<RestartRuntimeRequest> {
     constructor() {
@@ -3122,11 +3122,6 @@ export const GraphIO = new ServiceType("symbolx.bench.GraphIO", [
  * @generated ServiceType for protobuf service symbolx.bench.Supervisor
  */
 export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
-    { name: "SignupUser", options: {}, I: SignupUserRequest, O: SignupUserResponse },
-    { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
-    { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
-    { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
-    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
@@ -3134,7 +3129,12 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
-    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
+    { name: "SignupUser", options: {}, I: SignupUserRequest, O: SignupUserResponse },
+    { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
+    { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
+    { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
+    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Host
@@ -3152,7 +3152,7 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
     { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
-    { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }
+    { name: "RunIntrinsicBlock", options: {}, I: RunIntrinsicBlockRequest, O: RunIntrinsicBlockResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Runtime

@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.21.3"
+VERSION = "2024.02.22.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -32,6 +32,7 @@ class NodeType(IdEnum):
     # PLACE = 2
     ENVIRONMENT = 3
     BRANCH = 4
+
     # source
     PACKAGE = 20
     DEPENDENCY = 21
@@ -53,19 +54,21 @@ class NodeType(IdEnum):
     # LOCK?
     # BREAKPOINT?
 
-    # session/runtime
-    SESSION = 50  # (local)
-    RUN = 51  # (local)
-    PAUSE = 52  # (local)
-    SIGNAL = 53  # (local)
-    LOG = 54  # (local, analytics only)
-    NOTIFICATION = 55
-    # METRIC = ...?
-
     # auth
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
+    MEMBERSHIP = 63
+    INVITE = 64
+
+    # session/runtime
+    SESSION = 80  # (local)
+    RUN = 81  # (local)
+    PAUSE = 82  # (local)
+    SIGNAL = 83  # (local)
+    LOG = 84  # (local, analytics only)
+    NOTIFICATION = 85
+    # METRIC = ...?
 
     # resources (compute/storage/external/etc.)
     SERVER = 160
@@ -80,8 +83,6 @@ class NodeType(IdEnum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    MEMBERSHIP = 225
-    INVITE = 226
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
@@ -89,22 +90,21 @@ ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100) + (NodeType.MEMBERSHIP, NodeType.INVITE)
+    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
 )
 SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
 )
 IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if nt.id < 200)
-    + (NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.CLIENT, NodeType.HANDLE)
+    tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
 )
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
 PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGANIZATION))
-OUTSIDE_BENCH_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
-ABOVE_SOURCE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    OUTSIDE_BENCH_NODE_TYPES.tuple + (NodeType.BENCH,)
+USER_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
+HIGH_VOLUME_NODE_TYPES = bytetuple(
+    (NodeType.RUN, NodeType.LOG, NodeType.SIGNAL, NodeType.FILE_CONTENT)
 )
 
 
@@ -361,7 +361,7 @@ class UseType(IdEnum):
     START = 30
     PAUSE = 31
     RESUME = 32
-    KILL = 33
+    STOP = 33
     SEND = 34
     RECEIVE = 35
 
@@ -444,11 +444,6 @@ class PolicyEffect(IdEnum):
     ALLOW = 1
     DENY = 2
     # DEFER?, METER, LIMIT, ...
-
-
-class ClientKind(IdEnum):
-    USER = 1
-    SERVER = 2
 
 
 class PrimitiveType(IdEnum):

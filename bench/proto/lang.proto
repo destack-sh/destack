@@ -38,7 +38,7 @@ enum AccessType {
   ACCESS_TYPE_START = 30;
   ACCESS_TYPE_PAUSE = 31;
   ACCESS_TYPE_RESUME = 32;
-  ACCESS_TYPE_KILL = 33;
+  ACCESS_TYPE_STOP = 33;
   ACCESS_TYPE_SEND = 34;
   ACCESS_TYPE_RECEIVE = 35;
 }
@@ -85,15 +85,17 @@ enum BenchType {
   BENCH_TYPE_RECORD = 33;
   BENCH_TYPE_QUERY = 34;
   BENCH_TYPE_VIEW = 35;
-  BENCH_TYPE_SESSION = 50;
-  BENCH_TYPE_RUN = 51;
-  BENCH_TYPE_PAUSE = 52;
-  BENCH_TYPE_SIGNAL = 53;
-  BENCH_TYPE_LOG = 54;
-  BENCH_TYPE_NOTIFICATION = 55;
   BENCH_TYPE_BADGE = 60;
   BENCH_TYPE_ROLE = 61;
   BENCH_TYPE_IDENTITY = 62;
+  BENCH_TYPE_MEMBERSHIP = 63;
+  BENCH_TYPE_INVITE = 64;
+  BENCH_TYPE_SESSION = 80;
+  BENCH_TYPE_RUN = 81;
+  BENCH_TYPE_PAUSE = 82;
+  BENCH_TYPE_SIGNAL = 83;
+  BENCH_TYPE_LOG = 84;
+  BENCH_TYPE_NOTIFICATION = 85;
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
@@ -103,8 +105,6 @@ enum BenchType {
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
   BENCH_TYPE_CLIENT = 223;
-  BENCH_TYPE_MEMBERSHIP = 225;
-  BENCH_TYPE_INVITE = 226;
   BENCH_TYPE_PATH = 500;
   BENCH_TYPE_PATH_SEGMENT = 501;
   BENCH_TYPE_PATH_TOKEN = 502;
@@ -164,12 +164,6 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 50;
   BLOCK_TYPE_ROLE = 60;
   BLOCK_TYPE_IDENTITY = 61;
-}
-
-enum ClientKind {
-  CLIENT_KIND_UNSPECIFIED = 0;
-  CLIENT_KIND_USER = 1;
-  CLIENT_KIND_SERVER = 2;
 }
 
 enum ConditionalOp {
@@ -351,15 +345,17 @@ enum NodeType {
   NODE_TYPE_RECORD = 33;
   NODE_TYPE_QUERY = 34;
   NODE_TYPE_VIEW = 35;
-  NODE_TYPE_SESSION = 50;
-  NODE_TYPE_RUN = 51;
-  NODE_TYPE_PAUSE = 52;
-  NODE_TYPE_SIGNAL = 53;
-  NODE_TYPE_LOG = 54;
-  NODE_TYPE_NOTIFICATION = 55;
   NODE_TYPE_BADGE = 60;
   NODE_TYPE_ROLE = 61;
   NODE_TYPE_IDENTITY = 62;
+  NODE_TYPE_MEMBERSHIP = 63;
+  NODE_TYPE_INVITE = 64;
+  NODE_TYPE_SESSION = 80;
+  NODE_TYPE_RUN = 81;
+  NODE_TYPE_PAUSE = 82;
+  NODE_TYPE_SIGNAL = 83;
+  NODE_TYPE_LOG = 84;
+  NODE_TYPE_NOTIFICATION = 85;
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
@@ -369,8 +365,6 @@ enum NodeType {
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
   NODE_TYPE_CLIENT = 223;
-  NODE_TYPE_MEMBERSHIP = 225;
-  NODE_TYPE_INVITE = 226;
 }
 
 enum NodeVisibility {
@@ -643,7 +637,7 @@ enum UseType {
   USE_TYPE_START = 30;
   USE_TYPE_PAUSE = 31;
   USE_TYPE_RESUME = 32;
-  USE_TYPE_KILL = 33;
+  USE_TYPE_STOP = 33;
   USE_TYPE_SEND = 34;
   USE_TYPE_RECEIVE = 35;
 }
@@ -1514,7 +1508,9 @@ message IdentityData {
 message InviteData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1583,7 +1579,9 @@ message LogData {
 message MembershipData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2063,26 +2061,26 @@ message SomeNodeData {
     RecordData record = 14;
     QueryData query = 15;
     ViewData view = 16;
-    SessionData session = 17;
-    RunData run = 18;
-    PauseData pause = 19;
-    SignalData signal = 20;
-    LogData log = 21;
-    NotificationData notification = 22;
-    BadgeData badge = 23;
-    RoleData role = 24;
-    IdentityData identity = 25;
-    ServerData server = 26;
-    StoreData store = 27;
-    DriveData drive = 28;
-    CacheData cache = 29;
-    FileContentData file_content = 30;
-    HandleData handle = 31;
-    UserData user = 32;
-    OrganizationData organization = 33;
-    ClientData client = 34;
-    MembershipData membership = 35;
-    InviteData invite = 36;
+    BadgeData badge = 17;
+    RoleData role = 18;
+    IdentityData identity = 19;
+    MembershipData membership = 20;
+    InviteData invite = 21;
+    SessionData session = 22;
+    RunData run = 23;
+    PauseData pause = 24;
+    SignalData signal = 25;
+    LogData log = 26;
+    NotificationData notification = 27;
+    ServerData server = 28;
+    StoreData store = 29;
+    DriveData drive = 30;
+    CacheData cache = 31;
+    FileContentData file_content = 32;
+    HandleData handle = 33;
+    UserData user = 34;
+    OrganizationData organization = 35;
+    ClientData client = 36;
   };
 }
 

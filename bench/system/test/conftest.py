@@ -57,17 +57,11 @@ async def make_new_user_handle(
         client=client._to_data(),
     )
     signup_rep = await supervisor.signup_user(signup_req)
-    origin = ClientOrigin(
-        id=str(client.id), kind=wire.ClientKind.USER, nonce=str(random.randint(0, 2**32))
-    )
+    origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
     subject = NodeReferenceData(
         metatype=wire.StructType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )
-    metadata = RpcMetadata(
-        client_id=str(client.id),
-        client_kind=wire.ClientKind.USER,
-        client_access_token=signup_rep.access_token,
-    )
+    metadata = RpcMetadata(client_id=str(client.id), client_access_token=signup_rep.access_token)
     return UserHandle(user=user, client=client, origin=origin, subject=subject, metadata=metadata)
 
 
@@ -94,17 +88,11 @@ async def make_existing_user_handle(
         client=client._to_data(),
     )
     login_rep = await supervisor.login_user(login_req)
-    origin = ClientOrigin(
-        id=str(client.id), kind=wire.ClientKind.USER, nonce=str(random.randint(0, 2**32))
-    )
+    origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
     subject = NodeReferenceData(
         metatype=wire.StructType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )
-    metadata = RpcMetadata(
-        client_id=str(client.id),
-        client_kind=wire.ClientKind.USER,
-        client_access_token=login_rep.access_token,
-    )
+    metadata = RpcMetadata(client_id=str(client.id), client_access_token=login_rep.access_token)
     return UserHandle(user=user, client=client, origin=origin, subject=subject, metadata=metadata)
 
 
@@ -112,7 +100,7 @@ async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
     from bench.language import User
     from bench.language.const import UserStatus
 
-    random_slug = "".join(random.choices(string.ascii_letters, k=10))
+    random_slug = "".join(random.choices(string.ascii_letters, k=10)).lower()
     random_email = f"{random_slug}@whatever.com"
     user = User(slug=random_slug, name=random_slug, email=random_email, status=UserStatus.INVITED)
     return await make_new_user_handle(

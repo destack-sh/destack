@@ -1,4 +1,5 @@
 import enum
+import re
 from typing import TYPE_CHECKING, Union
 
 import betterproto
@@ -63,6 +64,7 @@ def on_invalid_raise(
 
 
 MAX_NAME_LENGTH = 128
+SLUG_REGEX = r"^[a-z0-9-]{3,}$"
 
 
 def validate_name(value: str, on_invalid: PropertyValidationHandler):
@@ -70,6 +72,13 @@ def validate_name(value: str, on_invalid: PropertyValidationHandler):
         on_invalid(f"not a string ({type(value)})")
     if len(value) > MAX_NAME_LENGTH:
         on_invalid(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
+
+
+def validate_slug(value: str, on_invalid: PropertyValidationHandler):
+    if not isinstance(value, str):
+        on_invalid(f"not a string ({type(value)})")
+    if not re.match(SLUG_REGEX, value):
+        on_invalid(f"invalid slug ('{value}')")
 
 
 # TODO :Cleanup :Robustness: compile constraints into SQL

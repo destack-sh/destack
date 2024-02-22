@@ -14,7 +14,6 @@ extend google.protobuf.FieldOptions {
 }
 
 message ClientOrigin {
-  ClientKind kind = 1;
   string id = 2;
   string nonce = 3;
 }
@@ -23,7 +22,6 @@ message ClientOrigin {
 // (This is passed as specially encoded headers, but it's nice to have a common definition.)
 message RpcMetadata {
   // Client
-  optional ClientKind client_kind = 1;
   optional string client_id = 2;
   optional string client_nonce = 3;
   optional string client_access_token = 4;

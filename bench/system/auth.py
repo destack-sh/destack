@@ -104,18 +104,18 @@ def generate_encryption_key(length: int = 32) -> str:
 async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     """Gets the authenticated client (if any)."""
 
-    if metadata.client_kind is None:
+    if metadata.client_id:
+        client_id = to_uuid(metadata.client_id)
+        client: Client = (
+            await Client.include(User.email, Client.access_token)
+            .ancestors(User, Server)
+            .get(id=client_id)
+        )
+        if metadata.client_access_token != client.access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
+        return client
+    else:
         return None
-
-    client_id = to_uuid(metadata.client_id)
-    client: Client = (
-        await Client.include(User.email, Client.access_token)
-        .ancestors(User, Server)
-        .get(id=client_id)
-    )
-    if metadata.client_access_token != client.access_token:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
-    return client
 
 
 async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:

@@ -45,7 +45,7 @@ class File(Struct):
         return f"{self.name} {self.status}, {self.type}, {self.size} bytes"
 
     def _validate_inner(
-        self, properties: Collection[Property], on_invalid: ValidationHandler
+        self, properties: tuple[Property, ...], on_invalid: ValidationHandler
     ) -> None:
         if len(self.name) > FILE_MAX_NAME_LENGTH:
             on_invalid(

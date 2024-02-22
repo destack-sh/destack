@@ -38,7 +38,7 @@ class Schedule(Struct):
         return f"{self.type} {self.timezone} {self.interval or self.cron}"
 
     def _validate_inner(
-        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
         if self.type == ScheduleType.CRON:
             if not croniter.is_valid(self.cron):
