@@ -275,7 +275,7 @@ message DownloadFilesResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message RunProxyBlockRequest {
+message RunIntrinsicBlockRequest {
   oneof block {
     PathData path = 1;
     NodeReferenceData reference = 2;
@@ -286,7 +286,7 @@ message RunProxyBlockRequest {
   string run_ck = 6;
 }
 
-message RunProxyBlockResponse {
+message RunIntrinsicBlockResponse {
   google.protobuf.Struct outputs = 1;
   optional RunErrorData error = 2;
 }
@@ -324,8 +324,8 @@ service Host {
   rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
   // Ensure the server for a Bench is running.
   rpc PingServer(PingServerRequest) returns (PingServerResponse);
-  // Runs a well-known internal block in the host with our credentials.
-  rpc RunProxyBlock(RunProxyBlockRequest) returns (RunProxyBlockResponse);
+  // Runs a system-intrinsic Block.
+  rpc RunIntrinsicBlock(RunIntrinsicBlockRequest) returns (RunIntrinsicBlockResponse);
 
 }
 

@@ -5,7 +5,6 @@ import abc
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Generic,
     NamedTuple,
@@ -405,9 +404,9 @@ class QueryBuilder(
         tx = active_tx()
         connection = await tx.connect_to_store_for(base=self._base, node_type=self._node_type)
         result = await connection.fetch(self, FetchOptions())
-        source_graph = NodeDataGraph(result.nodes)
+        data_graph = NodeDataGraph(result.nodes)
         roots = unpack_nodes_inline(
-            source_graph, parent=self._base, session=tx.session, roots=result.roots
+            data_graph, parent=self._base, session=tx.session, roots=result.roots
         )
         return roots
 
@@ -460,9 +459,6 @@ class AggregateResult(NamedTuple):
     aggregation: AggregationData
 
 
-QueryPredicate = Callable[[NodeType], bool]
-
-
 class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     """A store engine providing connections to operate on that backend with certain queries."""
 
@@ -486,6 +482,8 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def id(self) -> int | str | UUID:
         return hash(self)
 
+    # nocheckin: make StoreEngine.supports conditional on access type
+    #  (for Host we only want to read from in memory graph, but write to postgres)
     def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
         if scope.bench_id is not None and (
             self.scope is None or self.scope.bench_id != scope.bench_id
@@ -640,14 +638,14 @@ class InMemoryGraphEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeData
         scope: GraphScope,
         node_types: bytetuple[NodeType],
         node_graph: Optional[NodeGraph],
-        source_graph: NodeDataGraph,
+        data_graph: NodeDataGraph,
     ):
         super().__init__(store, scope, node_types)
         self.node_graph = node_graph
-        self.source_graph = source_graph
+        self.data_graph = data_graph
 
     def __str__(self):
-        return f"node_graph={self.node_graph!r}, source_graph={self.source_graph!r}, store={self.store}"
+        return f"node_graph={self.node_graph!r}, data_graph={self.data_graph!r}, store={self.store}"
 
 
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):

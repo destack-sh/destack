@@ -28,6 +28,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.field import TypeInfo
+from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     Node,
     Struct,
@@ -412,6 +413,12 @@ class Transaction:
         for connection in self._connections_by_engine_id.values():
             await connection.close()
         self._connections_by_engine_id.clear()
+
+
+def edit_data_graph(
+    graph: NodeDataGraph, edits: Collection[EditData], *, update_nodes_in_place: bool = False
+) -> None:
+    raise NotImplementedError("nocheckin")
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)

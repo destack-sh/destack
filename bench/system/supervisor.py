@@ -92,7 +92,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, user._source_graph, user._root_graph)
+            self.on_graph_edited(session.tx.edits, user._data_graph, user._root_graph)
 
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self.epoch
@@ -116,7 +116,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, user._source_graph, user._root_graph)
+            self.on_graph_edited(session.tx.edits, user._data_graph, user._root_graph)
 
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
@@ -150,7 +150,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             session.upsert(client)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, client._source_graph, client._root_graph)
+            self.on_graph_edited(session.tx.edits, client._data_graph, client._root_graph)
 
         return LoginUserResponse(
             user=user._to_data(),
@@ -185,7 +185,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 client.last_seen_at = utcnow_with_tz()
             await session.commit()
             self.on_graph_edited(
-                session.tx.edits, subject.user._source_graph, subject.user._root_graph
+                session.tx.edits, subject.user._data_graph, subject.user._root_graph
             )
 
         return LogoutUserResponse()

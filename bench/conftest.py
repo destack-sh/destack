@@ -21,7 +21,7 @@ def pytest_configure(config):
 
     configure_logging()
 
-    from bench.language import _complete_bench_setup
+    from bench.language.setup import _complete_bench_setup
 
     _complete_bench_setup()
 

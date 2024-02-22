@@ -25,6 +25,7 @@ from bench.language.const import (
     ReadType,
     StructType,
     UseType,
+    ConditionalOp,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import (
@@ -46,24 +47,46 @@ from bench.language.property import (
     p_runtime,
     p_system,
 )
-from bench.language.setup import _COMPLETED_SETUP, ANCESTOR_NODE_TYPES, CHILD_NODE_TYPES
+from bench.language.setup import (
+    _COMPLETED_SETUP,
+    ANCESTOR_NODE_TYPES,
+    CHILD_NODE_TYPES,
+    NODE_CLASSES,
+)
 from bench.language.text import Text
 from bench.language.user import Membership, User
 from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
+from bench.language.expression import Expression, C
 
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
         Client,
-        Expression,
         NodeReference,
         Organization,
         Package,
     )
+
+# default (read) access options
+DEFAULT_GLOBAL_FILTER: Expression = C(ConditionalOp.AND, clauses=[])
+DEFAULT_SELECTED_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
+
+
+@_on_completing_setup
+def _populate_default_access():
+    DEFAULT_GLOBAL_FILTER.clauses = [
+        C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
+        C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
+    ]
+    for node in NODE_CLASSES:
+        DEFAULT_SELECTED_PROPERTIES[node.metatype] = tuple(
+            prop for prop in node.__stored_properties__.values() if not prop.is_deferred
+        )
+
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -207,8 +230,6 @@ class ReadOptions(Struct):
         return tuple(p for p in self.related_properties if p.type == node_type)
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        from bench.sql.engine import DEFAULT_SELECTED_PROPERTIES
-
         if self.select_properties:
             # select specific properties
             return tuple(p for p in self.select_properties if p.type == node_type)
@@ -226,8 +247,6 @@ class ReadOptions(Struct):
             return properties
 
     def filter(self, node_type: NodeType, filter: Optional["Expression"] = None) -> "Expression":
-        from bench.sql.engine import DEFAULT_GLOBAL_FILTER
-
         type_filter = (
             self._filter_by_type.get(node_type) if self._filter_by_type is not None else None
         )

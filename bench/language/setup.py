@@ -26,11 +26,11 @@ NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
-FINAL_BENCH_CLASSES: frozenset[type[Union["Node", "Struct", IdEnum]]] = frozenset()
+FINAL_BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
 BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
-BENCH_CLASSES: frozenset[type[Union["Node", "Struct", IdEnum]]] = frozenset()
-NODE_CLASSES: frozenset[type["Node"]] = frozenset()
-STRUCT_CLASSES: frozenset[type["Struct"]] = frozenset()
+BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
+NODE_CLASSES: list[type["Node"]] = []
+STRUCT_CLASSES: list[type["Struct"]] = []
 
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
@@ -60,28 +60,31 @@ def _on_completing_setup(func: Callable = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    global FINAL_BENCH_CLASSES, BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
     from bench.language import const, Node, Struct, Value
+
+    global _COMPLETED_SETUP
+    if _COMPLETED_SETUP:
+        return
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
+        FINAL_BENCH_CLASSES.append(bench_t)
     for bench_t in const.__dict__.values():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
-    FINAL_BENCH_CLASSES = frozenset(FINAL_BENCH_CLASSES_BY_NAME.values())
-    BENCH_CLASSES = frozenset(chain(get_subclasses(Struct), (Value,)))
+    BENCH_CLASSES.extend(chain(get_subclasses(Struct), (Value,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASSES_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
+        NODE_CLASSES.append(NODE_CLASS_BY_TYPE[node_t])
     for struct_t in STRUCT_TYPES:
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
-    NODE_CLASSES = frozenset(NODE_CLASS_BY_TYPE.values())
-    STRUCT_CLASSES = frozenset(STRUCT_CLASS_BY_TYPE.values())
+        STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
 
     # finalize classes
-    for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
+    for cls in get_subclasses(Struct):
         # misc finalization on properties
         for name, prop in cls.__properties__.items():
             prop: Property
@@ -192,7 +195,6 @@ def _complete_bench_setup():
             if prop.is_enum and not issubclass(prop.py_type_stripped, (IdEnum, enum.IntFlag)):
                 raise ValueError(f"{prop!r} is not a valid proto enum")
 
-    global _COMPLETED_SETUP
     _COMPLETED_SETUP = True
 
     # run completion hooks

@@ -330,13 +330,12 @@ def cyrb53a(s: str, seed: int = 0) -> int:
 
 def get_subclasses(cls, seen=None):
     """Gets all subclasses of a class recursively."""
-    seen = seen or set()
+    seen = seen if seen is not None else set()
     seen.add(cls)
     yield cls
     for subclass in cls.__subclasses__():
         if subclass not in seen:
             yield from get_subclasses(subclass, seen=seen)
-            yield subclass
 
 
 _MIN_ID_BY_ENUM: dict[type, int] = {}

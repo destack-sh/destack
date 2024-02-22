@@ -2,7 +2,7 @@ import asyncio
 import functools
 import urllib
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Callable, Optional, Collection
 from uuid import UUID
 
 import betterproto
@@ -11,11 +11,11 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Bench, Organization, Package, User
+from bench.language import Bench, Organization, Package, User, NodeReference
 from bench.language.access import Subject
 from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, IN_BENCH_NODE_TYPES
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
-from bench.language.graph import NodeDataGraph
+from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     HostBase,
@@ -23,10 +23,11 @@ from bench.proto.wire import (
     DownloadFilesRequest,
     DownloadFilesResponse,
     GraphScope,
-    RunProxyBlockRequest,
-    RunProxyBlockResponse,
+    RunIntrinsicBlockRequest,
+    RunIntrinsicBlockResponse,
     UploadFilesRequest,
     UploadFilesResponse,
+    EditData,
 )
 from bench.system.graph import GraphIoService
 from bench.system.utils import get_s3_client, global_session
@@ -117,15 +118,10 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
         self._packages: dict[str, Package] = {}
 
     def __str__(self):
-        return f"{self._package or self.package_id}"
+        return f"{self._bench or self.bench_id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name} {self}>"
-
-    @property
-    def package_source(self) -> NodeDataGraph:
-        assert self._package is not None, f"package not loaded in {self}"
-        return self._package._source
 
     @property
     def bench(self) -> Bench:
@@ -154,6 +150,17 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
             #     descendant_types=LOADED_SOURCE_TYPES,
             #     parent=self.bench,
             # )
+
+    def _on_graph_edited_inner(
+        self,
+        edits: list[EditData],
+        data_graph: NodeDataGraph,
+        graph: Optional[NodeGraph],
+        scopes: Collection[NodeReference],
+    ):
+        # TODO :Broken: apply edits to loaded data & live nodes
+        # TODO :Incomplete: re-interp packages after edit (update notices, ...)
+        ...
 
     #
     # Files
@@ -202,7 +209,7 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
     # Runs
     #
 
-    async def run_proxy_block(
-        self, subject: Subject, request: "RunProxyBlockRequest"
-    ) -> "RunProxyBlockResponse":
+    async def run_intrinsic_block(
+        self, subject: Subject, request: "RunIntrinsicBlockRequest"
+    ) -> "RunIntrinsicBlockResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

@@ -4,7 +4,6 @@ from collections import defaultdict, deque
 from typing import (
     TYPE_CHECKING,
     Collection,
-    Generator,
     Generic,
     Iterable,
     Iterator,
@@ -370,19 +369,6 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         while root.parent_ptr is not None:
             root = self.nodes_by_id[root.parent_ptr.id]
         return root
-
-    def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
-        """Walks the graph in breadth-first order"""
-        if roots is not None and len(roots) == 0:
-            return
-        queue = deque(roots or self.find_roots())
-        while queue:
-            current_nodes = queue.popleft()
-            yield current_nodes
-            for child_type in CHILD_NODE_TYPES[current_nodes.metatype]:
-                queue.extend(
-                    self.nodes_by_parent_id_and_type.get((current_nodes.id, child_type), ())
-                )
 
 
 class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
