@@ -983,14 +983,6 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 
 NodeT = TypeVar("NodeT", bound=Node)
 
-DEFAULT_GLOBAL_FILTER: Expression = Node.filter(archived_at=None, deleted_at=None)._filter
-DEFAULT_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
-    node.metatype: tuple(
-        prop for prop in node.__stored_properties__.values() if not prop.is_deferred
-    )
-    for node in NODE_CLASSES
-}
-
 
 def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     """Packs the value of a struct property for storage in Postgres."""
@@ -1166,7 +1158,7 @@ async def pg_select_nodes_data(
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
     *,
-    properties: Collection[Property] | None = None,
+    properties: Collection[Property],
     filter: Expression | None = None,
     sort: Collection[Expression] | None = None,
     first: int | None = None,
@@ -1177,7 +1169,8 @@ async def pg_select_nodes_data(
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
-    columns = [prop.column for prop in properties] if properties is not None else None
+    columns = [prop.column for prop in properties]
+    assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
     filter = compile_pg_conditional(node_cls, filter) if filter is not None else None
     sort = compile_pg_sorts(node_cls, sort) if sort is not None else None
     rows = await pg_select(

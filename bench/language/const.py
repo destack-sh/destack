@@ -193,6 +193,7 @@ class BlockType(IdEnum):
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
     # NOTICE = ...  # define a new notice type
     # NOTIFICATION = ...  # define a new notification type
+    # METRIC = ...  # define a new metric type
     # BLOCK = ...  # define a new block type?
 
     SINGLE_VARIABLE = 20  # define a single-value variable

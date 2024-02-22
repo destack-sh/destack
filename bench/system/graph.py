@@ -2,7 +2,16 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncContextManager,
+    AsyncIterator,
+    Mapping,
+    NamedTuple,
+    Optional,
+    final,
+    Collection,
+)
 from uuid import UUID
 
 import betterproto
@@ -24,6 +33,7 @@ from bench.language.const import ABOVE_SOURCE_NODE_TYPES, ConditionalOp, NodeTyp
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
+from bench.language.session import edit_data_graph
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -222,11 +232,11 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
-            graph = NodeDataGraph()
+            data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO :Performance: select only require properties for edit eval (id/policies/...?)
-                adapted_options = adapt_read_options(subject, node_type, ReadOptions.default())
+                options = adapt_read_options(subject, node_type, ReadOptions.default())
                 query = QueryBuilder(
                     node_type=node_type,
                     filter=C(
@@ -234,26 +244,32 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                         property=Node.id,
                         value=tuple(r.id for r in node_references),
                     ),
-                    options=adapted_options,
+                    options=options,
                 )
                 connection = await session.tx.connect_to_store_for(request.scope, node_type)
                 result = await connection.fetch(query, FetchOptions(count=False))
-                graph.extend(result.nodes)
-                if any(str(r.id) not in graph for r in node_references):
-                    missing = tuple(r for r in node_references if str(r.id) not in graph)
+                data_graph.extend(result.nodes)
+                if any(str(r.id) not in data_graph for r in node_references):
+                    missing = tuple(r for r in node_references if str(r.id) not in data_graph)
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"edited scopes not found: {missing}")
 
-            # nocheckin: validate the edits in language (where? in tx when applying to source?)
-
-            # evaluate edit access
-            matrix = generate_access_matrix(subject, graph)
-            evaluated_request = evaluate_edit(matrix, graph, request.edits)
+            # check access
+            matrix = generate_access_matrix(subject, data_graph)
+            evaluated_request = evaluate_edit(matrix, data_graph, request.edits)
             await self.check_and_log_request(evaluated_request)
+
+            # validate edits
+            edit_data_graph(data_graph, request.edits, update_nodes_in_place=False)
+            nodes = wiring.unpack_nodes_inline(data_graph)
+            for node in nodes:
+                # nocheckin: validate only edited properties?
+                #  (non-default properties aren't loaded so will error if required)
+                node._validate_self()
 
             # apply the edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
-            self.on_graph_edited(request.edits, graph)
+            self.on_graph_edited(request.edits, data_graph, scopes=edited_scopes_ptr.values())
 
         accepted_revisions = [e.revision for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -273,17 +289,37 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    @final
     def on_graph_edited(
-        self, edits: list[EditData], source_graph: NodeDataGraph, graph: Optional[NodeGraph] = None
+        self,
+        edits: list[EditData],
+        data_graph: NodeDataGraph,
+        graph: Optional[NodeGraph] = None,
+        scopes: Collection[NodeReference] = None,
     ):
         self.epoch += 1
         self.recent_epochs.append(Epoch(self.epoch, edits))
+
         # notify watchers
         for watcher in self.watchers:
             adapted_edits = self.adapt_edits(watcher, edits)
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
+        if scopes is None:
+            scopes = get_edited_scopes(edits).values()
+        self._on_graph_edited_inner(edits=edits, data_graph=data_graph, graph=graph, scopes=scopes)
+
+    def _on_graph_edited_inner(
+        self,
+        edits: list[EditData],
+        data_graph: NodeDataGraph,
+        graph: Optional[NodeGraph],
+        scopes: Collection[NodeReference],
+    ):
+        pass
+
+    @final
     def adapt_edits(self, watcher: EditWatcher, edits: list[EditData]) -> list[EditData]:
         # TODO :Broken :Security!: adapt graph edits to watcher's access
         adapted_edits = []
@@ -318,12 +354,12 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                         break
                     edits = self.adapt_edits(watcher, edits)
                     epochs_to_replay.append((epoch, edits))
-                logger.debug("graph.watch.replay", watcher=watcher)
+                logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
                 for epoch, edits in epochs_to_replay:
                     yield WatchEditsResponse(edits=edits, epoch=epoch)
 
             # listen for new epochs
-            logger.debug("graph.watch.listen", watcher=watcher)
+            logger.info("graph.watch.listen", watcher=watcher)
             while True:
                 epoch = await watcher.sink.get()
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)

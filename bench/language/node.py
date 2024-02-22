@@ -1331,7 +1331,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
-    _source_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
+    _data_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
@@ -1692,25 +1692,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:
             yield from self._root_graph.collect_descendants(self, recursive=True)
-
-    _clear_rec = _make_rec_method(
-        _ComponentMethod.clear, _clear_self, custom_kwargs=lambda n: dict(scope=n)
-    )
-    _interp_rec = _make_rec_method(
-        _ComponentMethod.interp,
-        _interp_self,
-        custom_kwargs=lambda n: dict(scope=n, on_notice=n._on_notice),
-    )
-    _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
-    _validate_rec = _make_rec_method(
-        _ComponentMethod.validate,
-        Struct._validate_self,
-        custom_kwargs=lambda n: dict(
-            properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
-        ),
-    )
-    _track_rec = _make_rec_method(_ComponentMethod.track, _track_self)
-    _untrack_rec = _make_rec_method(_ComponentMethod.untrack, _untrack_self)
 
 
 @_on_completing_setup

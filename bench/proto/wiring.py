@@ -250,8 +250,8 @@ def pack_node_inline(
 
 
 def unpack_nodes_inline(
-    source_graph: NodeDataGraph,
-    parent: Node | None,
+    data_graph: NodeDataGraph,
+    parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
     roots: Collection[NodeReferenceData] = None,
@@ -260,15 +260,15 @@ def unpack_nodes_inline(
 
     exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
-    source_roots = source_graph.find_roots()
+    source_roots = data_graph.find_roots()
     for root_data in source_roots:
-        root_source_graph = NodeDataGraph()
+        root_data_graph = NodeDataGraph()
         unpacked_graph = NodeGraph()
         # unpack all nodes top down (breadth first)
-        for node_data in chain((root_data,), source_graph.iter_descendants(root_data)):
+        for node_data in chain((root_data,), data_graph.iter_descendants(root_data)):
             if node_data.metatype in exclude:
                 continue
-            root_source_graph.add(node_data)
+            root_data_graph.add(node_data)
             node_parent_id: UUID | None = (
                 to_uuid(node_data.parent_ptr.id) if node_data.parent_ptr is not None else None
             )
@@ -294,7 +294,7 @@ def unpack_nodes_inline(
         if root is None:
             raise ValueError(f"no root found in {unpacked_graph!r}")
         root._root_graph.set(unpacked_graph.nodes)
-        root._source_graph = root_source_graph
+        root._data_graph = root_data_graph
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = InterpStatus.SOURCE

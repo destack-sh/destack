@@ -1861,7 +1861,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2277,7 +2277,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _source_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2749,7 +2749,7 @@ class DownloadFilesResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunProxyBlockRequest(betterproto.Message):
+class RunIntrinsicBlockRequest(betterproto.Message):
     path: "PathData" = betterproto.message_field(1, group="block")
     reference: "NodeReferenceData" = betterproto.message_field(2, group="block")
     inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(3)
@@ -2759,7 +2759,7 @@ class RunProxyBlockRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunProxyBlockResponse(betterproto.Message):
+class RunIntrinsicBlockResponse(betterproto.Message):
     outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
     error: Optional["RunErrorData"] = betterproto.message_field(2, optional=True)
 
@@ -3343,18 +3343,18 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def run_proxy_block(
+    async def run_intrinsic_block(
         self,
-        request: "RunProxyBlockRequest",
+        request: "RunIntrinsicBlockRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "RunProxyBlockResponse":
+    ) -> "RunIntrinsicBlockResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Host/RunProxyBlock",
+            "/symbolx.bench.Host/RunIntrinsicBlock",
             request,
-            RunProxyBlockResponse,
+            RunIntrinsicBlockResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3845,9 +3845,9 @@ class HostBase(ServiceBase):
     ) -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def run_proxy_block(
-        self, subject: "Subject", request: "RunProxyBlockRequest"
-    ) -> "RunProxyBlockResponse":
+    async def run_intrinsic_block(
+        self, subject: "Subject", request: "RunIntrinsicBlockRequest"
+    ) -> "RunIntrinsicBlockResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -3943,12 +3943,12 @@ class HostBase(ServiceBase):
         response = await self.ping_server(request)
         await stream.send_message(response)
 
-    async def __rpc_run_proxy_block(
+    async def __rpc_run_intrinsic_block(
         self,
-        stream: "grpclib.server.Stream[RunProxyBlockRequest, RunProxyBlockResponse]",
+        stream: "grpclib.server.Stream[RunIntrinsicBlockRequest, RunIntrinsicBlockResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.run_proxy_block(request)
+        response = await self.run_intrinsic_block(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -4025,11 +4025,11 @@ class HostBase(ServiceBase):
                 PingServerRequest,
                 PingServerResponse,
             ),
-            "/symbolx.bench.Host/RunProxyBlock": grpclib.const.Handler(
-                self.__rpc_run_proxy_block,
+            "/symbolx.bench.Host/RunIntrinsicBlock": grpclib.const.Handler(
+                self.__rpc_run_intrinsic_block,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RunProxyBlockRequest,
-                RunProxyBlockResponse,
+                RunIntrinsicBlockRequest,
+                RunIntrinsicBlockResponse,
             ),
         }
 
