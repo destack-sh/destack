@@ -56,7 +56,7 @@ from bench.language.query import StoreConnection, StoreEngine
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.proto.wire import HostStub, EditData, GraphScope, SupervisorStub
+from bench.proto.wire import EditData, GraphScope, HostStub, SupervisorStub
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
@@ -147,7 +147,7 @@ class Log(Node):
 
 
 dcfield = dataclasses.field
-EditSubject = Union["User", "Run"]
+EditSubject = Union["User", "Run"]  # noqa
 
 
 @dataclass(slots=True)
@@ -161,7 +161,7 @@ class Transaction:
 
     id: UUID = dcfield(default_factory=uuid4)
     session: "Session" = dcfield(default=None)
-    is_read_only: bool = dcfield(default=False)
+    is_readonly: bool = dcfield(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
@@ -224,7 +224,7 @@ class Transaction:
 
     def _make_edit(self, type: EditType, n: Node, subject: EditSubject) -> EditData:
         """Creates an edit and adds it to the pending edits."""
-        if self.is_read_only:
+        if self.is_readonly:
             raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
 
         from bench.proto import wiring
@@ -475,7 +475,7 @@ class Session(Node):
     duration: Optional[float] = p_system(34, default=None)
 
     is_runtime: bool = p_system(40, default=False)
-    is_read_only: bool = p_system(41, default=False)
+    is_readonly: bool = p_system(41, default=False)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -574,7 +574,7 @@ class Session(Node):
             self._stacktrace = []
 
         # open transaction
-        self._tx = Transaction(session=self, is_read_only=self.is_read_only)
+        self._tx = Transaction(session=self, is_readonly=self.is_readonly)
 
         self.opened_at = utcnow_with_tz()
         logger.debug("session.open.done")

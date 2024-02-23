@@ -1337,7 +1337,7 @@ SESSION_TABLE = Table(
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("is_runtime", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_read_only", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_readonly", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),

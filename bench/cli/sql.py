@@ -109,7 +109,7 @@ async def makemigrations(
 
     # diff local
     if not no_local:
-        async with global_session(read_only=True):
+        async with global_session(readonly=True):
             try:
                 bench = await Bench.descendants(Environment, Store).get(slug=bench)
                 async with pg_cursor_to_store(bench.main_environment.store) as cur:
@@ -167,7 +167,7 @@ async def migrate(
 
     # resolve local_pg_name (determine local/global migration)
     if bench is not None:
-        async with global_session(read_only=True):
+        async with global_session(readonly=True):
             if bench != "*":
                 bench = await Bench.descendants(Environment, Store).get(slug=bench)
                 stores = tuple(e.store for e in bench.environments)
@@ -198,7 +198,7 @@ async def clearmigrations(from_id: int, to_id: int):
     async with global_pg_cursor() as cur:
         await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
         await cur.connection.commit()
-    async with global_session(read_only=True):
+    async with global_session(readonly=True):
         benches = await Bench.tolist()
         for bench in benches:
             stores = tuple(e.store for e in bench.environments)
@@ -218,7 +218,7 @@ async def introspect(bench: str = None):
     start = time.perf_counter()
 
     if bench is not None:
-        async with global_session(read_only=True):
+        async with global_session(readonly=True):
             bench = Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(slug=bench)
             async with pg_cursor_to_store(bench.main_environment.store) as cur:
                 tables = await introspect_tables_from_pg(
@@ -250,7 +250,7 @@ async def introspect(bench: str = None):
 async def shell(bench: str = None):
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
-        async with global_session(read_only=True):
+        async with global_session(readonly=True):
             bench: Bench = await Bench.get(slug=bench)
         connection_str = get_pg_connection_str(bench.main_environment.store)
     else:

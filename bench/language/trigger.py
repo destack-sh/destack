@@ -1,13 +1,13 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Deque, Optional
+from typing import TYPE_CHECKING, Deque, Optional
 
 import pytz
 from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
 from bench.language.node import Node, Struct, node, struct
-from bench.language.property import p_node_parent, p_regular, Property
+from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.validation import ValidationHandler, enum_validator, int_range_validator
 
 if TYPE_CHECKING:

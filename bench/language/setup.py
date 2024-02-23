@@ -1,24 +1,23 @@
 import enum
 import functools
-
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Union, Callable
+from typing import TYPE_CHECKING, Callable, Union
 
 from bench.language.const import (
-    NodeType,
-    StructType,
-    BenchType,
-    NODE_TYPES,
-    STRUCT_TYPES,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
+    NODE_TYPES,
+    STRUCT_TYPES,
+    BenchType,
+    NodeType,
+    StructType,
 )
-from bench.utils.func import bytetuple, IdEnum, get_subclasses, check_collections_equal
+from bench.utils.func import IdEnum, bytetuple, check_collections_equal, get_subclasses
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
-    from bench.language import Node, Struct, Property
+    from bench.language import Node, Property, Struct
 
 # some global indexes for language types/classes
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
@@ -51,22 +50,29 @@ _setup_hooks: list[Callable] = []
 
 
 def _on_completing_setup(func: Callable = None):
-    """Decorator to register finalization functions."""
+    """Register a finalization function."""
     if func is None:
         return functools.partial(_on_completing_setup)
     _setup_hooks.append(func)
     return func
 
 
+def _well_known_enum(enum_cls: type[IdEnum]) -> type[IdEnum]:
+    """Makes a Bench enum not in const available to other files."""
+    BENCH_CLASSES.append(enum_cls)
+    BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
+    return enum_cls
+
+
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import const, Node, Struct, Value
+    from bench.language import Node, Struct, Value, const
 
     global _COMPLETED_SETUP
     if _COMPLETED_SETUP:
         return
 
-    # populate known types
+    # populate known types (all nodes/classes + enums in the files they're defined in)
     for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
         FINAL_BENCH_CLASSES.append(bench_t)

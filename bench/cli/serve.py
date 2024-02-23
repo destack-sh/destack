@@ -1,16 +1,17 @@
 import asyncio
 
-from grpclib.utils import graceful_exit
 import structlog
 import typer
+from grpclib.utils import graceful_exit
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.proto.services import BenchServer
+from bench.runtime.process import Runtime
 from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
+from bench.utils.env import IS_DEBUG
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env
-from bench.utils.env import IS_DEBUG
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
@@ -36,7 +37,7 @@ async def system(host: str, port: int, watch: bool = False):
 async def runtime(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.runtime", host=host, port=port)
-    server = Server(
+    server = Runtime(
         server_id=get_from_env("SERVER_ID", default=None),
         bench_id=get_from_env("BENCH_ID", default=None),
     )

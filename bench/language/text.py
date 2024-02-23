@@ -6,7 +6,7 @@ from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    pass
+    from bench.language.view import ColorType
 
 
 @struct(StructType.TEXT)
@@ -24,6 +24,7 @@ class Text(Struct):
 @struct_component
 class TextOptions(Struct):
     # color?
+    color: Optional["ColorType"] = p_regular(50, default=None)
     # flags
     is_bold: bool = p_regular(60, default=False)
     is_italic: bool = p_regular(61, default=False)

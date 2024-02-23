@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
-from typing import Optional, AsyncContextManager, Any
+from typing import Any, AsyncContextManager, Optional
 
 import boto3
 import psycopg
 import structlog
 
-from bench.language import Session, Bench, Store, StoreKind, StoreEngineType
+from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
 from bench.language.const import USER_NODE_TYPES, NodeType
 from bench.language.query import PostgresEngine
 from bench.language.resource import StoreCredential, StoreCredentialType
@@ -56,7 +56,7 @@ async def global_pg_cursor(
 
 
 @asynccontextmanager
-async def global_session(read_only: bool = False) -> AsyncContextManager[Session]:
+async def global_session(readonly: bool = False) -> AsyncContextManager[Session]:
     async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
         yield session
 

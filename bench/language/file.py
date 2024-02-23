@@ -1,7 +1,7 @@
 import hashlib
 import io
 import mimetypes
-from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
+from typing import TYPE_CHECKING, BinaryIO, Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 import aiohttp
@@ -10,7 +10,8 @@ import structlog
 
 from bench.language.const import FileStatus, NodeType, StructType, active_session
 from bench.language.node import Struct, struct
-from bench.language.property import p_runtime, p_regular, p_internal, Property
+from bench.language.property import Property, p_internal, p_regular, p_runtime
+from bench.language.setup import _well_known_enum
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
@@ -193,12 +194,14 @@ class File(Struct):
         return await File.from_content(name, "text/plain", content.encode())
 
 
+@_well_known_enum
 class IconKind(IdEnum):
     EMOJI = 1
     BUILTIN = 2
     CUSTOM = 3
 
 
+@_well_known_enum
 class IconType(IdEnum):
     pass
 

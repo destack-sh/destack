@@ -19,14 +19,15 @@ from bench.language.const import (
     BadgeType,
     BenchError,
     BenchType,
+    ConditionalOp,
     EditType,
     NodeType,
     PolicyEffect,
     ReadType,
     StructType,
     UseType,
-    ConditionalOp,
 )
+from bench.language.expression import C, Expression
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
@@ -59,17 +60,9 @@ from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
-from bench.language.expression import Expression, C
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Client,
-        NodeReference,
-        Organization,
-        Package,
-    )
+    from bench.language import Bench, Block, Client, NodeReference, Organization, Package
 
 # default (read) access options
 DEFAULT_GLOBAL_FILTER: Expression = C(ConditionalOp.AND, clauses=[])
@@ -82,9 +75,9 @@ def _populate_default_access():
         C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
         C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
     ]
-    for node in NODE_CLASSES:
-        DEFAULT_SELECTED_PROPERTIES[node.metatype] = tuple(
-            prop for prop in node.__stored_properties__.values() if not prop.is_deferred
+    for node_t in NODE_CLASSES:
+        DEFAULT_SELECTED_PROPERTIES[node_t.metatype] = tuple(
+            prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
         )
 
 
