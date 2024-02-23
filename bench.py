@@ -12,7 +12,7 @@ configure_logging()
 # add all CLI 'apps' in our CLI folder
 cli = typer.Typer(pretty_exceptions_enable=False)
 for path in Path.glob(Path(__file__).parent / "bench" / "cli", "*.py"):
-    if path.stem in ("__init__", "os", "local"):
+    if path.stem == "__init__":
         continue
     module = __import__(f"bench.cli.{path.stem}", fromlist=["app"])
     if hasattr(module, "app"):

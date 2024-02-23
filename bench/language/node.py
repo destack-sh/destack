@@ -156,7 +156,7 @@ _FORBIDDEN_COMPONENT_METHODS = (
     + tuple(m.rec for m in _ComponentMethod)
     + ("__post_init__", "__del__")
 )
-_COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], Any] = {}
+_COMPONENT_METHODS: dict[tuple[_ComponentMethod, type["Node"]], Any] = {}
 _COMPONENT_CALL_ORDER: tuple[str, ...] = ("Node",)  # ... the rest
 
 
