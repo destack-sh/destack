@@ -140,7 +140,7 @@ async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
 
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
-    async with global_session(read_only=True):
+    async with global_session(readonly=True):
         try:
             client = await _get_client_from_metadata(metadata)
             badge = await _get_badge_from_metadata(metadata)

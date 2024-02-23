@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 @server.command(name="imitate")
 async def imitate_server(bench: str):
     """'Imitate' the env vars of a server for a Bench in .env.server"""
-    async with global_session(read_only=True):
+    async with global_session(readonly=True):
         bench: Bench = await Bench.get(slug=bench)
     logger.info("server.imitate", bench=bench)
     env_vars = {

@@ -5,23 +5,16 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
-from bench.language.node import (
-    Node,
-    NodeList,
-    NRel,
-    _Passthrough,
-    node,
-    node_component,
-)
+from bench.language.node import Node, NodeList, NRel, _Passthrough, node, node_component
 from bench.language.property import (
-    p_node_parent,
-    p_node_child,
-    p_value_runtime,
-    p_value_packed,
-    p_secret_value_packed,
-    p_regular,
     p_internal,
+    p_node_child,
+    p_node_parent,
+    p_regular,
+    p_secret_value_packed,
     p_system,
+    p_value_packed,
+    p_value_runtime,
 )
 from bench.language.session import HasRun
 from bench.language.validation import validate_name
@@ -75,8 +68,8 @@ _block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.PROTOCOL, (), IdentT.TYPE)
-_block(BlockType.TASK, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.ROUTINE, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.MODEL_TASK, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.CODE_TASK, (HasRun,), IdentT.FUNCTION)
 _block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
 _block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
 _block(BlockType.SINGLE_VARIABLE, (), IdentT.VARIABLE)

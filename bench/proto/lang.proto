@@ -1935,7 +1935,7 @@ message SessionData {
   optional google.protobuf.Timestamp closed_at = 33;
   optional float duration = 34;
   bool is_runtime = 40;
-  bool is_read_only = 41;
+  bool is_readonly = 41;
 }
 
 // A signal emitted in this Bench.

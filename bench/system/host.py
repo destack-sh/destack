@@ -2,7 +2,7 @@ import asyncio
 import functools
 import urllib
 from datetime import datetime, timedelta
-from typing import Callable, Optional, Collection
+from typing import Callable, Collection, Optional
 from uuid import UUID
 
 import betterproto
@@ -11,23 +11,23 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Bench, Organization, Package, User, NodeReference
+from bench.language import Bench, NodeReference, Organization, Package, User
 from bench.language.access import Subject
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType, IN_BENCH_NODE_TYPES
+from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
-    HostBase,
-    HostStub,
     DownloadFilesRequest,
     DownloadFilesResponse,
+    EditData,
     GraphScope,
+    HostBase,
+    HostStub,
     RunIntrinsicBlockRequest,
     RunIntrinsicBlockResponse,
     UploadFilesRequest,
     UploadFilesResponse,
-    EditData,
 )
 from bench.system.graph import GraphIoService
 from bench.system.utils import get_s3_client, global_session
@@ -104,7 +104,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 
 class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
     """
-    Host for an (active) Bench package. Manages basically everything that's not actually running it.
+    Host for a Bench, providing the persistent non-runtime OS functions.
     Any Client (frontend, server, ...) connects to this to do anything with the Bench.
     """
 
@@ -127,11 +127,6 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
     def bench(self) -> Bench:
         assert self._bench is not None, f"bench not loaded in {self}"
         return self._bench
-
-    @property
-    def package(self) -> Package:
-        assert self._package is not None, f"package not loaded in {self}"
-        return self._package
 
     async def start_quick(self) -> None:
         async with global_session():

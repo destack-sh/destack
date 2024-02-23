@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -2240,7 +2233,7 @@ class SessionData(betterproto.Message):
     closed_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     duration: Optional[float] = betterproto.float_field(34, optional=True)
     is_runtime: bool = betterproto.bool_field(40)
-    is_read_only: bool = betterproto.bool_field(41)
+    is_readonly: bool = betterproto.bool_field(41)
 
 
 @dataclass(eq=False, repr=False)
@@ -4134,9 +4127,9 @@ class RuntimeBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
+
+import bench.proto.monkey  # noqa
 
 AnyNodeData = Union[
     BenchData,

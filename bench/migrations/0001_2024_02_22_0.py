@@ -1476,7 +1476,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         closed_at timestamp,
         duration real,
         is_runtime boolean NOT NULL DEFAULT false,
-        is_read_only boolean NOT NULL DEFAULT false
+        is_readonly boolean NOT NULL DEFAULT false
     )
     """
     )

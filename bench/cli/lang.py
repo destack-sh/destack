@@ -23,7 +23,7 @@ async def check(check_db: bool = False):
 async def shell(bench: str = None):
     """Open a Session shell."""
     if bench is not None:
-        async with global_session(read_only=True):
+        async with global_session(readonly=True):
             bench: Bench = await Bench.get(slug=bench)
     logger.info("lang.shell", bench=bench)
     raise NotImplementedError("TODO :Incomplete: shell.session")

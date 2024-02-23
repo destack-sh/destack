@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.const import NodeType, StructType
 from bench.language.node import Node, Struct, node, node_component, struct
 from bench.language.property import p_internal, p_node_child, p_node_parent, p_regular
+from bench.language.setup import _well_known_enum
 from bench.language.validation import enum_validator, validate_name
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum
@@ -11,28 +12,28 @@ if TYPE_CHECKING:
     from bench.language import Block, Icon, Package, Policy, Text
 
 
+@_well_known_enum
 class ViewType(IdEnum):
     # 'intrinsic' roots for editor
     PAGE = 1
     BLOCK = 2
-    EXPLORER = 10
-    HISTORY = 11
-    WATCH = 12
-    TEST = 13
-    RESOURCE = 14
-    INSPECTOR = 15
-    LIBRARY = 16
-    ACCESS = 17
+    EXPLORER = 20
+    HISTORY = 21
+    RESOURCES = 22
+    INSPECTOR = 23
+    LIBRARY = 24
+    ACCESS = 25
 
     # containers
     WINDOW_GROUP = 50
     TAB_GROUP = 52
     STEP_GROUP = 55
-    SPLIT = 57
+    SPLIT_GROUP = 57
     STACK = 60
     DISCLOSURE = 61
     GRID = 62
-    GRID_ROW = 63
+    ROW = 63
+    COLUMN = 64
     # data
     LIST = 70
     TABLE = 71
@@ -41,13 +42,16 @@ class ViewType(IdEnum):
     GROUP = 75
     FORM = 76
     MENU = 77
+    SECTION = 78
 
     # presentation
     SPACER = 80
     DIVIDER = 81
-    PROGRESS = 82
     SHAPE = 83
-    AVATAR = 84
+    CHART = 84
+    PROGRESS = 85
+    AVATAR = 86
+    BADGE = 87
     # media
     ICON = 100
     IMAGE = 101
@@ -78,36 +82,63 @@ class ViewType(IdEnum):
     ...
 
 
+@_well_known_enum
 class ColorType(IdEnum):
     """Built-in color types a la SwiftUI or Tailwind."""
 
-    # purpose
+    # surface
     PRIMARY = 1
     SECONDARY = 2
     ACCENT = 3
-    # status
+    # semantic
     SUCCESS = 10
     HINT = 11
     INFO = 12
     WARNING = 13
-    ERROR = 14
+    DANGER = 14
+    # actual (like Tailwind)
+    SLATE = 20
+    GRAY = 21
+    ZINC = 22
+    NEUTRAL = 23
+    STONE = 24
+    RED = 30
+    ORANGE = 31
+    AMBER = 32
+    YELLOW = 33
+    LIME = 34
+    GREEN = 35
+    EMERALD = 36
+    TEAL = 37
+    CYAN = 38
+    SKY = 39
+    BLUE = 40
+    INDIGO = 41
+    VIOLET = 42
+    PURPLE = 43
+    FUCHSIA = 44
+    PINK = 45
+    ROSE = 46
+
+
+@_well_known_enum
+class ColorShade(IdEnum):
+    """Built-in color shades a la Tailwind."""
+
+    # surface
+    ...
     # actual
-    BLACK = 30
-    BLUE = 31
-    BROWN = 32
-    CLEAR = 33
-    CYAN = 34
-    GRAY = 35
-    GREEN = 36
-    INDIGO = 37
-    MINT = 38
-    ORANGE = 39
-    PINK = 40
-    PURPLE = 41
-    RED = 42
-    TEAL = 43
-    WHITE = 44
-    YELLOW = 45
+    S50 = 50
+    S100 = 100
+    S200 = 200
+    S300 = 300
+    S400 = 400
+    S500 = 500
+    S600 = 600
+    S700 = 700
+    S800 = 800
+    S900 = 900
+    S950 = 950
 
 
 @struct(StructType.COLOR)
@@ -118,6 +149,7 @@ class Color(Struct):
     hex: Optional[str] = p_regular(33, default=None)
 
 
+@_well_known_enum
 class SpacingType(IdEnum):
     """Built-in spacings like in Tailwind."""
 
@@ -150,13 +182,13 @@ class View(HasViews):
     )
 
     # content
-    ...  # value/value source
+    ...  # value/value source/file/node...
 
-    # appearance
-    ...  # margin/padding/colors/...
+    # style
+    ...  # font/border/corner/foreground/background/...
 
     # layout
-    ...
+    ...  # size/position/alignment/margin/padding/...
 
     # interaction
     ...
@@ -165,8 +197,10 @@ class View(HasViews):
     is_visible: bool = p_regular(80, default=True)
     is_disabled: bool = p_regular(81, default=False)
     is_loading: bool = p_regular(82, default=False)
+    is_readonly: bool = p_regular(83, default=False)
 
 
+@_well_known_enum
 class PageViewMode(IdEnum):
     NOTEBOOK = 1
     SCRIPT = 2
@@ -186,18 +220,8 @@ class Space(HasViews):
     dock: "SpaceDock" = p_regular(35, require=True, array=False, struct=StructType.SPACE_DOCK)
 
 
-class SpaceDockItemType(IdEnum):
-    # builtins
-    SEARCH = 1
-    CHAT = 2
-    ASSIST = 3
-    HELP = 4
-    # ...?
-
-
 @struct(StructType.SPACE_DOCK_ITEM)
 class SpaceDockItem(Struct):
-    # type: SpaceDockItemType = ...
     hidden: bool = p_regular(31, default=False)
 
 
