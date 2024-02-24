@@ -218,7 +218,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_ck uuid,
         kind smallint NOT NULL,
         type smallint NOT NULL,
-        message varchar NOT NULL,
+        message varchar,
         path jsonb,
         properties_ptr jsonb[]
     )
@@ -551,8 +551,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         host varchar,
         database varchar,
         schema varchar,
-        main_credential bytea,
-        extra_credentials bytea[]
+        main_credential bytea
     )
     """
     )
@@ -746,9 +745,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN server_id uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL,
         ADD COLUMN store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN search_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
-        ADD COLUMN analytics_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
+        ADD COLUMN analytics_store_id uuid REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN drive_id uuid NOT NULL REFERENCES bench_drive ON DELETE SET NULL,
-        ADD COLUMN cache_id uuid NOT NULL REFERENCES bench_cache ON DELETE SET NULL
+        ADD COLUMN cache_id uuid REFERENCES bench_cache ON DELETE SET NULL
     """
     )
     await cur.execute(

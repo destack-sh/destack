@@ -301,4 +301,4 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited(session.tx.edits)
 
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        return CreateBenchResponse()

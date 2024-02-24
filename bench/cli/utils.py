@@ -99,7 +99,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench")
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
 
         # check local
-        async with global_session(readonly=True):
+        async with global_session():
             bench = await Bench.get(slug=check_db_bench)
         async with pg_cursor_to_store(bench.main_environment.store) as cur:
             old_local_tables = await introspect_tables_from_pg(cur)

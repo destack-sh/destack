@@ -59,8 +59,10 @@ async def global_pg_cursor(
 
 
 @asynccontextmanager
-async def global_session(readonly: bool = False) -> AsyncContextManager[Session]:
-    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
+async def global_session() -> AsyncContextManager[Session]:
+    async with Session(
+        parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
+    ) as session:
         yield session
 
 

@@ -2317,7 +2317,7 @@ export interface EnvironmentData {
      */
     searchPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData analytics_ptr = 43;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData analytics_ptr = 43;
      */
     analyticsPtr?: NodeReferenceData;
     /**
@@ -2325,7 +2325,7 @@ export interface EnvironmentData {
      */
     drivePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData cache_ptr = 45;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cache_ptr = 45;
      */
     cachePtr?: NodeReferenceData;
 }
@@ -4281,10 +4281,6 @@ export interface StoreData {
      * @generated from protobuf field: optional symbolx.bench.StoreCredentialData main_credential = 54;
      */
     mainCredential?: StoreCredentialData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.StoreCredentialData extra_credentials = 55;
-     */
-    extraCredentials: StoreCredentialData[];
 }
 /**
  * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
@@ -6676,9 +6672,9 @@ export enum ResourceStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_WAITING = 1;
+     * @generated from protobuf enum value: RESOURCE_STATUS_PENDING = 1;
      */
-    WAITING = 1,
+    PENDING = 1,
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_CREATING = 5;
      */
@@ -12678,13 +12674,13 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                 case /* symbolx.bench.NodeReferenceData search_ptr */ 42:
                     message.searchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.searchPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData analytics_ptr */ 43:
+                case /* optional symbolx.bench.NodeReferenceData analytics_ptr */ 43:
                     message.analyticsPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.analyticsPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData drive_ptr */ 44:
                     message.drivePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.drivePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData cache_ptr */ 45:
+                case /* optional symbolx.bench.NodeReferenceData cache_ptr */ 45:
                     message.cachePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.cachePtr);
                     break;
                 default:
@@ -12750,13 +12746,13 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* symbolx.bench.NodeReferenceData search_ptr = 42; */
         if (message.searchPtr)
             NodeReferenceData.internalBinaryWrite(message.searchPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData analytics_ptr = 43; */
+        /* optional symbolx.bench.NodeReferenceData analytics_ptr = 43; */
         if (message.analyticsPtr)
             NodeReferenceData.internalBinaryWrite(message.analyticsPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData drive_ptr = 44; */
         if (message.drivePtr)
             NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData cache_ptr = 45; */
+        /* optional symbolx.bench.NodeReferenceData cache_ptr = 45; */
         if (message.cachePtr)
             NodeReferenceData.internalBinaryWrite(message.cachePtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -16782,8 +16778,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 50, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "database", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "schema", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "main_credential", kind: "message", T: () => StoreCredentialData },
-            { no: 55, name: "extra_credentials", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => StoreCredentialData }
+            { no: 54, name: "main_credential", kind: "message", T: () => StoreCredentialData }
         ]);
     }
     create(value?: PartialMessage<StoreData>): StoreData {
@@ -16798,7 +16793,6 @@ class StoreData$Type extends MessageType<StoreData> {
         message.status = 0;
         message.kind = 0;
         message.engine = 0;
-        message.extraCredentials = [];
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
         return message;
@@ -16876,9 +16870,6 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* optional symbolx.bench.StoreCredentialData main_credential */ 54:
                     message.mainCredential = StoreCredentialData.internalBinaryRead(reader, reader.uint32(), options, message.mainCredential);
-                    break;
-                case /* repeated symbolx.bench.StoreCredentialData extra_credentials */ 55:
-                    message.extraCredentials.push(StoreCredentialData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16961,9 +16952,6 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional symbolx.bench.StoreCredentialData main_credential = 54; */
         if (message.mainCredential)
             StoreCredentialData.internalBinaryWrite(message.mainCredential, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.StoreCredentialData extra_credentials = 55; */
-        for (let i = 0; i < message.extraCredentials.length; i++)
-            StoreCredentialData.internalBinaryWrite(message.extraCredentials[i], writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

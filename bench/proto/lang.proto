@@ -526,7 +526,7 @@ enum Region {
 // Generalized status of a Resource in its lifecycle.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
-  RESOURCE_STATUS_WAITING = 1;
+  RESOURCE_STATUS_PENDING = 1;
   RESOURCE_STATUS_CREATING = 5;
   RESOURCE_STATUS_UPGRADING = 10;
   RESOURCE_STATUS_HEALTHY = 20;
@@ -1479,9 +1479,9 @@ message EnvironmentData {
   NodeReferenceData server_ptr = 40;
   NodeReferenceData store_ptr = 41;
   NodeReferenceData search_ptr = 42;
-  NodeReferenceData analytics_ptr = 43;
+  optional NodeReferenceData analytics_ptr = 43;
   NodeReferenceData drive_ptr = 44;
-  NodeReferenceData cache_ptr = 45;
+  optional NodeReferenceData cache_ptr = 45;
 }
 
 // A used-defined attribute of some value.
@@ -2034,7 +2034,6 @@ message StoreData {
   optional string database = 51;
   optional string schema = 52;
   optional StoreCredentialData main_credential = 54;
-  repeated StoreCredentialData extra_credentials = 55;
 }
 
 // Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)

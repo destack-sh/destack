@@ -21,7 +21,7 @@ async def check(check_db: bool = False):
 async def shell(bench: str = None, package: str = None):
     """Open a Session shell."""
     if bench is not None:
-        async with global_session(readonly=True):
+        async with global_session():
             bench: Bench = await Bench.get(slug=bench)
             if package is not None:
                 package = await Package.get(parent=bench, slug=package)

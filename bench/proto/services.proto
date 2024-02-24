@@ -79,8 +79,6 @@ message CreateBenchRequest {
   bool is_main = 4;
 }
 message CreateBenchResponse {
-  BenchData bench = 1;
-  uint64 epoch = 2;
 }
 
 message GetNodesRequest {

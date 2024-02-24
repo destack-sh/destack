@@ -8,7 +8,6 @@ from typing import (
     AsyncIterator,
     Mapping,
     NamedTuple,
-    Optional,
     final,
     Collection,
 )
@@ -33,8 +32,9 @@ from bench.language.const import (
     ConditionalOp,
     NodeType,
     PolicyEffect,
+    AccessKind,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph
+from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
 from bench.language.session import edit_data_graph
@@ -144,7 +144,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                     ),
                     options=adapted_options,
                 )
-                connection = await session.tx.connect_to_store_for(request.scope, node_type)
+                connection = await session.tx.connect_store(
+                    request.scope, node_type, AccessKind.READ
+                )
                 result = await connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
         if any(root.id not in graph for root in request.roots):
@@ -179,7 +181,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
-            connection = await session.tx.connect_to_store_for(request.scope, node_type)
+            connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
             result = await connection.fetch(query, FetchOptions(count=request.count))
             graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
@@ -213,7 +215,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
-            connection = await session.tx.connect_to_store_for(request.scope, node_type)
+            connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
             result = await connection.aggregate(query)
 
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
@@ -243,7 +245,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                     ),
                     options=options,
                 )
-                connection = await session.tx.connect_to_store_for(request.scope, node_type)
+                connection = await session.tx.connect_store(
+                    request.scope, node_type, AccessKind.EDIT
+                )
                 result = await connection.fetch(query, FetchOptions(count=False))
                 data_graph.extend(result.nodes)
                 if any(str(r.id) not in data_graph for r in node_references):
