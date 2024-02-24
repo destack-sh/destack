@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         Store,
         Text,
         User,
+        Region,
     )
 
 NodeT = Union[Node, "Node"]
@@ -54,6 +55,7 @@ class Bench(Node):
     )
     encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True, sensitive=True)
     policies: list["Policy"] | None = p_regular(37, struct=StructType.POLICY, array=True)
+    region: "Region" = p_regular(38, require=True, array=False)
 
     # source
     main_package: Optional["Package"] = p_system(
@@ -85,13 +87,16 @@ class Environment(Node):
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
 
-    store: "Store" = p_system(40, require=True, array=False, references=NodeType.STORE)
-    search: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
+    server: "Server" = p_system(40, require=True, array=False, references=NodeType.SERVER)
+    store: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
+    search: "Store" = p_system(42, require=True, array=False, references=NodeType.STORE)
     analytics: Optional["Store"] = p_system(
-        42, require=True, array=False, references=NodeType.STORE
+        43, require=False, default=None, array=False, references=NodeType.STORE
     )
-    drive: "Drive" = p_system(43, require=True, array=False, references=NodeType.DRIVE)
-    cache: Optional["Cache"] = p_system(44, require=True, array=False, references=NodeType.CACHE)
+    drive: "Drive" = p_system(44, require=True, array=False, references=NodeType.DRIVE)
+    cache: Optional["Cache"] = p_system(
+        45, require=False, default=None, array=False, references=NodeType.CACHE
+    )
 
 
 @node(NodeType.BRANCH, identifier=IdentifierType.VARIABLE)
@@ -116,7 +121,7 @@ class Package(Node):
     """A package is a semi-isolated version of a Bench containing all the source and data."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    slug: Optional[str] = p_regular(33, validate=validate_slug)
+    slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
     is_partial: bool = p_system(36, default=False)
@@ -150,7 +155,7 @@ class Package(Node):
         return self.root.nodes_by_ck.values()
 
     def __content_str__(self):
-        return f"is_active={self.is_active}, blocks={len(self.blocks)}, spaces={len(self.spaces)}"
+        return f"blocks={len(self.blocks)}, spaces={len(self.spaces)}"
 
 
 @node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)

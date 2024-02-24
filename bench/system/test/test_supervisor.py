@@ -24,6 +24,7 @@ from bench.proto.wire import (
     SearchNodesRequest,
     SignupUserRequest,
     SupervisorStub,
+    CreateBenchRequest,
 )
 from bench.system.test.conftest import UserHandle, make_new_user_handle
 from bench.utils.dt import utcnow_with_tz
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
 
 
-async def test_user_auth_flow(supervisor: SupervisorStub):
+async def test_user_registration(supervisor: SupervisorStub):
     """Create a User, login and logout. Read back data to confirm."""
 
     user = User(slug="test", name="Test", email="test@symbolx.com", status=UserStatus.INVITED)
@@ -74,16 +75,18 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
     read_user_req = GetNodesRequest(
         roots=[user.to_ref()._to_data()],
         options=ReadOptions(
-            include_properties=[User.email], descendant_types=[NodeType.CLIENT]
+            include_properties=[User.email], descendant_types=[NodeType.CLIENT, NodeType.HANDLE]
         )._to_data(),
     )
     access_metadata = RpcMetadata(
         client_id=str(client.id), client_access_token=login_rep.access_token
     )
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
-    assert len(read_user_rep.nodes) == 2
+    assert len(read_user_rep.nodes) == 3
     assert read_user_rep.nodes[0].user.email == user.email
     assert read_user_rep.nodes[1].client.device_name == client.device_name
+    assert read_user_rep.nodes[2].handle.slug == user.slug
+    assert read_user_rep.nodes[0].user.main_handle_ptr.id == read_user_rep.nodes[2].handle.id
 
     # logout, invalid token -> fail
     with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
@@ -100,7 +103,7 @@ async def test_user_auth_flow(supervisor: SupervisorStub):
         _ = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
 
 
-async def test_cross_user_protection(supervisor: SupervisorStub):
+async def test_cross_user_access(supervisor: SupervisorStub):
     """Users can only take certain actions on themselves."""
 
     user_a = User(slug="alice", name="Alice", email="alice@bench.app", status=UserStatus.REGISTERED)
@@ -237,3 +240,14 @@ async def test_root_node_create_denied(
             _ = await supervisor.commit_transaction(
                 commit_req, metadata=some_user.metadata.to_headers()
             )
+
+
+async def test_user_create_bench(some_user: UserHandle, supervisor: SupervisorStub):
+    """Activate a User by creating their main Bench."""
+    create_bench_req = CreateBenchRequest(
+        owner=some_user.user.to_ref()._to_data(),
+        slug=some_user.user.slug,
+        is_main=True,
+        region=wire.Region.EU_CENTRAL,
+    )
+    await supervisor.create_bench(create_bench_req, metadata=some_user.headers)

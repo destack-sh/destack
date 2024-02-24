@@ -267,7 +267,7 @@ export interface ISupervisorClient {
     // 
 
     /**
-     * Create a Bench.
+     * Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
      *
      * @generated from protobuf rpc: CreateBench(symbolx.bench.CreateBenchRequest) returns (symbolx.bench.CreateBenchResponse);
      */
@@ -389,7 +389,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     // 
 
     /**
-     * Create a Bench.
+     * Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
      *
      * @generated from protobuf rpc: CreateBench(symbolx.bench.CreateBenchRequest) returns (symbolx.bench.CreateBenchResponse);
      */

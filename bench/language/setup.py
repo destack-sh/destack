@@ -2,7 +2,7 @@ import enum
 import functools
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Union, TypeVar
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -57,7 +57,10 @@ def _on_completing_setup(func: Callable = None):
     return func
 
 
-def _well_known_enum(enum_cls: type[IdEnum]) -> type[IdEnum]:
+IdEnumT = TypeVar("IdEnumT", bound=IdEnum)
+
+
+def _well_known_enum(enum_cls: type[IdEnumT]) -> type[IdEnumT]:
     """Makes a Bench enum not in const available to other files."""
     BENCH_CLASSES.append(enum_cls)
     BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls

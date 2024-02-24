@@ -57,7 +57,7 @@ class InconsistencyError(RuntimeError):
         super().__init__(f"bench internal state is inconsistent: {msg}")
 
 
-async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx") -> None:
+async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench") -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION
@@ -78,7 +78,9 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
     # diff generated SQL schema vs current schema
     log.debug("lang.check_consistency.schema")
     new_tables = tuple(
-        map_node_class_to_pg_table(cls) for cls in NODE_CLASSES if not cls.__is_stored_custom__
+        map_node_class_to_pg_table(cls)
+        for cls in NODE_CLASSES
+        if cls.__is_stored__ and not cls.__is_stored_custom__
     )
     migration_ops = generate_migration_ops(NODE_TABLES, new_tables)
     if migration_ops:

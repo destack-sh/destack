@@ -61,12 +61,6 @@ enum BadgeType {
   BADGE_TYPE_ACCESS_KEY = 2;
 }
 
-enum BenchRegion {
-  BENCH_REGION_UNSPECIFIED = 0;
-  BENCH_REGION_EU_CENTRAL = 1;
-  BENCH_REGION_US_WEST = 10;
-}
-
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
@@ -100,7 +94,7 @@ enum BenchType {
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
   BENCH_TYPE_CACHE = 163;
-  BENCH_TYPE_FILE_CONTENT = 180;
+  BENCH_TYPE_FILE_CONTENT = 170;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
@@ -133,8 +127,6 @@ enum BenchType {
   BENCH_TYPE_CODE_LINE = 591;
   BENCH_TYPE_RUN_CODE_FRAME = 600;
   BENCH_TYPE_RUN_ERROR = 601;
-  BENCH_TYPE_SERVER_IMAGE = 630;
-  BENCH_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   BENCH_TYPE_STORE_CREDENTIAL = 632;
   BENCH_TYPE_TEXT = 660;
   BENCH_TYPE_TEXT_LINE = 661;
@@ -156,8 +148,8 @@ enum BlockType {
   BLOCK_TYPE_PROTOCOL = 14;
   BLOCK_TYPE_SINGLE_VARIABLE = 20;
   BLOCK_TYPE_MULTI_VARIABLE = 21;
-  BLOCK_TYPE_TASK = 30;
-  BLOCK_TYPE_ROUTINE = 31;
+  BLOCK_TYPE_MODEL_TASK = 30;
+  BLOCK_TYPE_CODE_TASK = 31;
   BLOCK_TYPE_SCRIPT = 32;
   BLOCK_TYPE_FLOW = 33;
   BLOCK_TYPE_QUERY = 40;
@@ -177,23 +169,29 @@ enum ColorType {
   COLOR_TYPE_HINT = 11;
   COLOR_TYPE_INFO = 12;
   COLOR_TYPE_WARNING = 13;
-  COLOR_TYPE_ERROR = 14;
-  COLOR_TYPE_BLACK = 30;
-  COLOR_TYPE_BLUE = 31;
-  COLOR_TYPE_BROWN = 32;
-  COLOR_TYPE_CLEAR = 33;
-  COLOR_TYPE_CYAN = 34;
-  COLOR_TYPE_GRAY = 35;
-  COLOR_TYPE_GREEN = 36;
-  COLOR_TYPE_INDIGO = 37;
-  COLOR_TYPE_MINT = 38;
-  COLOR_TYPE_ORANGE = 39;
-  COLOR_TYPE_PINK = 40;
-  COLOR_TYPE_PURPLE = 41;
-  COLOR_TYPE_RED = 42;
-  COLOR_TYPE_TEAL = 43;
-  COLOR_TYPE_WHITE = 44;
-  COLOR_TYPE_YELLOW = 45;
+  COLOR_TYPE_DANGER = 14;
+  COLOR_TYPE_SLATE = 20;
+  COLOR_TYPE_GRAY = 21;
+  COLOR_TYPE_ZINC = 22;
+  COLOR_TYPE_NEUTRAL = 23;
+  COLOR_TYPE_STONE = 24;
+  COLOR_TYPE_RED = 30;
+  COLOR_TYPE_ORANGE = 31;
+  COLOR_TYPE_AMBER = 32;
+  COLOR_TYPE_YELLOW = 33;
+  COLOR_TYPE_LIME = 34;
+  COLOR_TYPE_GREEN = 35;
+  COLOR_TYPE_EMERALD = 36;
+  COLOR_TYPE_TEAL = 37;
+  COLOR_TYPE_CYAN = 38;
+  COLOR_TYPE_SKY = 39;
+  COLOR_TYPE_BLUE = 40;
+  COLOR_TYPE_INDIGO = 41;
+  COLOR_TYPE_VIOLET = 42;
+  COLOR_TYPE_PURPLE = 43;
+  COLOR_TYPE_FUCHSIA = 44;
+  COLOR_TYPE_PINK = 45;
+  COLOR_TYPE_ROSE = 46;
 }
 
 enum ConditionalOp {
@@ -387,7 +385,7 @@ enum NodeType {
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
   NODE_TYPE_CACHE = 163;
-  NODE_TYPE_FILE_CONTENT = 180;
+  NODE_TYPE_FILE_CONTENT = 170;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
@@ -432,7 +430,7 @@ enum NotificationKind {
 
 enum OrganizationStatus {
   ORGANIZATION_STATUS_UNSPECIFIED = 0;
-  ORGANIZATION_STATUS_REGISTERED = 3;
+  ORGANIZATION_STATUS_REGISTERED = 4;
   ORGANIZATION_STATUS_ACTIVATED = 10;
 }
 
@@ -517,6 +515,25 @@ enum ReferenceKind {
   REFERENCE_KIND_PROPERTY = 8;
 }
 
+// Where a Resource is located (physically).
+enum Region {
+  REGION_UNSPECIFIED = 0;
+  REGION_GLOBAL = 1;
+  REGION_EU_CENTRAL = 100;
+  REGION_US_WEST = 200;
+}
+
+// Generalized status of a Resource in its lifecycle.
+enum ResourceStatus {
+  RESOURCE_STATUS_UNSPECIFIED = 0;
+  RESOURCE_STATUS_WAITING = 1;
+  RESOURCE_STATUS_CREATING = 5;
+  RESOURCE_STATUS_UPGRADING = 10;
+  RESOURCE_STATUS_HEALTHY = 20;
+  RESOURCE_STATUS_UNHEALTHY = 25;
+  RESOURCE_STATUS_PAUSED = 30;
+}
+
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_INTERNAL = 1;
@@ -547,20 +564,10 @@ enum ScheduleType {
 
 enum ServerProfile {
   SERVER_PROFILE_UNSPECIFIED = 0;
-  SERVER_PROFILE_TINY = 1;
-  SERVER_PROFILE_SMALL = 2;
-  SERVER_PROFILE_MEDIUM = 3;
-}
-
-enum ServerStatus {
-  SERVER_STATUS_UNSPECIFIED = 0;
-  SERVER_STATUS_SLEEPING = 1;
-  SERVER_STATUS_PENDING = 2;
-  SERVER_STATUS_UPDATING = 3;
-  SERVER_STATUS_HEALTHY = 4;
-  SERVER_STATUS_UNHEALTHY = 5;
-  SERVER_STATUS_UNAVAILABLE = 6;
-  SERVER_STATUS_UNKNOWN = 7;
+  SERVER_PROFILE_TINY = 3;
+  SERVER_PROFILE_SMALL = 5;
+  SERVER_PROFILE_MEDIUM = 7;
+  SERVER_PROFILE_LARGE = 9;
 }
 
 enum SortMode {
@@ -629,8 +636,6 @@ enum StructType {
   STRUCT_TYPE_CODE_LINE = 591;
   STRUCT_TYPE_RUN_CODE_FRAME = 600;
   STRUCT_TYPE_RUN_ERROR = 601;
-  STRUCT_TYPE_SERVER_IMAGE = 630;
-  STRUCT_TYPE_SERVER_IMAGE_REQUIREMENT = 631;
   STRUCT_TYPE_STORE_CREDENTIAL = 632;
   STRUCT_TYPE_TEXT = 660;
   STRUCT_TYPE_TEXT_LINE = 661;
@@ -638,6 +643,13 @@ enum StructType {
   STRUCT_TYPE_COLOR = 700;
   STRUCT_TYPE_SPACE_DOCK = 800;
   STRUCT_TYPE_SPACE_DOCK_ITEM = 801;
+}
+
+// How a Resource is shared (if at all).
+enum Tenancy {
+  TENANCY_UNSPECIFIED = 0;
+  TENANCY_SHARED = 1;
+  TENANCY_DEDICATED = 5;
 }
 
 enum TextLineType {
@@ -674,7 +686,8 @@ enum UserStatus {
   USER_STATUS_UNSPECIFIED = 0;
   USER_STATUS_INVITED = 1;
   USER_STATUS_RESERVED = 2;
-  USER_STATUS_REGISTERED = 3;
+  USER_STATUS_WAITLISTED = 3;
+  USER_STATUS_REGISTERED = 4;
   USER_STATUS_ACTIVATED = 10;
 }
 
@@ -682,52 +695,55 @@ enum ViewType {
   VIEW_TYPE_UNSPECIFIED = 0;
   VIEW_TYPE_PAGE = 1;
   VIEW_TYPE_BLOCK = 2;
-  VIEW_TYPE_EXPLORER = 10;
-  VIEW_TYPE_HISTORY = 11;
-  VIEW_TYPE_WATCH = 12;
-  VIEW_TYPE_TEST = 13;
-  VIEW_TYPE_RESOURCE = 14;
-  VIEW_TYPE_INSPECTOR = 15;
-  VIEW_TYPE_LIBRARY = 16;
-  VIEW_TYPE_ACCESS = 17;
-  VIEW_TYPE_WINDOW_GROUP = 50;
-  VIEW_TYPE_TAB_GROUP = 52;
-  VIEW_TYPE_STEP_GROUP = 55;
+  VIEW_TYPE_EXPLORER = 20;
+  VIEW_TYPE_HISTORY = 21;
+  VIEW_TYPE_RESOURCES = 22;
+  VIEW_TYPE_INSPECTOR = 23;
+  VIEW_TYPE_LIBRARY = 24;
+  VIEW_TYPE_ACCESS = 25;
+  VIEW_TYPE_WINDOWED = 50;
+  VIEW_TYPE_TABBED = 52;
+  VIEW_TYPE_STEPPED = 55;
   VIEW_TYPE_SPLIT = 57;
   VIEW_TYPE_STACK = 60;
   VIEW_TYPE_DISCLOSURE = 61;
   VIEW_TYPE_GRID = 62;
-  VIEW_TYPE_GRID_ROW = 63;
+  VIEW_TYPE_ROW = 63;
+  VIEW_TYPE_COLUMN = 64;
   VIEW_TYPE_LIST = 70;
   VIEW_TYPE_TABLE = 71;
   VIEW_TYPE_FEED = 72;
   VIEW_TYPE_GROUP = 75;
   VIEW_TYPE_FORM = 76;
   VIEW_TYPE_MENU = 77;
+  VIEW_TYPE_SECTION = 78;
   VIEW_TYPE_SPACER = 80;
   VIEW_TYPE_DIVIDER = 81;
-  VIEW_TYPE_PROGRESS = 82;
   VIEW_TYPE_SHAPE = 83;
-  VIEW_TYPE_AVATAR = 84;
-  VIEW_TYPE_ICON = 100;
-  VIEW_TYPE_IMAGE = 101;
-  VIEW_TYPE_VIDEO = 102;
-  VIEW_TYPE_AUDIO = 103;
-  VIEW_TYPE_DOCUMENT = 104;
-  VIEW_TYPE_BUTTON = 120;
-  VIEW_TYPE_LINK = 121;
-  VIEW_TYPE_VALUE = 160;
-  VIEW_TYPE_TOGGLE = 170;
-  VIEW_TYPE_CHECKBOX = 171;
-  VIEW_TYPE_CHECKBOX_GROUP = 172;
-  VIEW_TYPE_SLIDER = 173;
-  VIEW_TYPE_TEXT = 180;
-  VIEW_TYPE_CODE = 181;
-  VIEW_TYPE_JSON = 182;
-  VIEW_TYPE_PICKER = 190;
-  VIEW_TYPE_DATE_PICKER = 191;
-  VIEW_TYPE_COLOR_PICKER = 192;
-  VIEW_TYPE_FILE_PICKER = 193;
+  VIEW_TYPE_CHART = 84;
+  VIEW_TYPE_PROGRESS = 85;
+  VIEW_TYPE_AVATAR = 86;
+  VIEW_TYPE_BADGE = 87;
+  VIEW_TYPE_BUTTON = 100;
+  VIEW_TYPE_LINK = 101;
+  VIEW_TYPE_VALUE = 120;
+  VIEW_TYPE_SLIDER = 133;
+  VIEW_TYPE_NUMBER = 134;
+  VIEW_TYPE_TEXT = 140;
+  VIEW_TYPE_CODE = 141;
+  VIEW_TYPE_JSON = 142;
+  VIEW_TYPE_TOGGLE = 150;
+  VIEW_TYPE_CHECKBOX = 151;
+  VIEW_TYPE_CHECKBOX_GROUP = 152;
+  VIEW_TYPE_PICKER = 153;
+  VIEW_TYPE_DATE = 154;
+  VIEW_TYPE_COLOR = 155;
+  VIEW_TYPE_FILE = 160;
+  VIEW_TYPE_DOCUMENT = 161;
+  VIEW_TYPE_ICON = 162;
+  VIEW_TYPE_IMAGE = 163;
+  VIEW_TYPE_VIDEO = 164;
+  VIEW_TYPE_AUDIO = 165;
 }
 
 // An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -1121,30 +1137,6 @@ message ScheduleData {
   optional string cron = 33;
 }
 
-// ServerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, requirements: list['ServerImageRequirement'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message ServerImageData {
-  BenchType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  string language = 30;
-  string version = 31;
-  string platform = 32;
-  repeated ServerImageRequirementData requirements = 33;
-}
-
-// ServerImageRequirement(name: str = <factory>, version: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message ServerImageRequirementData {
-  BenchType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  string name = 30;
-  string version = 31;
-}
-
 // SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message SpaceDockData {
   BenchType metatype = 1;
@@ -1207,7 +1199,7 @@ message TextData {
   repeated TextLineData lines = 32;
 }
 
-// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
 message TextLineData {
   BenchType metatype = 1;
   int32 id = 2;
@@ -1216,6 +1208,7 @@ message TextLineData {
   optional string order_key = 5;
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
+  optional ColorType color = 50;
   bool is_bold = 60;
   bool is_italic = 61;
   bool is_strikethrough = 62;
@@ -1223,12 +1216,13 @@ message TextLineData {
   bool is_code = 64;
 }
 
-// TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TextSpanData {
   BenchType metatype = 1;
   int32 id = 2;
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
+  optional ColorType color = 50;
   bool is_bold = 60;
   bool is_italic = 61;
   bool is_strikethrough = 62;
@@ -1318,6 +1312,7 @@ message BenchData {
   optional NodeReferenceData owner_ptr = 35;
   optional string encryption_key = 36;
   repeated PolicyData policies = 37;
+  Region region = 38;
   optional NodeReferenceData main_package_ptr = 40;
   optional NodeReferenceData main_environment_ptr = 41;
   optional NodeReferenceData main_branch_ptr = 42;
@@ -1394,6 +1389,11 @@ message CacheData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  Tenancy tenancy = 36;
+  ResourceStatus status = 37;
 }
 
 // A client to this Bench.
@@ -1455,7 +1455,9 @@ message DriveData {
   optional NodeReferenceData updated_by_ptr = 18;
   string name = 32;
   optional TextData text = 34;
-  optional string host = 40;
+  Region region = 35;
+  Tenancy tenancy = 36;
+  ResourceStatus status = 37;
 }
 
 // An environment isolates resources from the rest of a Bench.
@@ -1474,11 +1476,12 @@ message EnvironmentData {
   optional string name = 32;
   optional TextData text = 34;
   repeated PolicyData policies = 35;
-  NodeReferenceData store_ptr = 40;
-  NodeReferenceData search_ptr = 41;
-  NodeReferenceData analytics_ptr = 42;
-  NodeReferenceData drive_ptr = 43;
-  NodeReferenceData cache_ptr = 44;
+  NodeReferenceData server_ptr = 40;
+  NodeReferenceData store_ptr = 41;
+  NodeReferenceData search_ptr = 42;
+  NodeReferenceData analytics_ptr = 43;
+  NodeReferenceData drive_ptr = 44;
+  NodeReferenceData cache_ptr = 45;
 }
 
 // A used-defined attribute of some value.
@@ -1684,7 +1687,7 @@ message BaseNodeData {
   optional NodeReferenceData updated_by_ptr = 18;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: str = <factory>, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1701,7 +1704,7 @@ message NoticeData {
   optional NodeReferenceData updated_by_ptr = 18;
   NoticeKind kind = 30;
   NoticeType type = 31;
-  string message = 33;
+  optional string message = 33;
   optional PathData path = 34;
   repeated PropertyReferenceData properties_ptr = 35;
 }
@@ -1890,7 +1893,9 @@ message RunData {
   optional google.protobuf.Struct error = 56;
 }
 
-// A server providing the compute runtime for a Bench.
+// A server providing the Runtime for a Bench.
+// Similar to other resources, a Server virtualizes a compute allocation that is
+// materialized on demand on a physical machine.
 message ServerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1903,16 +1908,18 @@ message ServerData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
-  ServerProfile profile = 30;
-  optional ServerImageData image = 31;
-  optional string version = 32;
-  bool sleep = 33;
-  ServerStatus status = 40;
-  optional ServerProfile current_profile = 41;
-  optional ServerImageData current_image = 42;
-  optional string current_version = 43;
-  optional google.protobuf.Timestamp last_active_at = 44;
-  optional google.protobuf.Timestamp last_bumped_at = 45;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  Tenancy tenancy = 36;
+  ResourceStatus status = 37;
+  ServerProfile profile = 40;
+  optional string version = 42;
+  bool is_paused = 43;
+  optional ServerProfile current_profile = 51;
+  optional string current_version = 53;
+  optional google.protobuf.Timestamp last_active_at = 54;
+  optional google.protobuf.Timestamp last_bumped_at = 55;
 }
 
 // A managed session for interacting with Bench nodes and (if on a Server) running them.
@@ -2015,15 +2022,19 @@ message StoreData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
-  StoreKind kind = 30;
-  StoreEngineType engine = 31;
   string name = 32;
   optional TextData text = 34;
-  optional string host = 41;
-  optional string database = 42;
-  optional string schema = 43;
-  optional StoreCredentialData root_credential = 44;
-  repeated StoreCredentialData extra_credentials = 45;
+  Region region = 35;
+  Tenancy tenancy = 36;
+  ResourceStatus status = 37;
+  StoreKind kind = 40;
+  StoreEngineType engine = 41;
+  optional string version = 42;
+  optional string host = 50;
+  optional string database = 51;
+  optional string schema = 52;
+  optional StoreCredentialData main_credential = 54;
+  repeated StoreCredentialData extra_credentials = 55;
 }
 
 // Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
@@ -2114,9 +2125,12 @@ message ViewData {
   optional string title = 32;
   optional TextData text = 33;
   optional IconData icon = 35;
+  optional google.protobuf.Struct value_packed = 40;
   bool is_visible = 80;
   bool is_disabled = 81;
   bool is_loading = 82;
+  bool is_input = 83;
+  bool is_secret = 84;
 }
 
 message SomeNodeData {

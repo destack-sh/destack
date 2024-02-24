@@ -6,9 +6,9 @@ import psycopg
 import structlog
 
 from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
-from bench.language.const import USER_NODE_TYPES, NodeType
+from bench.language.const import USER_NODE_TYPES, NodeType, VERSION
 from bench.language.query import PostgresEngine
-from bench.language.resource import StoreCredential, StoreCredentialType
+from bench.language.resource import StoreCredential, StoreCredentialType, Region
 from bench.sql.client import _PgStoreConnection
 from bench.utils.func import bytetuple
 from bench.utils.utils import get_from_env
@@ -28,15 +28,18 @@ USER_PG_USERNAME = get_from_env("USER_PG_USERNAME", optional=True)
 USER_PG_PASSWORD = get_from_env("USER_PG_PASSWORD", optional=True)
 
 GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
-SYSTEM_BENCH = Bench(name="System", slug="system", encryption_key=GLOBAL_PG_CRYPTO_KEY)
+SYSTEM_BENCH = Bench(
+    name="System", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY
+)
 GLOBAL_STORE = Store(
+    parent=SYSTEM_BENCH,
     name="Global",
     kind=StoreKind.RELATIONAL,
     engine=StoreEngineType.POSTGRES,
-    parent=SYSTEM_BENCH,
+    version=VERSION,
     host=GLOBAL_PG_HOST,
     database=GLOBAL_PG_NAME,
-    root_credential=StoreCredential(
+    main_credential=StoreCredential(
         type=StoreCredentialType.ROOT,
         username=GLOBAL_PG_USERNAME,
         password=GLOBAL_PG_PASSWORD,

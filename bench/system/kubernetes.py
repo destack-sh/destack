@@ -14,7 +14,8 @@ from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
 from bench.language import Bench
-from bench.language.const import BenchRegion, ServerProfile, ServerStatus
+from bench.language.const import Region
+from bench.language.resource import ResourceStatus
 from bench.utils.env import IS_DEBUG
 from bench.utils.utils import get_from_env
 
@@ -96,14 +97,14 @@ except Exception as e:
         raise
 
 
-def _get_deployment_status(deployment: client.V1Deployment) -> ServerStatus:
+def _get_deployment_status(deployment: client.V1Deployment) -> ResourceStatus:
     """Maps K8 deployment status to ServerSetStatus."""
     if not deployment.status.conditions:
-        return ServerStatus.UNKNOWN
+        return ResourceStatus.UNAVAILABLE
     if (deployment.status.replicas or 0) == 0:
-        return ServerStatus.SLEEPING
+        return ResourceStatus.SLEEPING
     if deployment.status.available_replicas == deployment.status.replicas:
-        return ServerStatus.HEALTHY
+        return ResourceStatus.HEALTHY
     for condition in deployment.status.conditions:
         if condition.type == "Progressing":
             if condition.status == "True":
@@ -113,20 +114,20 @@ def _get_deployment_status(deployment: client.V1Deployment) -> ServerStatus:
                     "FoundNewReplicaSet",
                     "ReplicaSetUpdated",
                 ]:
-                    return ServerStatus.UPDATING
+                    return ResourceStatus.UPDATING
             elif condition.status == "False" and condition.reason == "ProgressDeadlineExceeded":
-                return ServerStatus.UNHEALTHY
+                return ResourceStatus.UNHEALTHY
         elif condition.type == "Available":
             if condition.status == "False":
-                return ServerStatus.PENDING
+                return ResourceStatus.PENDING
         elif condition.type == "ReplicaFailure":
             if condition.status == "True":
-                return ServerStatus.UNHEALTHY
+                return ResourceStatus.UNHEALTHY
     if (deployment.status.unavailable_replicas or 0) == deployment.status.replicas:
-        return ServerStatus.UNAVAILABLE
+        return ResourceStatus.UNAVAILABLE
     if (deployment.status.unavailable_replicas or 0) > 0:
-        return ServerStatus.UNHEALTHY
-    return ServerStatus.UNKNOWN
+        return ResourceStatus.UNHEALTHY
+    return ResourceStatus.UNKNOWN
 
 
 @dataclass
@@ -135,7 +136,7 @@ class Pod:
     deployment_name: str
     bench_id: UUID
     server_set_id: UUID
-    region: BenchRegion
+    region: Region
     profile: ServerProfile
 
     def __str__(self):
@@ -152,7 +153,7 @@ class Pod:
             deployment_name=labels["deployment"],
             bench_id=UUID(labels["bench_id"]),
             server_set_id=UUID(labels["server_set_id"]),
-            region=BenchRegion(labels["region"].upper()),
+            region=Region(labels["region"].upper()),
             profile=ServerProfile(labels["profile"].upper()),
         )
 
@@ -161,14 +162,14 @@ class Pod:
 class Deployment:
     bench_id: UUID
     server_set_id: UUID
-    region: BenchRegion
+    region: Region
     profile: ServerProfile
     target_replicas: int
     # read from k8
     active_replicas_ids: list[str] = None
     available_replicas: Optional[int] = None
     ready_replicas: Optional[int] = None
-    status: Optional[ServerStatus] = None
+    status: Optional[ResourceStatus] = None
 
     def __str__(self):
         return f"{self.name} ({self.status}, {self.ready_replicas}/{self.target_replicas}, {self.region}, {self.profile})"
@@ -262,7 +263,7 @@ class Deployment:
         return cls(
             bench_id=UUID(labels["bench_id"]),
             server_set_id=UUID(labels["server_set_id"]),
-            region=BenchRegion(labels["region"].upper()),
+            region=Region(labels["region"].upper()),
             profile=ServerProfile(labels["profile"].upper()),
             status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,

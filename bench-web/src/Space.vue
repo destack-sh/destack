@@ -8,5 +8,6 @@
       Bench OS
     </header>
     <!-- Root window group -->
+    <Windowed />
   </div>
 </template>

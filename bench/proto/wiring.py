@@ -13,7 +13,7 @@ from bench.language import Property
 from bench.language.const import BenchType, NodeType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, Struct
-from bench.language.notice import NoticeHandler, on_warning_raise
+from bench.language.notice import NoticeHandler, on_warning_raise, on_notice_ignore
 from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
@@ -298,6 +298,9 @@ def unpack_nodes_inline(
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = InterpStatus.SOURCE
+            # TODO :Cleanup: it feels weird to interp in unpack?
+            #  (we want to resolve node references and such)
+            node._interp_self(node, on_notice=on_notice_ignore)
         unpacked_roots.append(root)
 
     if roots:

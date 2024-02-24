@@ -424,7 +424,6 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             descendant_ck = descendant.ck
             if descendant_ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant_ck)
-
             if descendant_ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck.pop(descendant_ck)
             if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
@@ -467,9 +466,9 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             else:
                 queue = deque(self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST))
             while queue:
-                current_nodes = queue.popleft()
-                descendants.append(current_nodes)
-                children = self.nodes_by_parent_ck.get(current_nodes.ck, EMPTY_LIST)
+                current_node = queue.popleft()
+                descendants.append(current_node)
+                children = self.nodes_by_parent_ck.get(current_node.ck, ())
                 if len(children) > 0:
                     queue.extend(children)
             return descendants
@@ -581,6 +580,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         if n._graph is not None:
             # subsume if previously detached
             added = n._graph.collect_descendants(n, recursive=True)
+            added = added + [n]
             n._graph.update(n)  # parent updated
             self._parent._root_graph.add_graph(n._graph)
             n._graph = None
