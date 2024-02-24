@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.24.1"
+VERSION = "2024.02.24.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -569,7 +569,7 @@ class ResourceStatus(betterproto.Enum):
     """Generalized status of a Resource in its lifecycle."""
 
     UNSPECIFIED = 0
-    WAITING = 1
+    PENDING = 1
     CREATING = 5
     UPGRADING = 10
     HEALTHY = 20
@@ -1685,9 +1685,9 @@ class EnvironmentData(betterproto.Message):
     server_ptr: "NodeReferenceData" = betterproto.message_field(40)
     store_ptr: "NodeReferenceData" = betterproto.message_field(41)
     search_ptr: "NodeReferenceData" = betterproto.message_field(42)
-    analytics_ptr: "NodeReferenceData" = betterproto.message_field(43)
+    analytics_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     drive_ptr: "NodeReferenceData" = betterproto.message_field(44)
-    cache_ptr: "NodeReferenceData" = betterproto.message_field(45)
+    cache_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2352,7 +2352,6 @@ class StoreData(betterproto.Message):
     database: Optional[str] = betterproto.string_field(51, optional=True)
     schema: Optional[str] = betterproto.string_field(52, optional=True)
     main_credential: Optional["StoreCredentialData"] = betterproto.message_field(54, optional=True)
-    extra_credentials: List["StoreCredentialData"] = betterproto.message_field(55)
 
 
 @dataclass(eq=False, repr=False)
@@ -2655,8 +2654,7 @@ class CreateBenchRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CreateBenchResponse(betterproto.Message):
-    bench: "BenchData" = betterproto.message_field(1)
-    epoch: int = betterproto.uint64_field(2)
+    pass
 
 
 @dataclass(eq=False, repr=False)

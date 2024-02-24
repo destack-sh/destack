@@ -29,7 +29,6 @@ import { AccessMatrixData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
 import { GraphScope } from "./common";
-import { BenchData } from "./lang";
 import { Region } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { OrganizationData } from "./lang";
@@ -238,14 +237,6 @@ export interface CreateBenchRequest {
  * @generated from protobuf message symbolx.bench.CreateBenchResponse
  */
 export interface CreateBenchResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchData bench = 1;
-     */
-    bench?: BenchData;
-    /**
-     * @generated from protobuf field: uint64 epoch = 2;
-     */
-    epoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.GetNodesRequest
@@ -1379,47 +1370,18 @@ export const CreateBenchRequest = new CreateBenchRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
     constructor() {
-        super("symbolx.bench.CreateBenchResponse", [
-            { no: 1, name: "bench", kind: "message", T: () => BenchData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
+        super("symbolx.bench.CreateBenchResponse", []);
     }
     create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<CreateBenchResponse>(this, message, value);
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchResponse): CreateBenchResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchData bench */ 1:
-                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-                    break;
-                case /* uint64 epoch */ 2:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+        return target ?? this.create();
     }
     internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchData bench = 1; */
-        if (message.bench)
-            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
-        if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -27,6 +27,8 @@ from bench.language.const import (
     StoreEngineType,
     StructType,
     active_tx,
+    ReadType,
+    AccessKind,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
@@ -402,7 +404,9 @@ class QueryBuilder(
         from bench.proto.wiring import unpack_nodes_inline
 
         tx = active_tx()
-        connection = await tx.connect_to_store_for(base=self._base, node_type=self._node_type)
+        connection = await tx.connect_store(
+            base=self._base, node_type=self._node_type, access_kind=AccessKind.READ
+        )
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
         roots = unpack_nodes_inline(
@@ -420,8 +424,8 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        connection = await active_tx().connect_to_store_for(
-            base=query._base, node_type=query._node_type
+        connection = await active_tx().connect_store(
+            base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
         return result.aggregation.count
@@ -434,8 +438,8 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.filter(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        connection = await active_tx().connect_to_store_for(
-            base=query._base, node_type=query._node_type
+        connection = await active_tx().connect_store(
+            base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
         return result.aggregation.exists
@@ -470,6 +474,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
         self.store = store
         self.node_types = node_types
         self.scope = scope
+        self._bench_id = self.scope.bench_id if self.scope else None
 
     def __repr__(self):
         self_str = str(self)
@@ -482,12 +487,10 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def id(self) -> int | str | UUID:
         return hash(self)
 
-    # nocheckin: filter StoreEngine.supports by access type (read/write)
-    #  (for Host we only want to read from in memory graph, but write to postgres)
-    def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
-        if scope.bench_id is not None and (
-            self.scope is None or self.scope.bench_id != scope.bench_id
-        ):
+    def supports(self, scope: GraphScope, node_type: NodeType, access_kind: AccessKind) -> bool:
+        bench_id = scope.bench_id if scope else None
+        # scope must match except when creating root types
+        if bench_id != self._bench_id:
             return False
         if node_type not in self.node_types:
             return False

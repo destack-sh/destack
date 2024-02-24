@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.02.24.1"
+VERSION = "2024.02.24.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -157,6 +157,7 @@ ENVIRONMENT_TABLE = Table(
             PrimitiveType.UUID,
             is_foreign_key_to="bench_store",
             on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
         ),
         Column(
             "drive_id",
@@ -169,6 +170,7 @@ ENVIRONMENT_TABLE = Table(
             PrimitiveType.UUID,
             is_foreign_key_to="bench_cache",
             on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
         ),
     ),
     indexes=(
@@ -630,7 +632,7 @@ NOTICE_TABLE = Table(
         Column("updated_by_run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("type", PrimitiveType.INT16),
-        Column("message", PrimitiveType.STRING),
+        Column("message", PrimitiveType.STRING, is_nullable=True),
         Column("path", PrimitiveType.JSON, is_nullable=True),
         Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
@@ -1719,13 +1721,6 @@ STORE_TABLE = Table(
         Column("database", PrimitiveType.STRING, is_nullable=True),
         Column("schema", PrimitiveType.STRING, is_nullable=True),
         Column("main_credential", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column(
-            "extra_credentials",
-            PrimitiveType.JSON,
-            is_array=True,
-            is_nullable=True,
-            is_encrypted=True,
-        ),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),

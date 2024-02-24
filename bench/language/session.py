@@ -25,6 +25,8 @@ from bench.language.const import (
     RunStatus,
     StructType,
     _active_session,
+    AccessType,
+    AccessKind,
 )
 from bench.language.field import TypeInfo
 from bench.language.graph import NodeDataGraph
@@ -188,18 +190,21 @@ class Transaction:
             tx._add_pending_edit(edit)
         return tx
 
-    async def connect_to_store_for(
-        self, base: Node | GraphScope | None, node_type: NodeType
+    async def connect_store(
+        self, base: Node | GraphScope | None, node_type: NodeType, access_kind: AccessKind
     ) -> StoreConnection:
         if isinstance(base, Node):
             scope = GraphScope(
                 bench_id=uuid_to_str(base.root.bench_id),
                 package_id=uuid_to_str(base.root.package_id),
             )
+        elif isinstance(base, GraphScope):
+            scope = base
         else:
+            assert base is None, f"unexpected base: {base!r}"
             scope = EMPTY_SCOPE
         for engine in self.session._engines:
-            if engine.supports(scope, node_type):
+            if engine.supports(scope, node_type, access_kind):
                 return await self._get_engine_connection(engine)
         raise BenchError(f"no engine for [base={base!r}, node={node_type}] in {self.session!r}")
 
@@ -210,12 +215,16 @@ class Transaction:
             self._connections_by_engine_id[engine.id] = connection
         return connection
 
-    def _get_engine_for_edit(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
+    def _get_engine_for_edit(
+        self, scope: GraphScope, node_type: NodeType, edit_type: EditType
+    ) -> StoreEngine:
         for engine in self.session._engines:
-            if engine.supports(scope, node_type):
+            if engine.supports(scope, node_type, AccessKind.EDIT):
                 return engine
+        if self.session._fallback_engine:
+            return self.session._fallback_engine
         raise BenchError(
-            f"no engine for edit [scope={scope!r}, node_type={node_type}] in {self.session!r}"
+            f"no engine for edit [scope={scope!r}, node_type={node_type}, edit_type={edit_type}] in {self.session!r}"
         )
 
     #
@@ -261,7 +270,7 @@ class Transaction:
             self._schema_changed = True
 
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
-        engine = self._get_engine_for_edit(edit.scope, node_type)
+        engine = self._get_engine_for_edit(edit.scope, node_type, edit.type)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         if node is not None:
@@ -485,6 +494,7 @@ class Session(Node):
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
+    _fallback_engine: Optional["StoreEngine"] = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
 

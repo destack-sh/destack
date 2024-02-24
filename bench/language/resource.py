@@ -123,16 +123,6 @@ class Store(Resource):
         defer=True,
         struct=StructType.STORE_CREDENTIAL,
     )
-    extra_credentials: list[StoreCredential] = p_kernel(
-        55,
-        require=False,
-        default=None,
-        array=True,
-        sensitive=True,
-        encrypt=True,
-        defer=True,
-        struct=StructType.STORE_CREDENTIAL,
-    )
 
     def __content_str__(self) -> str:
         return f"{self.kind.bench_name}: {self.engine.bench_name}"
