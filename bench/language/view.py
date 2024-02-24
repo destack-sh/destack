@@ -1,10 +1,18 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Any
 
 from bench.language.const import NodeType, StructType
 from bench.language.node import Node, Struct, node, node_component, struct
-from bench.language.property import p_internal, p_node_child, p_node_parent, p_regular
+from bench.language.property import (
+    p_internal,
+    p_node_child,
+    p_node_parent,
+    p_regular,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.setup import _well_known_enum
 from bench.language.validation import enum_validator, validate_name
+from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum
 
@@ -25,10 +33,10 @@ class ViewType(IdEnum):
     ACCESS = 25
 
     # containers
-    WINDOW_GROUP = 50
-    TAB_GROUP = 52
-    STEP_GROUP = 55
-    SPLIT_GROUP = 57
+    WINDOWED = 50
+    TABBED = 52
+    STEPPED = 55
+    SPLIT = 57
     STACK = 60
     DISCLOSURE = 61
     GRID = 62
@@ -52,33 +60,34 @@ class ViewType(IdEnum):
     PROGRESS = 85
     AVATAR = 86
     BADGE = 87
-    # media
-    ICON = 100
-    IMAGE = 101
-    VIDEO = 102
-    AUDIO = 103
-    DOCUMENT = 104
 
     # controls
-    BUTTON = 120
-    LINK = 121
+    BUTTON = 100
+    LINK = 101
 
-    # inputs
-    VALUE = 160  # (generic value based on type)
-    # numeric-ish
-    TOGGLE = 170
-    CHECKBOX = 171
-    CHECKBOX_GROUP = 172
-    SLIDER = 173
+    # content
+    VALUE = 120  # (generic value based on type)
+    # numeric
+    SLIDER = 133
+    NUMBER = 134
     # stringy
-    TEXT = 180
-    CODE = 181
-    JSON = 182
+    TEXT = 140
+    CODE = 141
+    JSON = 142
     # selection
-    PICKER = 190
-    DATE_PICKER = 191
-    COLOR_PICKER = 192
-    FILE_PICKER = 193
+    TOGGLE = 150
+    CHECKBOX = 151
+    CHECKBOX_GROUP = 152
+    PICKER = 153
+    DATE = 154
+    COLOR = 155
+    # file
+    FILE = 160
+    DOCUMENT = 161
+    ICON = 162
+    IMAGE = 163
+    VIDEO = 164
+    AUDIO = 165
     ...
 
 
@@ -165,7 +174,7 @@ class HasViews(Node):
 
 
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
-class View(HasViews):
+class View(HasViews, HasValues):
     """A view of a user interface in a Bench."""
 
     parent: Union["Space", "View", "Block"] = p_node_parent(
@@ -182,6 +191,8 @@ class View(HasViews):
     )
 
     # content
+    value_packed: Any = p_value_packed(40)
+    value = p_value_runtime(packed=40)
     ...  # value/value source/file/node...
 
     # style
@@ -191,13 +202,14 @@ class View(HasViews):
     ...  # size/position/alignment/margin/padding/...
 
     # interaction
-    ...
+    ...  # behavior/effects/...
 
     # flags
     is_visible: bool = p_regular(80, default=True)
     is_disabled: bool = p_regular(81, default=False)
     is_loading: bool = p_regular(82, default=False)
-    is_readonly: bool = p_regular(83, default=False)
+    is_input: bool = p_regular(83, default=False)
+    is_secret: bool = p_regular(84, default=False)
 
 
 @_well_known_enum

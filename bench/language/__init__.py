@@ -52,7 +52,7 @@ from .path import Path
 from .projection import NodeVisitor
 from .query import Query
 from .render import render
-from .resource import Cache, Drive, FileContent, Server, ServerImage, ServerImageRequirement, Store
+from .resource import Cache, Drive, FileContent, Server, Store, Region, Tenancy
 from .session import (
     Log,
     Session,
@@ -119,6 +119,7 @@ __all__ = [
     "Query",
     "ReadOptions",
     "Record",
+    "Region",
     "render",
     "Request",
     "Role",
@@ -126,8 +127,6 @@ __all__ = [
     "S",
     "ScheduleType",
     "Server",
-    "ServerImage",
-    "ServerImageRequirement",
     "Session",
     "Signal",
     "SortMode",
@@ -139,6 +138,7 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
+    "Tenancy",
     "Text",
     "TextSpan",
     "Transaction",

@@ -5,14 +5,13 @@ from bench.language.const import (
     FileStatus,
     NodeType,
     PrimitiveType,
-    ServerProfile,
-    ServerStatus,
     StoreEngineType,
     StoreKind,
     StructType,
 )
-from bench.language.node import Node, Struct, node, struct
+from bench.language.node import Node, Struct, node, struct, node_component
 from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
+from bench.language.setup import _well_known_enum
 from bench.language.text import Text
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum
@@ -21,39 +20,72 @@ if TYPE_CHECKING:
     from bench.language import Bench
 
 
-@node(NodeType.SERVER)
-class Server(Node):
-    """A server providing the compute runtime for a Bench."""
+@_well_known_enum
+class Region(IdEnum):
+    """Where a Resource is located (physically)."""
+
+    GLOBAL = 1
+    # europe
+    EU_CENTRAL = 100
+    # americas
+    US_WEST = 200
+
+
+@_well_known_enum
+class Tenancy(IdEnum):
+    """How a Resource is shared (if at all)."""
+
+    SHARED = 1
+    DEDICATED = 5
+
+
+@_well_known_enum
+class ResourceStatus(IdEnum):
+    """Generalized status of a Resource in its lifecycle."""
+
+    PENDING = 1
+    CREATING = 5
+    UPGRADING = 10
+    HEALTHY = 20
+    UNHEALTHY = 25
+    PAUSED = 30
+
+
+@node_component
+class Resource(Node):
+    """A resource owned by a Bench."""
 
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
-
-    profile: ServerProfile = p_regular(30)
-    image: Optional["ServerImage"] = p_regular(31, struct=StructType.SERVER_IMAGE)
-    version: Optional[str] = p_system(32)
-    sleep: bool = p_regular(33, default=True)
-
-    status: ServerStatus = p_system(40)
-    current_profile: Optional[ServerProfile] = p_system(41)
-    current_image: Optional["ServerImage"] = p_system(42, struct=StructType.SERVER_IMAGE)
-    current_version: Optional[str] = p_system(43)
-    last_active_at: Optional[datetime] = p_internal(44, default_factory=utcnow_with_tz)
-    last_bumped_at: Optional[datetime] = p_internal(45, default_factory=utcnow_with_tz)
+    name: str = p_regular(32)
+    text: Optional[Text] = p_regular(34, default=None, struct=StructType.TEXT)
+    region: Region = p_system(35, default=Region.GLOBAL)
+    tenancy: Tenancy = p_system(36, default=Tenancy.SHARED)
+    status: ResourceStatus = p_system(37, default=ResourceStatus.PENDING)
 
 
-@struct(StructType.SERVER_IMAGE)
-class ServerImage(Struct):
-    language: str = p_regular(30)
-    version: str = p_regular(31)
-    platform: str = p_regular(32)
-    requirements: list["ServerImageRequirement"] = p_regular(
-        33, array=True, struct=StructType.SERVER_IMAGE_REQUIREMENT
-    )
+class ServerProfile(IdEnum):
+    TINY = 3
+    SMALL = 5
+    MEDIUM = 7
+    LARGE = 9
 
 
-@struct(StructType.SERVER_IMAGE_REQUIREMENT)
-class ServerImageRequirement(Struct):
-    name: str = p_regular(30)
-    version: str = p_regular(31)
+@node(NodeType.SERVER)
+class Server(Resource):
+    """
+    A server providing the Runtime for a Bench.
+    Similar to other resources, a Server virtualizes a compute allocation that is
+    materialized on demand on a physical machine.
+    """
+
+    profile: ServerProfile = p_regular(40)
+    version: Optional[str] = p_system(42, default=None)
+    is_paused: bool = p_regular(43, default=True)
+
+    current_profile: Optional[ServerProfile] = p_system(51, default=None)
+    current_version: Optional[str] = p_system(53, default=None)
+    last_active_at: Optional[datetime] = p_internal(54, default=None)
+    last_bumped_at: Optional[datetime] = p_internal(55, default=None)
 
 
 class StoreCredentialType(IdEnum):
@@ -68,25 +100,21 @@ class StoreCredential(Struct):
 
 
 @node(NodeType.STORE)
-class Store(Node):
+class Store(Resource):
     """
     A store for database-like storage in a Bench.
     Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
     """
 
-    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
-    kind: StoreKind = p_system(30)
-    engine: StoreEngineType = p_system(31)
-    name: str = p_regular(32)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    kind: StoreKind = p_system(40)
+    engine: StoreEngineType = p_system(41)
+    version: Optional[str] = p_system(42, default=None)
 
-    # base: Optional[Store] ...if shared?
-    host: Optional[str] = p_kernel(41, require=False, default=None, sensitive=True)
-    database: Optional[str] = p_kernel(42, require=None, default=None, sensitive=True)
-    schema: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
-    # ('root' here is relative to the dedicated schema/database/host)
-    root_credential: Optional[StoreCredential] = p_kernel(
-        44,
+    host: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
+    database: Optional[str] = p_kernel(51, require=None, default=None, sensitive=True)
+    schema: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
+    main_credential: Optional[StoreCredential] = p_kernel(
+        54,
         require=False,
         default=None,
         array=False,
@@ -96,7 +124,7 @@ class Store(Node):
         struct=StructType.STORE_CREDENTIAL,
     )
     extra_credentials: list[StoreCredential] = p_kernel(
-        45,
+        55,
         require=False,
         default=None,
         array=True,
@@ -111,18 +139,13 @@ class Store(Node):
 
 
 @node(NodeType.DRIVE)
-class Drive(Node):
+class Drive(Resource):
     """
     A drive for file-like storage in a Bench.
     Virtualizes simple bucket-style access to some S3-like storage.
     """
 
-    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
-    # engine: ...?
-    name: str = p_regular(32)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-
-    host: Optional[str] = p_kernel(40, unique=True)
+    ...
 
 
 class FileRetentionMode(IdEnum):
@@ -145,7 +168,7 @@ class FileContent(Node):
 
 
 @node(NodeType.CACHE)
-class Cache(Node):
+class Cache(Resource):
     """Cache for ephemeral data."""
 
-    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
+    ...

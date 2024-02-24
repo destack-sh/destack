@@ -75,7 +75,8 @@ message CreateOrganizationResponse {
 message CreateBenchRequest {
   NodeReferenceData owner = 1;
   string slug = 2;
-  bool is_main = 3;
+  Region region = 3;
+  bool is_main = 4;
 }
 message CreateBenchResponse {
   BenchData bench = 1;
@@ -250,7 +251,7 @@ service Supervisor {
   // Bench management
   //
 
-  // Create a Bench.
+  // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 }
 

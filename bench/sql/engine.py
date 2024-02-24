@@ -2023,7 +2023,7 @@ async def create_local_pg_database(*, store: Store, upsert: bool) -> None:
     # connect to local database and setup auth
     async with pg_cursor_to_store(store, autocommit=False) as cur:
         # create 'root' user (if not exists)
-        root = store.root_credential
+        root = store.main_credential
         log.info("pg.create_db.create_root", username=root.username)
         await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (root.username,))
         exists = bool(await cur.fetchone())

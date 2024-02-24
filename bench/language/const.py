@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.23.0"
+VERSION = "2024.02.24.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -74,8 +74,9 @@ class NodeType(IdEnum):
     STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
     DRIVE = 162  # 'bucket' like S3/MinIO, maybe block storage later
     CACHE = 163  # KV memory store (Redis/Memcached)
+    # MACHINE = ... # actual machine providing processor/memory/storage for resources
+    FILE_CONTENT = 170  # in a Drive
     # DOMAIN, EMAIL, ...
-    FILE_CONTENT = 180  # in a Drive
 
     # user
     HANDLE = 220
@@ -148,8 +149,6 @@ class StructType(IdEnum):
     RUN_ERROR = 601
     # CURSOR?
 
-    SERVER_IMAGE = 630
-    SERVER_IMAGE_REQUIREMENT = 631
     STORE_CREDENTIAL = 632
 
     # text
@@ -520,21 +519,6 @@ class NoticeKind(IdEnum):
     ERROR = 4
 
 
-class BenchRegion(IdEnum):
-    EU_CENTRAL = 1
-    US_WEST = 10
-
-
-class ServerStatus(IdEnum):
-    SLEEPING = 1
-    PENDING = 2
-    UPDATING = 3
-    HEALTHY = 4
-    UNHEALTHY = 5
-    UNAVAILABLE = 6
-    UNKNOWN = 7
-
-
 class RunStatus(IdEnum):
     SCHEDULED = 1
     QUEUED = 2
@@ -565,12 +549,6 @@ class RunErrorKind(IdEnum):
     VALIDATION = 3
     RUNTIME = 4
     UNTRUSTED = 5
-
-
-class ServerProfile(IdEnum):
-    TINY = 1
-    SMALL = 2
-    MEDIUM = 3
 
 
 class ExpressionKind(IdEnum):
@@ -642,9 +620,9 @@ else:
 class UserStatus(IdEnum):
     INVITED = 1  # invited via email
     RESERVED = 2  # reserved a handle, unconfirmed
-    WAITLISTED = 3  # confirmed email, waiting
-    REGISTERED = 4  # confirmed email, ready to activate
-    ACTIVATED = 10  # has main bench
+    WAITLISTED = 3  # got handle, confirmed email, waiting
+    REGISTERED = 4  # got handle, confirmed email, ready to activate
+    ACTIVATED = 10  # has main bench, all ready to go
 
 
 class OrganizationStatus(IdEnum):

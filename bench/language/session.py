@@ -23,7 +23,6 @@ from bench.language.const import (
     NodeType,
     RunErrorKind,
     RunStatus,
-    StoreEngineType,
     StructType,
     _active_session,
 )
@@ -169,6 +168,7 @@ class Transaction:
         default_factory=lambda: defaultdict(list)
     )
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
+    _pending_nodes_by_ck: dict[UUID, Node] = dcfield(default_factory=dict)
 
     # for syncing databases (should probably generalize into' untracked edits')
     _schema_changed: bool = dcfield(default=False)
@@ -254,7 +254,7 @@ class Transaction:
         )
         return edit
 
-    def _add_pending_edit(self, edit: EditData) -> StoreEngine:
+    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
         from bench.proto import wiring
 
         if edit.node_type == NodeType.FIELD:
@@ -264,20 +264,22 @@ class Transaction:
         engine = self._get_engine_for_edit(edit.scope, node_type)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
+        if node is not None:
+            self._pending_nodes_by_ck[node.ck] = node
         return engine
 
     def _add_pending_edits(self, edits: Collection[EditData]):
         """Adds a collection of edits to the pending edits."""
         for edit in edits:
-            self._add_pending_edit(edit)
+            self._add_pending_edit(edit, node=None)
 
     def create(self, n: Node, subject: EditSubject):
         edit = self._make_edit(EditType.CREATE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def upsert(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.UPSERT, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def update(self, n: Node, subject: EditSubject | None, properties: tuple[Property, ...]):
         from bench.proto import wiring
@@ -286,8 +288,9 @@ class Transaction:
         if existing_edit_idx is None:
             # new update
             edit = self._make_edit(EditType.UPDATE, n, subject)
-            engine = self._add_pending_edit(edit)
-            self._pending_updates_idx[n] = engine.id, len(self.edits) - 1
+            engine = self._add_pending_edit(edit, n)
+            edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
+            self._pending_updates_idx[n] = engine.id, edit_idx
         else:
             # update existing edit in place
             #  (to avoid re-packing everything for successive updates)
@@ -304,27 +307,27 @@ class Transaction:
 
     def move(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.MOVE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def soft_delete(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.SOFT_DELETE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def restore(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.RESTORE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def archive(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.ARCHIVE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def unarchive(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.UNARCHIVE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     def delete(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.DELETE, n, subject)
-        self._add_pending_edit(edit)
+        self._add_pending_edit(edit, n)
 
     #
     # Transaction management
@@ -365,19 +368,15 @@ class Transaction:
     async def open(self):
         pass
 
-    async def flush(self, *only_engine_types: StoreEngineType):
+    async def flush(self):
         """
         Canonicalizes and flushes any pending edits to the primary stores (without committing).
         If specific engines are given, only flushes to those engines.
         """
 
-        if only_engine_types:
-            engines = tuple(e for e in self.session._engines if e.type in only_engine_types)
-        else:
-            engines = self.session._engines
-        log = logger.bind(edits=len(self.edits), engines=len(engines), transaction=self)
+        log = logger.bind(edits=len(self.edits), transaction=self)
         now = utcnow_with_tz()
-        for engine in engines:
+        for engine in self.session._engines:
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
             if pending_edits:
                 Transaction.canonicalize_edits(now, pending_edits)
@@ -387,6 +386,12 @@ class Transaction:
                 for edit, new_revision in zip(pending_edits, accepted_revisions):
                     edit.revision = new_revision
                 pending_edits.clear()
+        self._pending_updates_idx.clear()
+
+        # mark nodes as flushed
+        for node in self._pending_nodes_by_ck.values():
+            node._flushed_self()
+        self._pending_nodes_by_ck.clear()
 
     async def commit(self):
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""

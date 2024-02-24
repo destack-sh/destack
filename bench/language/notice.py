@@ -57,7 +57,7 @@ class Notice(Node):
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
-    message: str = p_regular(33)
+    message: Optional[str] = p_regular(33, require=False, default=None)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
     properties: Optional[list[Property]] = p_regular(
         35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
@@ -108,3 +108,7 @@ def on_warning_raise(
 
 
 on_error_raise = functools.partial(on_warning_raise, min_level=NoticeKind.ERROR)
+
+
+def on_notice_ignore(*args, **kwargs):
+    pass

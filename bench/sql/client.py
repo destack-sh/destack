@@ -57,8 +57,8 @@ _CONNECTION_STR_REGEX = re.compile(
 
 def get_pg_connection_str(store: Store, database: str = None) -> str:
     assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
-    assert store.root_credential is not None, f"store {store!r} has no root_credential"
-    connection_str = f"postgresql://{store.root_credential.username}:{store.root_credential.password}@{store.host}/{database or store.database}"
+    assert store.main_credential is not None, f"store {store!r} has no main_credential"
+    connection_str = f"postgresql://{store.main_credential.username}:{store.main_credential.password}@{store.host}/{database or store.database}"
     return connection_str
 
 

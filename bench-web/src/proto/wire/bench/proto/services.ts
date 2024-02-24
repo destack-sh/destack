@@ -30,6 +30,7 @@ import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
 import { GraphScope } from "./common";
 import { BenchData } from "./lang";
+import { Region } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { OrganizationData } from "./lang";
 import { UserData } from "./lang";
@@ -225,7 +226,11 @@ export interface CreateBenchRequest {
      */
     slug: string;
     /**
-     * @generated from protobuf field: bool is_main = 3;
+     * @generated from protobuf field: symbolx.bench.Region region = 3;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: bool is_main = 4;
      */
     isMain: boolean;
 }
@@ -1307,12 +1312,14 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
         super("symbolx.bench.CreateBenchRequest", [
             { no: 1, name: "owner", kind: "message", T: () => NodeReferenceData },
             { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 3, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 4, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.slug = "";
+        message.region = 0;
         message.isMain = false;
         if (value !== undefined)
             reflectionMergePartial<CreateBenchRequest>(this, message, value);
@@ -1329,7 +1336,10 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
                 case /* string slug */ 2:
                     message.slug = reader.string();
                     break;
-                case /* bool is_main */ 3:
+                case /* symbolx.bench.Region region */ 3:
+                    message.region = reader.int32();
+                    break;
+                case /* bool is_main */ 4:
                     message.isMain = reader.bool();
                     break;
                 default:
@@ -1350,9 +1360,12 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
         /* string slug = 2; */
         if (message.slug !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.slug);
-        /* bool is_main = 3; */
+        /* symbolx.bench.Region region = 3; */
+        if (message.region !== 0)
+            writer.tag(3, WireType.Varint).int32(message.region);
+        /* bool is_main = 4; */
         if (message.isMain !== false)
-            writer.tag(3, WireType.Varint).bool(message.isMain);
+            writer.tag(4, WireType.Varint).bool(message.isMain);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

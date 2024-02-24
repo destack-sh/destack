@@ -197,6 +197,8 @@ class Expression(Struct):
         return to_casing(self.op.name, Casing.CAMEL)
 
     def __invert__(self):
+        if self.kind != ExpressionKind.CONDITIONAL:
+            raise TypeError(f"cannot invert {self!r} (expected Conditional, got {self.kind})")
         if self.op == ConditionalOp.TRUE:
             return C(ConditionalOp.FALSE)
         elif self.op == ConditionalOp.FALSE:

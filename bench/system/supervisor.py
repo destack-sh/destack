@@ -3,12 +3,19 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, User
+from bench.language import Client, User, NodeReference, Bench, Tenancy
 from bench.language.access import (
     Subject,
 )
-from bench.language.const import USER_NODE_TYPES
-from bench.language.user import UserStatus
+from bench.language.const import (
+    USER_NODE_TYPES,
+    NodeType,
+    StoreKind,
+    StoreEngineType,
+)
+from bench.language.resource import ServerProfile, Region
+from bench.language.user import UserStatus, Organization, Handle
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
@@ -24,7 +31,13 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
-from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
+from bench.system.auth import (
+    check_password,
+    generate_access_token,
+    generate_salt,
+    hash_password,
+    generate_encryption_key,
+)
 from bench.system.graph import GraphIoService
 from bench.system.utils import global_session, GLOBAL_POSTGRES_ENGINE
 from bench.utils.dt import utcnow_with_tz
@@ -92,7 +105,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, user._data_graph, user._root_graph)
+            self.on_graph_edited(session.tx.edits)
 
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self.epoch
@@ -116,7 +129,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, user._data_graph, user._root_graph)
+            self.on_graph_edited(session.tx.edits)
 
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
@@ -150,7 +163,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             session.upsert(client)
             await session.commit()
-            self.on_graph_edited(session.tx.edits, client._data_graph, client._root_graph)
+            self.on_graph_edited(session.tx.edits)
 
         return LoginUserResponse(
             user=user._to_data(),
@@ -184,9 +197,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 client.access_token = None
                 client.last_seen_at = utcnow_with_tz()
             await session.commit()
-            self.on_graph_edited(
-                session.tx.edits, subject.user._data_graph, subject.user._root_graph
-            )
+            self.on_graph_edited(session.tx.edits)
 
         return LogoutUserResponse()
 
@@ -200,10 +211,94 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
         user: User | None = subject.user
         if not user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+        if not request.slug:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug not specified")
+        if not request.region:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
+        region = wiring.unpack_enum(Region, request.region)
+        if region == Region.GLOBAL:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
+        owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
         async with global_session() as session:
-            session.track(user)
-            if user.bench:  # can't create secondary benches yet
-                raise GRPCError(GRPCStatus.ALREADY_EXISTS, "bench already exists")
+            # check
+            owner: Organization | User
+            if owner_ptr.type == NodeType.USER:
+                if owner_ptr.id != user.id:
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED, "cannot create bench for other user"
+                    )
+                owner = await User.descendants(Handle).get(id=owner_ptr.id)
+            elif owner_ptr.type == NodeType.ORGANIZATION:
+                owner = await Organization.descendants(Handle).get(id=owner_ptr.id)
+                if owner.created_by_id != user.id:
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED, "cannot create bench for other organization"
+                    )
+            else:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid owner type")
+            if owner.status == UserStatus.ACTIVATED or owner.slug != request.slug:
+                raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
+            if owner.status < UserStatus.REGISTERED:
+                raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "owner not registered")
+
+            # create bench
+            assert owner.main_handle is not None, f"{owner!r} has no main handle"
+            main_handle = owner.main_handle
+            bench = Bench(
+                main_handle=main_handle,
+                slug=main_handle.slug,
+                name=main_handle.slug,
+                owner=owner,
+                encryption_key=generate_encryption_key(),
+                region=region,
+            )
+            session.create(bench)
+            await session.flush()
+
+            # create resources (in pending state)
+            server = bench.servers.create(
+                region=bench.region,
+                tenancy=Tenancy.SHARED,
+                profile=ServerProfile.SMALL,
+                name="Main Server",
+            )
+            store = bench.stores.create(
+                region=bench.region,
+                tenancy=Tenancy.DEDICATED,
+                kind=StoreKind.RELATIONAL,
+                engine=StoreEngineType.POSTGRES,
+                name="Main Store",
+            )
+            search = bench.stores.create(
+                region=bench.region,
+                tenancy=Tenancy.DEDICATED,
+                kind=StoreKind.SEARCH,
+                engine=StoreEngineType.OPENSEARCH,
+                name="Main Search",
+            )
+            drive = bench.drives.create(
+                region=bench.region, tenancy=Tenancy.SHARED, name="Main Drive"
+            )
+
+            # create main environment/branch/package
+            environment = bench.environments.create(
+                name="Main", store=store, search=search, drive=drive, server=server
+            )
+            branch = bench.branches.create(name="Main")
+            package = bench.packages.create(environment=environment, branch=branch)
+            await session.flush()
+            branch.main_package = package
+            bench.main_package = branch.main_package
+            bench.main_branch = branch
+            bench.main_environment = environment
+
+            # 'activate' owner
+            if owner.status != UserStatus.ACTIVATED:
+                owner.main_bench = bench
+                owner.status = UserStatus.ACTIVATED
+
+            await session.commit()
+            self.on_graph_edited(session.tx.edits)
 
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

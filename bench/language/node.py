@@ -1118,7 +1118,7 @@ class Struct(abc.ABC):
 
         # resolve node references
         for prop in self.__node_reference_properties__.values():
-            if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
+            if prop.is_wired or prop.is_stored or prop.reference_kind != ReferenceKind.NODE_REGULAR:
                 continue  # already resolved
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:
@@ -1127,14 +1127,14 @@ class Struct(abc.ABC):
                 ptr = cast(list["NodeReference"], ptr)
                 resolved = []
                 for p in ptr:
-                    resolved = scope.lookup(p.id or p.ck)
+                    resolved = scope._root_graph.get(p.id or p.ck)
                     if resolved is None:
                         on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
                     resolved.append(resolved)
                 setattr(self, prop.name, resolved)
             else:
                 ptr = cast("NodeReference", ptr)
-                resolved = scope.lookup(ptr.id or ptr.ck)
+                resolved = scope._root_graph.get(ptr.id or ptr.ck)
                 if resolved is None:
                     on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
                 setattr(self, prop.name, resolved)
@@ -1179,6 +1179,13 @@ class Struct(abc.ABC):
                 if valid is False:
                     on_invalid(self, f"{prop.name}: invalid value", [prop])
 
+    def _flushed_self(self):
+        """Called when this struct has been flushed to the store."""
+        if self.__is_node__:
+            self: "Node"
+            self._is_new = False
+        self._updated_properties = None
+
     def _updated_inner(self, properties: tuple[Property, ...]) -> None:
         """Called when properties in this struct have been updated successfully."""
         if self._status == InterpStatus.TRACKED:
@@ -1219,8 +1226,8 @@ class Struct(abc.ABC):
         @functools.wraps(wraps)
         def rec_method(self: "Node", *args, **kwargs):
             # just walk self, every struct can only appear once
-            for descendant in self._walk_self():
-                getattr(descendant, method.self)(*args, **kwargs)
+            for inner_struct in self._walk_self():
+                getattr(inner_struct, method.self)(*args, **kwargs)
 
         rec_method.__name__ = method.rec
         return rec_method
@@ -1349,7 +1356,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
     def __post_init__(self):
         # init ck/id/timestamps
-        if self.__is_in_package__:
+        if self.__is_sub_package__:
             if self.ck is None:
                 self.ck = self.__class__.__id_factory__()
                 self._is_new = True
@@ -1440,7 +1447,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     def is_attached(self) -> bool:
         if self.__is_in_package__:
             return self.parent is not None and self.package is not None
-        elif self.__is_in_bench__:
+        elif self.__is_sub_bench__:
             return self.parent is not None and self.bench is not None
         elif self.__roots__:
             return self.parent is not None
@@ -1591,7 +1598,9 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         path: Optional["FieldPath"] = None,
         properties: Optional[list[Property] | tuple[Property, ...]] = None,
     ) -> None:
-        subject.notices.create(type=type, message=message, path=path, properties=properties)
+        subject.notices.create(
+            type=type, message=message, path=path, properties=properties, source=NodeSource.INTERP
+        )
 
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""

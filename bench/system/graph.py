@@ -264,7 +264,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             # apply the edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
-            self.on_graph_edited(request.edits, data_graph, scopes=edited_scopes_ptr.values())
+            self.on_graph_edited(request.edits, scopes=edited_scopes_ptr.values())
 
         accepted_revisions = [e.revision for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -285,13 +285,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     @final
-    def on_graph_edited(
-        self,
-        edits: list[EditData],
-        data_graph: NodeDataGraph,
-        graph: Optional[NodeGraph] = None,
-        scopes: Collection[NodeReference] = None,
-    ):
+    def on_graph_edited(self, edits: list[EditData], scopes: Collection[NodeReference] = None):
         self.epoch += 1
         self.recent_epochs.append(Epoch(self.epoch, edits))
 
@@ -303,15 +297,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
         if scopes is None:
             scopes = get_edited_scopes(edits).values()
-        self._on_graph_edited_inner(edits=edits, data_graph=data_graph, graph=graph, scopes=scopes)
+        self._on_graph_edited_inner(edits=edits, scopes=scopes)
 
-    def _on_graph_edited_inner(
-        self,
-        edits: list[EditData],
-        data_graph: NodeDataGraph,
-        graph: Optional[NodeGraph],
-        scopes: Collection[NodeReference],
-    ):
+    def _on_graph_edited_inner(self, edits: list[EditData], scopes: Collection[NodeReference]):
         pass
 
     @final

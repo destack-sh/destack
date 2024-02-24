@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.02.22. Edit as needed.
+# This migration was automatically generated on 2024.02.24. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.02.22.0"
+VERSION = "2024.02.24.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -42,7 +42,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         encryption_key bytea NOT NULL,
-        policies jsonb[]
+        policies jsonb[],
+        region smallint NOT NULL
     )
     """
     )
@@ -361,8 +362,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_ck uuid,
         type smallint NOT NULL,
         name varchar,
+        title varchar,
+        text jsonb,
         icon jsonb,
-        is_visible boolean NOT NULL DEFAULT true
+        value_packed jsonb,
+        is_visible boolean NOT NULL DEFAULT true,
+        is_disabled boolean NOT NULL DEFAULT false,
+        is_loading boolean NOT NULL DEFAULT false,
+        is_input boolean NOT NULL DEFAULT false,
+        is_secret boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -504,13 +512,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_ck uuid,
         updated_by_run_ck uuid,
+        name varchar NOT NULL,
+        text jsonb,
+        region smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 1,
+        status smallint NOT NULL DEFAULT 1,
         profile smallint NOT NULL,
-        image jsonb,
         version varchar,
-        sleep boolean NOT NULL DEFAULT true,
-        status smallint NOT NULL,
+        is_paused boolean NOT NULL DEFAULT true,
         current_profile smallint,
-        current_image jsonb,
         current_version varchar,
         last_active_at timestamp,
         last_bumped_at timestamp
@@ -530,14 +540,18 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_ck uuid,
         updated_by_run_ck uuid,
-        kind smallint NOT NULL,
-        engine smallint NOT NULL,
         name varchar NOT NULL,
         text jsonb,
+        region smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 1,
+        status smallint NOT NULL DEFAULT 1,
+        kind smallint NOT NULL,
+        engine smallint NOT NULL,
+        version varchar,
         host varchar,
         database varchar,
         schema varchar,
-        root_credential bytea,
+        main_credential bytea,
         extra_credentials bytea[]
     )
     """
@@ -557,7 +571,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_ck uuid,
         name varchar NOT NULL,
         text jsonb,
-        host varchar
+        region smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 1,
+        status smallint NOT NULL DEFAULT 1
     )
     """
     )
@@ -573,7 +589,12 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         deleted_at timestamp,
         archived_at timestamp,
         created_by_run_ck uuid,
-        updated_by_run_ck uuid
+        updated_by_run_ck uuid,
+        name varchar NOT NULL,
+        text jsonb,
+        region smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 1,
+        status smallint NOT NULL DEFAULT 1
     )
     """
     )
@@ -722,6 +743,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
         ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
+        ADD COLUMN server_id uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL,
         ADD COLUMN store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN search_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN analytics_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
@@ -1234,9 +1256,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
     await cur.execute(
-        "CREATE UNIQUE INDEX bench_drive_bench_idx_host ON bench_drive USING BTREE (host)"
-    )
-    await cur.execute(
         "CREATE INDEX bench_drive_bench_idx_deleted_at ON bench_drive USING BTREE (deleted_at)"
     )
     await cur.execute(
@@ -1245,7 +1264,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_drive    
-        ADD CONSTRAINT bench_drive_bench_idx_host UNIQUE USING INDEX bench_drive_bench_idx_host,
         ADD CONSTRAINT bench_drive_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )

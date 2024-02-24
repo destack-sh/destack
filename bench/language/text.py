@@ -63,9 +63,7 @@ class TextLine(TextOptions):
 
 @struct(StructType.TEXT_SPAN, inline=True)
 class TextSpan(TextOptions):
-    # plain text
     content: str | None = p_regular(33, default=None)
-    # mentions
     node: Optional[Node] = p_regular(
         34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
@@ -73,7 +71,7 @@ class TextSpan(TextOptions):
     def __content_str__(self):
         if self.content:
             return repr(self.content)
-        elif self.node_reference:
+        elif self.node:
             return f"@{self.node_reference!r}"
         else:
             return ""
