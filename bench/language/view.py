@@ -154,7 +154,8 @@ class ColorShade(IdEnum):
 class Color(Struct):
     """A color value."""
 
-    type: ColorType = p_regular(31, require=True, validate=enum_validator(ColorType))
+    type: Optional[ColorType] = p_regular(31, default=None, validate=enum_validator(ColorType))
+    shade: Optional[ColorShade] = p_regular(32, default=None, validate=enum_validator(ColorShade))
     hex: Optional[str] = p_regular(33, default=None)
 
 

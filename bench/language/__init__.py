@@ -52,7 +52,7 @@ from .path import Path
 from .projection import NodeVisitor
 from .query import Query
 from .render import render
-from .resource import Cache, Drive, FileContent, Server, Store, Region, Tenancy
+from .resource import Cache, Drive, FileContent, Server, Store, Region, Tenancy, ServerProfile
 from .session import (
     Log,
     Session,
@@ -64,7 +64,7 @@ from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .view import Space, SpaceDock, View, ViewType
+from .view import Space, SpaceDock, View, ViewType, ColorShade, ColorType, Color
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -85,6 +85,9 @@ __all__ = [
     "Client",
     "Code",
     "CodeLine",
+    "Color",
+    "ColorType",
+    "ColorShade",
     "ConditionalOp",
     "Context",
     "Dependency",
@@ -127,6 +130,7 @@ __all__ = [
     "S",
     "ScheduleType",
     "Server",
+    "ServerProfile",
     "Session",
     "Signal",
     "SortMode",

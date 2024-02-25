@@ -11,7 +11,19 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Bench, NodeReference, Organization, Package, User
+from bench.language import (
+    Bench,
+    NodeReference,
+    Organization,
+    Package,
+    User,
+    Handle,
+    Server,
+    Store,
+    Cache,
+    Drive,
+    Branch,
+)
 from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
@@ -30,7 +42,8 @@ from bench.proto.wire import (
     UploadFilesResponse,
 )
 from bench.system.graph import GraphIoService
-from bench.system.utils import get_s3_client, global_session
+from bench.system.resource import get_s3_client
+from bench.system.utils import global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -104,15 +117,14 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 
 class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
     """
-    Host for a Bench, providing the persistent non-runtime OS functions.
-    Any Client (frontend, server, ...) connects to this to do anything with the Bench.
+    Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management)..
+    Clients interact with a Bench exclusively through its Host.
     """
 
-    def __init__(self, bench_id: UUID, package_id: UUID):
+    def __init__(self, bench_id: UUID):
         BenchServiceBase.__init__(self, loopback_stub_to=HostStub)
         GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
-        self.package_id = package_id
         self._bench: Bench | None = None
         self._owner: User | Organization | None = None
         self._packages: dict[str, Package] = {}
@@ -130,29 +142,11 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
 
     async def start_quick(self) -> None:
         async with global_session():
-            pass
-            # self._bench: Bench = await pg_get_node(
-            #     session=session,
-            #     root_type=NodeType.BENCH,
-            #     root_id=self.bench_id,
-            #     options=ReadOptions(related_properties=(Bench.owner, Bench.head)),
-            # )
-            # self._owner = self._bench.owner
-            # self._package: Package = await pg_get_node(
-            #     session=session,
-            #     root_type=NodeType.PACKAGE,
-            #     root_id=self.package_id,
-            #     descendant_types=LOADED_SOURCE_TYPES,
-            #     parent=self.bench,
-            # )
+            self._bench = await Bench.descendants(
+                Handle, Server, Store, Cache, Drive, Branch, Package
+            ).get(id=self.bench_id)
 
-    def _on_graph_edited_inner(
-        self,
-        edits: list[EditData],
-        data_graph: NodeDataGraph,
-        graph: Optional[NodeGraph],
-        scopes: Collection[NodeReference],
-    ):
+    def _on_graph_edited_inner(self, edits: list[EditData], scopes: Collection[NodeReference]):
         # TODO :Broken: apply edits to loaded data & live nodes
         # TODO :Incomplete: re-interp packages after edit (update notices, ...)
         ...

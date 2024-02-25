@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
-from typing import Any, AsyncContextManager, Optional
+from typing import Any, AsyncContextManager
 
-import boto3
 import psycopg
 import structlog
 
@@ -28,11 +27,11 @@ USER_PG_USERNAME = get_from_env("USER_PG_USERNAME", optional=True)
 USER_PG_PASSWORD = get_from_env("USER_PG_PASSWORD", optional=True)
 
 GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
-SYSTEM_BENCH = Bench(
-    name="System", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY
+SYSTEM_BENCH_STUB = Bench(
+    name="System (Stub)", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY
 )
 GLOBAL_STORE = Store(
-    parent=SYSTEM_BENCH,
+    parent=SYSTEM_BENCH_STUB,
     name="Global",
     kind=StoreKind.RELATIONAL,
     engine=StoreEngineType.POSTGRES,
@@ -64,16 +63,3 @@ async def global_session() -> AsyncContextManager[Session]:
         parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
     ) as session:
         yield session
-
-
-_s3_client: Optional["boto3.client"] = None
-
-
-def get_s3_client() -> "boto3.client":
-    global _s3_client
-    if _s3_client is None:
-        _s3_client = boto3.client(
-            "s3",
-            endpoint_url=get_from_env("AWS_ENDPOINT_URL"),
-        )
-    return _s3_client
