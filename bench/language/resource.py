@@ -13,7 +13,6 @@ from bench.language.node import Node, Struct, node, struct, node_component
 from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
 from bench.language.setup import _well_known_enum
 from bench.language.text import Text
-from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -75,7 +74,7 @@ class Server(Resource):
     """
     A server providing the Runtime for a Bench.
     Similar to other resources, a Server virtualizes a compute allocation that is
-    materialized on demand on a physical machine.
+    materialized on demand on a set of physical machines.
     """
 
     profile: ServerProfile = p_regular(40)

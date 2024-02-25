@@ -3,17 +3,15 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, User, NodeReference, Bench, Tenancy
+from bench.language import Client, User, NodeReference
 from bench.language.access import (
     Subject,
 )
 from bench.language.const import (
     USER_NODE_TYPES,
     NodeType,
-    StoreKind,
-    StoreEngineType,
 )
-from bench.language.resource import ServerProfile, Region
+from bench.language.resource import Region
 from bench.language.user import UserStatus, Organization, Handle
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -36,9 +34,9 @@ from bench.system.auth import (
     generate_access_token,
     generate_salt,
     hash_password,
-    generate_encryption_key,
 )
 from bench.system.graph import GraphIoService
+from bench.system.resource import create_default_bench
 from bench.system.utils import global_session, GLOBAL_POSTGRES_ENGINE
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
@@ -244,54 +242,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
             # create bench
             assert owner.main_handle is not None, f"{owner!r} has no main handle"
-            main_handle = owner.main_handle
-            bench = Bench(
-                main_handle=main_handle,
-                slug=main_handle.slug,
-                name=main_handle.slug,
-                owner=owner,
-                encryption_key=generate_encryption_key(),
-                region=region,
+            bench = await create_default_bench(
+                session, main_handle=owner.main_handle, owner=owner, region=region
             )
-            session.create(bench)
-            await session.flush()
-
-            # create resources (in pending state)
-            server = bench.servers.create(
-                region=bench.region,
-                tenancy=Tenancy.SHARED,
-                profile=ServerProfile.SMALL,
-                name="Main Server",
-            )
-            store = bench.stores.create(
-                region=bench.region,
-                tenancy=Tenancy.DEDICATED,
-                kind=StoreKind.RELATIONAL,
-                engine=StoreEngineType.POSTGRES,
-                name="Main Store",
-            )
-            search = bench.stores.create(
-                region=bench.region,
-                tenancy=Tenancy.DEDICATED,
-                kind=StoreKind.SEARCH,
-                engine=StoreEngineType.OPENSEARCH,
-                name="Main Search",
-            )
-            drive = bench.drives.create(
-                region=bench.region, tenancy=Tenancy.SHARED, name="Main Drive"
-            )
-
-            # create main environment/branch/package
-            environment = bench.environments.create(
-                name="Main", store=store, search=search, drive=drive, server=server
-            )
-            branch = bench.branches.create(name="Main")
-            package = bench.packages.create(environment=environment, branch=branch)
-            await session.flush()
-            branch.main_package = package
-            bench.main_package = branch.main_package
-            bench.main_branch = branch
-            bench.main_environment = environment
 
             # 'activate' owner
             if owner.status != UserStatus.ACTIVATED:

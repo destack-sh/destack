@@ -27,7 +27,7 @@ from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Package, Role, Server, Space, Text
+    from bench.language import Bench, Block, Package, Role, Server, Space, Text, Icon
 
 
 @node(
@@ -66,10 +66,11 @@ class User(Node):
     name: Optional[str] = p_regular(33, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     email: str = p_system(35, defer=True, unique=True, sensitive=True)
+    icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
-        36, array=False, require=False, references=NodeType.BENCH
+        37, array=False, require=False, references=NodeType.BENCH
     )
-    status: UserStatus = p_system(37)
+    status: UserStatus = p_system(38)
 
     # auth
     password_salt: Optional[bytes] = p_kernel(
@@ -112,6 +113,7 @@ class Organization(Node):
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
         36, array=False, require=False, references=NodeType.BENCH
     )

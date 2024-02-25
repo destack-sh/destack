@@ -75,8 +75,8 @@ class NodeType(IdEnum):
     DRIVE = 162  # 'bucket' like S3/MinIO, maybe block storage later
     CACHE = 163  # KV memory store (Redis/Memcached)
     # MACHINE = ... # actual machine providing processor/memory/storage for resources
-    FILE_CONTENT = 170  # in a Drive
     # DOMAIN, EMAIL, ...
+    FILE_CONTENT = 180  # in a Drive
 
     # user
     HANDLE = 220
@@ -626,6 +626,7 @@ class UserStatus(IdEnum):
 
 
 class OrganizationStatus(IdEnum):
+    # NOTE UserStatus/OrganizationStatus ids for same statuses should match
     REGISTERED = 4  # created org
     ACTIVATED = 10  # has main bench
 
