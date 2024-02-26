@@ -113,7 +113,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             if not await check_password(
                 request.old_password, user.password_salt, user.password_hash
             ):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             # set new password
             session.track(user)  # user is in other session
@@ -138,7 +138,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 User.__properties__[key_name] == key_value
             )
             if not await check_password(request.password, user.password_salt, user.password_hash):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             now = utcnow_with_tz()
             client = Client(

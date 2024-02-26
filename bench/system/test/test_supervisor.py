@@ -56,14 +56,14 @@ async def test_user_registration(supervisor: SupervisorStub):
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
-    with raises_grpc_error(GRPCStatus.INVALID_ARGUMENT):
+    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(
         slug=user.slug, password="321Password!!!", client=client._to_data()
     )
-    with raises_grpc_error(GRPCStatus.INVALID_ARGUMENT):
+    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, correct password -> success

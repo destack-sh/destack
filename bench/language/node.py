@@ -1712,10 +1712,9 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         ):
             self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
-    # node has extended set of lifecycle methods
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
     _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
-    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, InterpStatus.TRACKED)
+    _track_self = _make_self_method(_ComponentMethod.track, _track_inner)
     _untrack_self = _make_self_method(
         _ComponentMethod.untrack, _untrack_inner, InterpStatus.INTERPED
     )
