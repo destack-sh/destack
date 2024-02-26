@@ -223,7 +223,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        scopes = get_edited_scopes(request.eits)
+        scopes = get_edited_scopes(request.edits)
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
@@ -378,7 +378,7 @@ def get_edited_scopes(edits: list[EditData]) -> _EditScopes:
         else:
             # node scope is the edited node itself
             node_scope = NodeReference.from_node_data(node_data)
-        node_scopes_data[node_scope.id] = node_data
+        node_scopes_data[node_scope.id] = node_scope
 
         # graph scope
         graph_scope = edit.scope
@@ -389,5 +389,5 @@ def get_edited_scopes(edits: list[EditData]) -> _EditScopes:
     node_scopes: dict[UUID, NodeReference] = {
         to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_data.items()
     }
-    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.node_type)
+    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return _EditScopes(node_scopes_by_type, tuple(graph_scopes.values()))

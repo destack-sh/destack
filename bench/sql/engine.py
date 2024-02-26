@@ -48,8 +48,6 @@ from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import (
     current_pg_crypto_key,
-    get_pg_connection_str,
-    pg_cursor,
     pg_cursor_to_store,
 )
 from bench.sql.core import (
@@ -2024,7 +2022,7 @@ async def create_local_pg_store(store: Store) -> None:
             log.info("pg.create_db.already_exists")
 
     # connect to local database and setup auth
-    async with user_pg_cursor(store, database=store.database, autocommit=False) as cur:
+    async with user_pg_cursor(database=store.database) as cur:
         # create 'root' user (if not exists)
         root = store.main_credential
         log.info("pg.create_db.create_root", username=root.username)
@@ -2055,6 +2053,7 @@ async def create_local_pg_store(store: Store) -> None:
                 sql.Identifier(root.username),
             )
         )
+        await cur.connection.commit()
 
     log.info("pg.create_db.done")
 

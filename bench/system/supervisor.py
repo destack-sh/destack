@@ -77,6 +77,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 name=request.name,
                 email=request.email,
                 status=UserStatus.REGISTERED,
+                last_logged_in_at=utcnow_with_tz(),
                 _is_new=True,  # force create (despite already having an id)
             )
             user.password_salt = generate_salt()
@@ -151,6 +152,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 access_token=generate_access_token(),
                 _is_new=True,  # force create
             )
+            user.last_logged_in_at = utcnow_with_tz()
             session.upsert(client)
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)

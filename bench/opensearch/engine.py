@@ -536,6 +536,7 @@ async def create_local_os_store(store: Store) -> None:
     # create index
     async with user_os_client() as os_client:
         await _create_os_index(
+            os_client=os_client,
             index_name=store.database,
             shards=BENCH_INDEX_SHARDS,
             replicas=BENCH_INDEX_REPLICAS,

@@ -32,6 +32,12 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 
 
+def generate_random_slug(length: int = 32) -> str:
+    """Random alphanumeric slug."""
+    letters = tuple(secrets.choice(string.ascii_lowercase) for _ in range(length))
+    return "".join(letters)
+
+
 def generate_random_username(length: int = 32, lowercase: bool = False) -> str:
     """Random alphanumeric username (starts with a text character)."""
     if lowercase:
@@ -115,7 +121,7 @@ async def provision_resource(resource: Resource, session: Session) -> None:
         ...  # where should Servers & Machines be provisioned?
     elif isinstance(resource, Store):
         store = cast(Store, resource)
-        store.database = generate_random_username()
+        store.database = generate_random_slug()
         store.main_credential = ResourceCredential(
             username=generate_random_username(),
             password=generate_random_password(),

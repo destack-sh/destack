@@ -5,6 +5,7 @@ from cachetools import LRUCache, Cache
 from opensearchpy import AsyncOpenSearch
 
 from bench.language import Store
+from bench.utils.env import IS_DEBUG
 
 _OS_CLIENTS_BY_STORE: Cache[Store, AsyncOpenSearch] = LRUCache(100)
 
@@ -20,7 +21,7 @@ async def os_client_to_store(store: Store) -> AsyncContextManager[AsyncOpenSearc
             hosts=[{"host": store.host or USER_OS_HOST, "port": 9200}],
             http_auth=(store.main_credential.username, store.main_credential.password),
             http_compress=True,
-            verify_certs=True,
+            verify_certs=not IS_DEBUG,
             ssl_show_warn=False,
             use_ssl=True,
         )
