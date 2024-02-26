@@ -585,6 +585,7 @@ class Session(Node):
 
         # close transaction
         await self._tx.close()
+        self._tx = None
 
         # close session
         self.closed_at = utcnow_with_tz()
@@ -666,32 +667,32 @@ class Session(Node):
 
     def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        assert self._tx is not None, f"no transaction in {self!r}"
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.soft_delete(n, self._edit_subject)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
-        assert self._tx is not None, f"no transaction in {self!r}"
+        assert self._tx is not None, f"no active  transaction in {self!r}"
         for n in nodes:
             self._tx.restore(n, self._edit_subject)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        assert self._tx is not None, f"no transaction in {self!r}"
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
             self._tx.archive(n, self._edit_subject)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
-        assert self._tx is not None, f"no transaction in {self!r}"
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.unarchive(n, self._edit_subject)
 
     def hard_delete_forever(self, *nodes: Node):
         """Irreversibly deletes a node."""
-        assert self._tx is not None, f"no transaction in {self!r}"
+        assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._check_not_active(n)
             self._tx.delete(n, self._edit_subject)
