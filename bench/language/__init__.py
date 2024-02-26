@@ -52,7 +52,18 @@ from .path import Path
 from .projection import NodeVisitor
 from .query import Query
 from .render import render
-from .resource import Cache, Drive, FileContent, Server, Store, Region, Tenancy, ServerProfile
+from .resource import (
+    Cache,
+    Drive,
+    FileContent,
+    Server,
+    Store,
+    Region,
+    Tenancy,
+    ServerProfile,
+    Resource,
+    ResourceStatus,
+)
 from .session import (
     Log,
     Session,
@@ -123,6 +134,8 @@ __all__ = [
     "ReadOptions",
     "Record",
     "Region",
+    "Resource",
+    "ResourceStatus",
     "render",
     "Request",
     "Role",

@@ -2,7 +2,7 @@ import asyncio
 import functools
 import urllib
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Optional
+from typing import Callable
 from uuid import UUID
 
 import betterproto
@@ -13,7 +13,6 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import (
     Bench,
-    NodeReference,
     Organization,
     Package,
     User,
@@ -27,7 +26,7 @@ from bench.language import (
 from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
-from bench.language.graph import NodeDataGraph, NodeGraph
+from bench.language.graph import filter_edits
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     DownloadFilesRequest,
@@ -42,8 +41,8 @@ from bench.proto.wire import (
     UploadFilesResponse,
 )
 from bench.system.graph import GraphIoService
-from bench.system.resource import get_s3_client
-from bench.system.utils import global_session
+from bench.system.resource import get_s3_client, provision_pending_resources
+from bench.system.client import global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -58,6 +57,7 @@ LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
 class HostMultiplexer(BenchServiceBase, HostBase):
     """
     Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
+    Also provides some process-level shared functionality.
     Hosts are loaded for all active Benches; new ones 'ping' the multiplexer service to add themselves.
     """
 
@@ -127,7 +127,7 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._owner: User | Organization | None = None
-        self._packages: dict[str, Package] = {}
+        self._packages: dict[UUID, Package] = {}
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -141,15 +141,24 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
         return self._bench
 
     async def start_quick(self) -> None:
-        async with global_session():
+        async with global_session() as session:
             self._bench = await Bench.descendants(
                 Handle, Server, Store, Cache, Drive, Branch, Package
             ).get(id=self.bench_id)
+            # provision any missing resources
+            await provision_pending_resources(self._bench, session)
+            await session.commit()
 
-    def _on_graph_edited_inner(self, edits: list[EditData], scopes: Collection[NodeReference]):
-        # TODO :Broken: apply edits to loaded data & live nodes
-        # TODO :Incomplete: re-interp packages after edit (update notices, ...)
-        ...
+    def _on_graph_edited_inner(self, scopes: list[GraphScope], edits: list[EditData]):
+        # TODO :Incomplete: re-interp packages after edit (update notices, ...?)
+        # apply edits to the nodes we have loaded
+        for scope in scopes:
+            if scope.package_id is not None:
+                root = self._packages[to_uuid(scope.package_id)]
+            else:
+                root = self._bench
+            edits = filter_edits(root._read_options, edits)
+            root._apply_edits(edits)
 
     #
     # Files
@@ -163,7 +172,7 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
         for file in request.files:
             presigned = get_s3_client().generate_presigned_post(
                 Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-                Key=f"{file.id}/{file.name}",
+                Key=f"{file.id}",
                 ExpiresIn=expires_in,  # 1 hour
                 Fields={},
             )
@@ -186,7 +195,7 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
                 ClientMethod="get_object",
                 Params={
                     "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
-                    "Key": f"{file.id}/{file.name}",
+                    "Key": f"{file.id}",
                 },
                 ExpiresIn=expires_in,
             )

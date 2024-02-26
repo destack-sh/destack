@@ -25,11 +25,9 @@ from bench.language.const import (
     RunStatus,
     StructType,
     _active_session,
-    AccessType,
     AccessKind,
 )
 from bench.language.field import TypeInfo
-from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     Node,
     Struct,
@@ -54,7 +52,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.query import StoreConnection, StoreEngine
-from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.proto.wire import EditData, GraphScope, HostStub, SupervisorStub
@@ -174,6 +171,12 @@ class Transaction:
 
     # for syncing databases (should probably generalize into' untracked edits')
     _schema_changed: bool = dcfield(default=False)
+
+    def __str__(self):
+        return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
+
+    def __repr__(self):
+        return f"<Transaction {self}>"
 
     @property
     def has_edits(self) -> bool:
@@ -405,6 +408,7 @@ class Transaction:
     async def commit(self):
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
         log = logger.bind(edits=len(self.edits), transaction=self)
+        log.debug("transaction.commit")
 
         # TODO :Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
@@ -414,11 +418,13 @@ class Transaction:
             if pending_edits or engine.id in self._connections_by_engine_id:
                 Transaction.canonicalize_edits(now, pending_edits)
                 connection = await self._get_engine_connection(engine)
-                log.debug("transaction.commit", engine=engine, flushed=len(pending_edits))
+                log.debug("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
                 for edit, new_revision in zip(pending_edits, accepted_revisions):
                     edit.revision = new_revision
-                pending_edits.clear()
+                if len(pending_edits) > 0:
+                    pending_edits.clear()
+        log.debug("transaction.commit.done")
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
@@ -429,45 +435,6 @@ class Transaction:
         for connection in self._connections_by_engine_id.values():
             await connection.close()
         self._connections_by_engine_id.clear()
-
-
-def edit_data_graph(
-    graph: NodeDataGraph, edits: Collection[EditData], *, update_nodes_in_place: bool = False
-) -> None:
-    """Applies the given edits to the given graph."""
-    from bench.proto import wiring
-
-    for edit in edits:
-        node = wiring.unwrap_some_node(edit.node)
-        node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
-
-        if edit.type == EditType.CREATE:
-            graph.add(node)
-        elif edit.type == EditType.UPSERT and node.id not in graph:
-            if node.id in graph:
-                graph.update(node)
-            else:
-                graph.add(node)
-        elif edit.type == EditType.DELETE:
-            graph.remove(node)
-        else:  # some update
-            if edit.type in (EditType.UPDATE, EditType.MOVE):
-                properties = edit.properties
-            elif edit.type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-                properties = (node_cls.archived_at.id,)
-            elif edit.type in (EditType.SOFT_DELETE, EditType.RESTORE):
-                properties = (node_cls.deleted_at.id,)
-            else:
-                raise ValueError(f"unexpected edit type: {edit.type}")
-            node_to_update = graph.get(node.id)
-            assert node_to_update is not None, f"missing node for update: {edit}"
-            if not update_nodes_in_place:
-                node_to_update = wiring.copy_data(node_to_update)
-            for prop_id in properties:
-                prop_name = node_cls.__properties_name_by_id__[prop_id]
-                updated = getattr(node, prop_name)
-                setattr(node_to_update, prop_name, updated)
-            graph.update(node_to_update)
 
 
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)

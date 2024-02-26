@@ -4,7 +4,7 @@ import structlog
 import typer
 
 from bench.language import Bench
-from bench.system.utils import global_session
+from bench.system.client import global_session
 
 app = typer.Typer(short_help="local developer helpers")
 

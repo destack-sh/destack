@@ -34,8 +34,8 @@ class Region(IdEnum):
 class Tenancy(IdEnum):
     """How a Resource is shared (if at all)."""
 
-    SHARED = 1
-    DEDICATED = 5
+    SHARED = 3
+    DEDICATED = 7
 
 
 @_well_known_enum
@@ -93,13 +93,8 @@ class Server(Resource):
         return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
-class StoreCredentialType(IdEnum):
-    ROOT = 1
-
-
-@struct(StructType.STORE_CREDENTIAL)
-class StoreCredential(Struct):
-    type: StoreCredentialType = p_regular(30)
+@struct(StructType.RESOURCE_CREDENTIAL)
+class ResourceCredential(Struct):
     username: str = p_regular(31, sensitive=True)
     password: str = p_regular(32, sensitive=True)
 
@@ -118,7 +113,7 @@ class Store(Resource):
     host: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
     database: Optional[str] = p_kernel(51, require=None, default=None, sensitive=True)
     schema: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
-    main_credential: Optional[StoreCredential] = p_kernel(
+    main_credential: Optional[ResourceCredential] = p_kernel(
         54,
         require=False,
         default=None,
@@ -126,7 +121,7 @@ class Store(Resource):
         sensitive=True,
         encrypt=True,
         defer=True,
-        struct=StructType.STORE_CREDENTIAL,
+        struct=StructType.RESOURCE_CREDENTIAL,
     )
 
     def __content_str__(self) -> str:

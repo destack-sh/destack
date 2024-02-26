@@ -3,23 +3,22 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Collection, Iterable, Optional
-from uuid import UUID
 
-import psycopg
+from opensearchpy import AsyncOpenSearch
 import structlog
-from psycopg import sql
 
-from bench.language import C, ConditionalOp, Field, Package, Property, SortMode, SortOp
+from bench.language import C, ConditionalOp, Field, Package, Property, SortMode, SortOp, Store
 from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
-from bench.language.database import HasDatabase
 from bench.language.expression import METATYPE_KEY, Expression, ExpressionOps, S
-from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Struct
+from bench.language.node import STRUCT_CLASS_BY_TYPE, Node, Struct
 from bench.language.query import StoreEngineError, StoreEngineIncapableError
+from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.opensearch import core as os
-from bench.opensearch.client import get_os_errors, os_client
+from bench.opensearch.client import os_client_to_store
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.sql.core import PrimitiveType
+from bench.system.client import user_os_client
 
 logger = structlog.get_logger(__name__)
 
@@ -43,6 +42,10 @@ OS_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, os.FieldType] = {
     PrimitiveType.UUID: os.FieldType.KEYWORD,
     PrimitiveType.BYTES: os.FieldType.BINARY,
 }
+
+
+def get_os_errors(ret: dict) -> list[dict]:
+    return [i for i in ret["items"] if i.get("index", {}).get("error")]
 
 
 def map_field_to_os_field(field: Field) -> os.Field:
@@ -76,7 +79,8 @@ async def update_local_os_schema(package: Package, dynamic: str = "strict") -> N
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items() if v is not None}
         mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
-    await os_client.indices.put_mapping(index=package.os_name, body={"properties": mappings})
+    async with os_client_to_store(package.environment.search) as os_client:
+        await os_client.indices.put_mapping(index=package.os_name, body={"properties": mappings})
     logger.info(
         "os.update_mappings.done",
         package=package,
@@ -292,7 +296,7 @@ def _wrap_os_error(
 
 
 async def os_search(
-    os_name: str,
+    store: Store,
     metatype: BenchType,
     filter: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
@@ -302,16 +306,17 @@ async def os_search(
     after: Optional[str] = None,
 ) -> OsSearchResult:
     """Executes a search query against OpenSearch."""
-    search = os_compile_search(metatype, filter, sort, limit, skip, count, after)
-    logger.debug("os.search", os_name=os_name, search=search)
-    try:
-        os_results = await os_client.search(index=os_name, body=search.to_dict())
-    except Exception as e:
-        raise _wrap_os_error(e, [filter, sort]) from e
-    total = os_results["hits"]["total"]["value"] if search.count else None
-    results = os_results["hits"]["hits"]
-    cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
-    return OsSearchResult(total=total, results=results, cursors=cursors, start_cursor=after)
+    async with os_client_to_store(store) as os_client:
+        search = os_compile_search(metatype, filter, sort, limit, skip, count, after)
+        logger.debug("os.search", store=store, search=search)
+        try:
+            os_results = await os_client.search(index=store.database, body=search.to_dict())
+        except Exception as e:
+            raise _wrap_os_error(e, [filter, sort]) from e
+        total = os_results["hits"]["total"]["value"] if search.count else None
+        results = os_results["hits"]["hits"]
+        cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
+        return OsSearchResult(total=total, results=results, cursors=cursors, start_cursor=after)
 
 
 def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:
@@ -441,69 +446,6 @@ def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
     return proto_cls(**proto_kwargs)
 
 
-async def sync_pg_databases_to_os(
-    package: Package,
-    pg_cursor: psycopg.AsyncCursor,
-    record_ids_by_db: list[tuple["HasDatabase", set[UUID] | None]],
-) -> None:
-    """Synchronizes local PG databases to OpenSearch. Mirror only the given record ids if given."""
-    from bench.sql.engine import (
-        PostgresConditionalOp,
-        SqlComparison,
-        pg_select,
-        pg_unpack_record_data_row,
-    )
-
-    log = logger.bind(package=package, databases=[r[0] for r in record_ids_by_db])
-    log.debug("os.sync_pg_databases_to_os")
-    os_name = package.os_name
-    ops: list[dict[str, Any]] = []
-
-    async def _flush():
-        if ops:
-            log.debug("os.sync_pg_databases_to_os.flush", ops=len(ops))
-            await os_client.bulk(body=ops)
-            ops.clear()
-
-    for database, record_ids in record_ids_by_db:
-        logger.debug("os.sync_pg_databases_to_os.db", database=database, records=len(record_ids))
-        if record_ids is None:
-            # update entire table if record_ids is None
-            records_data = await pg_select(cur=pg_cursor, table=database._table)
-            records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
-            # delete table by query
-            await os_client.delete_by_query(
-                index=os_name, body={"query": {"term": {"block_key": database.dynamic_key}}}
-            )
-        else:
-            if not record_ids:
-                continue
-            # otherwise update only the given record ids
-            where = SqlComparison(
-                sql.Identifier("id"), PostgresConditionalOp.EQ, sql.SQL("ANY(%(updated_ids)s)")
-            )
-            records_data = await pg_select(
-                cur=pg_cursor,
-                table=database._table,
-                where=where,
-                params={"updated_ids": list(record_ids)},
-            )
-            records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
-            records_by_id = {r.id: r for r in records_data}
-            missing_ids = record_ids - records_by_id.keys()
-            # delete missing ids
-            for deleted_record_id in missing_ids:
-                ops.append({"delete": {"_index": os_name, "_id": str(deleted_record_id)}})
-
-        # upsert records
-        for record_data in records_data:
-            ops.append({"index": {"_index": os_name, "_id": str(record_data.id)}})
-            ops.append(pack_struct(record_data))
-
-    await _flush()
-    log.debug("os.sync_pg_databases_to_os.done")
-
-
 DEFAULT_FIELDS = {
     METATYPE_KEY: os.METATYPE_FIELD,
 }
@@ -528,6 +470,7 @@ def _collect_fields(docs: Iterable[os.Document]) -> dict[str, os.Field]:
 
 
 async def _create_os_index(
+    os_client: AsyncOpenSearch,
     index_name: str,
     *,
     shards: int,
@@ -584,82 +527,62 @@ async def _create_os_index(
     log.info("os.create_index.done")
 
 
-async def create_global_os_index(upsert: bool = False) -> None:
-    logger.info("os.create_global_index")
-    await _create_os_index(
-        os.GLOBAL_INDEX_NAME,
-        shards=GLOBAL_INDEX_SHARDS,
-        replicas=GLOBAL_INDEX_REPLICAS,
-        documents=[],  # nothing yet
-        upsert=upsert,
-    )
-
-
-async def create_local_os_index(
-    *, os_name: str, os_username: str, os_password: str, is_public: bool, upsert: bool
-) -> None:
+async def create_local_os_store(store: Store) -> None:
     """
     Creates the OpenSearch index and corresponding roles/user for a bench.
     """
-    log = logger.bind(os_name=os_name)
+    log = logger.bind(store=store)
     log.info("os.create_local_index")
     # create index
-    await _create_os_index(
-        index_name=os_name,
-        shards=BENCH_INDEX_SHARDS,
-        replicas=BENCH_INDEX_REPLICAS,
-        documents=LOCAL_DOCUMENTS,
-        upsert=upsert,
-    )
+    async with user_os_client() as os_client:
+        await _create_os_index(
+            index_name=store.database,
+            shards=BENCH_INDEX_SHARDS,
+            replicas=BENCH_INDEX_REPLICAS,
+            documents=LOCAL_DOCUMENTS,
+        )
 
-    # create write access role for bench owner
-    log.info("os.create_owner_role")
-    owner_role_name = f"{os_name}-rw"
-    rep = await os_client.security.get_role(role=owner_role_name, ignore=404)
-    owner_role = rep.get(owner_role_name)
-    if owner_role is not None:
-        await os_client.security.delete_role(role=owner_role_name)
-    rep = await os_client.security.create_role(
-        role=owner_role_name,
-        body={
-            "cluster_permissions": [
-                # this is required for all bulk indexing
-                #  (the actual permission is checked per index@)
-                "indices:data/write/bulk",
-            ],
-            "index_permissions": [
-                {
-                    "index_patterns": [os_name],
-                    "fls": [],
-                    "masked_fields": [],
-                    "allowed_actions": ["*"],
-                }
-            ],
-        },
-    )
-    if rep.get("error"):
-        raise RuntimeError(f"failed to create role {owner_role_name}: {rep['error']}")
-    log.info("os.create_owner_role.done")
+        # create write access role for bench owner
+        log.info("os.create_owner_role")
+        owner_role_name = f"{store.database}-owner"
+        rep = await os_client.security.create_role(
+            role=owner_role_name,
+            body={
+                "cluster_permissions": [
+                    # this is required for all bulk indexing
+                    #  (the actual permission is checked per index)
+                    "indices:data/write/bulk",
+                ],
+                "index_permissions": [
+                    {
+                        "index_patterns": [store.database],
+                        "fls": [],
+                        "masked_fields": [],
+                        "allowed_actions": ["*"],
+                    }
+                ],
+            },
+        )
+        if rep.get("error"):
+            raise RuntimeError(f"failed to create role {owner_role_name}: {rep['error']}")
+        log.info("os.create_owner_role.done")
 
-    # create user with those roles
-    log.info("os.create_user")
-    rep = await os_client.security.get_user(username=os_username, ignore=404)
-    user = rep.get(os_username)
-    if user is not None:
-        await os_client.security.delete_user(username=os_username)
-    rep = await os_client.security.create_user(
-        username=os_username,
-        body={
-            "password": os_password,
-            "opendistro_security_roles": [owner_role_name],
-        },
-    )
-    if rep.get("error"):
-        raise RuntimeError(f"failed to create user {os_username}: {rep['error']}")
-    log.info("os.create_user.done", username=os_username)
+        # create user with those roles
+        log.info("os.create_user")
+        root = store.main_credential
+        rep = await os_client.security.create_user(
+            username=root.username,
+            body={
+                "password": root.password,
+                "opendistro_security_roles": [owner_role_name],
+            },
+        )
+        if rep.get("error"):
+            raise RuntimeError(f"failed to create user {root.username}: {rep['error']}")
+        log.info("os.create_user.done", username=root.username)
 
 
-async def os_write_edits(module: Package, edits: list[EditData], *, refresh: bool = False) -> None:
+async def os_write_edits(module: Package, edits: list[EditData]) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
@@ -667,54 +590,40 @@ async def os_write_edits(module: Package, edits: list[EditData], *, refresh: boo
     log = logger.bind(module=module, edits=edits)
     log.debug("os.write_edits")
     if not edits:
-        if refresh:
-            # just refresh the index
-            await os_client.indices.refresh(index=module.os_name)
         return  # nothing to do
 
     # mut state
     ops: list[dict] = []
 
-    async def _flush():
-        if ops:
-            log.debug("os.write_edits.flush", operations=len(ops))
-            ret = await os_client.bulk(ops, refresh="" if refresh else False)
-            if ret.get("errors"):
-                raise RuntimeError(f"failed to write edit to OpenSearch: {get_os_errors(ret)}")
+    async with os_client_to_store(module.environment.search) as os_client:
 
-        ops.clear()
+        async def _flush():
+            if ops:
+                log.debug("os.write_edits.flush", operations=len(ops))
+                ret = await os_client.bulk(ops)
+                if ret.get("errors"):
+                    raise RuntimeError(f"failed to write edit to OpenSearch: {get_os_errors(ret)}")
 
-    for edit in edits:
-        metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
-        node_cls = BENCH_CLASS_BY_TYPE[metatype]
-        index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
-        if not node_cls.__is_indexed_in_search__:
-            continue  # ignore
-        elif edit.type.type in (
-            EditType.CREATE,
-            EditType.UPDATE,
-            EditType.MOVE,
-            EditType.SOFT_DELETE,
-            EditType.RESTORE,
-        ):
-            ops.append({"index": {"_index": index, "_id": str(edit.node.id)}})
-            ops.append(pack_struct(wiring.unwrap_some_node(edit.node)))
-        elif edit.type.type == EditType.DELETE:
-            ops.append({"delete": {"_index": index, "_id": str(edit.node.id)}})
-        else:
-            raise ValueError(f"unexpected edit type: {edit!r}")
+            ops.clear()
 
-    await _flush()  # flush all remaining edits
+        for edit in edits:
+            metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
+            node_cls = BENCH_CLASS_BY_TYPE[metatype]
+            index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
+            if not node_cls.__is_indexed_in_search__:
+                continue  # ignore
+            elif edit.type.type in (
+                EditType.CREATE,
+                EditType.UPDATE,
+                EditType.MOVE,
+                EditType.SOFT_DELETE,
+                EditType.RESTORE,
+            ):
+                ops.append({"index": {"_index": index, "_id": str(edit.node.id)}})
+                ops.append(pack_struct(wiring.unwrap_some_node(edit.node)))
+            elif edit.type.type == EditType.DELETE:
+                ops.append({"delete": {"_index": index, "_id": str(edit.node.id)}})
+            else:
+                raise ValueError(f"unexpected edit type: {edit!r}")
 
-
-async def os_write_records(module: Package, records: list[wire.RecordData]) -> None:
-    if not records:
-        return
-    ops: list[dict] = []
-    for record_data in records:
-        ops.append({"index": {"_index": module.os_name, "_id": str(record_data.id)}})
-        ops.append(pack_struct(record_data))
-    logger.debug("os.write_records", operations=len(ops))
-    ret = await os_client.bulk(ops)
-    if ret.get("errors"):
-        raise RuntimeError(f"failed to write records to OpenSearch: {get_os_errors(ret)}")
+        await _flush()  # flush all remaining edits

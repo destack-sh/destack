@@ -123,24 +123,24 @@ const USER_PG_VARS = [
 ];
 
 // Search: OpenSearch cluster (shared between global and user for now)
-const { osDomain: sharedOsDomain } = makeOpensearch("shared-os", 1, "t3.medium.search", {
-  password: config.requireSecret("sharedOsPassword"),
+const { osDomain: userOsDomain } = makeOpensearch("user-os", 1, "t3.medium.search", {
+  password: config.requireSecret("userOsPassword"),
   vpc: eksVpc,
   region: config.require("awsRegion"),
 });
-const sharedOsSecret = secretFrom("shared-os", config.requireSecret("sharedOsPassword"), {
+const userOsSecret = secretFrom("user-os", config.requireSecret("userOsPassword"), {
   key: "password",
   provider: eksCluster.provider,
 });
-const GLOBAL_OS_VARS = [
-  { name: "GLOBAL_OS_HOST", value: sharedOsDomain.endpoint },
-  { name: "GLOBAL_OS_PORT", value: "443" },
-  { name: "GLOBAL_OS_USERNAME", value: "opensearch" },
+const USER_OS_VARS = [
+  { name: "USER_OS_HOST", value: userOsDomain.endpoint },
+  { name: "USER_OS_PORT", value: "443" },
+  { name: "USER_OS_USERNAME", value: "opensearch" },
   {
-    name: "GLOBAL_OS_PASSWORD",
+    name: "USER_OS_PASSWORD",
     valueFrom: {
       secretKeyRef: {
-        name: sharedOsSecret.metadata.name,
+        name: userOsSecret.metadata.name,
         key: "password",
       },
     },
@@ -406,7 +406,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
                 ...USER_PG_VARS,
-                ...GLOBAL_OS_VARS,
+                ...USER_OS_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
               ],
@@ -441,7 +441,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
                 ...USER_PG_VARS,
-                ...GLOBAL_OS_VARS,
+                ...USER_OS_VARS,
                 ...PRIVATE_BACKEND_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,

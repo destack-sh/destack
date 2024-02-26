@@ -85,7 +85,7 @@ def partition(pred, iterable) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
 
 
-def group_by(iterable, key: callable) -> dict[Any, list[Any]]:
+def group_by(iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, list[V]]:
     """Groups an iterable by a key function"""
     result = {}
     for item in iterable:

@@ -127,7 +127,7 @@ enum BenchType {
   BENCH_TYPE_CODE_LINE = 591;
   BENCH_TYPE_RUN_CODE_FRAME = 600;
   BENCH_TYPE_RUN_ERROR = 601;
-  BENCH_TYPE_STORE_CREDENTIAL = 632;
+  BENCH_TYPE_RESOURCE_CREDENTIAL = 632;
   BENCH_TYPE_TEXT = 660;
   BENCH_TYPE_TEXT_LINE = 661;
   BENCH_TYPE_TEXT_SPAN = 662;
@@ -148,8 +148,8 @@ enum BlockType {
   BLOCK_TYPE_PROTOCOL = 14;
   BLOCK_TYPE_SINGLE_VARIABLE = 20;
   BLOCK_TYPE_MULTI_VARIABLE = 21;
-  BLOCK_TYPE_MODEL_TASK = 30;
-  BLOCK_TYPE_CODE_TASK = 31;
+  BLOCK_TYPE_MODEL_ROUTINE = 30;
+  BLOCK_TYPE_CODE_ROUTINE = 31;
   BLOCK_TYPE_SCRIPT = 32;
   BLOCK_TYPE_FLOW = 33;
   BLOCK_TYPE_QUERY = 40;
@@ -601,11 +601,6 @@ enum SortOp {
   SORT_OP_DESCENDING = 201;
 }
 
-enum StoreCredentialType {
-  STORE_CREDENTIAL_TYPE_UNSPECIFIED = 0;
-  STORE_CREDENTIAL_TYPE_ROOT = 1;
-}
-
 enum StoreEngineType {
   STORE_ENGINE_TYPE_UNSPECIFIED = 0;
   STORE_ENGINE_TYPE_INMEMORY = 1;
@@ -652,7 +647,7 @@ enum StructType {
   STRUCT_TYPE_CODE_LINE = 591;
   STRUCT_TYPE_RUN_CODE_FRAME = 600;
   STRUCT_TYPE_RUN_ERROR = 601;
-  STRUCT_TYPE_STORE_CREDENTIAL = 632;
+  STRUCT_TYPE_RESOURCE_CREDENTIAL = 632;
   STRUCT_TYPE_TEXT = 660;
   STRUCT_TYPE_TEXT_LINE = 661;
   STRUCT_TYPE_TEXT_SPAN = 662;
@@ -664,8 +659,8 @@ enum StructType {
 // How a Resource is shared (if at all).
 enum Tenancy {
   TENANCY_UNSPECIFIED = 0;
-  TENANCY_SHARED = 1;
-  TENANCY_DEDICATED = 5;
+  TENANCY_SHARED = 3;
+  TENANCY_DEDICATED = 7;
 }
 
 enum TextLineType {
@@ -717,6 +712,7 @@ enum ViewType {
   VIEW_TYPE_INSPECTOR = 23;
   VIEW_TYPE_LIBRARY = 24;
   VIEW_TYPE_ACCESS = 25;
+  VIEW_TYPE_SCREEN = 49;
   VIEW_TYPE_WINDOWED = 50;
   VIEW_TYPE_TABBED = 52;
   VIEW_TYPE_STEPPED = 55;
@@ -1092,13 +1088,13 @@ message ReadOptionsData {
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
-  repeated NodeType ancestor_types = 30;
-  repeated NodeType descendant_types = 31;
-  repeated PropertyReferenceData related_properties_ptr = 32;
+  repeated NodeType ancestor_types = 31;
+  repeated NodeType descendant_types = 32;
+  repeated PropertyReferenceData related_properties_ptr = 33;
   repeated PropertyReferenceData include_properties_ptr = 40;
   repeated PropertyReferenceData exclude_properties_ptr = 41;
   repeated PropertyReferenceData select_properties_ptr = 42;
-  optional ExpressionData global_filter = 50;
+  bool include_hidden = 50;
 }
 
 // A request comprising multiple Accesses.
@@ -1112,6 +1108,17 @@ message RequestData {
   PolicyEffect decision = 31;
   repeated AccessData accesses = 32;
   optional string transaction_id = 40;
+}
+
+// ResourceCredential(username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+message ResourceCredentialData {
+  BenchType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  optional string username = 31;
+  optional string password = 32;
 }
 
 // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
@@ -1173,18 +1180,6 @@ message SpaceDockItemData {
   optional string parent_key = 4;
   optional string order_key = 5;
   bool hidden = 31;
-}
-
-// StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message StoreCredentialData {
-  BenchType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  StoreCredentialType type = 30;
-  optional string username = 31;
-  optional string password = 32;
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -1710,7 +1705,7 @@ message BaseNodeData {
   optional NodeReferenceData updated_by_ptr = 18;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message NoticeData {
   BenchType metatype = 1;
   string id = 2;
@@ -2056,10 +2051,10 @@ message StoreData {
   optional string host = 50;
   optional string database = 51;
   optional string schema = 52;
-  optional StoreCredentialData main_credential = 54;
+  optional ResourceCredentialData main_credential = 54;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;

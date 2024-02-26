@@ -9,7 +9,6 @@ from typing import (
     Mapping,
     NamedTuple,
     final,
-    Collection,
 )
 from uuid import UUID
 
@@ -26,19 +25,18 @@ from bench.language.access import (
     evaluate_and_adapt_read,
     evaluate_edit,
     generate_access_matrix,
-    get_edited_scopes,
 )
 from bench.language.const import (
     ConditionalOp,
     NodeType,
     PolicyEffect,
     AccessKind,
+    EditType,
 )
-from bench.language.graph import NodeDataGraph
+from bench.language.graph import NodeDataGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
-from bench.language.session import edit_data_graph
-from bench.language.validation import on_invalid_raise
+from bench.language.validation import on_invalid_raise, ValidationError
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -61,6 +59,7 @@ from bench.proto.wire import (
     SearchNodesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
+    NodeReferenceData,
 )
 from bench.utils.func import bytetuple, group_by, to_uuid
 
@@ -224,15 +223,12 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        edited_scopes_ptr: dict[UUID, NodeReference] = get_edited_scopes(request.edits)
-        edited_scopes_by_type: dict[NodeType, list[NodeReference]] = group_by(
-            edited_scopes_ptr.values(), lambda r: r.type
-        )
+        scopes = get_edited_scopes(request.eits)
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
-            for node_type, node_references in edited_scopes_by_type.items():
+            for node_type, node_references in scopes.node_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO :Performance: select only require properties for edit eval (id/policies/...?)
                 options = adapt_read_options(subject, node_type, ReadOptions.default())
@@ -260,15 +256,20 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             await self.check_and_log_request(evaluated_request)
 
             # validate edits
-            edit_data_graph(data_graph, request.edits, update_nodes_in_place=False)
+            edit_data_graph(  # apply in copy & validate
+                graph=data_graph,
+                options=ReadOptions.all(),
+                edits=request.edits,
+                update_nodes_in_place=False,
+            )
             nodes = wiring.unpack_nodes_inline(data_graph)
             for node in nodes:
-                node._validate_self((), on_invalid=on_invalid_raise)
+                node._validate_self(properties=(), on_invalid=on_invalid_raise)
 
             # apply the edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
-            self.on_graph_edited(request.edits, scopes=edited_scopes_ptr.values())
+            self.on_graph_edited(scopes.graph_scopes, request.edits)
 
         accepted_revisions = [e.revision for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -289,7 +290,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     @final
-    def on_graph_edited(self, edits: list[EditData], scopes: Collection[NodeReference] = None):
+    def on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         self.epoch += 1
         self.recent_epochs.append(Epoch(self.epoch, edits))
 
@@ -299,11 +300,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
-        if scopes is None:
-            scopes = get_edited_scopes(edits).values()
-        self._on_graph_edited_inner(edits=edits, scopes=scopes)
+        self._on_graph_edited_inner(scopes=scopes, edits=edits)
 
-    def _on_graph_edited_inner(self, edits: list[EditData], scopes: Collection[NodeReference]):
+    def _on_graph_edited_inner(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         pass
 
     @final
@@ -352,3 +351,43 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
         finally:
             self.watchers.remove(watcher)
+
+
+class _EditScopes(NamedTuple):
+    node_scopes_by_type: dict[NodeType, list[NodeReference]]
+    graph_scopes: tuple[GraphScope, ...]
+
+
+def get_edited_scopes(edits: list[EditData]) -> _EditScopes:
+    """
+    Gets the specific nodes (scopes) and broader graph scopes that are edited.
+    """
+    from bench.proto import wiring
+
+    node_scopes_data: dict[str, "NodeReferenceData"] = {}
+    graph_scopes: dict[int, "GraphScope"] = {}
+    for edit in edits:
+        # node scope
+        node_data = wiring.unwrap_some_node(edit.node)
+        if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
+            # node scope is parent since we don't know this node yet
+            if node_data.parent_ptr is not None:
+                node_scope = node_data.parent_ptr
+            else:
+                raise ValidationError(node_data, "can't create orphan")
+        else:
+            # node scope is the edited node itself
+            node_scope = NodeReference.from_node_data(node_data)
+        node_scopes_data[node_scope.id] = node_data
+
+        # graph scope
+        graph_scope = edit.scope
+        graph_scope_hash = hash((graph_scope.bench_id, graph_scope.package_id))
+        if graph_scope_hash not in graph_scopes:
+            graph_scopes[graph_scope_hash] = graph_scope
+
+    node_scopes: dict[UUID, NodeReference] = {
+        to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_data.items()
+    }
+    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.node_type)
+    return _EditScopes(node_scopes_by_type, tuple(graph_scopes.values()))

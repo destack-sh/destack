@@ -12,7 +12,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     migrate_to,
 )
-from bench.system.utils import global_pg_cursor, GLOBAL_STORE
+from bench.system.client import global_pg_cursor, GLOBAL_STORE
 
 logger = structlog.get_logger(__name__)
 
