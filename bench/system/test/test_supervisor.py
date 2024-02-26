@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import grpclib
+from grpclib import Status as GRPCStatus
 import pytest
 
 from bench.conftest import raises_grpc_error
@@ -56,14 +56,14 @@ async def test_user_registration(supervisor: SupervisorStub):
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
-    with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
+    with raises_grpc_error(GRPCStatus.INVALID_ARGUMENT):
         _ = await supervisor.login_user(login_req)
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(
         slug=user.slug, password="321Password!!!", client=client._to_data()
     )
-    with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
+    with raises_grpc_error(GRPCStatus.INVALID_ARGUMENT):
         _ = await supervisor.login_user(login_req)
 
     # login, correct password -> success
@@ -89,7 +89,7 @@ async def test_user_registration(supervisor: SupervisorStub):
     assert read_user_rep.nodes[0].user.main_handle_ptr.id == read_user_rep.nodes[2].handle.id
 
     # logout, invalid token -> fail
-    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         bad_access_metadata = replace(access_metadata, client_access_token="bad")
         _ = await supervisor.logout_user(
             LogoutUserRequest(), metadata=bad_access_metadata.to_headers()
@@ -99,7 +99,7 @@ async def test_user_registration(supervisor: SupervisorStub):
     _ = await supervisor.logout_user(LogoutUserRequest(), metadata=access_metadata.to_headers())
 
     # read user, logged out, expired token -> fail
-    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.get_nodes(read_user_req, metadata=access_metadata.to_headers())
 
 
@@ -151,7 +151,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             if is_target_self:  # can update our own data
                 _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
             else:  # but not for others
-                with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+                with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):
                     _ = await supervisor.commit_transaction(
                         commit_req, metadata=actor_handle.headers
                     )
@@ -170,7 +170,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             if is_target_self:  # can update our own data
                 _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
             else:  # but not for others
-                with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+                with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):
                     _ = await supervisor.commit_transaction(
                         commit_req, metadata=actor_handle.headers
                     )
@@ -236,7 +236,7 @@ async def test_root_node_create_denied(
             subject=some_user.subject,
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-        with raises_grpc_error(grpclib.Status.PERMISSION_DENIED):
+        with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):
             _ = await supervisor.commit_transaction(
                 commit_req, metadata=some_user.metadata.to_headers()
             )

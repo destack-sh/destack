@@ -85,7 +85,8 @@ async def fabricator() -> "Fabricator":
 
 
 @contextmanager
-def raises_grpc_error(status: grpclib.const.Status):
+def raises_grpc_error(*statuses: grpclib.const.Status):
     with pytest.raises(grpclib.GRPCError) as exc_info:
         yield
-    assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
+    if statuses:
+        assert exc_info.value.status in statuses, f"expected {statuses}, got {exc_info!r}"

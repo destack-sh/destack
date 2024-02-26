@@ -1652,11 +1652,11 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         self._session = None
 
     def _attached_inner(self) -> None:
-        """Called when this node is attached to a package."""
+        """Called when this node is attached to a root graph."""
         pass
 
     def _detached_inner(self) -> None:
-        """Called when this node is detached from a package."""
+        """Called when this node is detached from a root graph."""
         pass
 
     _call_inner = _make_inner_dunder_method(_ComponentMethod.call)

@@ -61,7 +61,7 @@ from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, NodeReference, Organization, Package
+    from bench.language import Bench, Block, Client, Organization, Package
 
 # default (read) access options
 DEFAULT_GLOBAL_FILTER: Expression = C(ConditionalOp.AND, clauses=[])
@@ -215,12 +215,8 @@ class ReadOptions(Struct):
             related_properties=list(self.related_properties),
             include_properties=list(self.include_properties),
             exclude_properties=list(self.exclude_properties),
-            global_filter=self.global_filter,
-            _filter_by_type=self._filter_by_type,
+            include_hidden=self.include_hidden,
         )
-
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
-        self._update_cache()
 
     def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         return tuple(p for p in self.related_properties if p.type == node_type)
@@ -258,7 +254,7 @@ class ReadOptions(Struct):
     @staticmethod
     def all():
         """Read all: include everything, select all properties."""
-        return ReadOptions(global_filter=None, include_properties=())
+        return ReadOptions(include_hidden=True, include_properties=())
 
 
 @struct(StructType.POLICY)
