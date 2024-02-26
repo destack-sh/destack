@@ -2,8 +2,8 @@ import structlog
 import typer
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
-from bench.language import Bench, Package, Organization
-from bench.language.const import OrganizationStatus
+from bench.language import Bench, Package, Region, User
+from bench.language.const import UserStatus
 from bench.system.resource import create_default_bench
 from bench.system.utils import global_session
 
@@ -35,8 +35,21 @@ async def shell(bench: str = None, package: str = None):
     raise NotImplementedError("TODO :Incomplete: lang.shell")
 
 
-@app.command(help="Create 'bench' and 'system' (owned by 'symbolx' org)")
-async def bootstrap():
+@app.command(help="Create 'bench' and 'system' Benches (owned by 'system' User)")
+@_async_to_sync_blocking
+async def bootstrap(region: Region = Region.EU_CENTRAL):
     async with global_session() as session:
-        symbolx = Organization(name="SymbolX", slug="symbolx", status=OrganizationStatus.REGISTERED)
-        bench_bench = create_default_bench(session)
+        system_user = User(
+            name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
+        )
+        session.create(system_user)
+        await session.flush()
+        system_user.main_handle = system_user.handles.create(slug="system")
+        _ = await create_default_bench(
+            main_handle=system_user.main_handle, owner=system_user, region=region, session=session
+        )
+        bench_bench_handle = system_user.handles.create(slug="bench")
+        _ = await create_default_bench(
+            main_handle=bench_bench_handle, owner=system_user, region=region, session=session
+        )
+        await session.commit()

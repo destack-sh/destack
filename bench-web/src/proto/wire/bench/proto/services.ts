@@ -599,6 +599,26 @@ export interface PingServerResponse {
 // 
 
 /**
+ * @generated from protobuf message symbolx.bench.SnapshotPackageRequest
+ */
+export interface SnapshotPackageRequest {
+}
+/**
+ * @generated from protobuf message symbolx.bench.SnapshotPackageResponse
+ */
+export interface SnapshotPackageResponse {
+}
+/**
+ * @generated from protobuf message symbolx.bench.MergePackageRequest
+ */
+export interface MergePackageRequest {
+}
+/**
+ * @generated from protobuf message symbolx.bench.MergePackageResponse
+ */
+export interface MergePackageResponse {
+}
+/**
  * @generated from protobuf message symbolx.bench.UploadFilesRequest
  */
 export interface UploadFilesRequest {
@@ -2685,6 +2705,106 @@ class PingServerResponse$Type extends MessageType<PingServerResponse> {
  */
 export const PingServerResponse = new PingServerResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class SnapshotPackageRequest$Type extends MessageType<SnapshotPackageRequest> {
+    constructor() {
+        super("symbolx.bench.SnapshotPackageRequest", []);
+    }
+    create(value?: PartialMessage<SnapshotPackageRequest>): SnapshotPackageRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<SnapshotPackageRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageRequest): SnapshotPackageRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: SnapshotPackageRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageRequest
+ */
+export const SnapshotPackageRequest = new SnapshotPackageRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SnapshotPackageResponse$Type extends MessageType<SnapshotPackageResponse> {
+    constructor() {
+        super("symbolx.bench.SnapshotPackageResponse", []);
+    }
+    create(value?: PartialMessage<SnapshotPackageResponse>): SnapshotPackageResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<SnapshotPackageResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageResponse): SnapshotPackageResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: SnapshotPackageResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageResponse
+ */
+export const SnapshotPackageResponse = new SnapshotPackageResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class MergePackageRequest$Type extends MessageType<MergePackageRequest> {
+    constructor() {
+        super("symbolx.bench.MergePackageRequest", []);
+    }
+    create(value?: PartialMessage<MergePackageRequest>): MergePackageRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<MergePackageRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MergePackageRequest): MergePackageRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: MergePackageRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.MergePackageRequest
+ */
+export const MergePackageRequest = new MergePackageRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class MergePackageResponse$Type extends MessageType<MergePackageResponse> {
+    constructor() {
+        super("symbolx.bench.MergePackageResponse", []);
+    }
+    create(value?: PartialMessage<MergePackageResponse>): MergePackageResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<MergePackageResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MergePackageResponse): MergePackageResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: MergePackageResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.MergePackageResponse
+ */
+export const MergePackageResponse = new MergePackageResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
         super("symbolx.bench.UploadFilesRequest", [
@@ -3123,6 +3243,8 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
+    { name: "SnapshotPackage", options: {}, I: SnapshotPackageRequest, O: SnapshotPackageResponse },
+    { name: "MergePackage", options: {}, I: MergePackageRequest, O: MergePackageResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },

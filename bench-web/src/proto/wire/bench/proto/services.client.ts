@@ -19,6 +19,10 @@ import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
 import type { UploadFilesResponse } from "./services";
 import type { UploadFilesRequest } from "./services";
+import type { MergePackageResponse } from "./services";
+import type { MergePackageRequest } from "./services";
+import type { SnapshotPackageResponse } from "./services";
+import type { SnapshotPackageRequest } from "./services";
 import { Supervisor } from "./services";
 import type { CreateBenchResponse } from "./services";
 import type { CreateBenchRequest } from "./services";
@@ -441,6 +445,22 @@ export interface IHostClient {
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
     // 
+    // Packages
+    // 
+
+    /**
+     * Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
+     *
+     * @generated from protobuf rpc: SnapshotPackage(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
+     */
+    snapshotPackage(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse>;
+    /**
+     * Merges the edits made in a Package into another package. The source Package is deactivated.
+     *
+     * @generated from protobuf rpc: MergePackage(symbolx.bench.MergePackageRequest) returns (symbolx.bench.MergePackageResponse);
+     */
+    mergePackage(input: MergePackageRequest, options?: RpcOptions): UnaryCall<MergePackageRequest, MergePackageResponse>;
+    // 
     // Files
     // 
 
@@ -551,6 +571,28 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     // 
+    // Packages
+    // 
+
+    /**
+     * Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
+     *
+     * @generated from protobuf rpc: SnapshotPackage(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
+     */
+    snapshotPackage(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse> {
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        return stackIntercept<SnapshotPackageRequest, SnapshotPackageResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Merges the edits made in a Package into another package. The source Package is deactivated.
+     *
+     * @generated from protobuf rpc: MergePackage(symbolx.bench.MergePackageRequest) returns (symbolx.bench.MergePackageResponse);
+     */
+    mergePackage(input: MergePackageRequest, options?: RpcOptions): UnaryCall<MergePackageRequest, MergePackageResponse> {
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        return stackIntercept<MergePackageRequest, MergePackageResponse>("unary", this._transport, method, opt, input);
+    }
+    // 
     // Files
     // 
 
@@ -560,7 +602,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
     uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -569,7 +611,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
     downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[11], opt = this._transport.mergeOptions(options);
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -582,7 +624,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     restartServer(input: RestartServerRequest, options?: RpcOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
+        const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -591,7 +633,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     pingServer(input: PingServerRequest, options?: RpcOptions): UnaryCall<PingServerRequest, PingServerResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -600,7 +642,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: RunIntrinsicBlock(symbolx.bench.RunIntrinsicBlockRequest) returns (symbolx.bench.RunIntrinsicBlockResponse);
      */
     runIntrinsicBlock(input: RunIntrinsicBlockRequest, options?: RpcOptions): UnaryCall<RunIntrinsicBlockRequest, RunIntrinsicBlockResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunIntrinsicBlockRequest, RunIntrinsicBlockResponse>("unary", this._transport, method, opt, input);
     }
 }

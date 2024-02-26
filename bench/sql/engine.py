@@ -214,6 +214,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         if (
             prop.reference_nodes
             and prop.name.endswith("_id")
+            and not prop.is_list  # foreign keys must be scalar
             and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
@@ -1063,7 +1064,7 @@ def _pg_pack_reference_column_into_row(
     if prop.is_list:
         reference_type_id = prop.reference_type.id
         row[prop.name] = []
-        for ptr in value:
+        for ptr in value or ():
             if reference_type_id == ptr.type:
                 if is_ck:
                     row[prop.name].append(ptr.ck)

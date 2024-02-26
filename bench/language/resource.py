@@ -9,7 +9,7 @@ from bench.language.const import (
     StoreKind,
     StructType,
 )
-from bench.language.node import Node, Struct, node, struct, node_component
+from bench.language.node import Node, Struct, node, node_component, struct
 from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
 from bench.language.setup import _well_known_enum
 from bench.language.text import Text
@@ -61,6 +61,9 @@ class Resource(Node):
     tenancy: Tenancy = p_system(36, default=Tenancy.SHARED)
     status: ResourceStatus = p_system(37, default=ResourceStatus.PENDING)
 
+    def __content_str__(self):
+        return f"{self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
+
 
 class ServerProfile(IdEnum):
     TINY = 3
@@ -85,6 +88,9 @@ class Server(Resource):
     current_version: Optional[str] = p_system(53, default=None)
     last_active_at: Optional[datetime] = p_internal(54, default=None)
     last_bumped_at: Optional[datetime] = p_internal(55, default=None)
+
+    def __content_str__(self):
+        return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
 class StoreCredentialType(IdEnum):
@@ -124,7 +130,7 @@ class Store(Resource):
     )
 
     def __content_str__(self) -> str:
-        return f"{self.kind.bench_name}: {self.engine.bench_name}"
+        return f"{self.kind.bench_name}, {self.engine.bench_name}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
 @node(NodeType.DRIVE)

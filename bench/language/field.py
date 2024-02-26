@@ -30,7 +30,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, Text
+    from bench.language import Block, Expression, Icon, Text
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -210,8 +210,9 @@ class Field(Node, TypeInfoBase, _TypeExpressionBase):
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_packed: Any | None = p_value_packed(34)
-    value = p_value_runtime(34)
+    icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
+    value_packed: Any | None = p_value_packed(35)
+    value = p_value_runtime(35)
 
     # type identity
     # ...TypeInfo

@@ -3,16 +3,11 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, User, NodeReference
-from bench.language.access import (
-    Subject,
-)
-from bench.language.const import (
-    USER_NODE_TYPES,
-    NodeType,
-)
+from bench.language import Client, NodeReference, User
+from bench.language.access import Subject
+from bench.language.const import USER_NODE_TYPES, NodeType
 from bench.language.resource import Region
-from bench.language.user import UserStatus, Organization, Handle
+from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -29,15 +24,10 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
-from bench.system.auth import (
-    check_password,
-    generate_access_token,
-    generate_salt,
-    hash_password,
-)
+from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.graph import GraphIoService
 from bench.system.resource import create_default_bench
-from bench.system.utils import global_session, GLOBAL_POSTGRES_ENGINE
+from bench.system.utils import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
 
@@ -243,7 +233,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             # create bench
             assert owner.main_handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
-                session, main_handle=owner.main_handle, owner=owner, region=region
+                main_handle=owner.main_handle, owner=owner, region=region, session=session
             )
 
             # 'activate' owner

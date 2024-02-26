@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from bench.language import Bench
+from bench.language import Bench, Environment, Store
 from bench.language.setup import NODE_CLASSES
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
@@ -100,7 +100,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench")
 
         # check local
         async with global_session():
-            bench = await Bench.get(slug=check_db_bench)
+            bench = await Bench.descendants(Environment, Store).get(slug=check_db_bench)
         async with pg_cursor_to_store(bench.main_environment.store) as cur:
             old_local_tables = await introspect_tables_from_pg(cur)
         migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)

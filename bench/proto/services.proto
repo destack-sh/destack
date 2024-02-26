@@ -257,6 +257,15 @@ service Supervisor {
 // Package host
 //
 
+message SnapshotPackageRequest {
+}
+message SnapshotPackageResponse {
+}
+
+message MergePackageRequest {
+}
+message MergePackageResponse {
+}
 
 message UploadFilesRequest {
   repeated FileData files = 1;
@@ -305,6 +314,15 @@ service Host {
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
+  //
+  // Packages
+  //
+
+  // Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
+  rpc SnapshotPackage(SnapshotPackageRequest) returns (SnapshotPackageResponse);
+  // Merges the edits made in a Package into another package. The source Package is deactivated.
+  rpc MergePackage(MergePackageRequest) returns (MergePackageResponse);
 
   //
   // Files

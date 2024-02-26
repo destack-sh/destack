@@ -496,7 +496,6 @@ def struct(
     struct_type: StructType,
     reserved: set[str | int] = None,
     index_in_search: bool = False,
-    identifier: IdentifierType | None = None,
     inline: bool = False,
 ):
     @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
@@ -505,7 +504,6 @@ def struct(
             cls, struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
         )
         cls.__is_indexed_in_search__ = index_in_search
-        cls.__identifier_type__ = identifier
         return cls
 
     return decorate
@@ -586,7 +584,7 @@ def node(
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
     unique_together: tuple[tuple[str, ...], ...] = (),
-    identifier: IdentifierType | None = None,
+    identifier: IdentifierType = IdentifierType.VARIABLE,
     id_factory: Callable[[], UUID] = new_node_id,
 ):
     """Register a class as a concrete node for the given node type."""
@@ -807,7 +805,6 @@ class Struct(abc.ABC):
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
-    __identifier_type__: ClassVar[IdentifierType | None] = None  # for named structs
 
     __parent_property__: ClassVar[Property] = None
 
@@ -1028,18 +1025,21 @@ class Struct(abc.ABC):
                 return attr
 
         # report get error with additional info
-        candidates = {
-            # own properties
-            **{
-                p.name: p
-                for p in self.__properties__.values()
-                if p.reference_kind or not p.is_ephemeral
-            },
-            # public methods
-            **{m: None for m in dir(self) if not m.startswith("_")},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+        if self._status == InterpStatus.TRACKED:
+            candidates = {
+                # own properties
+                **{
+                    p.name: p
+                    for p in self.__properties__.values()
+                    if p.reference_kind or not p.is_ephemeral
+                },
+                # public methods
+                **{m: None for m in dir(self) if not m.startswith("_")},
+            }
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
 
     def _lazy_copy_to(
         self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]
@@ -1278,7 +1278,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     metatype: ClassVar[NodeType]
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __identifier_type__: ClassVar[IdentifierType | None] = None
+    __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     __id_factory__: ClassVar[Callable[[], UUID]] = None
 
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
@@ -1459,21 +1459,19 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         return self.parent
 
     @property
-    def identifier_type(self) -> Optional[IdentifierType]:
+    def identifier_type(self) -> IdentifierType:
         return self.__identifier_type__
 
     @property
     def bench_ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
-        if self.identifier_type is None:
-            return None
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.bench_ident  # package shares its Bench's identifier
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
                 return slug
-        return getattr(self, "name")
+        return getattr(self, "name", None)
 
     @property
     def bench_path_ident(self) -> Optional[str]:
@@ -1489,9 +1487,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     @property
     def py_ident(self) -> Optional[str]:
         """The standardized python identifier of this node. Derived from slug or name."""
-        identifier_type = self.identifier_type
-        if identifier_type is None:
-            return None
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.py_ident
         if "slug" in self.__properties__:
@@ -1501,7 +1496,7 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         name = getattr(self, "name", None)
         if name is None:
             return None
-        return to_casing(name, PYTHON_CASING[identifier_type])
+        return to_casing(name, PYTHON_CASING[self.identifier_type])
 
     @property
     def absolute_path(self) -> str:
@@ -1516,7 +1511,9 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
                 # skip bench (same path as pkg)
                 path_segments.append(current.bench_path_ident)
                 next_parent = current.parent
-                has_next = next_parent is not None and next_parent.metatype != NodeType.BENCH
+                has_next = next_parent is not None and (
+                    not self.__is_in_package__ or next_parent.metatype != NodeType.BENCH
+                )
                 if not has_next:
                     break
                 if current.metatype == NodeType.FIELD:
