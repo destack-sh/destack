@@ -34,7 +34,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
-from bench.system.utils import GLOBAL_STORE, global_pg_cursor, global_session
+from bench.system.client import GLOBAL_STORE, global_pg_cursor, global_session
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)

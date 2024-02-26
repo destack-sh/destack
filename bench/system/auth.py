@@ -1,7 +1,5 @@
 import asyncio
-import random
 import secrets
-import string
 from os import urandom
 
 import structlog
@@ -13,7 +11,7 @@ from bench.language.access import Subject
 from bench.language.const import NodeType
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
-from bench.system.utils import global_session
+from bench.system.client import global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -72,28 +70,6 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
 def generate_access_token() -> str:
     """Generate a random access token."""
     return urandom(ACCESS_TOKEN_LENGTH).hex()
-
-
-def generate_random_username(length: int = 32, lowercase: bool = False) -> str:
-    """Random alphanumeric username (starts with a text character)."""
-    if lowercase:
-        pool = string.ascii_lowercase + string.digits
-    else:
-        pool = string.ascii_letters + string.digits
-    name = random.choice(string.ascii_lowercase)
-    name += "".join(random.choice(pool) for _ in range(length - 1))
-    return name
-
-
-def generate_secret_password(length: int = 48) -> str:
-    """URL-safe password."""
-    password = secrets.token_urlsafe(length - 4)[: length - 4]
-    # ensure at least 1 lowercase, 1 uppercase, 1 digit, 1 'special' character
-    password += random.choice(string.ascii_lowercase)
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.digits)
-    password += random.choice("!@$^&*()_+-=")
-    return password
 
 
 def generate_encryption_key(length: int = 32) -> str:

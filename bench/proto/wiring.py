@@ -293,7 +293,7 @@ def unpack_nodes_inline(
         root = unpacked_graph.find_root()
         if root is None:
             raise ValueError(f"no root found in {unpacked_graph!r}")
-        root._root_graph.set(unpacked_graph.nodes)
+        root._graph.set(unpacked_graph.nodes)
         root._data_graph = root_data_graph
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here

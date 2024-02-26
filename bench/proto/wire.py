@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.26.0"
+VERSION = "2024.02.26.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,12 +13,19 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -148,7 +155,7 @@ class BenchType(betterproto.Enum):
     CODE_LINE = 591
     RUN_CODE_FRAME = 600
     RUN_ERROR = 601
-    STORE_CREDENTIAL = 632
+    RESOURCE_CREDENTIAL = 632
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
@@ -169,8 +176,8 @@ class BlockType(betterproto.Enum):
     PROTOCOL = 14
     SINGLE_VARIABLE = 20
     MULTI_VARIABLE = 21
-    MODEL_TASK = 30
-    CODE_TASK = 31
+    MODEL_ROUTINE = 30
+    CODE_ROUTINE = 31
     SCRIPT = 32
     FLOW = 33
     QUERY = 40
@@ -638,11 +645,6 @@ class SortOp(betterproto.Enum):
     DESCENDING = 201
 
 
-class StoreCredentialType(betterproto.Enum):
-    UNSPECIFIED = 0
-    ROOT = 1
-
-
 class StoreEngineType(betterproto.Enum):
     UNSPECIFIED = 0
     INMEMORY = 1
@@ -689,7 +691,7 @@ class StructType(betterproto.Enum):
     CODE_LINE = 591
     RUN_CODE_FRAME = 600
     RUN_ERROR = 601
-    STORE_CREDENTIAL = 632
+    RESOURCE_CREDENTIAL = 632
     TEXT = 660
     TEXT_LINE = 661
     TEXT_SPAN = 662
@@ -702,8 +704,8 @@ class Tenancy(betterproto.Enum):
     """How a Resource is shared (if at all)."""
 
     UNSPECIFIED = 0
-    SHARED = 1
-    DEDICATED = 5
+    SHARED = 3
+    DEDICATED = 7
 
 
 class TextLineType(betterproto.Enum):
@@ -757,6 +759,7 @@ class ViewType(betterproto.Enum):
     INSPECTOR = 23
     LIBRARY = 24
     ACCESS = 25
+    SCREEN = 49
     WINDOWED = 50
     TABBED = 52
     STEPPED = 55
@@ -1208,13 +1211,13 @@ class ReadOptionsData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    ancestor_types: List["NodeType"] = betterproto.enum_field(30)
-    descendant_types: List["NodeType"] = betterproto.enum_field(31)
-    related_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(32)
+    ancestor_types: List["NodeType"] = betterproto.enum_field(31)
+    descendant_types: List["NodeType"] = betterproto.enum_field(32)
+    related_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(33)
     include_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(40)
     exclude_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(41)
     select_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(42)
-    global_filter: Optional["ExpressionData"] = betterproto.message_field(50, optional=True)
+    include_hidden: bool = betterproto.bool_field(50)
 
 
 @dataclass(eq=False, repr=False)
@@ -1230,6 +1233,21 @@ class RequestData(betterproto.Message):
     decision: "PolicyEffect" = betterproto.enum_field(31)
     accesses: List["AccessData"] = betterproto.message_field(32)
     transaction_id: Optional[str] = betterproto.string_field(40, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ResourceCredentialData(betterproto.Message):
+    """
+    ResourceCredential(username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(5, optional=True)
+    username: Optional[str] = betterproto.string_field(31, optional=True)
+    password: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1311,22 +1329,6 @@ class SpaceDockItemData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     hidden: bool = betterproto.bool_field(31)
-
-
-@dataclass(eq=False, repr=False)
-class StoreCredentialData(betterproto.Message):
-    """
-    StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    type: "StoreCredentialType" = betterproto.enum_field(30)
-    username: Optional[str] = betterproto.string_field(31, optional=True)
-    password: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1951,7 +1953,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2368,13 +2370,15 @@ class StoreData(betterproto.Message):
     host: Optional[str] = betterproto.string_field(50, optional=True)
     database: Optional[str] = betterproto.string_field(51, optional=True)
     schema: Optional[str] = betterproto.string_field(52, optional=True)
-    main_credential: Optional["StoreCredentialData"] = betterproto.message_field(54, optional=True)
+    main_credential: Optional["ResourceCredentialData"] = betterproto.message_field(
+        54, optional=True
+    )
 
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -4255,9 +4259,9 @@ class RuntimeBase(ServiceBase):
         }
 
 
-from typing import Union  # noqa
-
 import bench.proto.monkey  # noqa
+
+from typing import Union  # noqa
 
 AnyNodeData = Union[
     BenchData,
@@ -4326,7 +4330,7 @@ AnyStructData = Union[
     CodeLineData,
     RunCodeFrameData,
     RunErrorData,
-    StoreCredentialData,
+    ResourceCredentialData,
     TextData,
     TextLineData,
     TextSpanData,

@@ -17,6 +17,9 @@ AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ign
 
 logger = structlog.get_logger(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
+_current_store: contextvars.ContextVar[Store | None] = contextvars.ContextVar(
+    "current_store", default=None
+)
 _current_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "current_pg_crypto_key", default=None
 )
@@ -24,7 +27,9 @@ _current_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.Context
 
 def current_pg_crypto_key() -> str:
     key = _current_pg_crypto_key.get()
-    assert key is not None, "no active pg_crypto_key set"
+    if key is None:
+        store = _current_store.get()
+        raise AssertionError(f"no active pg_crypto_key set for store {store!r}")
     return key
 
 
@@ -56,9 +61,12 @@ _CONNECTION_STR_REGEX = re.compile(
 
 
 def get_pg_connection_str(store: Store, database: str = None) -> str:
+    # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
+    from bench.system.client import USER_PG_HOST
+
     assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
     assert store.main_credential is not None, f"store {store!r} has no main_credential"
-    connection_str = f"postgresql://{store.main_credential.username}:{store.main_credential.password}@{store.host}/{database or store.database}"
+    connection_str = f"postgresql://{store.main_credential.username}:{store.main_credential.password}@{store.host or USER_PG_HOST}/{database or store.database}"
     return connection_str
 
 
@@ -87,17 +95,17 @@ async def pg_cursor(
 
 
 class _PgStoreConnection:
-    __slots__ = ("store", "autocommit", "_reset_token", "_conn", "_pool")
+    __slots__ = ("store", "database", "autocommit", "_reset_token", "_conn", "_pool")
 
-    def __init__(self, store: Store, autocommit: bool = False):
-        assert store.parent.encryption_key, f"store {store!r} has no encryption_key"
+    def __init__(self, store: Store, database: str = None, autocommit: bool = False):
         self.store = store
+        self.database = database
         self.autocommit = autocommit
         self._pool: AsyncConnectionPool | None = None
         self._conn: psycopg.AsyncConnection | None = None
 
     async def open(self) -> psycopg.AsyncCursor:
-        connection_str = get_pg_connection_str(self.store)
+        connection_str = get_pg_connection_str(self.store, database=self.database)
         self._pool = await get_pg_connection_pool(connection_str)
         try:
             self._conn = await self._pool.getconn()
@@ -106,10 +114,12 @@ class _PgStoreConnection:
             raise
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
+        _current_store.set(self.store)
         _current_pg_crypto_key.set(self.store.parent.encryption_key)
         return self._conn.cursor()
 
     async def close(self) -> None:
+        _current_store.set(None)
         if self._conn is not None:
             await self._pool.putconn(self._conn)
 

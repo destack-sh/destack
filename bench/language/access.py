@@ -172,10 +172,10 @@ class ReadOptions(Struct):
     """
 
     # relations
-    ancestor_types: list[NodeType] = p_regular(30, array=True, require=False)
-    descendant_types: list[NodeType] = p_regular(31, array=True, require=False)
+    ancestor_types: list[NodeType] = p_regular(31, array=True, require=False)
+    descendant_types: list[NodeType] = p_regular(32, array=True, require=False)
     related_properties: list[Property] = p_regular(
-        32, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+        33, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     # properties (include/exclude relative to default OR select specific properties)
@@ -189,12 +189,13 @@ class ReadOptions(Struct):
         42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
-    # filters (global + per type)
-    global_filter: Optional["Expression"] = p_regular(
-        50, require=False, default=None, struct=StructType.EXPRESSION
-    )
-    # (by type is runtime only since we can't / don't need to serialize maps yet)
-    _filter_by_type: dict[NodeType, "Expression"] | None = p_runtime(default=None)
+    # filters (simplified for now)
+    include_hidden: bool = p_regular(50, default=False)
+
+    # cache
+    _read_types: bytetuple[ReadType] | None = p_runtime(default=None)
+    _read_properties_by_type: dict[NodeType, bitarray] | None = p_runtime(default=None)
+    _read_filter_by_type: dict[NodeType, "Expression"] | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         content_parts = []
@@ -218,6 +219,9 @@ class ReadOptions(Struct):
             _filter_by_type=self._filter_by_type,
         )
 
+    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+        self._update_cache()
+
     def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         return tuple(p for p in self.related_properties if p.type == node_type)
 
@@ -238,27 +242,23 @@ class ReadOptions(Struct):
                 )
             return properties
 
-    def filter(self, node_type: NodeType, filter: Optional["Expression"] = None) -> "Expression":
-        type_filter = (
-            self._filter_by_type.get(node_type) if self._filter_by_type is not None else None
-        )
-        global_filter = (
-            self.global_filter if self.global_filter is not None else DEFAULT_GLOBAL_FILTER
-        )
-        if filter is None:
-            if type_filter is None:
-                return global_filter
-            else:
-                return global_filter & type_filter
-        else:
-            if type_filter is None:
-                return global_filter & filter
-            else:
-                return global_filter & type_filter & filter
+    def filter(
+        self, node_type: NodeType, custom_filter: Optional["Expression"] = None
+    ) -> "Expression":
+        filter = C(ConditionalOp.TRUE) if self.include_hidden else DEFAULT_GLOBAL_FILTER
+        if custom_filter is not None:
+            filter &= custom_filter
+        return filter
 
     @staticmethod
     def default():
+        """Read default: exclude soft delete & archived, select all non-deferred properties."""
         return ReadOptions()
+
+    @staticmethod
+    def all():
+        """Read all: include everything, select all properties."""
+        return ReadOptions(global_filter=None, include_properties=())
 
 
 @struct(StructType.POLICY)
@@ -854,30 +854,6 @@ def adapt_read_options(
     # TODO :Performance :Security: also pre-filter read options for owner?
 
     return options
-
-
-def get_edited_scopes(edits: list[EditData]) -> dict[UUID, "NodeReference"]:
-    from bench.language import NodeReference
-    from bench.proto import wire, wiring
-
-    edited_scopes_ptr: dict[UUID, "NodeReference"] = {}
-    for edit in edits:
-        node = wiring.unwrap_some_node(edit.node)
-        node_cls = NODE_CLASS_BY_TYPE[node.metatype]
-        if edit.type == wire.EditType.CREATE or edit.type == wire.EditType.UPSERT:
-            # scope is parent since we don't know this node yet
-            if node.parent_ptr is not None:
-                if node.parent_ptr.id not in edited_scopes_ptr:
-                    ptr: "NodeReference" = wiring.unpack_struct(node.parent_ptr)
-                    edited_scopes_ptr[ptr.id] = ptr
-            elif node_cls.__roots__:
-                raise ValidationError(node, "can't create orphan")
-        else:
-            # scope is the edited node itself
-            if node.id not in edited_scopes_ptr:
-                ptr: "NodeReference" = wiring.unpack_struct(NodeReference.from_node_data(node))
-                edited_scopes_ptr[ptr.id] = ptr
-    return edited_scopes_ptr
 
 
 def generate_access_matrix(

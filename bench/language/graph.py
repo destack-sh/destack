@@ -13,16 +13,17 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import EMPTY_LIST, InterpStatus, NodeType, NRel, ReferenceKind
-from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE
+from bench.language.const import EMPTY_LIST, InterpStatus, NodeType, NRel, ReferenceKind, EditType
+from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData
+from bench.proto.wire import AnyNodeData, EditData
 from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
+from bench.utils.func import to_uuid
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Node, Property, Value, Struct, Field
+    from bench.language import Node, Property, Value, Struct, Field, ReadOptions, NodeReference
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -755,3 +756,105 @@ class ValueList(list, Generic[ValueParentT]):
         ):
             values = [v._copy_to(parent, parent_prop) for v in values]
         return ValueList(parent, parent_prop, values)
+
+
+_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.DELETE,
+    EditType.UNARCHIVE: EditType.CREATE,
+    EditType.SOFT_DELETE: EditType.DELETE,
+    EditType.RESTORE: EditType.CREATE,
+}
+
+_INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.UPDATE,
+    EditType.UNARCHIVE: EditType.UPDATE,
+    EditType.SOFT_DELETE: EditType.UPDATE,
+    EditType.RESTORE: EditType.UPDATE,
+}
+
+
+def filter_edits(options: "ReadOptions", edits: Collection[EditData]) -> list[EditData]:
+    """Filters the edits according to the read options."""
+
+    filtered: list[EditData] = []
+    for edit in edits:
+        if options.has_node_type(edit.node_type):
+            filtered.append(edit)
+    return filtered
+
+
+def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditData]) -> None:
+    """Applies the edits to the graph (in place!)."""
+    from bench.proto import wiring
+
+    for edit in edits:
+        node_data = wiring.unwrap_some_node(edit.node)
+        node_id = to_uuid(node_data.id)
+
+        edit_type = edit.type  # remap edit according to read options
+        if options.include_hidden:
+            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        else:
+            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+
+        if edit_type == EditType.CREATE or edit_type == EditType.UPSERT and node_id not in graph:
+            if node_data.parent_ptr is not None:
+                parent = graph.get(to_uuid(node_data.parent_ptr.id))
+            else:
+                parent = None
+            node = wiring.unpack_node(node_data, parent)
+            graph.add(node)
+        elif edit_type == EditType.DELETE:
+            node = graph.get(node_id)
+            graph.remove(node)
+        else:
+            raise NotImplementedError("nocheckin edit_graph.update (in place)")
+
+
+def edit_data_graph(
+    graph: NodeDataGraph,
+    options: "ReadOptions",
+    edits: Collection[EditData],
+    *,
+    update_nodes_in_place: bool = False,
+) -> None:
+    """Applies the edits to the data graph."""
+
+    from bench.proto import wiring
+
+    for edit in edits:
+        node_data = wiring.unwrap_some_node(edit.node)
+
+        edit_type = edit.type  # remap edit according to read options
+        if options.include_hidden:
+            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        else:
+            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+
+        if (
+            edit_type == EditType.CREATE
+            or edit_type == EditType.UPSERT
+            and node_data.id not in graph
+        ):
+            graph.add(node_data)
+        elif edit_type == EditType.DELETE:
+            graph.remove(node_data)
+        else:  # some update
+            node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
+            if edit_type in (EditType.UPDATE, EditType.MOVE):
+                properties = edit.properties
+            elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+                properties = (node_cls.archived_at.id,)
+            elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
+                properties = (node_cls.deleted_at.id,)
+            else:
+                raise ValueError(f"unexpected edit type: {edit_type}")
+            existing_node = graph.get(node_data.id)
+            assert existing_node is not None, f"missing node for update: {edit}"
+            if not update_nodes_in_place:
+                existing_node = wiring.copy_data(existing_node)
+            for prop_id in properties:
+                prop_name = node_cls.__properties_name_by_id__[prop_id]
+                updated = getattr(node_data, prop_name)
+                setattr(existing_node, prop_name, updated)
+            graph.update(existing_node)

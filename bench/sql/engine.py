@@ -66,6 +66,7 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
+from bench.system.client import user_pg_cursor
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
@@ -2004,15 +2005,16 @@ else:
 USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
 
 
-async def create_local_pg_database(*, store: Store, upsert: bool) -> None:
+async def create_local_pg_store(store: Store) -> None:
     """
     Creates the local Postgres database and corresponding roles/user for a bench.
     """
-    log = logger.bind(store=store, upsert=upsert)
+    log = logger.bind(store=store)
     log.info("pg.create_db")
+    assert store.database, f"{store!r} has no database"
 
     # create database from the default one (if not exists)
-    async with pg_cursor(get_pg_connection_str(store, "postgres"), autocommit=True) as cur:
+    async with user_pg_cursor(autocommit=True) as cur:
         await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (store.database,))
         exists = bool(await cur.fetchone())
         if not exists:
@@ -2022,7 +2024,7 @@ async def create_local_pg_database(*, store: Store, upsert: bool) -> None:
             log.info("pg.create_db.already_exists")
 
     # connect to local database and setup auth
-    async with pg_cursor_to_store(store, autocommit=False) as cur:
+    async with user_pg_cursor(store, database=store.database, autocommit=False) as cur:
         # create 'root' user (if not exists)
         root = store.main_credential
         log.info("pg.create_db.create_root", username=root.username)

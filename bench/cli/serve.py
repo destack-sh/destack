@@ -19,10 +19,12 @@ logger = structlog.get_logger(__name__)
 
 @app.command()
 @_async_to_sync_blocking
-async def system(host: str, port: int, watch: bool = False):
+async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.system", host=host, port=port)
-    services = [Supervisor(), HostMultiplexer()]
+    services = [HostMultiplexer()]
+    if not no_supervisor:
+        services.append(Supervisor())
     server = BenchServer(services)
     if IS_DEBUG and watch:
         # noinspection PyAsyncCall

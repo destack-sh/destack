@@ -2,7 +2,7 @@
 import psycopg
 
 ID = 1
-VERSION = "2024.02.26.0"
+VERSION = "2024.02.26.2"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -521,7 +521,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
-        tenancy smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 3,
         status smallint NOT NULL DEFAULT 1,
         profile smallint NOT NULL,
         version varchar,
@@ -549,7 +549,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
-        tenancy smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 3,
         status smallint NOT NULL DEFAULT 1,
         kind smallint NOT NULL,
         engine smallint NOT NULL,
@@ -577,7 +577,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
-        tenancy smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 3,
         status smallint NOT NULL DEFAULT 1
     )
     """
@@ -598,7 +598,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
-        tenancy smallint NOT NULL DEFAULT 1,
+        tenancy smallint NOT NULL DEFAULT 3,
         status smallint NOT NULL DEFAULT 1
     )
     """

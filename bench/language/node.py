@@ -47,7 +47,15 @@ from bench.language.const import (
     StructType,
     _active_session,
 )
-from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList, ValueList
+from bench.language.graph import (
+    DetachedNodeGraph,
+    NodeDataGraph,
+    NodeGraph,
+    NodeList,
+    ValueList,
+    edit_graph,
+    edit_data_graph,
+)
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -74,7 +82,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, SomeNodeData
+from bench.proto.wire import AnyNodeData, AnyStructData, SomeNodeData, EditData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
@@ -85,7 +93,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Field,
-        FieldPath,
         NodeReference,
         NodeVisitor,
         Notice,
@@ -97,6 +104,7 @@ if TYPE_CHECKING:
         User,
         Value,
         ValueReference,
+        ReadOptions,
     )
     from bench.language.expression import _NodeExpressionBase
     from bench.language.notice import NoticeHandler
@@ -1347,9 +1355,10 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE, NRel.CUMULATIVE)
     links: NodeList["Link"] = p_node_child(NodeType.LINK, NRel.CUMULATIVE)
 
-    # the node graph is maintained at the highest root node (usually *the* root node, but may be detached)
+    # the node graph is maintained at the highest root node
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
     _data_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
+    _read_options: Optional["ReadOptions"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
@@ -1383,6 +1392,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
             self._interp_self(self, on_notice=self._on_notice)
             self._track_self(self._session)
 
+    def _assign_id(self, package_id: UUID):
+        assert package_id, f"cannot assign id to {self!r} without a package id"
+        assert self.id is None, f"cannot assign id to {self!r} twice"
+        assert self.ck is not None, f"cannot assign id to {self!r} without ck"
+        self.id = derive_package_node_id(package_id, self.ck)
+
     @property
     def _components(self) -> tuple[type["Node"], ...]:
         return self.__static_components__
@@ -1411,11 +1426,12 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
         assert graph is not None, f"no graph for root {root!r} (from {self!r})"
         return graph
 
-    def _assign_id(self, package_id: UUID):
-        assert package_id, f"cannot assign id to {self!r} without a package id"
-        assert self.id is None, f"cannot assign id to {self!r} twice"
-        assert self.ck is not None, f"cannot assign id to {self!r} without ck"
-        self.id = derive_package_node_id(package_id, self.ck)
+    def _apply_edits(self, edits: Collection[EditData]):
+        """Applies the edits to this root node."""
+        assert self._graph is not None, f"no graph for {self!r}"
+        edit_graph(self._graph, edits, update_nodes_in_place=True)
+        if self._data_graph is not None:
+            edit_data_graph(self._data_graph, edits, update_nodes_in_place=True)
 
     @final
     def __str__(self):  # noqa: override the default __str__ for nodes

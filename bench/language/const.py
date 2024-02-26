@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.26.0"
+VERSION = "2024.02.26.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -149,7 +149,7 @@ class StructType(IdEnum):
     RUN_ERROR = 601
     # CURSOR?
 
-    STORE_CREDENTIAL = 632
+    RESOURCE_CREDENTIAL = 632
 
     # text
     TEXT = 660
@@ -199,8 +199,8 @@ class BlockType(IdEnum):
     SINGLE_VARIABLE = 20  # define a single-value variable
     MULTI_VARIABLE = 21  # define a variable with (multiple) fields
 
-    MODEL_TASK = 30  # define a task function with fields (incl. input/output)
-    CODE_TASK = 31  # define a code function with input/output fields (incl. input/output)
+    MODEL_ROUTINE = 30  # define a model function with fields (incl. input/output)
+    CODE_ROUTINE = 31  # define a code function with fields (incl. input/output)
     SCRIPT = 32  # define a code script with fields
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
 

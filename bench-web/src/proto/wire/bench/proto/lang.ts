@@ -918,15 +918,15 @@ export interface ReadOptionsData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 30;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 31;
      */
     ancestorTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 31;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 32;
      */
     descendantTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 32;
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 33;
      */
     relatedPropertiesPtr: PropertyReferenceData[];
     /**
@@ -942,9 +942,9 @@ export interface ReadOptionsData {
      */
     selectPropertiesPtr: PropertyReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData global_filter = 50;
+     * @generated from protobuf field: bool include_hidden = 50;
      */
-    globalFilter?: ExpressionData;
+    includeHidden: boolean;
 }
 /**
  * A request comprising multiple Accesses.
@@ -988,6 +988,41 @@ export interface RequestData {
      * @generated from protobuf field: optional string transaction_id = 40;
      */
     transactionId?: string;
+}
+/**
+ * ResourceCredential(username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ *
+ * @generated from protobuf message symbolx.bench.ResourceCredentialData
+ */
+export interface ResourceCredentialData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 5;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional string username = 31;
+     */
+    username?: string;
+    /**
+     * @generated from protobuf field: optional string password = 32;
+     */
+    password?: string;
 }
 /**
  * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
@@ -1187,45 +1222,6 @@ export interface SpaceDockItemData {
      * @generated from protobuf field: bool hidden = 31;
      */
     hidden: boolean;
-}
-/**
- * StoreCredential(type: bench.language.resource.StoreCredentialType = <factory>, username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.StoreCredentialData
- */
-export interface StoreCredentialData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.StoreCredentialType type = 30;
-     */
-    type: StoreCredentialType;
-    /**
-     * @generated from protobuf field: optional string username = 31;
-     */
-    username?: string;
-    /**
-     * @generated from protobuf field: optional string password = 32;
-     */
-    password?: string;
 }
 /**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -3071,7 +3067,7 @@ export interface BaseNodeData {
     updatedByPtr?: NodeReferenceData;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -4306,12 +4302,12 @@ export interface StoreData {
      */
     schema?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.StoreCredentialData main_credential = 54;
+     * @generated from protobuf field: optional symbolx.bench.ResourceCredentialData main_credential = 54;
      */
-    mainCredential?: StoreCredentialData;
+    mainCredential?: ResourceCredentialData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -5343,9 +5339,9 @@ export enum BenchType {
      */
     RUN_ERROR = 601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STORE_CREDENTIAL = 632;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_CREDENTIAL = 632;
      */
-    STORE_CREDENTIAL = 632,
+    RESOURCE_CREDENTIAL = 632,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TEXT = 660;
      */
@@ -5420,13 +5416,13 @@ export enum BlockType {
      */
     MULTI_VARIABLE = 21,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_MODEL_TASK = 30;
+     * @generated from protobuf enum value: BLOCK_TYPE_MODEL_ROUTINE = 30;
      */
-    MODEL_TASK = 30,
+    MODEL_ROUTINE = 30,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CODE_TASK = 31;
+     * @generated from protobuf enum value: BLOCK_TYPE_CODE_ROUTINE = 31;
      */
-    CODE_TASK = 31,
+    CODE_ROUTINE = 31,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_SCRIPT = 32;
      */
@@ -6946,19 +6942,6 @@ export enum SortOp {
     DESCENDING = 201
 }
 /**
- * @generated from protobuf enum symbolx.bench.StoreCredentialType
- */
-export enum StoreCredentialType {
-    /**
-     * @generated from protobuf enum value: STORE_CREDENTIAL_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: STORE_CREDENTIAL_TYPE_ROOT = 1;
-     */
-    ROOT = 1
-}
-/**
  * @generated from protobuf enum symbolx.bench.StoreEngineType
  */
 export enum StoreEngineType {
@@ -7129,9 +7112,9 @@ export enum StructType {
      */
     RUN_ERROR = 601,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STORE_CREDENTIAL = 632;
+     * @generated from protobuf enum value: STRUCT_TYPE_RESOURCE_CREDENTIAL = 632;
      */
-    STORE_CREDENTIAL = 632,
+    RESOURCE_CREDENTIAL = 632,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 660;
      */
@@ -7168,13 +7151,13 @@ export enum Tenancy {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TENANCY_SHARED = 1;
+     * @generated from protobuf enum value: TENANCY_SHARED = 3;
      */
-    SHARED = 1,
+    SHARED = 3,
     /**
-     * @generated from protobuf enum value: TENANCY_DEDICATED = 5;
+     * @generated from protobuf enum value: TENANCY_DEDICATED = 7;
      */
-    DEDICATED = 5
+    DEDICATED = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -7340,6 +7323,10 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 25;
      */
     ACCESS = 25,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_SCREEN = 49;
+     */
+    SCREEN = 49,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOWED = 50;
      */
@@ -9586,13 +9573,13 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 31, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 32, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 33, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 40, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 41, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 42, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 50, name: "global_filter", kind: "message", T: () => ExpressionData }
+            { no: 50, name: "include_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
@@ -9605,6 +9592,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         message.includePropertiesPtr = [];
         message.excludePropertiesPtr = [];
         message.selectPropertiesPtr = [];
+        message.includeHidden = false;
         if (value !== undefined)
             reflectionMergePartial<ReadOptionsData>(this, message, value);
         return message;
@@ -9629,21 +9617,21 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodeType ancestor_types */ 30:
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 31:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.ancestorTypes.push(reader.int32());
                     else
                         message.ancestorTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.NodeType descendant_types */ 31:
+                case /* repeated symbolx.bench.NodeType descendant_types */ 32:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.descendantTypes.push(reader.int32());
                     else
                         message.descendantTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr */ 32:
+                case /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr */ 33:
                     message.relatedPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 40:
@@ -9655,8 +9643,8 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                 case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 42:
                     message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ExpressionData global_filter */ 50:
-                    message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
+                case /* bool include_hidden */ 50:
+                    message.includeHidden = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -9685,23 +9673,23 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.NodeType ancestor_types = 30; */
+        /* repeated symbolx.bench.NodeType ancestor_types = 31; */
         if (message.ancestorTypes.length) {
-            writer.tag(30, WireType.LengthDelimited).fork();
+            writer.tag(31, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ancestorTypes.length; i++)
                 writer.int32(message.ancestorTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.NodeType descendant_types = 31; */
+        /* repeated symbolx.bench.NodeType descendant_types = 32; */
         if (message.descendantTypes.length) {
-            writer.tag(31, WireType.LengthDelimited).fork();
+            writer.tag(32, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.descendantTypes.length; i++)
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 32; */
+        /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 33; */
         for (let i = 0; i < message.relatedPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.relatedPropertiesPtr[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceData.internalBinaryWrite(message.relatedPropertiesPtr[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 40; */
         for (let i = 0; i < message.includePropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -9711,9 +9699,9 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42; */
         for (let i = 0; i < message.selectPropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData global_filter = 50; */
-        if (message.globalFilter)
-            ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_hidden = 50; */
+        if (message.includeHidden !== false)
+            writer.tag(50, WireType.Varint).bool(message.includeHidden);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -9830,6 +9818,96 @@ class RequestData$Type extends MessageType<RequestData> {
  * @generated MessageType for protobuf message symbolx.bench.RequestData
  */
 export const RequestData = new RequestData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
+    constructor() {
+        super("symbolx.bench.ResourceCredentialData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ResourceCredentialData>): ResourceCredentialData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ResourceCredentialData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResourceCredentialData): ResourceCredentialData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 5:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional string username */ 31:
+                    message.username = reader.string();
+                    break;
+                case /* optional string password */ 32:
+                    message.password = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ResourceCredentialData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 5; */
+        if (message.orderKey !== undefined)
+            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* optional string username = 31; */
+        if (message.username !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.username);
+        /* optional string password = 32; */
+        if (message.password !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.password);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ResourceCredentialData
+ */
+export const ResourceCredentialData = new ResourceCredentialData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     constructor() {
@@ -10331,104 +10409,6 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
  * @generated MessageType for protobuf message symbolx.bench.SpaceDockItemData
  */
 export const SpaceDockItemData = new SpaceDockItemData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class StoreCredentialData$Type extends MessageType<StoreCredentialData> {
-    constructor() {
-        super("symbolx.bench.StoreCredentialData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StoreCredentialType", StoreCredentialType, "STORE_CREDENTIAL_TYPE_"] },
-            { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<StoreCredentialData>): StoreCredentialData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<StoreCredentialData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StoreCredentialData): StoreCredentialData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* symbolx.bench.StoreCredentialType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string username */ 31:
-                    message.username = reader.string();
-                    break;
-                case /* optional string password */ 32:
-                    message.password = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: StoreCredentialData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.StoreCredentialType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string username = 31; */
-        if (message.username !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.username);
-        /* optional string password = 32; */
-        if (message.password !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.password);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.StoreCredentialData
- */
-export const StoreCredentialData = new StoreCredentialData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
@@ -16913,7 +16893,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 50, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "database", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "schema", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "main_credential", kind: "message", T: () => StoreCredentialData }
+            { no: 54, name: "main_credential", kind: "message", T: () => ResourceCredentialData }
         ]);
     }
     create(value?: PartialMessage<StoreData>): StoreData {
@@ -17003,8 +16983,8 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* optional string schema */ 52:
                     message.schema = reader.string();
                     break;
-                case /* optional symbolx.bench.StoreCredentialData main_credential */ 54:
-                    message.mainCredential = StoreCredentialData.internalBinaryRead(reader, reader.uint32(), options, message.mainCredential);
+                case /* optional symbolx.bench.ResourceCredentialData main_credential */ 54:
+                    message.mainCredential = ResourceCredentialData.internalBinaryRead(reader, reader.uint32(), options, message.mainCredential);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17084,9 +17064,9 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional string schema = 52; */
         if (message.schema !== undefined)
             writer.tag(52, WireType.LengthDelimited).string(message.schema);
-        /* optional symbolx.bench.StoreCredentialData main_credential = 54; */
+        /* optional symbolx.bench.ResourceCredentialData main_credential = 54; */
         if (message.mainCredential)
-            StoreCredentialData.internalBinaryWrite(message.mainCredential, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+            ResourceCredentialData.internalBinaryWrite(message.mainCredential, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

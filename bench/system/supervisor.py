@@ -23,15 +23,17 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
     SupervisorStub,
+    GraphScope,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.graph import GraphIoService
 from bench.system.resource import create_default_bench
-from bench.system.utils import GLOBAL_POSTGRES_ENGINE, global_session
+from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
+GLOBAL_SCOPE = GraphScope()
 
 
 class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBase):
@@ -93,7 +95,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
-            self.on_graph_edited(session.tx.edits)
+            self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self.epoch
@@ -117,7 +119,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
-            self.on_graph_edited(session.tx.edits)
+            self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
@@ -151,7 +153,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             session.upsert(client)
             await session.commit()
-            self.on_graph_edited(session.tx.edits)
+            self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         return LoginUserResponse(
             user=user._to_data(),
@@ -185,7 +187,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 client.access_token = None
                 client.last_seen_at = utcnow_with_tz()
             await session.commit()
-            self.on_graph_edited(session.tx.edits)
+            self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         return LogoutUserResponse()
 
@@ -209,7 +211,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
         async with global_session() as session:
-            # check
+            # check (and reload owner to get Handles)
             owner: Organization | User
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:
@@ -225,12 +227,12 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                     )
             else:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid owner type")
-            if owner.status == UserStatus.ACTIVATED or owner.slug != request.slug:
-                raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
             if owner.status < UserStatus.REGISTERED:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "owner not registered")
 
-            # create bench
+            # create bench (assumes it's the primary bench)
+            if owner.status == UserStatus.ACTIVATED or owner.slug != request.slug:
+                raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
             assert owner.main_handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
                 main_handle=owner.main_handle, owner=owner, region=region, session=session
@@ -242,6 +244,6 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 owner.status = UserStatus.ACTIVATED
 
             await session.commit()
-            self.on_graph_edited(session.tx.edits)
+            self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         return CreateBenchResponse()

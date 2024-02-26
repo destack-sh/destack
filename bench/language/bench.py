@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Optional, Union
+from itertools import chain
+from typing import TYPE_CHECKING, Collection, Optional, Union, Iterable
 
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
         Store,
         Text,
         User,
+        Resource,
     )
 
 NodeT = Union[Node, "Node"]
@@ -78,6 +80,10 @@ class Bench(Node):
     stores: NodeList["Store"] = p_node_child(NodeType.STORE)
     drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
     caches: NodeList["Cache"] = p_node_child(NodeType.CACHE)
+
+    @property
+    def resources(self) -> Iterable["Resource"]:
+        return chain(self.servers, self.stores, self.drives, self.caches)
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)

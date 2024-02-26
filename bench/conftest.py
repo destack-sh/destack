@@ -42,7 +42,7 @@ async def prepared_test_db():
         generate_migration_ops,
         introspect_tables_from_pg,
     )
-    from bench.system.utils import GLOBAL_STORE, GLOBAL_PG_NAME, global_pg_cursor
+    from bench.system.client import GLOBAL_STORE, GLOBAL_PG_NAME, global_pg_cursor
     from bench.sql.client import pg_cursor, get_pg_connection_str
 
     # ensure that default global_db_cursor points to test
@@ -71,7 +71,7 @@ async def prepared_test_db():
 async def test_cur() -> psycopg.AsyncCursor:
     from bench.sql.client import pg_cursor
     from bench.sql.client import get_pg_connection_str
-    from bench.system.utils import GLOBAL_STORE
+    from bench.system.client import GLOBAL_STORE
 
     async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
         yield cur

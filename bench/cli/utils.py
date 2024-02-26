@@ -9,7 +9,7 @@ from bench.language import Bench, Environment, Store
 from bench.language.setup import NODE_CLASSES
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
-from bench.system.utils import global_pg_cursor, global_session
+from bench.system.client import global_pg_cursor, global_session
 
 if TYPE_CHECKING:
     pass
