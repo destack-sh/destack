@@ -90,9 +90,7 @@ class _PgStoreConnection:
     __slots__ = ("store", "autocommit", "_reset_token", "_conn", "_pool")
 
     def __init__(self, store: Store, autocommit: bool = False):
-        assert (
-            store.parent.encryption_key
-        ), f"store {store!r} parent {store.parent!r} has no encryption_key"
+        assert store.parent.encryption_key, f"store {store!r} has no encryption_key"
         self.store = store
         self.autocommit = autocommit
         self._pool: AsyncConnectionPool | None = None

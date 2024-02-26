@@ -58,7 +58,6 @@ from bench.language.text import Text
 from bench.language.user import Membership, User
 from bench.language.validation import ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
-from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
 if TYPE_CHECKING:
@@ -262,7 +261,7 @@ class ReadOptions(Struct):
         return ReadOptions()
 
 
-@struct(StructType.POLICY, identifier=IdentifierType.VARIABLE)
+@struct(StructType.POLICY)
 class Policy(Struct):
     """
     A policy regulating access to nodes within its scope.

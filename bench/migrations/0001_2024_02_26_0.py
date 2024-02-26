@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.02.24. Edit as needed.
+# This migration was automatically generated on 2024.02.26. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.02.24.1"
+VERSION = "2024.02.26.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -41,9 +41,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         slug varchar NOT NULL,
         name varchar NOT NULL,
         text jsonb,
+        icon jsonb,
+        region smallint NOT NULL,
         encryption_key bytea NOT NULL,
-        policies jsonb[],
-        region smallint NOT NULL
+        policies jsonb[]
     )
     """
     )
@@ -62,7 +63,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_ck uuid,
         name varchar,
         text jsonb,
-        policies jsonb[]
+        icon jsonb,
+        policies jsonb[] NOT NULL
     )
     """
     )
@@ -80,7 +82,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         created_by_run_ck uuid,
         updated_by_run_ck uuid,
         name varchar,
+        slug varchar,
         text jsonb,
+        icon jsonb,
         policies jsonb[]
     )
     """
@@ -100,9 +104,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_ck uuid,
         slug varchar,
         text jsonb,
+        icon jsonb,
         policies jsonb[],
-        is_partial boolean NOT NULL DEFAULT false,
-        paused_at timestamp
+        paused_at timestamp,
+        bases_package_id uuid[]
     )
     """
     )
@@ -303,6 +308,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         order_key varchar,
         dynamic_key varchar,
         text jsonb,
+        icon jsonb,
         value_packed jsonb,
         primitive_type smallint,
         bench_type smallint,
@@ -653,6 +659,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar,
         text jsonb,
         email varchar NOT NULL,
+        icon jsonb,
         status smallint NOT NULL,
         password_salt bytea,
         password_hash bytea,
@@ -677,6 +684,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         slug varchar,
         name varchar NOT NULL,
         text jsonb,
+        icon jsonb,
         status smallint NOT NULL
     )
     """
@@ -714,9 +722,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
         ADD COLUMN owner_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN owner_organization_id uuid REFERENCES bench_organization ON DELETE SET NULL,
-        ADD COLUMN main_package_id uuid REFERENCES bench_package ON DELETE SET NULL,
         ADD COLUMN main_environment_id uuid REFERENCES bench_environment ON DELETE SET NULL,
-        ADD COLUMN main_branch_id uuid REFERENCES bench_branch ON DELETE SET NULL
+        ADD COLUMN main_branch_id uuid REFERENCES bench_branch ON DELETE SET NULL,
+        ADD COLUMN published_branch_id uuid REFERENCES bench_branch ON DELETE SET NULL
     """
     )
     await cur.execute(
@@ -774,6 +782,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
     await cur.execute(
+        "CREATE UNIQUE INDEX bench_branch_bench_idx_parent_bench_id_slug ON bench_branch USING BTREE (parent_bench_id, slug)"
+    )
+    await cur.execute(
         "CREATE INDEX bench_branch_bench_idx_deleted_at ON bench_branch USING BTREE (deleted_at)"
     )
     await cur.execute(
@@ -782,6 +793,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_branch    
+        ADD CONSTRAINT bench_branch_bench_idx_parent_bench_id_slug UNIQUE USING INDEX bench_branch_bench_idx_parent_bench_id_slug,
         ADD CONSTRAINT bench_branch_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )
@@ -793,9 +805,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
         ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN base_package_id uuid REFERENCES bench_package ON DELETE SET NULL,
-        ADD COLUMN environment_id uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL,
-        ADD COLUMN branch_id uuid NOT NULL REFERENCES bench_branch ON DELETE SET NULL
+        ADD COLUMN environment_id uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL
     """
     )
     await cur.execute(

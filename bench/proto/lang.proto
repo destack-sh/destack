@@ -94,7 +94,7 @@ enum BenchType {
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
   BENCH_TYPE_CACHE = 163;
-  BENCH_TYPE_FILE_CONTENT = 170;
+  BENCH_TYPE_FILE_CONTENT = 180;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
@@ -157,6 +157,22 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 50;
   BLOCK_TYPE_ROLE = 60;
   BLOCK_TYPE_IDENTITY = 61;
+}
+
+// Built-in color shades a la Tailwind.
+enum ColorShade {
+  COLOR_SHADE_UNSPECIFIED = 0;
+  COLOR_SHADE_S50 = 50;
+  COLOR_SHADE_S100 = 100;
+  COLOR_SHADE_S200 = 200;
+  COLOR_SHADE_S300 = 300;
+  COLOR_SHADE_S400 = 400;
+  COLOR_SHADE_S500 = 500;
+  COLOR_SHADE_S600 = 600;
+  COLOR_SHADE_S700 = 700;
+  COLOR_SHADE_S800 = 800;
+  COLOR_SHADE_S900 = 900;
+  COLOR_SHADE_S950 = 950;
 }
 
 // Built-in color types a la SwiftUI or Tailwind.
@@ -309,8 +325,8 @@ enum FormatHint {
 
 enum IconKind {
   ICON_KIND_UNSPECIFIED = 0;
-  ICON_KIND_EMOJI = 1;
-  ICON_KIND_BUILTIN = 2;
+  ICON_KIND_INTRINSIC = 1;
+  ICON_KIND_EMOJI = 2;
   ICON_KIND_CUSTOM = 3;
 }
 
@@ -385,7 +401,7 @@ enum NodeType {
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
   NODE_TYPE_CACHE = 163;
-  NODE_TYPE_FILE_CONTENT = 170;
+  NODE_TYPE_FILE_CONTENT = 180;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
@@ -844,7 +860,8 @@ message ColorData {
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
-  ColorType type = 31;
+  optional ColorType type = 31;
+  optional ColorShade shade = 32;
   optional string hex = 33;
 }
 
@@ -893,7 +910,7 @@ message FileData {
   optional string external_url = 37;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message IconData {
   BenchType metatype = 1;
   int32 id = 2;
@@ -904,6 +921,7 @@ message IconData {
   optional string emoji = 31;
   optional IconType type = 32;
   optional FileData image = 33;
+  optional ColorData color = 34;
 }
 
 // NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
@@ -1309,13 +1327,14 @@ message BenchData {
   string slug = 32;
   string name = 33;
   optional TextData text = 34;
-  optional NodeReferenceData owner_ptr = 35;
-  optional string encryption_key = 36;
-  repeated PolicyData policies = 37;
-  Region region = 38;
-  optional NodeReferenceData main_package_ptr = 40;
-  optional NodeReferenceData main_environment_ptr = 41;
+  optional IconData icon = 35;
+  optional NodeReferenceData owner_ptr = 36;
+  Region region = 37;
+  optional string encryption_key = 38;
+  repeated PolicyData policies = 39;
+  optional NodeReferenceData main_environment_ptr = 40;
   optional NodeReferenceData main_branch_ptr = 42;
+  optional NodeReferenceData published_branch_ptr = 43;
 }
 
 // A building block containing logic, types, UI, data, AI, - any Bench program source.
@@ -1371,9 +1390,11 @@ message BranchData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
+  optional string slug = 33;
   optional TextData text = 34;
-  optional NodeReferenceData main_package_ptr = 35;
+  optional IconData icon = 35;
   repeated PolicyData policies = 36;
+  optional NodeReferenceData main_package_ptr = 40;
 }
 
 // Cache for ephemeral data.
@@ -1460,7 +1481,7 @@ message DriveData {
   ResourceStatus status = 37;
 }
 
-// An environment isolates resources from the rest of a Bench.
+// An environment of resources for a Bench's packages.
 message EnvironmentData {
   BenchType metatype = 1;
   string id = 2;
@@ -1475,7 +1496,8 @@ message EnvironmentData {
   optional NodeReferenceData updated_by_ptr = 18;
   optional string name = 32;
   optional TextData text = 34;
-  repeated PolicyData policies = 35;
+  optional IconData icon = 35;
+  repeated PolicyData policies = 36;
   NodeReferenceData server_ptr = 40;
   NodeReferenceData store_ptr = 41;
   NodeReferenceData search_ptr = 42;
@@ -1503,7 +1525,8 @@ message FieldData {
   optional string order_key = 31;
   optional string dynamic_key = 32;
   optional TextData text = 33;
-  optional google.protobuf.Struct value_packed = 34;
+  optional IconData icon = 34;
+  optional google.protobuf.Struct value_packed = 35;
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
@@ -1754,11 +1777,12 @@ message OrganizationData {
   optional string slug = 32;
   string name = 33;
   optional TextData text = 34;
+  optional IconData icon = 35;
   optional NodeReferenceData main_bench_ptr = 36;
   OrganizationStatus status = 37;
 }
 
-// A package is a semi-isolated version of a Bench containing all the source and data.
+// A package is a semi-isolated version of a Bench.
 message PackageData {
   BenchType metatype = 1;
   string id = 2;
@@ -1773,12 +1797,11 @@ message PackageData {
   optional NodeReferenceData updated_by_ptr = 18;
   optional string slug = 33;
   optional TextData text = 34;
-  repeated PolicyData policies = 35;
-  bool is_partial = 36;
+  optional IconData icon = 35;
+  repeated PolicyData policies = 36;
   optional google.protobuf.Timestamp paused_at = 37;
-  optional NodeReferenceData base_ptr = 38;
-  NodeReferenceData environment_ptr = 39;
-  NodeReferenceData branch_ptr = 40;
+  NodeReferenceData environment_ptr = 40;
+  repeated NodeReferenceData bases_ptr = 42;
 }
 
 // A resumable interruption in a Run.
@@ -1895,7 +1918,7 @@ message RunData {
 
 // A server providing the Runtime for a Bench.
 // Similar to other resources, a Server virtualizes a compute allocation that is
-// materialized on demand on a physical machine.
+// materialized on demand on a set of physical machines.
 message ServerData {
   BenchType metatype = 1;
   string id = 2;
@@ -2096,8 +2119,9 @@ message UserData {
   optional string name = 33;
   optional TextData text = 34;
   optional string email = 35;
-  optional NodeReferenceData main_bench_ptr = 36;
-  UserStatus status = 37;
+  optional IconData icon = 36;
+  optional NodeReferenceData main_bench_ptr = 37;
+  UserStatus status = 38;
   optional bytes password_salt = 50;
   optional bytes password_hash = 51;
   optional google.protobuf.Timestamp last_logged_in_at = 70;

@@ -20,6 +20,7 @@ import psycopg
 from asgiref.sync import async_to_sync
 
 from bench.language.const import (
+    AccessKind,
     AggregationOp,
     BenchError,
     ExpressionKind,
@@ -27,8 +28,6 @@ from bench.language.const import (
     StoreEngineType,
     StructType,
     active_tx,
-    ReadType,
-    AccessKind,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
@@ -44,7 +43,7 @@ from bench.proto.wire import (
 from bench.utils.func import _auto_async_to_sync, bytetuple
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, ReadOptions, Session, Store, Field, Property
+    from bench.language import Block, Expression, Field, Property, ReadOptions, Session, Store
     from bench.sql.client import _PgStoreConnection
 
 NodeT = TypeVar("NodeT", bound=Node)
@@ -239,18 +238,18 @@ class QueryBuilder(
                 v = f"({v})" if v is not None else None
             if v is not None:
                 args_strs.append(f"{k}={v}")
+        if args_strs:
+            args_str = ", ".join(args_strs)
+        else:
+            args_str = "[*]"
+        return args_str
+
+    def __repr__(self):
         if self._aggregation:
             query_type = self._aggregation.op.bench_name
         else:
             query_type = "Fetch"
-        if args_strs:
-            args_str = f"{query_type} {', '.join(args_strs)}"
-        else:
-            args_str = f"{query_type} [*]"
-        return args_str
-
-    def __repr__(self):
-        return f"<{self._node_type.bench_name}Query {self}>"
+        return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
 
     def query(self) -> Self:
         return self

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.24.2"
+VERSION = "2024.02.26.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -122,7 +115,7 @@ class BenchType(betterproto.Enum):
     STORE = 161
     DRIVE = 162
     CACHE = 163
-    FILE_CONTENT = 170
+    FILE_CONTENT = 180
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -185,6 +178,23 @@ class BlockType(betterproto.Enum):
     SCREEN = 50
     ROLE = 60
     IDENTITY = 61
+
+
+class ColorShade(betterproto.Enum):
+    """Built-in color shades a la Tailwind."""
+
+    UNSPECIFIED = 0
+    S50 = 50
+    S100 = 100
+    S200 = 200
+    S300 = 300
+    S400 = 400
+    S500 = 500
+    S600 = 600
+    S700 = 700
+    S800 = 800
+    S900 = 900
+    S950 = 950
 
 
 class ColorType(betterproto.Enum):
@@ -340,8 +350,8 @@ class FormatHint(betterproto.Enum):
 
 class IconKind(betterproto.Enum):
     UNSPECIFIED = 0
-    EMOJI = 1
-    BUILTIN = 2
+    INTRINSIC = 1
+    EMOJI = 2
     CUSTOM = 3
 
 
@@ -416,7 +426,7 @@ class NodeType(betterproto.Enum):
     STORE = 161
     DRIVE = 162
     CACHE = 163
-    FILE_CONTENT = 170
+    FILE_CONTENT = 180
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -918,7 +928,8 @@ class ColorData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    type: "ColorType" = betterproto.enum_field(31)
+    type: Optional["ColorType"] = betterproto.enum_field(31, optional=True)
+    shade: Optional["ColorShade"] = betterproto.enum_field(32, optional=True)
     hex: Optional[str] = betterproto.string_field(33, optional=True)
 
 
@@ -978,7 +989,7 @@ class FileData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -990,6 +1001,7 @@ class IconData(betterproto.Message):
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
     type: Optional["IconType"] = betterproto.enum_field(32, optional=True)
     image: Optional["FileData"] = betterproto.message_field(33, optional=True)
+    color: Optional["ColorData"] = betterproto.message_field(34, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1489,15 +1501,18 @@ class BenchData(betterproto.Message):
     slug: str = betterproto.string_field(32)
     name: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
-    encryption_key: Optional[str] = betterproto.string_field(36, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(37)
-    region: "Region" = betterproto.enum_field(38)
-    main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
+    owner_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    region: "Region" = betterproto.enum_field(37)
+    encryption_key: Optional[str] = betterproto.string_field(38, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(39)
     main_environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
-        41, optional=True
+        40, optional=True
     )
     main_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    published_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
+        43, optional=True
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -1563,9 +1578,11 @@ class BranchData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
+    slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
+    main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1666,7 +1683,7 @@ class DriveData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class EnvironmentData(betterproto.Message):
-    """An environment isolates resources from the rest of a Bench."""
+    """An environment of resources for a Bench's packages."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1681,7 +1698,8 @@ class EnvironmentData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(35)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(36)
     server_ptr: "NodeReferenceData" = betterproto.message_field(40)
     store_ptr: "NodeReferenceData" = betterproto.message_field(41)
     search_ptr: "NodeReferenceData" = betterproto.message_field(42)
@@ -1711,8 +1729,9 @@ class FieldData(betterproto.Message):
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        34, optional=True
+        35, optional=True
     )
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
@@ -2012,15 +2031,14 @@ class OrganizationData(betterproto.Message):
     slug: Optional[str] = betterproto.string_field(32, optional=True)
     name: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
     status: "OrganizationStatus" = betterproto.enum_field(37)
 
 
 @dataclass(eq=False, repr=False)
 class PackageData(betterproto.Message):
-    """
-    A package is a semi-isolated version of a Bench containing all the source and data.
-    """
+    """A package is a semi-isolated version of a Bench."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2035,12 +2053,11 @@ class PackageData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(35)
-    is_partial: bool = betterproto.bool_field(36)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(36)
     paused_at: Optional[datetime] = betterproto.message_field(37, optional=True)
-    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
-    environment_ptr: "NodeReferenceData" = betterproto.message_field(39)
-    branch_ptr: "NodeReferenceData" = betterproto.message_field(40)
+    environment_ptr: "NodeReferenceData" = betterproto.message_field(40)
+    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(42)
 
 
 @dataclass(eq=False, repr=False)
@@ -2192,7 +2209,7 @@ class ServerData(betterproto.Message):
     """
     A server providing the Runtime for a Bench.
      Similar to other resources, a Server virtualizes a compute allocation that is
-     materialized on demand on a physical machine.
+     materialized on demand on a set of physical machines.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2424,8 +2441,9 @@ class UserData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     email: Optional[str] = betterproto.string_field(35, optional=True)
-    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    status: "UserStatus" = betterproto.enum_field(37)
+    icon: Optional["IconData"] = betterproto.message_field(36, optional=True)
+    main_bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
+    status: "UserStatus" = betterproto.enum_field(38)
     password_salt: Optional[bytes] = betterproto.bytes_field(50, optional=True)
     password_hash: Optional[bytes] = betterproto.bytes_field(51, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(70, optional=True)
@@ -2810,6 +2828,26 @@ class PingServerRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PingServerResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class SnapshotPackageRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class SnapshotPackageResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class MergePackageRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class MergePackageResponse(betterproto.Message):
     pass
 
 
@@ -3362,6 +3400,40 @@ class HostStub(betterproto.ServiceStub):
         ):
             yield response
 
+    async def snapshot_package(
+        self,
+        request: "SnapshotPackageRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SnapshotPackageResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Host/SnapshotPackage",
+            request,
+            SnapshotPackageResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def merge_package(
+        self,
+        request: "MergePackageRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "MergePackageResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Host/MergePackage",
+            request,
+            MergePackageResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def upload_files(
         self,
         request: "UploadFilesRequest",
@@ -3912,6 +3984,16 @@ class HostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
+    async def snapshot_package(
+        self, subject: "Subject", request: "SnapshotPackageRequest"
+    ) -> "SnapshotPackageResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def merge_package(
+        self, subject: "Subject", request: "MergePackageRequest"
+    ) -> "MergePackageResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def upload_files(
         self, subject: "Subject", request: "UploadFilesRequest"
     ) -> "UploadFilesResponse":
@@ -4001,6 +4083,21 @@ class HostBase(ServiceBase):
             request,
         )
 
+    async def __rpc_snapshot_package(
+        self,
+        stream: "grpclib.server.Stream[SnapshotPackageRequest, SnapshotPackageResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.snapshot_package(request)
+        await stream.send_message(response)
+
+    async def __rpc_merge_package(
+        self, stream: "grpclib.server.Stream[MergePackageRequest, MergePackageResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.merge_package(request)
+        await stream.send_message(response)
+
     async def __rpc_upload_files(
         self, stream: "grpclib.server.Stream[UploadFilesRequest, UploadFilesResponse]"
     ) -> None:
@@ -4088,6 +4185,18 @@ class HostBase(ServiceBase):
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
+            "/symbolx.bench.Host/SnapshotPackage": grpclib.const.Handler(
+                self.__rpc_snapshot_package,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SnapshotPackageRequest,
+                SnapshotPackageResponse,
+            ),
+            "/symbolx.bench.Host/MergePackage": grpclib.const.Handler(
+                self.__rpc_merge_package,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                MergePackageRequest,
+                MergePackageResponse,
+            ),
             "/symbolx.bench.Host/UploadFiles": grpclib.const.Handler(
                 self.__rpc_upload_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -4146,9 +4255,9 @@ class RuntimeBase(ServiceBase):
         }
 
 
-import bench.proto.monkey  # noqa
-
 from typing import Union  # noqa
+
+import bench.proto.monkey  # noqa
 
 AnyNodeData = Union[
     BenchData,

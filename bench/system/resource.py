@@ -3,23 +3,23 @@ from typing import Optional
 import boto3
 
 from bench.language import (
-    Session,
-    Handle,
-    User,
-    Organization,
     Bench,
-    Tenancy,
-    StoreKind,
-    StoreEngineType,
-    ServerProfile,
+    Handle,
+    Organization,
     Region,
+    ServerProfile,
+    Session,
+    StoreEngineType,
+    StoreKind,
+    Tenancy,
+    User,
 )
 from bench.system.auth import generate_encryption_key
 from bench.utils.utils import get_from_env
 
 
 async def create_default_bench(
-    session: Session, main_handle: Handle, owner: User | Organization, region: Region
+    main_handle: Handle, owner: User | Organization, region: Region, session: Session
 ) -> Bench:
     # create bench
     bench = Bench(
@@ -38,35 +38,34 @@ async def create_default_bench(
         region=bench.region,
         tenancy=Tenancy.SHARED,
         profile=ServerProfile.SMALL,
-        name="Main Server",
+        name="Server",
     )
     store = bench.stores.create(
         region=bench.region,
         tenancy=Tenancy.DEDICATED,
         kind=StoreKind.RELATIONAL,
         engine=StoreEngineType.POSTGRES,
-        name="Main Store",
+        name="Store",
     )
     search = bench.stores.create(
         region=bench.region,
         tenancy=Tenancy.DEDICATED,
         kind=StoreKind.SEARCH,
         engine=StoreEngineType.OPENSEARCH,
-        name="Main Search",
+        name="Search",
     )
-    drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Main Drive")
+    drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
 
     # create main environment/branch/package
     environment = bench.environments.create(
         name="Main", store=store, search=search, drive=drive, server=server
     )
-    branch = bench.branches.create(name="Main")
-    package = bench.packages.create(environment=environment, branch=branch)
+    branch = bench.branches.create(name="Main", slug="main")
+    package = bench.packages.create(environment=environment)
     await session.flush()
     branch.main_package = package
-    bench.main_package = branch.main_package
-    bench.main_branch = branch
     bench.main_environment = environment
+    bench.main_branch = branch
 
     return bench
 

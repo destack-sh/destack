@@ -21,14 +21,15 @@ if TYPE_CHECKING:
         Cache,
         Drive,
         Handle,
+        Icon,
         Organization,
         Policy,
+        Region,
         Server,
         Space,
         Store,
         Text,
         User,
-        Region,
     )
 
 NodeT = Union[Node, "Node"]
@@ -50,22 +51,23 @@ class Bench(Node):
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
+    icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     owner: Union["User", "Organization"] = p_system(
-        35, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
+        36, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
-    encryption_key: str = p_kernel(36, require=True, encrypt=True, defer=True, sensitive=True)
-    policies: list["Policy"] | None = p_regular(37, struct=StructType.POLICY, array=True)
-    region: "Region" = p_regular(38, require=True, array=False)
+    region: "Region" = p_regular(37, require=True, array=False)
+    encryption_key: str = p_kernel(38, require=True, encrypt=True, defer=True, sensitive=True)
+    policies: list["Policy"] | None = p_regular(39, struct=StructType.POLICY, array=True)
 
     # source
-    main_package: Optional["Package"] = p_system(
-        40, require=False, array=False, references=NodeType.PACKAGE
-    )
     main_environment: Optional["Environment"] = p_regular(
-        41, require=False, array=False, references=NodeType.ENVIRONMENT
+        40, require=False, array=False, references=NodeType.ENVIRONMENT
     )
     main_branch: Optional["Branch"] = p_regular(
         42, require=False, array=False, references=NodeType.BRANCH
+    )
+    published_branch: Optional["Branch"] = p_regular(
+        43, require=False, array=False, references=NodeType.BRANCH
     )
     packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
     environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
@@ -80,12 +82,13 @@ class Bench(Node):
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
 class Environment(Node):
-    """An environment isolates resources from the rest of a Bench."""
+    """An environment of resources for a Bench's packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32, validate=validate_name)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
+    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
+    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
     server: "Server" = p_system(40, require=True, array=False, references=NodeType.SERVER)
     store: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
@@ -99,17 +102,24 @@ class Environment(Node):
     )
 
 
-@node(NodeType.BRANCH, identifier=IdentifierType.VARIABLE)
+@node(
+    NodeType.BRANCH,
+    identifier=IdentifierType.VARIABLE,
+    unique_together=(("parent_bench_id", "slug"),),
+)
 class Branch(Node):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: Optional[str] = p_regular(32, validate=validate_name)
+    slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    main_package: Optional["Package"] = p_system(
-        35, require=False, array=False, references=NodeType.PACKAGE
-    )
+    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] | None = p_regular(36, struct=StructType.POLICY, array=True)
+
+    main_package: Optional["Package"] = p_system(
+        40, require=False, array=False, references=NodeType.PACKAGE
+    )
 
 
 @node(
@@ -118,21 +128,19 @@ class Branch(Node):
     unique_together=(("parent_bench_id", "slug"),),
 )
 class Package(Node):
-    """A package is a semi-isolated version of a Bench containing all the source and data."""
+    """A package is a semi-isolated version of a Bench."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    policies: list["Policy"] | None = p_regular(35, struct=StructType.POLICY, array=True)
-    is_partial: bool = p_system(36, default=False)
+    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
+    policies: list["Policy"] | None = p_regular(36, struct=StructType.POLICY, array=True)
     paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
-    base: Optional["Package"] = p_system(
-        38, require=False, array=False, references=NodeType.PACKAGE
-    )
+
     environment: Environment = p_system(
-        39, require=True, array=False, references=NodeType.ENVIRONMENT
+        40, require=True, array=False, references=NodeType.ENVIRONMENT
     )
-    branch: Branch = p_system(40, require=True, array=False, references=NodeType.BRANCH)
+    bases: list["Package"] = p_system(42, require=False, array=True, references=NodeType.PACKAGE)
 
     blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_node_child(NodeType.SPACE)
