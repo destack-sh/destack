@@ -17,6 +17,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from bench.language.const import (
     EMPTY_SCOPE,
     TERMINAL_RUN_STATUSES,
+    AccessKind,
     BenchError,
     EditType,
     InterpStatus,
@@ -25,7 +26,6 @@ from bench.language.const import (
     RunStatus,
     StructType,
     _active_session,
-    AccessKind,
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
@@ -401,14 +401,14 @@ class Transaction:
         self._pending_updates_idx.clear()
 
         # mark nodes as flushed
-        for node in self._pending_nodes_by_ck.values():
-            node._flushed_self()
+        for n in self._pending_nodes_by_ck.values():
+            n._flushed_self()
         self._pending_nodes_by_ck.clear()
 
     async def commit(self):
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
         log = logger.bind(edits=len(self.edits), transaction=self)
-        log.debug("transaction.commit")
+        start = asyncio.get_running_loop().time()
 
         # TODO :Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)
@@ -418,13 +418,13 @@ class Transaction:
             if pending_edits or engine.id in self._connections_by_engine_id:
                 Transaction.canonicalize_edits(now, pending_edits)
                 connection = await self._get_engine_connection(engine)
-                log.debug("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
+                log.trace("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
                 for edit, new_revision in zip(pending_edits, accepted_revisions):
                     edit.revision = new_revision
                 if len(pending_edits) > 0:
                     pending_edits.clear()
-        log.debug("transaction.commit.done")
+        log.debug("transaction.commit", duration=asyncio.get_running_loop().time() - start)
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
@@ -531,7 +531,6 @@ class Session(Node):
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()!r}")
         _active_session.set(self)
-        logger.debug("session.open")
 
         # prepare runtime
         if self.is_runtime:
@@ -559,7 +558,7 @@ class Session(Node):
         self._tx = Transaction(session=self, is_readonly=self.is_readonly)
 
         self.opened_at = utcnow_with_tz()
-        logger.debug("session.open.done")
+        logger.debug("session.open")
 
     @_auto_async_to_sync
     async def flush(self):
@@ -618,7 +617,7 @@ class Session(Node):
     def track_many(self, *nodes: Node):
         """Start tracking the nodes in this session."""
         for n in nodes:
-            if n._session != self:
+            if n._session != self or n._status != InterpStatus.TRACKED:
                 n._track_self(self)
 
     def untrack(self, node: Node):

@@ -17,7 +17,7 @@ from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import FileContent
+    from bench.language import Color, FileContent
 
 logger = structlog.get_logger(__name__)
 

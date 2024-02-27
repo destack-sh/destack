@@ -14,7 +14,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import cachetools
 import psycopg
@@ -39,7 +39,7 @@ from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, N
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, derive_package_node_id
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
 from bench.language.query import StoreEngineIncapableError
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
 from bench.proto import wire, wiring
@@ -557,7 +557,7 @@ def _pg_wrap_error(resource: Any, e: psycopg.errors.Error) -> Exception:
 
 async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list[dict[str, any]]:
     """Executes an arbitrary select without any wrapping."""
-    logger.debug("pg.select_raw", query=sql_to_str(cur, query))
+    logger.trace("pg.select_raw", query=sql_to_str(cur, query))
     await cur.execute(query)
     return await cur.fetchall()
 
@@ -682,7 +682,7 @@ async def pg_select(
         statement += sql.SQL(" LIMIT {}").format(sql.Literal(first))
     if skip:
         statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
-    logger.debug("pg.select", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.select", table=table, query=sql_to_str(cur, statement))
     if any(c.is_encrypted for c in columns):
         params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": current_pg_crypto_key()}
     try:
@@ -704,7 +704,7 @@ async def pg_count(
     )
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.count", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
@@ -728,7 +728,7 @@ async def pg_exists(
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     statement += sql.SQL(")")
-    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
@@ -755,7 +755,7 @@ async def pg_insert(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.insert", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.insert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
@@ -816,7 +816,7 @@ async def pg_upsert(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.upsert", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.upsert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
@@ -855,7 +855,7 @@ async def pg_update_constant(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.update_constant", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.update_constant", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         template_values = {**static_value, "PG_CRYPTO_KEY": current_pg_crypto_key()}
@@ -958,7 +958,7 @@ async def pg_delete(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.delete", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.delete", table=table, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
@@ -1934,52 +1934,6 @@ def encode_pg_cursor(i: int, exclusive: bool = True) -> str:
 @cachetools.cached({})
 def decode_pg_cursor(s: str) -> int:
     return struct.unpack("q", base64.b64decode(s))[0]
-
-
-async def pg_duplicate_records(
-    source_cur: psycopg.AsyncCursor,
-    source_database: Block,
-    target_cur: psycopg.AsyncCursor,
-    target_database: Block,
-    *,
-    keep_cks: bool,
-    where: Expression,
-    copy_revisions: bool,
-    return_nodes: bool = False,
-) -> list[wire.RecordData] | None:
-    """Duplicates records across databases."""
-    source_table = source_database._table
-    target_table = target_database._table
-    if source_database.ephemeral or target_database.ephemeral:
-        raise ValueError(f"cannot duplicate ephemeral: {source_database!r}->{target_database!r}")
-    if not target_table.columns_include(source_table):
-        raise ValueError(f"target {target_table!r} is not a superset of source {source_table!r}")
-    target_package_id = target_database.package.id
-
-    # TODO :Performance: duplicate records within same database directly in postgres
-    where = where & C(
-        ConditionalOp.EQUALS, field_key="block_key", value=source_database.dynamic_key
-    )
-    log = logger.bind(source=source_database, target=target_database, where=where)
-    log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
-    record_rows = await pg_select(
-        cur=source_cur, table=source_table, where=compile_pg_conditional(source_database, where)
-    )
-    if record_rows:
-        for record_row in record_rows:
-            if not keep_cks:
-                record_row["ck"] = uuid4()
-            record_row["id"] = derive_package_node_id(target_package_id, ck=record_row["ck"])
-            record_row["block_key"] = target_database.dynamic_key
-            if not copy_revisions:
-                record_row["revision"] = 0
-        await pg_insert(cur=target_cur, table=target_table, rows=record_rows)
-    log.debug("pg.duplicate_records.done", rows=len(record_rows))
-
-    if return_nodes:
-        return [pg_unpack_record_data_row(target_database, row) for row in record_rows]
-    else:
-        return None
 
 
 if IS_DEBUG or IS_LOCAL or IS_TEST:

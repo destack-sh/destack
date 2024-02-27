@@ -1,6 +1,13 @@
-<script lang="ts" setup>
+<script lang="tsx" setup>
+
+const Window = <div>window</div>;
 
 </script>
 <template>
-  <div></div>
+  <div>
+    <Window/>
+    <Window/>
+    <Window/>
+    
+  </div>
 </template>

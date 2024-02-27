@@ -1,13 +1,11 @@
 <script lang="ts" setup>
-// hey
+import Windowed from '@/views/containers/Windowed.vue';
+import Bar from '@/views/intrinsics/Bar.vue';
+
 </script>
 <template>
-  <div class="w-full bg-stone-200">
-    <!-- Header -->
-    <header class="w-full flex flex-row">
-      Bench OS
-    </header>
-    <!-- Root window group -->
-    <Windowed />
+  <div class="w-full">
+    <Bar />
+    <Windowed/>
   </div>
 </template>

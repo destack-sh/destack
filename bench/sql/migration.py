@@ -739,7 +739,7 @@ async def introspect_tables_from_pg(
     table_prefix: str = "bench_",
 ) -> list[Table]:
     start = asyncio.get_running_loop().time()
-    logger.info(
+    logger.debug(
         "introspect",
         cur=cur,
         include_columns=include_columns,
@@ -976,6 +976,6 @@ WHERE
         tables.append(table)
 
     duration = asyncio.get_running_loop().time() - start
-    logger.info("introspect.done", cur=cur, duration=duration, tables=tables)
+    logger.debug("introspect.done", cur=cur, duration=duration, tables=tables)
 
     return tables

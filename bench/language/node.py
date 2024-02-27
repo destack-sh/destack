@@ -98,6 +98,7 @@ if TYPE_CHECKING:
         Notice,
         NoticeType,
         Package,
+        Path,
         PropertyReference,
         Run,
         Session,
@@ -1606,7 +1607,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         subject: "Node",
         type: "NoticeType",
         message: Optional[str] = None,
-        path: Optional["FieldPath"] = None,
+        path: Optional["Path"] = None,
         properties: Optional[list[Property] | tuple[Property, ...]] = None,
     ) -> None:
         subject.notices.create(

@@ -13,8 +13,8 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import EMPTY_LIST, InterpStatus, NodeType, NRel, ReferenceKind, EditType
-from bench.language.setup import CHILD_NODE_TYPES, STRUCT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.const import EMPTY_LIST, EditType, InterpStatus, NodeType, NRel, ReferenceKind
+from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData
@@ -23,7 +23,7 @@ from bench.utils.func import to_uuid
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Node, Property, Value, Struct, Field, ReadOptions, NodeReference
+    from bench.language import Field, Node, Property, ReadOptions, Struct, Value
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -252,7 +252,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
 class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     """A NodeGraph for NodeData objects (strings for ids, parent_ptr)."""
 
-    def __init__(self, nodes: Collection[NodeDataT] | "NodeDataGraph" = None):
+    def __init__(self, nodes: Collection[NodeDataT] = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
         self.nodes_by_parent_id_and_type: dict[
@@ -261,17 +261,12 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         if isinstance(nodes, Collection):
             for node in nodes:
                 self.add(node)
-        elif isinstance(nodes, NodeDataGraph):
-            self.add_graph(nodes)
         elif nodes is not None:
-            raise ValueError(f"expected list or NodeDataGraph, got {nodes!r}")
+            raise ValueError(f"expected nodes, got {nodes!r}")
 
     @property
     def nodes(self) -> Collection[NodeDataT]:
         return self.nodes_by_id.values()
-
-    def copy(self):
-        return NodeDataGraph(self)
 
     def get(self, node_id_or_ck: str) -> Optional[NodeDataT]:
         """Gets a node by id"""
@@ -596,6 +591,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
             self._parent._session.create(*added)
+            self._parent._session.track_many(*added)
 
         return added
 

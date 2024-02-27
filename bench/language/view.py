@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NodeType, StructType
 from bench.language.node import Node, Struct, node, node_component, struct
@@ -212,6 +212,9 @@ class View(HasViews, HasValues):
     is_loading: bool = p_regular(82, default=False)
     is_input: bool = p_regular(83, default=False)
     is_secret: bool = p_regular(84, default=False)
+
+    def __repr__(self):  # noqa: we want to override the default repr
+        return f"<{self.type.bench_name}View {self}>"
 
 
 @_well_known_enum
