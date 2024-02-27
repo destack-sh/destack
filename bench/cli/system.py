@@ -18,7 +18,7 @@ async def check(check_db: bool = False):
     await _check_is_consistent(check_db=check_db)
 
 
-@app.command(help="Create 'bench' and 'system' Benches (owned by 'system' User)")
+@app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @_async_to_sync_blocking
 async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
     async with global_session() as session:
@@ -41,7 +41,7 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
         await session.commit()
 
 
-@app.command(help="Provision any pending resources for a Bench")
+@app.command(help="provision all (pending) resources for a Bench")
 @_async_to_sync_blocking
 async def provision(bench: str):
     async with global_session() as session:

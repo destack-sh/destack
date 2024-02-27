@@ -195,7 +195,7 @@ class Block(Node, HasValues):
 
     @property
     def _instance_cache_key(self) -> str:
-        return self.type
+        return self.type.name
 
     @property
     def is_type(self) -> bool:

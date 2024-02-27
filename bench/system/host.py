@@ -16,6 +16,7 @@ from bench.language import (
     Branch,
     Cache,
     Drive,
+    Environment,
     Handle,
     Organization,
     Package,
@@ -76,7 +77,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
     async def start_quick(self) -> None:
         async with global_session():
             benches: list[Bench] = await Bench.tolist()
-        await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
+        await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
     def close(self) -> None:
         for host in self._hosts.values():
@@ -127,6 +128,7 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
         GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self._bench: Bench | None = None
+        self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -143,15 +145,22 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
         return self._bench
 
     @property
+    def main_store(self) -> Store:
+        return self.bench.main_environment.store
+
+    @property
     def engines(self) -> tuple[StoreEngine, ...]:
         # TODO :Broken :Performance: use local in memory engines in Host (where possible)
+        #  also provide & use bench-specific store engines
         return (GLOBAL_POSTGRES_ENGINE,)
 
     async def start_quick(self) -> None:
         async with global_session() as session:
             self._bench = (
-                await Bench.descendants(Handle, Server, Store, Cache, Drive, Branch, Package)
-                .include(Store.main_credential)
+                await Bench.descendants(
+                    Handle, Server, Store, Cache, Drive, Environment, Branch, Package
+                )
+                .include_all()
                 .get(id=self.bench_id)
             )
             # provision any missing resources

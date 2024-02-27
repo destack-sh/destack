@@ -81,7 +81,7 @@ def validate_slug(value: str, on_invalid: PropertyValidationHandler):
         on_invalid(f"invalid slug ('{value}')")
 
 
-# TODO :Cleanup :Robustness: compile constraints into SQL
+# TODO :Robustness: compile constraints into SQL
 
 
 # NOTE: we cache these validators not for performance but for reference equality

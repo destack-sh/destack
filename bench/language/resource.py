@@ -93,7 +93,7 @@ class Server(Resource):
         return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
-@struct(StructType.RESOURCE_CREDENTIAL)
+@struct(StructType.RESOURCE_CREDENTIAL, inline=True)
 class ResourceCredential(Struct):
     username: str = p_regular(31, sensitive=True)
     password: str = p_regular(32, sensitive=True)

@@ -44,11 +44,10 @@ def _regen_proto_artifacts(schema_str: str) -> None:
 
     # python
     logger.info("proto.regen.py")
+    # backup existing target
+    # (only needed for Python since we need the source to compile to regenerate to retry)
+    shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
     try:
-        # backup existing target
-        # (only needed for Python since we need the source to compile to regenerate to retry)
-        shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
-
         # generate
         Path(TARGET_PY_FILE).unlink(missing_ok=True)
         Path(TARGET_PY_DIR).mkdir(parents=True, exist_ok=True)
@@ -58,16 +57,16 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
 
         # add/patch our extra stuff
-        betterproto_code = Path(TARGET_PY_FILE).read_text()
+        wire_py = Path(TARGET_PY_FILE).read_text()
         # rename all request parameters to 'request', add subject parameter
-        betterproto_code = re.sub(
+        wire_py = re.sub(
             # * is used only in stub signatures by betterproto (we only want bases here)
             r"self, [a-z_]+_request:(?! \"[a-zA-Z]\", \*)",
             'self, subject: "Subject", request:',
-            betterproto_code,
+            wire_py,
         )
-        betterproto_code = re.sub(r"\w[a-z_]+request,", "request,", betterproto_code)
-        betterproto_code = re.sub(r"\w[a-z_]+request:", "request:", betterproto_code)
+        wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
+        wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
         patch_prefix_code = f"""
 from typing import TYPE_CHECKING
 
@@ -77,6 +76,7 @@ if TYPE_CHECKING:
     from bench.language import Subject
 """
         patch_postfix_code = f"""
+# extra utility types
 import bench.proto.monkey # noqa
 
 from typing import Union # noqa
@@ -84,7 +84,7 @@ AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
         """
         Path(TARGET_PY_FILE).write_text(
-            patch_prefix_code + "\n\n" + betterproto_code + "\n\n" + patch_postfix_code
+            patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
         )
 
         # and fix it up
@@ -105,8 +105,29 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
     Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"npx protoc --ts_out {TARGET_TS_DIR} --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
+        f"bun x protoc --ts_out {TARGET_TS_DIR} --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
     )
+    # patch
+    patch_postfix_code = f"""
+// extra utility types
+export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES)}
+export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+"""
+    lang_ts = Path(TARGET_TS_DIR + "/bench/proto/lang.ts").read_text()
+    Path(TARGET_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    Path(TARGET_TS_DIR + "/index.ts").write_text(
+        """
+// re-export generated wire files
+export * from './bench/proto/common';
+export * from './bench/proto/lang';
+export * from './bench/proto/services';
+export * from './bench/proto/services.client';
+export * from './google/protobuf/descriptor';
+export * from './google/protobuf/struct';
+export * from './google/protobuf/timestamp';
+        """
+    )
+
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
     for path in Path(TARGET_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())

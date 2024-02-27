@@ -200,7 +200,6 @@ class BenchServer(grpclib.server.Server):
         )
         self._host: str | None = None
         self._port: int | None = None
-        self._logger = structlog.get_logger(self.__class__.__name__)
 
     def __str__(self):
         return f"services={self._custom_handlers}, host={self._host}, port={self._port}"
@@ -212,13 +211,13 @@ class BenchServer(grpclib.server.Server):
     async def start(self, host: str = None, port: int = None, **kwargs) -> None:
         self._host = host
         self._port = port
-        self._logger.info("server.start", server=self)
+        logger.info("server.start", server=self)
         await asyncio.gather(*(h.start_quick() for h in self._custom_handlers))
         await super().start(host=host, port=port, **kwargs)
-        self._logger.info("server.start.done", server=self)
+        logger.info("server.ready", server=self)
 
     def close(self) -> None:
-        self._logger.info("server.close", server=self)
+        logger.info("server.close", server=self)
         for task in self._custom_handlers:
             task.close()
         super().close()
@@ -227,4 +226,4 @@ class BenchServer(grpclib.server.Server):
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._custom_handlers))
-        self._logger.info("server.closed", server=self)
+        logger.info("server.closed", server=self)
