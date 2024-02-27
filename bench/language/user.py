@@ -21,13 +21,22 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import validate_name, SLUG_REGEX, validate_slug
+from bench.language.validation import SLUG_REGEX, validate_name, validate_slug
 from bench.language.value import HasValues
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Package, Role, Server, Space, Text, Icon
+    from bench.language import (
+        Bench,
+        Block,
+        Icon,
+        Package,
+        Role,
+        Server,
+        Space,
+        Text,
+    )
 
 
 @node(
@@ -89,9 +98,6 @@ class User(Node):
 
     # flags
     is_staff: bool = p_system(90, default=False)
-
-    def __content_str__(self) -> str:
-        return self.status.bench_name
 
     @property
     def bench(self) -> "Bench":

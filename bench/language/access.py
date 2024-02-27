@@ -64,20 +64,22 @@ if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Organization, Package
 
 # default (read) access options
-DEFAULT_GLOBAL_FILTER: Expression = C(ConditionalOp.AND, clauses=[])
-DEFAULT_SELECTED_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
+FILTER_DEFAULT: Expression = C(ConditionalOp.AND, clauses=[])
+SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
+SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
 def _populate_default_access():
-    DEFAULT_GLOBAL_FILTER.clauses = [
+    FILTER_DEFAULT.clauses = [
         C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
         C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
     ]
     for node_t in NODE_CLASSES:
-        DEFAULT_SELECTED_PROPERTIES[node_t.metatype] = tuple(
+        SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
             prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
         )
+        SELECT_ALL_PROPERTIES[node_t.metatype] = tuple(node_t.__stored_properties__.values())
 
 
 # the node types that can have 'policies' applied to them
@@ -188,14 +190,10 @@ class ReadOptions(Struct):
     select_properties: list[Property] = p_regular(
         42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
+    select_all_properties: bool = p_regular(43, default=False)
 
     # filters (simplified for now)
     include_hidden: bool = p_regular(50, default=False)
-
-    # cache
-    _read_types: bytetuple[ReadType] | None = p_runtime(default=None)
-    _read_properties_by_type: dict[NodeType, bitarray] | None = p_runtime(default=None)
-    _read_filter_by_type: dict[NodeType, "Expression"] | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         content_parts = []
@@ -215,6 +213,8 @@ class ReadOptions(Struct):
             related_properties=list(self.related_properties),
             include_properties=list(self.include_properties),
             exclude_properties=list(self.exclude_properties),
+            select_properties=list(self.select_properties),
+            select_all_properties=self.select_all_properties,
             include_hidden=self.include_hidden,
         )
 
@@ -222,12 +222,14 @@ class ReadOptions(Struct):
         return tuple(p for p in self.related_properties if p.type == node_type)
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        if self.select_properties:
+        if self.select_all_properties:
+            return SELECT_ALL_PROPERTIES[node_type]
+        elif self.select_properties:
             # select specific properties
             return tuple(p for p in self.select_properties if p.type == node_type)
         else:
             # select default properties +/- include/exclude
-            properties = DEFAULT_SELECTED_PROPERTIES.get(node_type, ())
+            properties = SELECT_DEFAULT_PROPERTIES[node_type]
             if self.include_properties:
                 properties = properties + tuple(
                     p for p in self.include_properties if p.type == node_type
@@ -241,7 +243,7 @@ class ReadOptions(Struct):
     def filter(
         self, node_type: NodeType, custom_filter: Optional["Expression"] = None
     ) -> "Expression":
-        filter = C(ConditionalOp.TRUE) if self.include_hidden else DEFAULT_GLOBAL_FILTER
+        filter = C(ConditionalOp.TRUE) if self.include_hidden else FILTER_DEFAULT
         if custom_filter is not None:
             filter &= custom_filter
         return filter
@@ -254,7 +256,7 @@ class ReadOptions(Struct):
     @staticmethod
     def all():
         """Read all: include everything, select all properties."""
-        return ReadOptions(include_hidden=True, include_properties=())
+        return ReadOptions(include_hidden=True, select_all_properties=True)
 
 
 @struct(StructType.POLICY)

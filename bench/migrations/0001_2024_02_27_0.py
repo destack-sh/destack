@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.02.26. Edit as needed.
+# This migration was automatically generated on 2024.02.27. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.02.26.2"
+VERSION = "2024.02.27.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 

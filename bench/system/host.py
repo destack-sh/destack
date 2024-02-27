@@ -13,20 +13,21 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import (
     Bench,
-    Organization,
-    Package,
-    User,
-    Handle,
-    Server,
-    Store,
+    Branch,
     Cache,
     Drive,
-    Branch,
+    Handle,
+    Organization,
+    Package,
+    Server,
+    Store,
+    User,
 )
 from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import filter_edits
+from bench.language.query import StoreEngine
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     DownloadFilesRequest,
@@ -40,9 +41,9 @@ from bench.proto.wire import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
+from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoService
 from bench.system.resource import get_s3_client, provision_pending_resources
-from bench.system.client import global_session
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger("package_host")
@@ -115,7 +116,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
         return _multiplexed_rpc
 
 
-class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
+class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
     """
     Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management)..
     Clients interact with a Bench exclusively through its Host.
@@ -127,24 +128,32 @@ class Host(BenchServiceBase[HostStub], HostBase, GraphIoService):
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._owner: User | Organization | None = None
+        self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name} {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"bench not loaded in {self}"
         return self._bench
 
+    @property
+    def engines(self) -> tuple[StoreEngine, ...]:
+        # TODO :Broken :Performance: use local in memory engines in Host (where possible)
+        return (GLOBAL_POSTGRES_ENGINE,)
+
     async def start_quick(self) -> None:
         async with global_session() as session:
-            self._bench = await Bench.descendants(
-                Handle, Server, Store, Cache, Drive, Branch, Package
-            ).get(id=self.bench_id)
+            self._bench = (
+                await Bench.descendants(Handle, Server, Store, Cache, Drive, Branch, Package)
+                .include(Store.main_credential)
+                .get(id=self.bench_id)
+            )
             # provision any missing resources
             await provision_pending_resources(self._bench, session)
             await session.commit()

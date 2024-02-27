@@ -46,10 +46,7 @@ from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
-from bench.sql.client import (
-    current_pg_crypto_key,
-    pg_cursor_to_store,
-)
+from bench.sql.client import current_pg_crypto_key, pg_cursor_to_store
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
@@ -465,15 +462,15 @@ def compile_pg_conditional(
     raise StoreEngineIncapableError(StoreEngineType.POSTGRES, cond, "unsupported conditional")
 
 
-def compile_pg_sort(database: Block, sort: Expression) -> SqlNode:
-    field_ref = _compile_expression_ref(database, sort)
+def compile_pg_sort(node: Union[type[Node], Block], sort: Expression) -> SqlNode:
+    field_ref = _compile_expression_ref(node, sort)
     return sql.SQL("{} {}").format(
         sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
     )
 
 
-def compile_pg_sorts(database: Block, sorts: Collection[Expression]) -> SqlNode:
-    return sql.SQL(", ").join(compile_pg_sort(database, sort) for sort in sorts)
+def compile_pg_sorts(node: Union[type[Node], Block], sorts: Collection[Expression]) -> SqlNode:
+    return sql.SQL(", ").join(compile_pg_sort(node, sort) for sort in sorts)
 
 
 @dataclass(frozen=True)
@@ -1011,8 +1008,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         proto_cls = PROTO_CLASS_BY_TYPE[prop.reference_struct]
-        value = wiring.unpack_json_value(value)
-        return proto_cls().from_robust_dict(value, prop.reference_struct)
+        return proto_cls().from_robust_dict(value)
     elif prop.is_enum:
         return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
     elif prop.primitive_type == PrimitiveType.DATETIME:

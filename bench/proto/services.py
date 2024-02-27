@@ -82,8 +82,8 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        if self._needs_loopback_stub:
-            await self.loopback.channel.__aexit__(None, None, None)
+        if self._loopback_stub is not None:
+            await self._loopback_stub.channel.__aexit__(None, None, None)
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses

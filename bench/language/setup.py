@@ -2,7 +2,7 @@ import enum
 import functools
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Callable, Union, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar, Union
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -113,8 +113,7 @@ def _complete_bench_setup():
             # set introspectable properties as <cls>.<property>
             if prop.is_introspectable:
                 setattr(cls, name, prop)
-                # cache the introspected type info
-                prop._as_type  # noqa
+                prop._as_type  # noqa: cache introspected type info
 
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:

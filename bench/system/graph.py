@@ -2,14 +2,7 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    AsyncContextManager,
-    AsyncIterator,
-    Mapping,
-    NamedTuple,
-    final,
-)
+from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, final
 from uuid import UUID
 
 import betterproto
@@ -26,17 +19,11 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.const import (
-    ConditionalOp,
-    NodeType,
-    PolicyEffect,
-    AccessKind,
-    EditType,
-)
+from bench.language.const import AccessKind, ConditionalOp, EditType, NodeType, PolicyEffect
 from bench.language.graph import NodeDataGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
-from bench.language.validation import on_invalid_raise, ValidationError
+from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -55,11 +42,11 @@ from bench.proto.wire import (
     GetNodesResponse,
     GraphIoBase,
     GraphScope,
+    NodeReferenceData,
     SearchNodesRequest,
     SearchNodesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    NodeReferenceData,
 )
 from bench.utils.func import bytetuple, group_by, to_uuid
 
@@ -262,7 +249,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 edits=request.edits,
                 update_nodes_in_place=False,
             )
-            nodes = wiring.unpack_nodes_inline(data_graph)
+            nodes = wiring.unpack_nodes_graph(data_graph)
             for node in nodes:
                 node._validate_self(properties=(), on_invalid=on_invalid_raise)
 

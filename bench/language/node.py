@@ -53,8 +53,8 @@ from bench.language.graph import (
     NodeGraph,
     NodeList,
     ValueList,
-    edit_graph,
     edit_data_graph,
+    edit_graph,
 )
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
@@ -82,7 +82,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, SomeNodeData, EditData
+from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
@@ -104,9 +104,8 @@ if TYPE_CHECKING:
         User,
         Value,
         ValueReference,
-        ReadOptions,
     )
-    from bench.language.expression import _NodeExpressionBase
+    from bench.language.expression import _NodeQueryBuilder
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -940,9 +939,7 @@ class Struct(abc.ABC):
         return True
 
     def __eq__(self, other):
-        if other is None or self.metatype != other.metatype:
-            return False
-        return self.id == other.id
+        return other is not None and self.metatype == other.metatype and self.id == other.id
 
     def __setattr__(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
@@ -1124,6 +1121,8 @@ class Struct(abc.ABC):
     def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
+        # TODO :Broken: turn all node references into computer properties (against graph)
+        # (using parent, so parent is still a proper reference?)
         # resolve node references
         for prop in self.__node_reference_properties__.values():
             if prop.is_wired or prop.is_stored or prop.reference_kind != ReferenceKind.NODE_REGULAR:
@@ -1139,13 +1138,13 @@ class Struct(abc.ABC):
                     if resolved is None:
                         on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
                     resolved.append(resolved)
-                setattr(self, prop.name, resolved)
+                self.__dict__[prop.name] = resolved
             else:
                 ptr = cast("NodeReference", ptr)
                 resolved = scope._root_graph.get(ptr.id or ptr.ck)
                 if resolved is None:
                     on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
-                setattr(self, prop.name, resolved)
+                self.__dict__[prop.name] = resolved
         # resolve property references
         for prop in self.__property_reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
@@ -1277,7 +1276,7 @@ def _make_rec_method(
 
 
 @node_component
-class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
+class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
     A node in the Bench graph: it's a struct with a globally unique identity.
     Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
@@ -1358,7 +1357,6 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
     # the node graph is maintained at the highest root node
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
     _data_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
-    _read_options: Optional["ReadOptions"] = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
@@ -1560,8 +1558,8 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
         return NodeReference.from_node(self)
 
-    def __eq__(self, other: "Node"):
-        return self.metatype == other.metatype and self.id == other.id and self.ck == other.ck
+    def __eq__(self, other: Optional["Node"]):
+        return other is not None and self.metatype == other.metatype and self.id == other.id
 
     def __hash__(self):
         return hash(self.id)
@@ -1728,9 +1726,9 @@ class Node(Struct, _NodeExpressionBase if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_node_expression_base():
-    from bench.language.expression import _NodeExpressionBase
+    from bench.language.expression import _NodeQueryBuilder
 
-    for name, attr in _NodeExpressionBase.__dict__.items():
+    for name, attr in _NodeQueryBuilder.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Node, name, attr)
 

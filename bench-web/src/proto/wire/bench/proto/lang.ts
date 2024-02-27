@@ -942,6 +942,10 @@ export interface ReadOptionsData {
      */
     selectPropertiesPtr: PropertyReferenceData[];
     /**
+     * @generated from protobuf field: bool select_all_properties = 43;
+     */
+    selectAllProperties: boolean;
+    /**
      * @generated from protobuf field: bool include_hidden = 50;
      */
     includeHidden: boolean;
@@ -3067,7 +3071,7 @@ export interface BaseNodeData {
     updatedByPtr?: NodeReferenceData;
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -4307,7 +4311,7 @@ export interface StoreData {
     mainCredential?: ResourceCredentialData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _read_options: Optional[ForwardRef('ReadOptions')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -6736,13 +6740,9 @@ export enum Region {
      */
     GLOBAL = 1,
     /**
-     * @generated from protobuf enum value: REGION_EU_CENTRAL = 100;
+     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 100;
      */
-    EU_CENTRAL = 100,
-    /**
-     * @generated from protobuf enum value: REGION_US_WEST = 200;
-     */
-    US_WEST = 200
+    EUROPE_CENTRAL = 100
 }
 /**
  * Generalized status of a Resource in its lifecycle.
@@ -9579,6 +9579,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 40, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 41, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 42, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 43, name: "select_all_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 50, name: "include_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -9592,6 +9593,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         message.includePropertiesPtr = [];
         message.excludePropertiesPtr = [];
         message.selectPropertiesPtr = [];
+        message.selectAllProperties = false;
         message.includeHidden = false;
         if (value !== undefined)
             reflectionMergePartial<ReadOptionsData>(this, message, value);
@@ -9642,6 +9644,9 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 42:
                     message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* bool select_all_properties */ 43:
+                    message.selectAllProperties = reader.bool();
                     break;
                 case /* bool include_hidden */ 50:
                     message.includeHidden = reader.bool();
@@ -9699,6 +9704,9 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42; */
         for (let i = 0; i < message.selectPropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* bool select_all_properties = 43; */
+        if (message.selectAllProperties !== false)
+            writer.tag(43, WireType.Varint).bool(message.selectAllProperties);
         /* bool include_hidden = 50; */
         if (message.includeHidden !== false)
             writer.tag(50, WireType.Varint).bool(message.includeHidden);

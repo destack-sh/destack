@@ -6,7 +6,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Badge, Client, Server, User
+from bench.language import Badge, Bench, Client, Server, User
 from bench.language.access import Subject
 from bench.language.const import NodeType
 from bench.language.query import NodeNotFoundError
@@ -125,15 +125,19 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
         if client is None:
             return Subject(is_authenticated=False, badge=badge)
         elif client.parent_type == NodeType.USER:
-            # TODO :Broken: fetch subject memberships/owned/roles
+            # TODO :Broken: fetch all subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
+            owned = [client.user]
+            if client.user.main_bench_ptr:  # (we cheat a little and get only the main Bench)
+                main_bench = await Bench.get(id=client.user.main_bench_ptr.id)
+                owned.append(main_bench)
             return Subject(
                 is_authenticated=True,
                 is_staff=client.user.is_staff,
                 client=client,
                 user=client.user,
                 badge=badge,
-                owned=[client.user],
+                owned=owned,
             )
         else:
             raise ValueError(f"unexpected client: {client!r}")

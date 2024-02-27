@@ -27,7 +27,7 @@ from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bench.language import Node, NodeReference, PropertyReference, Struct, TypeInfo
-    from bench.language.expression import _TypeExpressionBase
+    from bench.language.expression import _TypeQueryBuilder
 
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
@@ -41,7 +41,7 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 
 
 @dataclass(eq=False, slots=True)
-class Property(_TypeExpressionBase if TYPE_CHECKING else object):
+class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     """A system-defined attribute of a node or struct."""
 
     # basics
@@ -119,6 +119,10 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             non_default.append(str(self.id))
         if self.reference_kind:
             non_default.append(self.reference_kind.bench_name)
+            if self.reference_nodes:
+                non_default.append("|".join(t.bench_name for t in self.reference_nodes))
+            elif self.reference_struct:
+                non_default.append(self.reference_struct.bench_name)
         elif self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
         for k in (
@@ -176,8 +180,12 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             from bench.language.field import TypeInfo
 
             if self.reference_kind:
+                # don't have unions yet, doesn't matter
+                bench_type = (
+                    self.reference_nodes[0] if self.reference_nodes else self.reference_struct
+                )
                 self._cached_as_type = TypeInfo(
-                    bench_type=self.reference_nodes[0],  # don't have unions yet, doesn't matter
+                    bench_type=bench_type,
                     is_list=self.is_list,
                     is_required=self.is_required,
                 )
@@ -241,7 +249,7 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
             # exclude our own runtime-only properties
             not self.is_ephemeral
             # exclude empty references type, TypeInfo can't handle that yet
-            and (not self.reference_kind or self.reference_nodes)
+            and (not self.reference_kind or self.reference_nodes or self.reference_struct)
             # exclude ancestor properties (they're computed but would be nice to have :c)
             and self.reference_kind
             not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
@@ -608,9 +616,9 @@ class Property(_TypeExpressionBase if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_expression_base():
-    from bench.language.expression import _TypeExpressionBase
+    from bench.language.expression import _TypeQueryBuilder
 
-    for name, attr in _TypeExpressionBase.__dict__.items():
+    for name, attr in _TypeQueryBuilder.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 
