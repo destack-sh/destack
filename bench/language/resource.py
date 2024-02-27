@@ -25,9 +25,9 @@ class Region(IdEnum):
 
     GLOBAL = 1
     # europe
-    EU_CENTRAL = 100
+    EUROPE_CENTRAL = 100
     # americas
-    US_WEST = 200
+    ...
 
 
 @_well_known_enum

@@ -169,10 +169,10 @@ async def migrate(
     if bench is not None:
         async with global_session():
             if bench != "*":
-                bench = await Bench.descendants(Environment, Store).get(slug=bench)
+                bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
                 stores = tuple(e.store for e in bench.environments)
             else:
-                benches = await Bench.tolist()
+                benches = await Bench.include_all().tolist()
                 stores = tuple(e.store for b in benches for e in b.environments)
     else:
         stores = (GLOBAL_STORE,)
@@ -229,6 +229,7 @@ async def introspect(bench: str = None):
             tables = await introspect_tables_from_pg(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )
+            await cur.connection.rollback()
 
     # generate schema
     chunks: list[str] = []

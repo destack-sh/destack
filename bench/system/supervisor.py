@@ -15,6 +15,7 @@ from bench.proto.wire import (
     ChangeUserPasswordResponse,
     CreateBenchRequest,
     CreateBenchResponse,
+    GraphScope,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
@@ -23,12 +24,11 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
     SupervisorStub,
-    GraphScope,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
+from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoService
 from bench.system.resource import create_default_bench
-from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
 
@@ -248,4 +248,4 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
-        return CreateBenchResponse()
+        return CreateBenchResponse(bench=bench._to_data())

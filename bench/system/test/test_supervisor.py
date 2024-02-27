@@ -2,8 +2,8 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from grpclib import Status as GRPCStatus
 import pytest
+from grpclib import Status as GRPCStatus
 
 from bench.conftest import raises_grpc_error
 from bench.language import Client, ReadOptions, User
@@ -24,7 +24,6 @@ from bench.proto.wire import (
     SearchNodesRequest,
     SignupUserRequest,
     SupervisorStub,
-    CreateBenchRequest,
 )
 from bench.system.test.conftest import UserHandle, make_new_user_handle
 from bench.utils.dt import utcnow_with_tz
@@ -240,14 +239,3 @@ async def test_root_node_create_denied(
             _ = await supervisor.commit_transaction(
                 commit_req, metadata=some_user.metadata.to_headers()
             )
-
-
-async def test_user_create_bench(some_user: UserHandle, supervisor: SupervisorStub):
-    """Activate a User by creating their main Bench."""
-    create_bench_req = CreateBenchRequest(
-        owner=some_user.user.to_ref()._to_data(),
-        slug=some_user.user.slug,
-        is_main=True,
-        region=wire.Region.EU_CENTRAL,
-    )
-    await supervisor.create_bench(create_bench_req, metadata=some_user.headers)

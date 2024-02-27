@@ -13,7 +13,7 @@ from bench.language import Property
 from bench.language.const import BenchType, NodeType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, Struct
-from bench.language.notice import NoticeHandler, on_warning_raise, on_notice_ignore
+from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
 from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
@@ -232,9 +232,7 @@ def unpack_node(
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
 
-def pack_node_inline(
-    root: Node, exclude: set[NodeType] = None
-) -> tuple[NodeDataT, list[NodeDataT]]:
+def pack_node_graph(root: Node, exclude: set[NodeType] = None) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its inline descendants"""
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
@@ -249,7 +247,7 @@ def pack_node_inline(
     return packed_by_id[root.id], list(packed_by_id.values())
 
 
-def unpack_nodes_inline(
+def unpack_nodes_graph(
     data_graph: NodeDataGraph,
     parent: Node | None = None,
     session: Session | None = None,

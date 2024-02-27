@@ -22,7 +22,7 @@ from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, TypeInfo, Path
+    from bench.language import Block, Field, Path, TypeInfo
     from bench.language.query import QueryBuilder
 
 #
@@ -516,7 +516,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self: "_TypeExpressionBase", *args, **kwargs):
+        def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
             _check_field_supports(self._as_type, op)
             return func(self, *args, **kwargs)
 
@@ -539,9 +539,9 @@ def _to_sort(op: SortOp, target: Union["Field", "Property"]):
         return S(op, field=target, property=None)
 
 
-class _TypeExpressionBase:
+class _TypeQueryBuilder:
     """
-    Base for field-like expressions on a field-like class.
+    Base for field-like  on a field-like class.
     We define this here to use it for Property and Field.
     """
 
@@ -671,7 +671,7 @@ class _TypeExpressionBase:
     ...
 
 
-class _NodeExpressionBase:
+class _NodeQueryBuilder:
     """Basically Query but for the Node class. :ReadQueryBase"""
 
     #
@@ -705,6 +705,10 @@ class _NodeExpressionBase:
         cls: type["Node"], *properties: FieldOrProperty
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().include(*properties)
+
+    @classmethod
+    def include_all(cls: type["Node"]) -> "QueryBuilder[NodeT, NodeDataT]":
+        return cls.query().include_all()
 
     @classmethod
     def exclude(

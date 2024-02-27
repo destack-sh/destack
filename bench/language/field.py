@@ -13,7 +13,7 @@ from bench.language.const import (
     StructType,
     new_dynamic_node_key,
 )
-from bench.language.expression import _TypeExpressionBase
+from bench.language.expression import _TypeQueryBuilder
 from bench.language.node import Node, NodeList, node, struct, struct_component
 from bench.language.property import (
     Property,
@@ -200,7 +200,7 @@ class TypeInfo(TypeInfoBase):
 
 
 @node(NodeType.FIELD)
-class Field(Node, TypeInfoBase, _TypeExpressionBase):
+class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     """A used-defined attribute of some value."""
 
     parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
@@ -258,7 +258,7 @@ class Field(Node, TypeInfoBase, _TypeExpressionBase):
             self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
 
     def __eq__(self, other):
-        return _TypeExpressionBase.__eq__(self, other)  # override to avoid recursion
+        return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
 
     @property
     def identifier_type(self):

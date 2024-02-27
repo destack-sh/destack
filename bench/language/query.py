@@ -29,7 +29,7 @@ from bench.language.const import (
     StructType,
     active_tx,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph
+from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
 from bench.language.property import p_node_parent, p_regular
 from bench.proto.wire import (
@@ -153,6 +153,10 @@ class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
 
     def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
+        raise NotImplementedError
+
+    def include_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Includes all (non-relational) properties in the results."""
         raise NotImplementedError
 
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -330,6 +334,12 @@ class QueryBuilder(
         copy._options.include_properties.extend(properties)
         return copy
 
+    def include_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        copy = self.copy()
+        copy._options = self._copy_options()
+        copy._options.select_all_properties = True
+        return copy
+
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
@@ -400,7 +410,7 @@ class QueryBuilder(
 
     @_auto_async_to_sync
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
-        from bench.proto.wiring import unpack_nodes_inline
+        from bench.proto.wiring import unpack_nodes_graph
 
         tx = active_tx()
         connection = await tx.connect_store(
@@ -408,7 +418,7 @@ class QueryBuilder(
         )
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
-        roots = unpack_nodes_inline(
+        roots = unpack_nodes_graph(
             data_graph, parent=self._base, session=tx.session, roots=result.roots
         )
         return roots
@@ -631,25 +641,6 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         return response.revisions
 
 
-class InMemoryGraphEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
-    type = StoreEngineType.INMEMORY
-
-    def __init__(
-        self,
-        store: "Store",
-        scope: GraphScope,
-        node_types: bytetuple[NodeType],
-        node_graph: Optional[NodeGraph],
-        data_graph: NodeDataGraph,
-    ):
-        super().__init__(store, scope, node_types)
-        self.node_graph = node_graph
-        self.data_graph = data_graph
-
-    def __str__(self):
-        return f"node_graph={self.node_graph!r}, data_graph={self.data_graph!r}, store={self.store}"
-
-
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     type = StoreEngineType.POSTGRES
 
@@ -746,7 +737,3 @@ class PostgresConnection(
 
     async def cancel(self) -> None:
         await self.cur.connection.rollback()
-
-
-class OpensearchStoreEngine(StoreEngine):
-    type = StoreEngineType.OPENSEARCH

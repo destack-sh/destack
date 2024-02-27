@@ -79,6 +79,7 @@ message CreateBenchRequest {
   bool is_main = 4;
 }
 message CreateBenchResponse {
+  BenchData bench = 1;
 }
 
 message GetNodesRequest {
