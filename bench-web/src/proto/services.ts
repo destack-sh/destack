@@ -6,4 +6,4 @@ const supervisorTransport = new GrpcWebFetchTransport({
   baseUrl: SUPERVISOR_URL,
   fetchInit: { credentials: "include" },
 });
-const supervisor = new SupervisorClient(supervisorTransport);
+export const supervisor = new SupervisorClient(supervisorTransport);
