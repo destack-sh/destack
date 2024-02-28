@@ -9,14 +9,14 @@ aiohttp==3.8.5
 aiosignal==1.3.1
     # via aiohttp
 aiostream==0.4.5
-anyio==3.7.1
+anyio==4.3.0
     # via starlette
 asgiref==3.7.2
 async-timeout==4.0.3
     # via
     #   aiohttp
     #   redis
-attrs==23.1.0
+attrs==23.2.0
     # via aiohttp
 backoff==2.2.1
     # via posthog
@@ -29,11 +29,11 @@ botocore==1.29.125
     # via
     #   boto3
     #   s3transfer
-build==1.0.0
+build==1.0.3
     # via pip-tools
 cachetools==5.2.0
     # via google-auth
-certifi==2023.7.22
+certifi==2024.2.2
     # via
     #   kubernetes
     #   kubernetes-asyncio
@@ -42,25 +42,28 @@ certifi==2023.7.22
     #   sentry-sdk
 cfgv==3.4.0
     # via pre-commit
-charset-normalizer==3.2.0
+charset-normalizer==3.3.2
     # via
     #   aiohttp
     #   requests
 click==8.1.7
     # via
     #   black
+    #   magika
     #   pip-tools
     #   typer
     #   uvicorn
 colorama==0.4.6
     # via typer
+coloredlogs==15.0.1
+    # via onnxruntime
 contourpy==1.2.0
     # via matplotlib
 croniter==1.4.1
 cycler==0.12.1
     # via matplotlib
 deepgram-sdk==2.11.0
-distlib==0.3.7
+distlib==0.3.8
     # via virtualenv
 execnet==2.0.2
     # via pytest-xdist
@@ -70,33 +73,37 @@ filelock==3.13.1
     #   virtualenv
 flake8==6.1.0
 flake8-import-order==0.18.1
-fonttools==4.48.1
+flatbuffers==23.5.26
+    # via onnxruntime
+fonttools==4.49.0
     # via matplotlib
-frozenlist==1.4.0
+frozenlist==1.4.1
     # via
     #   aiohttp
     #   aiosignal
-fsspec==2023.12.0
+fsspec==2024.2.0
     # via huggingface-hub
-google-auth==2.22.0
+google-auth==2.28.1
     # via kubernetes
 googleapis-common-protos==1.62.0
-grpclib==0.4.5
+grpclib==0.4.7
     # via betterproto
 h11==0.14.0
     # via uvicorn
 h2==4.1.0
     # via grpclib
-hiredis==2.2.3
+hiredis==2.3.2
     # via redis
 hpack==4.0.0
     # via h2
 huggingface-hub==0.19.4
+humanfriendly==10.0
+    # via coloredlogs
 hyperframe==6.0.1
     # via h2
-identify==2.5.27
+identify==2.5.35
     # via pre-commit
-idna==3.4
+idna==3.6
     # via
     #   anyio
     #   requests
@@ -105,22 +112,23 @@ iniconfig==2.0.0
     # via pytest
 isort==5.12.0
     # via betterproto
-jinja2==3.1.2
+jinja2==3.1.3
     # via betterproto
 jmespath==1.0.1
     # via
     #   boto3
     #   botocore
 json-stream==2.2.1
-json-stream-rs-tokenizer==0.4.22
+json-stream-rs-tokenizer==0.4.26
     # via json-stream
 kiwisolver==1.4.5
     # via matplotlib
 kubernetes==27.2.0
 kubernetes-asyncio==24.2.3
+magika==0.5.0
 markdown-it-py==3.0.0
     # via rich
-markupsafe==2.1.3
+markupsafe==2.1.5
     # via jinja2
 matplotlib==3.8.2
 mccabe==0.7.0
@@ -130,7 +138,9 @@ mdurl==0.1.2
 monotonic==1.6
     # via posthog
 more-itertools==9.0.0
-multidict==6.0.4
+mpmath==1.3.0
+    # via sympy
+multidict==6.0.5
     # via
     #   aiohttp
     #   grpclib
@@ -142,53 +152,60 @@ nodeenv==1.8.0
     # via
     #   pre-commit
     #   pyright
-numpy==1.25.2
+numpy==1.26.4
     # via
     #   contourpy
+    #   magika
     #   matplotlib
+    #   onnxruntime
 oauthlib==3.2.2
     # via
     #   kubernetes
     #   requests-oauthlib
+onnxruntime==1.17.1
+    # via magika
 openai==0.28.1
 opensearch-py==2.3.1
-packaging==23.1
+packaging==23.2
     # via
     #   black
     #   build
     #   huggingface-hub
     #   matplotlib
+    #   onnxruntime
     #   pytest
-pathspec==0.11.2
+pathspec==0.12.1
     # via black
 pillow==9.4.0
     # via matplotlib
 pip==24.0
     # via pip-tools
 pip-tools==7.3.0
-platformdirs==3.10.0
+platformdirs==4.2.0
     # via
     #   black
     #   virtualenv
-pluggy==1.3.0
+pluggy==1.4.0
     # via pytest
 posthog==3.0.2
 pre-commit==3.3.3
 protobuf==4.24.3
-    # via googleapis-common-protos
+    # via
+    #   googleapis-common-protos
+    #   onnxruntime
 psycopg==3.1.12
 psycopg-binary==3.1.12
     # via psycopg
-psycopg-pool==3.2.0
+psycopg-pool==3.2.1
     # via psycopg
 py-spy==0.3.14
-pyasn1==0.5.0
+pyasn1==0.5.1
     # via
     #   pyasn1-modules
     #   rsa
 pyasn1-modules==0.3.0
     # via google-auth
-pycodestyle==2.11.0
+pycodestyle==2.11.1
     # via
     #   flake8
     #   flake8-import-order
@@ -218,7 +235,8 @@ python-dateutil==2.8.2
     #   matplotlib
     #   opensearch-py
     #   posthog
-python-dotenv==0.21.0
+python-dotenv==1.0.1
+    # via magika
 pytz==2022.1
 pyyaml==6.0.1
     # via
@@ -245,7 +263,7 @@ ruff==0.0.284
 s3transfer==0.6.2
     # via boto3
 sentry-sdk==1.31.0
-setuptools==69.1.0
+setuptools==69.1.1
     # via
     #   flake8-import-order
     #   kubernetes-asyncio
@@ -255,52 +273,55 @@ shellingham==1.5.4
     # via typer
 six==1.16.0
     # via
-    #   google-auth
     #   kubernetes
     #   kubernetes-asyncio
     #   opensearch-py
     #   posthog
     #   python-dateutil
-sniffio==1.3.0
+sniffio==1.3.1
     # via anyio
 sqlparse==0.4.4
 starlette==0.34.0
 structlog==23.1.0
-tqdm==4.66.1
+sympy==1.12
+    # via onnxruntime
+tabulate==0.9.0
+    # via magika
+tqdm==4.66.2
     # via
     #   huggingface-hub
+    #   magika
     #   openai
 typer==0.9.0
-types-docutils==0.20.0.3
+types-docutils==0.20.0.20240227
     # via types-pygments
 types-pygments==2.13.1.1
-types-setuptools==68.1.0.1
+types-setuptools==69.1.0.20240223
     # via types-pygments
-typing-extensions==4.7.1
+typing-extensions==4.10.0
     # via
     #   betterproto
     #   huggingface-hub
     #   psycopg
     #   psycopg-pool
     #   typer
-urllib3==1.26.16
+urllib3==1.26.18
     # via
     #   botocore
-    #   google-auth
     #   kubernetes
     #   kubernetes-asyncio
     #   opensearch-py
     #   requests
     #   sentry-sdk
 uvicorn==0.23.2
-virtualenv==20.24.4
+virtualenv==20.25.1
     # via pre-commit
 watchdog==3.0.0
-websocket-client==1.6.2
+websocket-client==1.7.0
     # via kubernetes
 websockets==12.0
     # via deepgram-sdk
-wheel==0.41.2
+wheel==0.42.0
     # via pip-tools
-yarl==1.9.2
+yarl==1.9.4
     # via aiohttp
