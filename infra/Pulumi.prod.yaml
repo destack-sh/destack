@@ -23,7 +23,7 @@ config:
   bench:eksNodeInstanceType: t3.medium
   bench:env: prod
   bench:ghcrToken:
-    secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
+    secure: AAABALGMux0Wk4ggZ2qJYUIIrzyg4g4PE/ljT2MASwztFN9XiMDF+IGA8Cz2Mb6MgueuPV+2Yk8f08T9ALKUBXIhjDSqn0dg
   bench:globalDbPassword:
     secure: AAABAPAK6vinbym9SIGWu6dSO53w7Xk4SnlxxaH7ESjTr8Av9i0vjzk3YzdexRa3epM+hivMoYR0++6IwhM6KnVrCWO/9clEROm1ejQXlz3wTx1DHOk5psxWZ5Wj+Us=
   bench:globalPgCryptoKey:
