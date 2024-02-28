@@ -1,6 +1,6 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
--c requirements.txt
+-c requirements.in
 
 black==23.7.0
 betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6

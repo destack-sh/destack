@@ -1,3 +1,0 @@
-# Run ./scripts/update-requirements.sh to update downstream requirements
-
-coloredlogs==15.0.1
