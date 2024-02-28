@@ -15,6 +15,8 @@ from bench.proto.wire import (
     ChangeUserPasswordResponse,
     CreateBenchRequest,
     CreateBenchResponse,
+    GetHostRequest,
+    GetHostResponse,
     GraphScope,
     LoginUserRequest,
     LoginUserResponse,
@@ -98,6 +100,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
+        logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
             user=user._to_data(), access_token=client.access_token, epoch=self.epoch
         )
@@ -122,6 +125,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
+        logger.info("supervisor.change_user_password", user=user)
         return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
 
     async def login_user(
@@ -157,6 +161,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
+        logger.info("supervisor.login_user", user=user, client=client)
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -191,6 +196,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
+        logger.info("supervisor.logout_user", user=subject.user, clients=clients)
         return LogoutUserResponse()
 
     #
@@ -248,4 +254,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
+        logger.info("supervisor.create_bench", bench=bench)
         return CreateBenchResponse(bench=bench._to_data())
+
+    async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED, "nocheckin")

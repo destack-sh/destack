@@ -172,7 +172,7 @@ async def migrate(
                 bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
                 stores = tuple(e.store for e in bench.environments)
             else:
-                benches = await Bench.include_all().tolist()
+                benches = await Bench.descendants(Environment, Store).include_all().tolist()
                 stores = tuple(e.store for b in benches for e in b.environments)
     else:
         stores = (GLOBAL_STORE,)
@@ -252,7 +252,7 @@ async def shell(bench: str = None):
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with global_session():
-            bench: Bench = await Bench.get(slug=bench)
+            bench: Bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
         connection_str = get_pg_connection_str(bench.main_environment.store)
     else:
         connection_str = get_pg_connection_str(GLOBAL_STORE)

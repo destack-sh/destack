@@ -94,36 +94,34 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
         return None
 
 
-async def _get_badge_from_metadata(metadata: RpcMetadata) -> Badge | None:
+async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge] | tuple[Badge, ...]:
     """Gets the authenticated badge (if any)."""
 
-    if metadata.badge_link_token:
-        badge: Badge = await Badge.include(Badge.link_password).get(
-            link_token=metadata.badge_link_token
+    if metadata.badges:
+        badges: list[Badge] = (
+            await Badge.include(Badge.key, Badge.password)
+            .filter(id__in=tuple(to_uuid(b.id) for b in metadata.badges))
+            .tolist()
         )
-        if badge is None:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge link token")
-        if badge.link_password and metadata.badge_link_password != badge.link_password:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge link password")
-        return badge
-    elif metadata.badge_id:
-        badge: Badge = await Badge.include(Badge.key_value).get(id=to_uuid(metadata.badge_id))
-        if metadata.badge_key_value != badge.key_value:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key value")
-        return badge
+        for actual_badge, expected_badge in zip(badges, metadata.badges):
+            if actual_badge.key and actual_badge.key != expected_badge.key:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key")
+            if actual_badge.password and actual_badge.password != expected_badge.password:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
+        return badges
     else:
-        return None
+        return ()
 
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
     async with global_session():
         try:
             client = await _get_client_from_metadata(metadata)
-            badge = await _get_badge_from_metadata(metadata)
+            badges = await _get_badges_from_metadata(metadata)
         except NodeNotFoundError as e:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client or badge") from e
         if client is None:
-            return Subject(is_authenticated=False, badge=badge)
+            return Subject(is_authenticated=False, badges=badges)
         elif client.parent_type == NodeType.USER:
             # TODO :Broken: fetch all subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
@@ -136,7 +134,7 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
                 is_staff=client.user.is_staff,
                 client=client,
                 user=client.user,
-                badge=badge,
+                badges=badges,
                 owned=owned,
             )
         else:

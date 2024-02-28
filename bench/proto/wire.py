@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-VERSION = "2024.02.27.0"
+VERSION = "2024.02.28.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -13,19 +13,12 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -81,12 +74,6 @@ class AggregationOp(betterproto.Enum):
     MAX = 105
     MEDIAN = 106
     HISTOGRAM = 107
-
-
-class BadgeType(betterproto.Enum):
-    UNSPECIFIED = 0
-    SHARING_LINK = 1
-    ACCESS_KEY = 2
 
 
 class BenchType(betterproto.Enum):
@@ -787,9 +774,10 @@ class ViewType(betterproto.Enum):
     VALUE = 120
     SLIDER = 133
     NUMBER = 134
-    TEXT = 140
-    CODE = 141
-    JSON = 142
+    STRING = 140
+    TEXT = 141
+    CODE = 142
+    JSON = 143
     TOGGLE = 150
     CHECKBOX = 151
     CHECKBOX_GROUP = 152
@@ -1346,7 +1334,7 @@ class SubjectData(betterproto.Message):
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    badge_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    badges_ptr: List["NodeReferenceData"] = betterproto.message_field(43)
     owned_ptr: List["NodeReferenceData"] = betterproto.message_field(44)
     memberships_ptr: List["NodeReferenceData"] = betterproto.message_field(45)
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
@@ -1468,15 +1456,13 @@ class BadgeData(betterproto.Message):
     archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
-    type: "BadgeType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(31, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(32)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
-    link_token: Optional[str] = betterproto.string_field(40, optional=True)
-    link_password: Optional[str] = betterproto.string_field(41, optional=True)
-    link_password_hash: Optional[str] = betterproto.string_field(42, optional=True)
-    key_value: Optional[str] = betterproto.string_field(50, optional=True)
-    key_value_hash: Optional[str] = betterproto.string_field(51, optional=True)
+    key: Optional[str] = betterproto.string_field(40, optional=True)
+    key_hash: Optional[str] = betterproto.string_field(41, optional=True)
+    password: Optional[str] = betterproto.string_field(42, optional=True)
+    password_hash: Optional[str] = betterproto.string_field(43, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2533,7 +2519,8 @@ class ClientOrigin(betterproto.Message):
 class RpcMetadata(betterproto.Message):
     """
     Core metadata for all RPC requests.
-     (This is passed as specially encoded headers, but it's nice to have a common definition.)
+     This is passed as specially encoded headers with robust dicts,
+     but it's nice to have a common definition.
     """
 
     client_id: Optional[str] = betterproto.string_field(2, optional=True)
@@ -2541,12 +2528,16 @@ class RpcMetadata(betterproto.Message):
 
     client_nonce: Optional[str] = betterproto.string_field(3, optional=True)
     client_access_token: Optional[str] = betterproto.string_field(4, optional=True)
-    badge_id: Optional[str] = betterproto.string_field(5, optional=True)
-    """Badge"""
+    badges: List["RpcMetadataBadgeInfo"] = betterproto.message_field(5)
 
-    badge_link_token: Optional[str] = betterproto.string_field(6, optional=True)
-    badge_link_password: Optional[str] = betterproto.string_field(7, optional=True)
-    badge_key_value: Optional[str] = betterproto.string_field(8, optional=True)
+
+@dataclass(eq=False, repr=False)
+class RpcMetadataBadgeInfo(betterproto.Message):
+    """Badges"""
+
+    id: Optional[str] = betterproto.string_field(1, optional=True)
+    key: Optional[str] = betterproto.string_field(2, optional=True)
+    password: Optional[str] = betterproto.string_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2588,92 +2579,6 @@ class TransactionData(betterproto.Message):
     id: str = betterproto.string_field(2)
     origin: "ClientOrigin" = betterproto.message_field(30)
     edits: List["EditData"] = betterproto.message_field(31)
-
-
-@dataclass(eq=False, repr=False)
-class SignupUserRequest(betterproto.Message):
-    id: str = betterproto.string_field(1)
-    slug: str = betterproto.string_field(2)
-    name: Optional[str] = betterproto.string_field(3, optional=True)
-    email: str = betterproto.string_field(4)
-    password: str = betterproto.string_field(5)
-    client: "ClientData" = betterproto.message_field(6)
-
-
-@dataclass(eq=False, repr=False)
-class SignupUserResponse(betterproto.Message):
-    user: "UserData" = betterproto.message_field(1)
-    access_token: str = betterproto.string_field(2)
-    epoch: int = betterproto.uint64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class ChangeUserPasswordRequest(betterproto.Message):
-    old_password: str = betterproto.string_field(1)
-    new_password: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class ChangeUserPasswordResponse(betterproto.Message):
-    user: "UserData" = betterproto.message_field(1)
-    epoch: int = betterproto.uint64_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class LoginUserRequest(betterproto.Message):
-    id: str = betterproto.string_field(1, group="user")
-    slug: str = betterproto.string_field(2, group="user")
-    email: str = betterproto.string_field(3, group="user")
-    password: str = betterproto.string_field(4)
-    client: "ClientData" = betterproto.message_field(5)
-
-
-@dataclass(eq=False, repr=False)
-class LoginUserResponse(betterproto.Message):
-    user: "UserData" = betterproto.message_field(1)
-    client: "ClientData" = betterproto.message_field(2)
-    access_token: str = betterproto.string_field(3)
-    epoch: int = betterproto.uint64_field(4)
-
-
-@dataclass(eq=False, repr=False)
-class LogoutUserRequest(betterproto.Message):
-    client_ids: List[str] = betterproto.string_field(1)
-    """
-    If specified, log out only the specified clients (instead of the current client).
-    """
-
-    logout_all: Optional[bool] = betterproto.bool_field(2, optional=True)
-    """If specified, log out all clients (incl. current)."""
-
-
-@dataclass(eq=False, repr=False)
-class LogoutUserResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class CreateOrganizationRequest(betterproto.Message):
-    organization: "OrganizationData" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class CreateOrganizationResponse(betterproto.Message):
-    organization: "OrganizationData" = betterproto.message_field(1)
-    epoch: int = betterproto.uint64_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class CreateBenchRequest(betterproto.Message):
-    owner: "NodeReferenceData" = betterproto.message_field(1)
-    slug: str = betterproto.string_field(2)
-    region: "Region" = betterproto.enum_field(3)
-    is_main: bool = betterproto.bool_field(4)
-
-
-@dataclass(eq=False, repr=False)
-class CreateBenchResponse(betterproto.Message):
-    bench: "BenchData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -2811,25 +2716,99 @@ class WatchEditsResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RestartServerRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    server_id: str = betterproto.string_field(2)
+class SignupUserRequest(betterproto.Message):
+    id: str = betterproto.string_field(1)
+    slug: str = betterproto.string_field(2)
+    name: Optional[str] = betterproto.string_field(3, optional=True)
+    email: str = betterproto.string_field(4)
+    password: str = betterproto.string_field(5)
+    client: "ClientData" = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
-class RestartServerResponse(betterproto.Message):
+class SignupUserResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+    access_token: str = betterproto.string_field(2)
+    epoch: int = betterproto.uint64_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class ChangeUserPasswordRequest(betterproto.Message):
+    old_password: str = betterproto.string_field(1)
+    new_password: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class ChangeUserPasswordResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+    epoch: int = betterproto.uint64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class LoginUserRequest(betterproto.Message):
+    id: str = betterproto.string_field(1, group="user")
+    slug: str = betterproto.string_field(2, group="user")
+    email: str = betterproto.string_field(3, group="user")
+    password: str = betterproto.string_field(4)
+    client: "ClientData" = betterproto.message_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class LoginUserResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+    client: "ClientData" = betterproto.message_field(2)
+    access_token: str = betterproto.string_field(3)
+    epoch: int = betterproto.uint64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class LogoutUserRequest(betterproto.Message):
+    client_ids: List[str] = betterproto.string_field(1)
+    """
+    If specified, log out only the specified clients (instead of the current client).
+    """
+
+    logout_all: Optional[bool] = betterproto.bool_field(2, optional=True)
+    """If specified, log out all clients (incl. current)."""
+
+
+@dataclass(eq=False, repr=False)
+class LogoutUserResponse(betterproto.Message):
     pass
 
 
 @dataclass(eq=False, repr=False)
-class PingServerRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    server_id: str = betterproto.string_field(2)
+class CreateOrganizationRequest(betterproto.Message):
+    organization: "OrganizationData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class PingServerResponse(betterproto.Message):
-    pass
+class CreateOrganizationResponse(betterproto.Message):
+    organization: "OrganizationData" = betterproto.message_field(1)
+    epoch: int = betterproto.uint64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class CreateBenchRequest(betterproto.Message):
+    owner: "NodeReferenceData" = betterproto.message_field(1)
+    slug: str = betterproto.string_field(2)
+    region: "Region" = betterproto.enum_field(3)
+    is_main: bool = betterproto.bool_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class CreateBenchResponse(betterproto.Message):
+    bench: "BenchData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetHostRequest(betterproto.Message):
+    bench: "NodeReferenceData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetHostResponse(betterproto.Message):
+    host: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -2872,6 +2851,28 @@ class DownloadFilesRequest(betterproto.Message):
 class DownloadFilesResponse(betterproto.Message):
     get_urls: List[str] = betterproto.string_field(1)
     expires_at: datetime = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class RestartServerRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    server_id: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class RestartServerResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class PingServerRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    server_id: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class PingServerResponse(betterproto.Message):
+    pass
 
 
 @dataclass(eq=False, repr=False)
@@ -3257,6 +3258,23 @@ class SupervisorStub(betterproto.ServiceStub):
             "/symbolx.bench.Supervisor/CreateBench",
             request,
             CreateBenchResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def get_host(
+        self,
+        request: "GetHostRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "GetHostResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Supervisor/GetHost",
+            request,
+            GetHostResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3762,6 +3780,9 @@ class SupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
@@ -3862,6 +3883,13 @@ class SupervisorBase(ServiceBase):
         response = await self.create_bench(request)
         await stream.send_message(response)
 
+    async def __rpc_get_host(
+        self, stream: "grpclib.server.Stream[GetHostRequest, GetHostResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.get_host(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Supervisor/GetNodes": grpclib.const.Handler(
@@ -3941,6 +3969,12 @@ class SupervisorBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CreateBenchRequest,
                 CreateBenchResponse,
+            ),
+            "/symbolx.bench.Supervisor/GetHost": grpclib.const.Handler(
+                self.__rpc_get_host,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                GetHostRequest,
+                GetHostResponse,
             ),
         }
 
@@ -4256,10 +4290,10 @@ class RuntimeBase(ServiceBase):
         }
 
 
+from typing import Union  # noqa
+
 # extra utility types
 import bench.proto.monkey  # noqa
-
-from typing import Union  # noqa
 
 AnyNodeData = Union[
     BenchData,

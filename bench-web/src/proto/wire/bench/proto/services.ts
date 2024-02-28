@@ -21,6 +21,11 @@ import { Struct } from "../../google/protobuf/struct";
 import { PathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
+import { BenchData } from "./lang";
+import { Region } from "./lang";
+import { OrganizationData } from "./lang";
+import { UserData } from "./lang";
+import { ClientData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
@@ -28,221 +33,12 @@ import { NodeType } from "./lang";
 import { AccessMatrixData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
-import { GraphScope } from "./common";
-import { BenchData } from "./lang";
-import { Region } from "./lang";
 import { NodeReferenceData } from "./lang";
-import { OrganizationData } from "./lang";
-import { UserData } from "./lang";
-import { ClientData } from "./lang";
+import { GraphScope } from "./common";
 // 
-// Global supervisor
+// Common graph operations
 // 
 
-/**
- * @generated from protobuf message symbolx.bench.SignupUserRequest
- */
-export interface SignupUserRequest {
-    /**
-     * @generated from protobuf field: string id = 1;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: string slug = 2;
-     */
-    slug: string;
-    /**
-     * @generated from protobuf field: optional string name = 3;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: string email = 4;
-     */
-    email: string;
-    /**
-     * @generated from protobuf field: string password = 5;
-     */
-    password: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientData client = 6;
-     */
-    client?: ClientData;
-}
-/**
- * @generated from protobuf message symbolx.bench.SignupUserResponse
- */
-export interface SignupUserResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.UserData user = 1;
-     */
-    user?: UserData;
-    /**
-     * @generated from protobuf field: string access_token = 2;
-     */
-    accessToken: string;
-    /**
-     * @generated from protobuf field: uint64 epoch = 3;
-     */
-    epoch: bigint;
-}
-/**
- * @generated from protobuf message symbolx.bench.ChangeUserPasswordRequest
- */
-export interface ChangeUserPasswordRequest {
-    /**
-     * @generated from protobuf field: string old_password = 1;
-     */
-    oldPassword: string;
-    /**
-     * @generated from protobuf field: string new_password = 2;
-     */
-    newPassword: string;
-}
-/**
- * @generated from protobuf message symbolx.bench.ChangeUserPasswordResponse
- */
-export interface ChangeUserPasswordResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.UserData user = 1;
-     */
-    user?: UserData;
-    /**
-     * @generated from protobuf field: uint64 epoch = 2;
-     */
-    epoch: bigint;
-}
-/**
- * @generated from protobuf message symbolx.bench.LoginUserRequest
- */
-export interface LoginUserRequest {
-    /**
-     * @generated from protobuf oneof: user
-     */
-    user: {
-        oneofKind: "id";
-        /**
-         * @generated from protobuf field: string id = 1;
-         */
-        id: string;
-    } | {
-        oneofKind: "slug";
-        /**
-         * @generated from protobuf field: string slug = 2;
-         */
-        slug: string;
-    } | {
-        oneofKind: "email";
-        /**
-         * @generated from protobuf field: string email = 3;
-         */
-        email: string;
-    } | {
-        oneofKind: undefined;
-    };
-    /**
-     * @generated from protobuf field: string password = 4;
-     */
-    password: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientData client = 5;
-     */
-    client?: ClientData;
-}
-/**
- * @generated from protobuf message symbolx.bench.LoginUserResponse
- */
-export interface LoginUserResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.UserData user = 1;
-     */
-    user?: UserData;
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientData client = 2;
-     */
-    client?: ClientData;
-    /**
-     * @generated from protobuf field: string access_token = 3;
-     */
-    accessToken: string;
-    /**
-     * @generated from protobuf field: uint64 epoch = 4;
-     */
-    epoch: bigint;
-}
-/**
- * @generated from protobuf message symbolx.bench.LogoutUserRequest
- */
-export interface LogoutUserRequest {
-    /**
-     * If specified, log out only the specified clients (instead of the current client).
-     *
-     * @generated from protobuf field: repeated string client_ids = 1;
-     */
-    clientIds: string[];
-    /**
-     * If specified, log out all clients (incl. current).
-     *
-     * @generated from protobuf field: optional bool logout_all = 2;
-     */
-    logoutAll?: boolean;
-}
-/**
- * @generated from protobuf message symbolx.bench.LogoutUserResponse
- */
-export interface LogoutUserResponse {
-}
-/**
- * @generated from protobuf message symbolx.bench.CreateOrganizationRequest
- */
-export interface CreateOrganizationRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.OrganizationData organization = 1;
-     */
-    organization?: OrganizationData;
-}
-/**
- * @generated from protobuf message symbolx.bench.CreateOrganizationResponse
- */
-export interface CreateOrganizationResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.OrganizationData organization = 1;
-     */
-    organization?: OrganizationData;
-    /**
-     * @generated from protobuf field: uint64 epoch = 2;
-     */
-    epoch: bigint;
-}
-/**
- * @generated from protobuf message symbolx.bench.CreateBenchRequest
- */
-export interface CreateBenchRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData owner = 1;
-     */
-    owner?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: string slug = 2;
-     */
-    slug: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.Region region = 3;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: bool is_main = 4;
-     */
-    isMain: boolean;
-}
-/**
- * @generated from protobuf message symbolx.bench.CreateBenchResponse
- */
-export interface CreateBenchResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchData bench = 1;
-     */
-    bench?: BenchData;
-}
 /**
  * @generated from protobuf message symbolx.bench.GetNodesRequest
  */
@@ -563,41 +359,231 @@ export interface WatchEditsResponse {
      */
     epoch: bigint;
 }
+// 
+// Supervisor
+// 
+
 /**
- * @generated from protobuf message symbolx.bench.RestartServerRequest
+ * @generated from protobuf message symbolx.bench.SignupUserRequest
  */
-export interface RestartServerRequest {
+export interface SignupUserRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: string id = 1;
      */
-    scope?: GraphScope;
+    id: string;
     /**
-     * @generated from protobuf field: string server_id = 2;
+     * @generated from protobuf field: string slug = 2;
      */
-    serverId: string;
+    slug: string;
+    /**
+     * @generated from protobuf field: optional string name = 3;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: string email = 4;
+     */
+    email: string;
+    /**
+     * @generated from protobuf field: string password = 5;
+     */
+    password: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.ClientData client = 6;
+     */
+    client?: ClientData;
 }
 /**
- * @generated from protobuf message symbolx.bench.RestartServerResponse
+ * @generated from protobuf message symbolx.bench.SignupUserResponse
  */
-export interface RestartServerResponse {
+export interface SignupUserResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.UserData user = 1;
+     */
+    user?: UserData;
+    /**
+     * @generated from protobuf field: string access_token = 2;
+     */
+    accessToken: string;
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
+     */
+    epoch: bigint;
 }
 /**
- * @generated from protobuf message symbolx.bench.PingServerRequest
+ * @generated from protobuf message symbolx.bench.ChangeUserPasswordRequest
  */
-export interface PingServerRequest {
+export interface ChangeUserPasswordRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: string old_password = 1;
      */
-    scope?: GraphScope;
+    oldPassword: string;
     /**
-     * @generated from protobuf field: string server_id = 2;
+     * @generated from protobuf field: string new_password = 2;
      */
-    serverId: string;
+    newPassword: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.PingServerResponse
+ * @generated from protobuf message symbolx.bench.ChangeUserPasswordResponse
  */
-export interface PingServerResponse {
+export interface ChangeUserPasswordResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.UserData user = 1;
+     */
+    user?: UserData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: bigint;
+}
+/**
+ * @generated from protobuf message symbolx.bench.LoginUserRequest
+ */
+export interface LoginUserRequest {
+    /**
+     * @generated from protobuf oneof: user
+     */
+    user: {
+        oneofKind: "id";
+        /**
+         * @generated from protobuf field: string id = 1;
+         */
+        id: string;
+    } | {
+        oneofKind: "slug";
+        /**
+         * @generated from protobuf field: string slug = 2;
+         */
+        slug: string;
+    } | {
+        oneofKind: "email";
+        /**
+         * @generated from protobuf field: string email = 3;
+         */
+        email: string;
+    } | {
+        oneofKind: undefined;
+    };
+    /**
+     * @generated from protobuf field: string password = 4;
+     */
+    password: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.ClientData client = 5;
+     */
+    client?: ClientData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.LoginUserResponse
+ */
+export interface LoginUserResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.UserData user = 1;
+     */
+    user?: UserData;
+    /**
+     * @generated from protobuf field: symbolx.bench.ClientData client = 2;
+     */
+    client?: ClientData;
+    /**
+     * @generated from protobuf field: string access_token = 3;
+     */
+    accessToken: string;
+    /**
+     * @generated from protobuf field: uint64 epoch = 4;
+     */
+    epoch: bigint;
+}
+/**
+ * @generated from protobuf message symbolx.bench.LogoutUserRequest
+ */
+export interface LogoutUserRequest {
+    /**
+     * If specified, log out only the specified clients (instead of the current client).
+     *
+     * @generated from protobuf field: repeated string client_ids = 1;
+     */
+    clientIds: string[];
+    /**
+     * If specified, log out all clients (incl. current).
+     *
+     * @generated from protobuf field: optional bool logout_all = 2;
+     */
+    logoutAll?: boolean;
+}
+/**
+ * @generated from protobuf message symbolx.bench.LogoutUserResponse
+ */
+export interface LogoutUserResponse {
+}
+/**
+ * @generated from protobuf message symbolx.bench.CreateOrganizationRequest
+ */
+export interface CreateOrganizationRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.OrganizationData organization = 1;
+     */
+    organization?: OrganizationData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CreateOrganizationResponse
+ */
+export interface CreateOrganizationResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.OrganizationData organization = 1;
+     */
+    organization?: OrganizationData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 2;
+     */
+    epoch: bigint;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CreateBenchRequest
+ */
+export interface CreateBenchRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData owner = 1;
+     */
+    owner?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string slug = 2;
+     */
+    slug: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.Region region = 3;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: bool is_main = 4;
+     */
+    isMain: boolean;
+}
+/**
+ * @generated from protobuf message symbolx.bench.CreateBenchResponse
+ */
+export interface CreateBenchResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchData bench = 1;
+     */
+    bench?: BenchData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.GetHostRequest
+ */
+export interface GetHostRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 1;
+     */
+    bench?: NodeReferenceData;
+}
+/**
+ * @generated from protobuf message symbolx.bench.GetHostResponse
+ */
+export interface GetHostResponse {
+    /**
+     * @generated from protobuf field: string host = 1;
+     */
+    host: string;
 }
 // 
 // Package host
@@ -668,6 +654,42 @@ export interface DownloadFilesResponse {
     expiresAt?: Timestamp;
 }
 /**
+ * @generated from protobuf message symbolx.bench.RestartServerRequest
+ */
+export interface RestartServerRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     */
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: string server_id = 2;
+     */
+    serverId: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.RestartServerResponse
+ */
+export interface RestartServerResponse {
+}
+/**
+ * @generated from protobuf message symbolx.bench.PingServerRequest
+ */
+export interface PingServerRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     */
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: string server_id = 2;
+     */
+    serverId: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.PingServerResponse
+ */
+export interface PingServerResponse {
+}
+/**
  * @generated from protobuf message symbolx.bench.RunIntrinsicBlockRequest
  */
 export interface RunIntrinsicBlockRequest {
@@ -733,711 +755,6 @@ export interface RestartRuntimeRequest {
  */
 export interface RestartRuntimeResponse {
 }
-// @generated message type with reflection information, may provide speed optimized methods
-class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
-    constructor() {
-        super("symbolx.bench.SignupUserRequest", [
-            { no: 1, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 6, name: "client", kind: "message", T: () => ClientData }
-        ]);
-    }
-    create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.id = "";
-        message.slug = "";
-        message.email = "";
-        message.password = "";
-        if (value !== undefined)
-            reflectionMergePartial<SignupUserRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignupUserRequest): SignupUserRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string id */ 1:
-                    message.id = reader.string();
-                    break;
-                case /* string slug */ 2:
-                    message.slug = reader.string();
-                    break;
-                case /* optional string name */ 3:
-                    message.name = reader.string();
-                    break;
-                case /* string email */ 4:
-                    message.email = reader.string();
-                    break;
-                case /* string password */ 5:
-                    message.password = reader.string();
-                    break;
-                case /* symbolx.bench.ClientData client */ 6:
-                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SignupUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string id = 1; */
-        if (message.id !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.id);
-        /* string slug = 2; */
-        if (message.slug !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.slug);
-        /* optional string name = 3; */
-        if (message.name !== undefined)
-            writer.tag(3, WireType.LengthDelimited).string(message.name);
-        /* string email = 4; */
-        if (message.email !== "")
-            writer.tag(4, WireType.LengthDelimited).string(message.email);
-        /* string password = 5; */
-        if (message.password !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.password);
-        /* symbolx.bench.ClientData client = 6; */
-        if (message.client)
-            ClientData.internalBinaryWrite(message.client, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SignupUserRequest
- */
-export const SignupUserRequest = new SignupUserRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
-    constructor() {
-        super("symbolx.bench.SignupUserResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<SignupUserResponse>): SignupUserResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.accessToken = "";
-        message.epoch = 0n;
-        if (value !== undefined)
-            reflectionMergePartial<SignupUserResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignupUserResponse): SignupUserResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.UserData user */ 1:
-                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
-                    break;
-                case /* string access_token */ 2:
-                    message.accessToken = reader.string();
-                    break;
-                case /* uint64 epoch */ 3:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SignupUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.UserData user = 1; */
-        if (message.user)
-            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string access_token = 2; */
-        if (message.accessToken !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
-        /* uint64 epoch = 3; */
-        if (message.epoch !== 0n)
-            writer.tag(3, WireType.Varint).uint64(message.epoch);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SignupUserResponse
- */
-export const SignupUserResponse = new SignupUserResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ChangeUserPasswordRequest$Type extends MessageType<ChangeUserPasswordRequest> {
-    constructor() {
-        super("symbolx.bench.ChangeUserPasswordRequest", [
-            { no: 1, name: "old_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 2, name: "new_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } }
-        ]);
-    }
-    create(value?: PartialMessage<ChangeUserPasswordRequest>): ChangeUserPasswordRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.oldPassword = "";
-        message.newPassword = "";
-        if (value !== undefined)
-            reflectionMergePartial<ChangeUserPasswordRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordRequest): ChangeUserPasswordRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string old_password */ 1:
-                    message.oldPassword = reader.string();
-                    break;
-                case /* string new_password */ 2:
-                    message.newPassword = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ChangeUserPasswordRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string old_password = 1; */
-        if (message.oldPassword !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.oldPassword);
-        /* string new_password = 2; */
-        if (message.newPassword !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.newPassword);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordRequest
- */
-export const ChangeUserPasswordRequest = new ChangeUserPasswordRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResponse> {
-    constructor() {
-        super("symbolx.bench.ChangeUserPasswordResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ChangeUserPasswordResponse>): ChangeUserPasswordResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.epoch = 0n;
-        if (value !== undefined)
-            reflectionMergePartial<ChangeUserPasswordResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordResponse): ChangeUserPasswordResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.UserData user */ 1:
-                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
-                    break;
-                case /* uint64 epoch */ 2:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ChangeUserPasswordResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.UserData user = 1; */
-        if (message.user)
-            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
-        if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordResponse
- */
-export const ChangeUserPasswordResponse = new ChangeUserPasswordResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
-    constructor() {
-        super("symbolx.bench.LoginUserRequest", [
-            { no: 1, name: "id", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "slug", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 5, name: "client", kind: "message", T: () => ClientData }
-        ]);
-    }
-    create(value?: PartialMessage<LoginUserRequest>): LoginUserRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.user = { oneofKind: undefined };
-        message.password = "";
-        if (value !== undefined)
-            reflectionMergePartial<LoginUserRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserRequest): LoginUserRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string id */ 1:
-                    message.user = {
-                        oneofKind: "id",
-                        id: reader.string()
-                    };
-                    break;
-                case /* string slug */ 2:
-                    message.user = {
-                        oneofKind: "slug",
-                        slug: reader.string()
-                    };
-                    break;
-                case /* string email */ 3:
-                    message.user = {
-                        oneofKind: "email",
-                        email: reader.string()
-                    };
-                    break;
-                case /* string password */ 4:
-                    message.password = reader.string();
-                    break;
-                case /* symbolx.bench.ClientData client */ 5:
-                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LoginUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string id = 1; */
-        if (message.user.oneofKind === "id")
-            writer.tag(1, WireType.LengthDelimited).string(message.user.id);
-        /* string slug = 2; */
-        if (message.user.oneofKind === "slug")
-            writer.tag(2, WireType.LengthDelimited).string(message.user.slug);
-        /* string email = 3; */
-        if (message.user.oneofKind === "email")
-            writer.tag(3, WireType.LengthDelimited).string(message.user.email);
-        /* string password = 4; */
-        if (message.password !== "")
-            writer.tag(4, WireType.LengthDelimited).string(message.password);
-        /* symbolx.bench.ClientData client = 5; */
-        if (message.client)
-            ClientData.internalBinaryWrite(message.client, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LoginUserRequest
- */
-export const LoginUserRequest = new LoginUserRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
-    constructor() {
-        super("symbolx.bench.LoginUserResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 4, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.accessToken = "";
-        message.epoch = 0n;
-        if (value !== undefined)
-            reflectionMergePartial<LoginUserResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserResponse): LoginUserResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.UserData user */ 1:
-                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
-                    break;
-                case /* symbolx.bench.ClientData client */ 2:
-                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
-                    break;
-                case /* string access_token */ 3:
-                    message.accessToken = reader.string();
-                    break;
-                case /* uint64 epoch */ 4:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LoginUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.UserData user = 1; */
-        if (message.user)
-            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ClientData client = 2; */
-        if (message.client)
-            ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* string access_token = 3; */
-        if (message.accessToken !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
-        /* uint64 epoch = 4; */
-        if (message.epoch !== 0n)
-            writer.tag(4, WireType.Varint).uint64(message.epoch);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LoginUserResponse
- */
-export const LoginUserResponse = new LoginUserResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
-    constructor() {
-        super("symbolx.bench.LogoutUserRequest", [
-            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "logout_all", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.clientIds = [];
-        if (value !== undefined)
-            reflectionMergePartial<LogoutUserRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserRequest): LogoutUserRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated string client_ids */ 1:
-                    message.clientIds.push(reader.string());
-                    break;
-                case /* optional bool logout_all */ 2:
-                    message.logoutAll = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LogoutUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated string client_ids = 1; */
-        for (let i = 0; i < message.clientIds.length; i++)
-            writer.tag(1, WireType.LengthDelimited).string(message.clientIds[i]);
-        /* optional bool logout_all = 2; */
-        if (message.logoutAll !== undefined)
-            writer.tag(2, WireType.Varint).bool(message.logoutAll);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LogoutUserRequest
- */
-export const LogoutUserRequest = new LogoutUserRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LogoutUserResponse$Type extends MessageType<LogoutUserResponse> {
-    constructor() {
-        super("symbolx.bench.LogoutUserResponse", []);
-    }
-    create(value?: PartialMessage<LogoutUserResponse>): LogoutUserResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<LogoutUserResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserResponse): LogoutUserResponse {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: LogoutUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LogoutUserResponse
- */
-export const LogoutUserResponse = new LogoutUserResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateOrganizationRequest$Type extends MessageType<CreateOrganizationRequest> {
-    constructor() {
-        super("symbolx.bench.CreateOrganizationRequest", [
-            { no: 1, name: "organization", kind: "message", T: () => OrganizationData }
-        ]);
-    }
-    create(value?: PartialMessage<CreateOrganizationRequest>): CreateOrganizationRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<CreateOrganizationRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationRequest): CreateOrganizationRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.OrganizationData organization */ 1:
-                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateOrganizationRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.OrganizationData organization = 1; */
-        if (message.organization)
-            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CreateOrganizationRequest
- */
-export const CreateOrganizationRequest = new CreateOrganizationRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResponse> {
-    constructor() {
-        super("symbolx.bench.CreateOrganizationResponse", [
-            { no: 1, name: "organization", kind: "message", T: () => OrganizationData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CreateOrganizationResponse>): CreateOrganizationResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.epoch = 0n;
-        if (value !== undefined)
-            reflectionMergePartial<CreateOrganizationResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationResponse): CreateOrganizationResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.OrganizationData organization */ 1:
-                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
-                    break;
-                case /* uint64 epoch */ 2:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateOrganizationResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.OrganizationData organization = 1; */
-        if (message.organization)
-            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
-        if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CreateOrganizationResponse
- */
-export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
-    constructor() {
-        super("symbolx.bench.CreateBenchRequest", [
-            { no: 1, name: "owner", kind: "message", T: () => NodeReferenceData },
-            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 4, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.slug = "";
-        message.region = 0;
-        message.isMain = false;
-        if (value !== undefined)
-            reflectionMergePartial<CreateBenchRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchRequest): CreateBenchRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData owner */ 1:
-                    message.owner = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.owner);
-                    break;
-                case /* string slug */ 2:
-                    message.slug = reader.string();
-                    break;
-                case /* symbolx.bench.Region region */ 3:
-                    message.region = reader.int32();
-                    break;
-                case /* bool is_main */ 4:
-                    message.isMain = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData owner = 1; */
-        if (message.owner)
-            NodeReferenceData.internalBinaryWrite(message.owner, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string slug = 2; */
-        if (message.slug !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.slug);
-        /* symbolx.bench.Region region = 3; */
-        if (message.region !== 0)
-            writer.tag(3, WireType.Varint).int32(message.region);
-        /* bool is_main = 4; */
-        if (message.isMain !== false)
-            writer.tag(4, WireType.Varint).bool(message.isMain);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CreateBenchRequest
- */
-export const CreateBenchRequest = new CreateBenchRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
-    constructor() {
-        super("symbolx.bench.CreateBenchResponse", [
-            { no: 1, name: "bench", kind: "message", T: () => BenchData }
-        ]);
-    }
-    create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<CreateBenchResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchResponse): CreateBenchResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchData bench */ 1:
-                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchData bench = 1; */
-        if (message.bench)
-            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CreateBenchResponse
- */
-export const CreateBenchResponse = new CreateBenchResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
     constructor() {
@@ -2573,30 +1890,49 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
  */
 export const WatchEditsResponse = new WatchEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
+class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
-        super("symbolx.bench.RestartServerRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("symbolx.bench.SignupUserRequest", [
+            { no: 1, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 6, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
-    create(value?: PartialMessage<RestartServerRequest>): RestartServerRequest {
+    create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.serverId = "";
+        message.id = "";
+        message.slug = "";
+        message.email = "";
+        message.password = "";
         if (value !== undefined)
-            reflectionMergePartial<RestartServerRequest>(this, message, value);
+            reflectionMergePartial<SignupUserRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerRequest): RestartServerRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignupUserRequest): SignupUserRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* string id */ 1:
+                    message.id = reader.string();
                     break;
-                case /* string server_id */ 2:
-                    message.serverId = reader.string();
+                case /* string slug */ 2:
+                    message.slug = reader.string();
+                    break;
+                case /* optional string name */ 3:
+                    message.name = reader.string();
+                    break;
+                case /* string email */ 4:
+                    message.email = reader.string();
+                    break;
+                case /* string password */ 5:
+                    message.password = reader.string();
+                    break;
+                case /* symbolx.bench.ClientData client */ 6:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2609,13 +1945,25 @@ class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: RestartServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string server_id = 2; */
-        if (message.serverId !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
+    internalBinaryWrite(message: SignupUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string id = 1; */
+        if (message.id !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.id);
+        /* string slug = 2; */
+        if (message.slug !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.slug);
+        /* optional string name = 3; */
+        if (message.name !== undefined)
+            writer.tag(3, WireType.LengthDelimited).string(message.name);
+        /* string email = 4; */
+        if (message.email !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.email);
+        /* string password = 5; */
+        if (message.password !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.password);
+        /* symbolx.bench.ClientData client = 6; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2623,59 +1971,39 @@ class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RestartServerRequest
+ * @generated MessageType for protobuf message symbolx.bench.SignupUserRequest
  */
-export const RestartServerRequest = new RestartServerRequest$Type();
+export const SignupUserRequest = new SignupUserRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RestartServerResponse$Type extends MessageType<RestartServerResponse> {
+class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
     constructor() {
-        super("symbolx.bench.RestartServerResponse", []);
-    }
-    create(value?: PartialMessage<RestartServerResponse>): RestartServerResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RestartServerResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerResponse): RestartServerResponse {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: RestartServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RestartServerResponse
- */
-export const RestartServerResponse = new RestartServerResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PingServerRequest$Type extends MessageType<PingServerRequest> {
-    constructor() {
-        super("symbolx.bench.PingServerRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("symbolx.bench.SignupUserResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<PingServerRequest>): PingServerRequest {
+    create(value?: PartialMessage<SignupUserResponse>): SignupUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.serverId = "";
+        message.accessToken = "";
+        message.epoch = 0n;
         if (value !== undefined)
-            reflectionMergePartial<PingServerRequest>(this, message, value);
+            reflectionMergePartial<SignupUserResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerRequest): PingServerRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignupUserResponse): SignupUserResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
                     break;
-                case /* string server_id */ 2:
-                    message.serverId = reader.string();
+                case /* string access_token */ 2:
+                    message.accessToken = reader.string();
+                    break;
+                case /* uint64 epoch */ 3:
+                    message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2688,13 +2016,16 @@ class PingServerRequest$Type extends MessageType<PingServerRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: PingServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string server_id = 2; */
-        if (message.serverId !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
+    internalBinaryWrite(message: SignupUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 2; */
+        if (message.accessToken !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
+        /* uint64 epoch = 3; */
+        if (message.epoch !== 0n)
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2702,24 +2033,54 @@ class PingServerRequest$Type extends MessageType<PingServerRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PingServerRequest
+ * @generated MessageType for protobuf message symbolx.bench.SignupUserResponse
  */
-export const PingServerRequest = new PingServerRequest$Type();
+export const SignupUserResponse = new SignupUserResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PingServerResponse$Type extends MessageType<PingServerResponse> {
+class ChangeUserPasswordRequest$Type extends MessageType<ChangeUserPasswordRequest> {
     constructor() {
-        super("symbolx.bench.PingServerResponse", []);
+        super("symbolx.bench.ChangeUserPasswordRequest", [
+            { no: 1, name: "old_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 2, name: "new_password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } }
+        ]);
     }
-    create(value?: PartialMessage<PingServerResponse>): PingServerResponse {
+    create(value?: PartialMessage<ChangeUserPasswordRequest>): ChangeUserPasswordRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.oldPassword = "";
+        message.newPassword = "";
         if (value !== undefined)
-            reflectionMergePartial<PingServerResponse>(this, message, value);
+            reflectionMergePartial<ChangeUserPasswordRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerResponse): PingServerResponse {
-        return target ?? this.create();
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordRequest): ChangeUserPasswordRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string old_password */ 1:
+                    message.oldPassword = reader.string();
+                    break;
+                case /* string new_password */ 2:
+                    message.newPassword = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
-    internalBinaryWrite(message: PingServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: ChangeUserPasswordRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string old_password = 1; */
+        if (message.oldPassword !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.oldPassword);
+        /* string new_password = 2; */
+        if (message.newPassword !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.newPassword);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2727,9 +2088,605 @@ class PingServerResponse$Type extends MessageType<PingServerResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PingServerResponse
+ * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordRequest
  */
-export const PingServerResponse = new PingServerResponse$Type();
+export const ChangeUserPasswordRequest = new ChangeUserPasswordRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResponse> {
+    constructor() {
+        super("symbolx.bench.ChangeUserPasswordResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeUserPasswordResponse>): ChangeUserPasswordResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<ChangeUserPasswordResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeUserPasswordResponse): ChangeUserPasswordResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeUserPasswordResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== 0n)
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeUserPasswordResponse
+ */
+export const ChangeUserPasswordResponse = new ChangeUserPasswordResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
+    constructor() {
+        super("symbolx.bench.LoginUserRequest", [
+            { no: 1, name: "id", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 5, name: "client", kind: "message", T: () => ClientData }
+        ]);
+    }
+    create(value?: PartialMessage<LoginUserRequest>): LoginUserRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.user = { oneofKind: undefined };
+        message.password = "";
+        if (value !== undefined)
+            reflectionMergePartial<LoginUserRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserRequest): LoginUserRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string id */ 1:
+                    message.user = {
+                        oneofKind: "id",
+                        id: reader.string()
+                    };
+                    break;
+                case /* string slug */ 2:
+                    message.user = {
+                        oneofKind: "slug",
+                        slug: reader.string()
+                    };
+                    break;
+                case /* string email */ 3:
+                    message.user = {
+                        oneofKind: "email",
+                        email: reader.string()
+                    };
+                    break;
+                case /* string password */ 4:
+                    message.password = reader.string();
+                    break;
+                case /* symbolx.bench.ClientData client */ 5:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LoginUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string id = 1; */
+        if (message.user.oneofKind === "id")
+            writer.tag(1, WireType.LengthDelimited).string(message.user.id);
+        /* string slug = 2; */
+        if (message.user.oneofKind === "slug")
+            writer.tag(2, WireType.LengthDelimited).string(message.user.slug);
+        /* string email = 3; */
+        if (message.user.oneofKind === "email")
+            writer.tag(3, WireType.LengthDelimited).string(message.user.email);
+        /* string password = 4; */
+        if (message.password !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.password);
+        /* symbolx.bench.ClientData client = 5; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LoginUserRequest
+ */
+export const LoginUserRequest = new LoginUserRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
+    constructor() {
+        super("symbolx.bench.LoginUserResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "client", kind: "message", T: () => ClientData },
+            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
+            { no: 4, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.accessToken = "";
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<LoginUserResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserResponse): LoginUserResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* symbolx.bench.ClientData client */ 2:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                    break;
+                case /* string access_token */ 3:
+                    message.accessToken = reader.string();
+                    break;
+                case /* uint64 epoch */ 4:
+                    message.epoch = reader.uint64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LoginUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ClientData client = 2; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 3; */
+        if (message.accessToken !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
+        /* uint64 epoch = 4; */
+        if (message.epoch !== 0n)
+            writer.tag(4, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LoginUserResponse
+ */
+export const LoginUserResponse = new LoginUserResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
+    constructor() {
+        super("symbolx.bench.LogoutUserRequest", [
+            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "logout_all", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.clientIds = [];
+        if (value !== undefined)
+            reflectionMergePartial<LogoutUserRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserRequest): LogoutUserRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated string client_ids */ 1:
+                    message.clientIds.push(reader.string());
+                    break;
+                case /* optional bool logout_all */ 2:
+                    message.logoutAll = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LogoutUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated string client_ids = 1; */
+        for (let i = 0; i < message.clientIds.length; i++)
+            writer.tag(1, WireType.LengthDelimited).string(message.clientIds[i]);
+        /* optional bool logout_all = 2; */
+        if (message.logoutAll !== undefined)
+            writer.tag(2, WireType.Varint).bool(message.logoutAll);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LogoutUserRequest
+ */
+export const LogoutUserRequest = new LogoutUserRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LogoutUserResponse$Type extends MessageType<LogoutUserResponse> {
+    constructor() {
+        super("symbolx.bench.LogoutUserResponse", []);
+    }
+    create(value?: PartialMessage<LogoutUserResponse>): LogoutUserResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<LogoutUserResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserResponse): LogoutUserResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: LogoutUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LogoutUserResponse
+ */
+export const LogoutUserResponse = new LogoutUserResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateOrganizationRequest$Type extends MessageType<CreateOrganizationRequest> {
+    constructor() {
+        super("symbolx.bench.CreateOrganizationRequest", [
+            { no: 1, name: "organization", kind: "message", T: () => OrganizationData }
+        ]);
+    }
+    create(value?: PartialMessage<CreateOrganizationRequest>): CreateOrganizationRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateOrganizationRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationRequest): CreateOrganizationRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.OrganizationData organization */ 1:
+                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateOrganizationRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.OrganizationData organization = 1; */
+        if (message.organization)
+            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CreateOrganizationRequest
+ */
+export const CreateOrganizationRequest = new CreateOrganizationRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResponse> {
+    constructor() {
+        super("symbolx.bench.CreateOrganizationResponse", [
+            { no: 1, name: "organization", kind: "message", T: () => OrganizationData },
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CreateOrganizationResponse>): CreateOrganizationResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<CreateOrganizationResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationResponse): CreateOrganizationResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.OrganizationData organization */ 1:
+                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
+                    break;
+                case /* uint64 epoch */ 2:
+                    message.epoch = reader.uint64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateOrganizationResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.OrganizationData organization = 1; */
+        if (message.organization)
+            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 2; */
+        if (message.epoch !== 0n)
+            writer.tag(2, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CreateOrganizationResponse
+ */
+export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
+    constructor() {
+        super("symbolx.bench.CreateBenchRequest", [
+            { no: 1, name: "owner", kind: "message", T: () => NodeReferenceData },
+            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 4, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.slug = "";
+        message.region = 0;
+        message.isMain = false;
+        if (value !== undefined)
+            reflectionMergePartial<CreateBenchRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchRequest): CreateBenchRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.NodeReferenceData owner */ 1:
+                    message.owner = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.owner);
+                    break;
+                case /* string slug */ 2:
+                    message.slug = reader.string();
+                    break;
+                case /* symbolx.bench.Region region */ 3:
+                    message.region = reader.int32();
+                    break;
+                case /* bool is_main */ 4:
+                    message.isMain = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.NodeReferenceData owner = 1; */
+        if (message.owner)
+            NodeReferenceData.internalBinaryWrite(message.owner, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string slug = 2; */
+        if (message.slug !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.slug);
+        /* symbolx.bench.Region region = 3; */
+        if (message.region !== 0)
+            writer.tag(3, WireType.Varint).int32(message.region);
+        /* bool is_main = 4; */
+        if (message.isMain !== false)
+            writer.tag(4, WireType.Varint).bool(message.isMain);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CreateBenchRequest
+ */
+export const CreateBenchRequest = new CreateBenchRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
+    constructor() {
+        super("symbolx.bench.CreateBenchResponse", [
+            { no: 1, name: "bench", kind: "message", T: () => BenchData }
+        ]);
+    }
+    create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateBenchResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchResponse): CreateBenchResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchData bench */ 1:
+                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchData bench = 1; */
+        if (message.bench)
+            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CreateBenchResponse
+ */
+export const CreateBenchResponse = new CreateBenchResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetHostRequest$Type extends MessageType<GetHostRequest> {
+    constructor() {
+        super("symbolx.bench.GetHostRequest", [
+            { no: 1, name: "bench", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<GetHostRequest>): GetHostRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GetHostRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostRequest): GetHostRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.NodeReferenceData bench */ 1:
+                    message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetHostRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.NodeReferenceData bench = 1; */
+        if (message.bench)
+            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GetHostRequest
+ */
+export const GetHostRequest = new GetHostRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetHostResponse$Type extends MessageType<GetHostResponse> {
+    constructor() {
+        super("symbolx.bench.GetHostResponse", [
+            { no: 1, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GetHostResponse>): GetHostResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.host = "";
+        if (value !== undefined)
+            reflectionMergePartial<GetHostResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostResponse): GetHostResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string host */ 1:
+                    message.host = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetHostResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string host = 1; */
+        if (message.host !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.host);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.GetHostResponse
+ */
+export const GetHostResponse = new GetHostResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SnapshotPackageRequest$Type extends MessageType<SnapshotPackageRequest> {
     constructor() {
@@ -3033,6 +2990,164 @@ class DownloadFilesResponse$Type extends MessageType<DownloadFilesResponse> {
  */
 export const DownloadFilesResponse = new DownloadFilesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class RestartServerRequest$Type extends MessageType<RestartServerRequest> {
+    constructor() {
+        super("symbolx.bench.RestartServerRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RestartServerRequest>): RestartServerRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.serverId = "";
+        if (value !== undefined)
+            reflectionMergePartial<RestartServerRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerRequest): RestartServerRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* string server_id */ 2:
+                    message.serverId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RestartServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string server_id = 2; */
+        if (message.serverId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RestartServerRequest
+ */
+export const RestartServerRequest = new RestartServerRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RestartServerResponse$Type extends MessageType<RestartServerResponse> {
+    constructor() {
+        super("symbolx.bench.RestartServerResponse", []);
+    }
+    create(value?: PartialMessage<RestartServerResponse>): RestartServerResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RestartServerResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartServerResponse): RestartServerResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RestartServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.RestartServerResponse
+ */
+export const RestartServerResponse = new RestartServerResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PingServerRequest$Type extends MessageType<PingServerRequest> {
+    constructor() {
+        super("symbolx.bench.PingServerRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "server_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PingServerRequest>): PingServerRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.serverId = "";
+        if (value !== undefined)
+            reflectionMergePartial<PingServerRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerRequest): PingServerRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* string server_id */ 2:
+                    message.serverId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PingServerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string server_id = 2; */
+        if (message.serverId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.serverId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PingServerRequest
+ */
+export const PingServerRequest = new PingServerRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PingServerResponse$Type extends MessageType<PingServerResponse> {
+    constructor() {
+        super("symbolx.bench.PingServerResponse", []);
+    }
+    create(value?: PartialMessage<PingServerResponse>): PingServerResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<PingServerResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingServerResponse): PingServerResponse {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: PingServerResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PingServerResponse
+ */
+export const PingServerResponse = new PingServerResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class RunIntrinsicBlockRequest$Type extends MessageType<RunIntrinsicBlockRequest> {
     constructor() {
         super("symbolx.bench.RunIntrinsicBlockRequest", [
@@ -3255,7 +3370,8 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
     { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
-    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse }
+    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
+    { name: "GetHost", options: {}, I: GetHostRequest, O: GetHostResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Host

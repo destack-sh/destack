@@ -72,9 +72,10 @@ class ViewType(IdEnum):
     SLIDER = 133
     NUMBER = 134
     # stringy
-    TEXT = 140
-    CODE = 141
-    JSON = 142
+    STRING = 140
+    TEXT = 141
+    CODE = 142
+    JSON = 143
     # selection
     TOGGLE = 150
     CHECKBOX = 151

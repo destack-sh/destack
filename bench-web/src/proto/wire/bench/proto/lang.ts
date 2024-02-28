@@ -1267,9 +1267,9 @@ export interface SubjectData {
      */
     identityPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData badge_ptr = 43;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData badges_ptr = 43;
      */
-    badgePtr?: NodeReferenceData;
+    badgesPtr: NodeReferenceData[];
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData owned_ptr = 44;
      */
@@ -1599,10 +1599,6 @@ export interface BadgeData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.BadgeType type = 30;
-     */
-    type: BadgeType;
-    /**
      * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
@@ -1615,25 +1611,21 @@ export interface BadgeData {
      */
     expiresAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional string link_token = 40;
+     * @generated from protobuf field: optional string key = 40;
      */
-    linkToken?: string;
+    key?: string;
     /**
-     * @generated from protobuf field: optional string link_password = 41;
+     * @generated from protobuf field: optional string key_hash = 41;
      */
-    linkPassword?: string;
+    keyHash?: string;
     /**
-     * @generated from protobuf field: optional string link_password_hash = 42;
+     * @generated from protobuf field: optional string password = 42;
      */
-    linkPasswordHash?: string;
+    password?: string;
     /**
-     * @generated from protobuf field: optional string key_value = 50;
+     * @generated from protobuf field: optional string password_hash = 43;
      */
-    keyValue?: string;
-    /**
-     * @generated from protobuf field: optional string key_value_hash = 51;
-     */
-    keyValueHash?: string;
+    passwordHash?: string;
 }
 /**
  * A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
@@ -5050,23 +5042,6 @@ export enum AggregationOp {
     HISTOGRAM = 107
 }
 /**
- * @generated from protobuf enum symbolx.bench.BadgeType
- */
-export enum BadgeType {
-    /**
-     * @generated from protobuf enum value: BADGE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BADGE_TYPE_SHARING_LINK = 1;
-     */
-    SHARING_LINK = 1,
-    /**
-     * @generated from protobuf enum value: BADGE_TYPE_ACCESS_KEY = 2;
-     */
-    ACCESS_KEY = 2
-}
-/**
  * @generated from protobuf enum symbolx.bench.BenchType
  */
 export enum BenchType {
@@ -7428,17 +7403,21 @@ export enum ViewType {
      */
     NUMBER = 134,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 140;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 140;
      */
-    TEXT = 140,
+    STRING = 140,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 141;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 141;
      */
-    CODE = 141,
+    TEXT = 141,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 142;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 142;
      */
-    JSON = 142,
+    CODE = 142,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 143;
+     */
+    JSON = 143,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 150;
      */
@@ -10399,7 +10378,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
             { no: 40, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "badge_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "badges_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 44, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 45, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
@@ -10409,6 +10388,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.badgesPtr = [];
         message.ownedPtr = [];
         message.membershipsPtr = [];
         message.rolesPtr = [];
@@ -10454,8 +10434,8 @@ class SubjectData$Type extends MessageType<SubjectData> {
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 42:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData badge_ptr */ 43:
-                    message.badgePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.badgePtr);
+                case /* repeated symbolx.bench.NodeReferenceData badges_ptr */ 43:
+                    message.badgesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData owned_ptr */ 44:
                     message.ownedPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -10511,9 +10491,9 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 42; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData badge_ptr = 43; */
-        if (message.badgePtr)
-            NodeReferenceData.internalBinaryWrite(message.badgePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData badges_ptr = 43; */
+        for (let i = 0; i < message.badgesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.badgesPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData owned_ptr = 44; */
         for (let i = 0; i < message.ownedPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.ownedPtr[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
@@ -11157,15 +11137,13 @@ class BadgeData$Type extends MessageType<BadgeData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BadgeType", BadgeType, "BADGE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "link_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "link_password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "link_password_hash", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "key_value", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "key_value_hash", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 40, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "key_hash", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 42, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "password_hash", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<BadgeData>): BadgeData {
@@ -11175,7 +11153,6 @@ class BadgeData$Type extends MessageType<BadgeData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
-        message.type = 0;
         message.delegatedPolicies = [];
         if (value !== undefined)
             reflectionMergePartial<BadgeData>(this, message, value);
@@ -11225,9 +11202,6 @@ class BadgeData$Type extends MessageType<BadgeData> {
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbolx.bench.BadgeType type */ 30:
-                    message.type = reader.int32();
-                    break;
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
@@ -11237,20 +11211,17 @@ class BadgeData$Type extends MessageType<BadgeData> {
                 case /* optional google.protobuf.Timestamp expires_at */ 33:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
-                case /* optional string link_token */ 40:
-                    message.linkToken = reader.string();
+                case /* optional string key */ 40:
+                    message.key = reader.string();
                     break;
-                case /* optional string link_password */ 41:
-                    message.linkPassword = reader.string();
+                case /* optional string key_hash */ 41:
+                    message.keyHash = reader.string();
                     break;
-                case /* optional string link_password_hash */ 42:
-                    message.linkPasswordHash = reader.string();
+                case /* optional string password */ 42:
+                    message.password = reader.string();
                     break;
-                case /* optional string key_value */ 50:
-                    message.keyValue = reader.string();
-                    break;
-                case /* optional string key_value_hash */ 51:
-                    message.keyValueHash = reader.string();
+                case /* optional string password_hash */ 43:
+                    message.passwordHash = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -11303,9 +11274,6 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BadgeType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -11315,21 +11283,18 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* optional google.protobuf.Timestamp expires_at = 33; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional string link_token = 40; */
-        if (message.linkToken !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.linkToken);
-        /* optional string link_password = 41; */
-        if (message.linkPassword !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.linkPassword);
-        /* optional string link_password_hash = 42; */
-        if (message.linkPasswordHash !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.linkPasswordHash);
-        /* optional string key_value = 50; */
-        if (message.keyValue !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.keyValue);
-        /* optional string key_value_hash = 51; */
-        if (message.keyValueHash !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.keyValueHash);
+        /* optional string key = 40; */
+        if (message.key !== undefined)
+            writer.tag(40, WireType.LengthDelimited).string(message.key);
+        /* optional string key_hash = 41; */
+        if (message.keyHash !== undefined)
+            writer.tag(41, WireType.LengthDelimited).string(message.keyHash);
+        /* optional string password = 42; */
+        if (message.password !== undefined)
+            writer.tag(42, WireType.LengthDelimited).string(message.password);
+        /* optional string password_hash = 43; */
+        if (message.passwordHash !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.passwordHash);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

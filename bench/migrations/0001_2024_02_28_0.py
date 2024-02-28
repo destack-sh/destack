@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.02.27. Edit as needed.
+# This migration was automatically generated on 2024.02.28. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.02.27.0"
+VERSION = "2024.02.28.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -394,15 +394,13 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_ck uuid,
         updated_by_run_ck uuid,
-        type smallint NOT NULL,
         name varchar,
         delegated_policies jsonb[] NOT NULL,
         expires_at timestamp,
-        link_token uuid,
-        link_password bytea,
-        link_password_hash bytea,
-        key_value bytea,
-        key_value_hash bytea
+        key bytea,
+        key_hash bytea,
+        password bytea,
+        password_hash bytea
     )
     """
     )
@@ -1074,7 +1072,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
     await cur.execute(
-        "CREATE UNIQUE INDEX bench_badge_bench_idx_link_token ON bench_badge USING BTREE (link_token)"
+        "CREATE UNIQUE INDEX bench_badge_bench_idx_key ON bench_badge USING BTREE (key)"
+    )
+    await cur.execute(
+        "CREATE UNIQUE INDEX bench_badge_bench_idx_key_hash ON bench_badge USING BTREE (key_hash)"
     )
     await cur.execute(
         "CREATE INDEX bench_badge_bench_idx_package_deleted_at ON bench_badge USING BTREE (deleted_at, package_id)"
@@ -1085,7 +1086,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_badge    
-        ADD CONSTRAINT bench_badge_bench_idx_link_token UNIQUE USING INDEX bench_badge_bench_idx_link_token,
+        ADD CONSTRAINT bench_badge_bench_idx_key UNIQUE USING INDEX bench_badge_bench_idx_key,
+        ADD CONSTRAINT bench_badge_bench_idx_key_hash UNIQUE USING INDEX bench_badge_bench_idx_key_hash,
         ADD CONSTRAINT bench_badge_bench_check_one_parent CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL))
     """
     )

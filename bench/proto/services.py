@@ -163,6 +163,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 duration = asyncio.get_running_loop().time() - start
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status_map: Mapping[type, GRPCStatus] = {
+                    NotImplementedError: GRPCStatus.UNIMPLEMENTED,
                     NodeNotFoundError: GRPCStatus.NOT_FOUND,
                     SqlNotExistsError: GRPCStatus.NOT_FOUND,
                     SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,

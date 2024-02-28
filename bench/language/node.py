@@ -1560,7 +1560,11 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         return NodeReference.from_node(self)
 
     def __eq__(self, other: Optional["Node"]):
-        return other is not None and self.metatype == other.metatype and self.id == other.id
+        return (
+            other is not None
+            and self.metatype == other.metatype
+            and (self.id is not None and self.id == other.id or self is other)
+        )
 
     def __hash__(self):
         return hash(self.id)

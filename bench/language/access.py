@@ -16,7 +16,6 @@ from bench.language.const import (
     AccessKind,
     AccessMode,
     AccessType,
-    BadgeType,
     BenchError,
     BenchType,
     ConditionalOp,
@@ -117,24 +116,18 @@ class Badge(Node):
     """
 
     parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
-    type: BadgeType = p_regular(30)
     name: Optional[str] = p_regular(31)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
     expires_at: Optional[datetime] = p_regular(33, default=None)
-    # sharing link badge
-    link_token: Optional[UUID] = p_internal(40, unique=True, default=None)
-    link_password: Optional[str] = p_internal(
-        41, default=None, encrypt=True, defer=True, sensitive=True
+    key: Optional[str] = p_internal(
+        40, unique=True, default=None, encrypt=True, defer=True, sensitive=True
     )
-    link_password_hash: Optional[str] = p_internal(
-        42, default=None, encrypt=True, defer=True, sensitive=True
+    key_hash: Optional[str] = p_internal(
+        41, unique=True, default=None, encrypt=True, defer=True, sensitive=True
     )
-    # access key badge
-    key_value: Optional[str] = p_internal(
-        50, default=None, encrypt=True, defer=True, sensitive=True
-    )
-    key_value_hash: Optional[str] = p_internal(
-        51, default=None, encrypt=True, defer=True, sensitive=True
+    password: Optional[str] = p_internal(42, default=None, encrypt=True, defer=True, sensitive=True)
+    password_hash: Optional[str] = p_internal(
+        43, default=None, encrypt=True, defer=True, sensitive=True
     )
 
 
@@ -544,9 +537,7 @@ class Subject(Struct):
     identity: Optional["Identity"] = p_system(
         42, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
-    badge: Optional["Badge"] = p_system(
-        43, default=None, require=False, array=False, references=NodeType.BADGE
-    )
+    badges: list["Badge"] = p_system(43, require=False, array=True, references=NodeType.BADGE)
     owned: list[Owner] = p_system(
         44,
         array=True,
@@ -574,8 +565,9 @@ class Subject(Struct):
             applicable_principals.append(Subject(user=self.user))
         if self.identity:
             applicable_principals.append(Subject(identity=self.identity))
-        if self.badge:
-            applicable_principals.append(Subject(badge=self.badge))
+        if self.badges:
+            for badge in self.badges:
+                applicable_principals.append(Subject(badges=[badge]))
         for owner in self.owned or ():
             if str(owner.id) in graph:
                 applicable_principals.append(Subject(owned=[owner]))

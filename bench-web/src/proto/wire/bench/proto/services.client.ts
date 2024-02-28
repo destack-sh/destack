@@ -24,6 +24,8 @@ import type { MergePackageRequest } from "./services";
 import type { SnapshotPackageResponse } from "./services";
 import type { SnapshotPackageRequest } from "./services";
 import { Supervisor } from "./services";
+import type { GetHostResponse } from "./services";
+import type { GetHostRequest } from "./services";
 import type { CreateBenchResponse } from "./services";
 import type { CreateBenchRequest } from "./services";
 import type { LogoutUserResponse } from "./services";
@@ -276,6 +278,12 @@ export interface ISupervisorClient {
      * @generated from protobuf rpc: CreateBench(symbolx.bench.CreateBenchRequest) returns (symbolx.bench.CreateBenchResponse);
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
+    /**
+     * Gets Bench host information.
+     *
+     * @generated from protobuf rpc: GetHost(symbolx.bench.GetHostRequest) returns (symbolx.bench.GetHostResponse);
+     */
+    getHost(input: GetHostRequest, options?: RpcOptions): UnaryCall<GetHostRequest, GetHostResponse>;
 }
 /**
  * Global control plane: create & manage the global stuff like Benches, Users, etc..
@@ -400,6 +408,15 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
         const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Gets Bench host information.
+     *
+     * @generated from protobuf rpc: GetHost(symbolx.bench.GetHostRequest) returns (symbolx.bench.GetHostResponse);
+     */
+    getHost(input: GetHostRequest, options?: RpcOptions): UnaryCall<GetHostRequest, GetHostResponse> {
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        return stackIntercept<GetHostRequest, GetHostResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

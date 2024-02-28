@@ -670,6 +670,7 @@ class PostgresConnection(
         self.cur = cur
 
     async def close(self):
+        await self.cur.connection.rollback()
         await self.conn.close()
 
     async def fetch(

@@ -1,12 +1,11 @@
 import abc
 import asyncio
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import structlog
 import uvicorn
-
 
 logger = structlog.get_logger(__name__)
 
@@ -81,7 +80,7 @@ async def restart_on_file_changes(on_restart: callable = None):
             if event.is_directory:
                 return
             if event.src_path.endswith(".py"):
-                logger.info("watcher.reload", path=event.src_path)
+                logger.debug("watcher.reload", path=event.src_path)
                 if on_restart:
                     on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
@@ -90,7 +89,7 @@ async def restart_on_file_changes(on_restart: callable = None):
     observer = Observer()
     observer.schedule(Handler(), cwd, recursive=True)
     observer.start()
-    logger.info("watcher.listen", cwd=cwd)
+    logger.debug("watcher.listen", cwd=cwd)
 
     try:
         while True:

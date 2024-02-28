@@ -11,6 +11,8 @@ export default defineConfig({
     vueJsx(),
   ],
   resolve: {
+    // Resolve grpc-web/Vite issue (see https://github.com/grpc/grpc-web/issues/1242#issuecomment-1816249928)
+    preserveSymlinks: true,
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }

@@ -2,24 +2,22 @@
 Patch code for betterproto to make it behave like we want.
 Auto-pasted into the generated wire files.
 """
-from base64 import b64encode, b64decode
 import dataclasses
+import json
+from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import json
-from typing import Mapping, Any, Self, Union, Iterable
+from typing import Any, Iterable, Mapping, Self, Union
 
 import betterproto
-from betterproto import hybridmethod, Message as BetterprotoMessage
-from betterproto.lib.google.protobuf import (
-    Struct as BetterprotoStruct,
-    Value as BetterprotoValue,
-    NullValue,
-    ListValue,
-)
+from betterproto import Message as BetterprotoMessage
+from betterproto import hybridmethod
+from betterproto.lib.google.protobuf import ListValue, NullValue
+from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
+from betterproto.lib.google.protobuf import Value as BetterprotoValue
 from dateutil.parser import isoparse
 
-from bench.utils.utils import frozendict
+from bench.utils.utils import frozendict, omit_empty
 
 # monkey-patch betterproto 'default generator' to initialize unspecified enums as None
 
@@ -382,12 +380,12 @@ BetterprotoStruct.from_dict = _PatchedStruct.from_dict
 BetterprotoStruct.to_dict = _PatchedStruct.to_dict
 
 # add custom encode/decode methods for headers to RpcMetadata
-from bench.proto.wire import RpcMetadata  # noqa
+from bench.proto.wire import RpcMetadata, RpcMetadataBadgeInfo  # noqa
 
 
 class _PatchedRpcMetadata(RpcMetadata):
     def __repr__(self):
-        # only print non-default values
+        # print all non-default values
         str_parts = []
         for field in dataclasses.fields(self):
             value = getattr(self, field.name)
@@ -396,12 +394,40 @@ class _PatchedRpcMetadata(RpcMetadata):
         return f"{self.__class__.__name__}({', '.join(str_parts)})"
 
     def to_headers(self) -> dict:
-        packed = self.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=False)
-        return {k.replace("_", "-"): str(v) for k, v in packed.items()}
+        # flat encoding, messages as base64 :RpcMetadataEncoding
+        packed = {
+            "2": self.client_id,
+            "3": self.client_nonce,
+            "4": self.client_access_token,
+        }
+        packed_badges = [
+            {
+                "2": badge.id,
+                "3": badge.key,
+                "4": badge.password,
+            }
+            for badge in self.badges
+        ]
+        if packed_badges:
+            packed["5"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
+        return omit_empty(packed)
 
     def from_headers(self, headers: Mapping) -> RpcMetadata:
-        packed = {k.replace("-", "_"): v for k, v in headers.items()}
-        return RpcMetadata.from_dict(packed)
+        # flat encoding, messages as base64 :RpcMetadataEncoding
+        self.client_id = headers.get("2")
+        self.client_nonce = headers.get("3")
+        self.client_access_token = headers.get("4")
+        if headers.get("5"):
+            unpacked_badges = json.loads(b64decode(headers.get("5")).decode("utf-8"))
+            self.badges = [
+                RpcMetadataBadgeInfo(
+                    id=badge.get("2"),
+                    key=badge.get("3"),
+                    password=badge.get("4"),
+                )
+                for badge in unpacked_badges
+            ]
+        return self
 
 
 RpcMetadata.__repr__ = _PatchedRpcMetadata.__repr__
