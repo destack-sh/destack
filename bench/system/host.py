@@ -47,7 +47,7 @@ from bench.system.graph import GraphIoService
 from bench.system.resource import get_s3_client, provision_pending_resources
 from bench.utils.func import to_uuid
 
-logger = structlog.get_logger("package_host")
+logger = structlog.get_logger(__name__)
 
 LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
     nt
@@ -156,6 +156,7 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
 
     async def start_quick(self) -> None:
         async with global_session() as session:
+            logger.info("host.start_quick", host=self)
             self._bench = (
                 await Bench.descendants(
                     Handle, Server, Store, Cache, Drive, Environment, Branch, Package
