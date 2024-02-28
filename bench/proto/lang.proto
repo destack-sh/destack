@@ -55,12 +55,6 @@ enum AggregationOp {
   AGGREGATION_OP_HISTOGRAM = 107;
 }
 
-enum BadgeType {
-  BADGE_TYPE_UNSPECIFIED = 0;
-  BADGE_TYPE_SHARING_LINK = 1;
-  BADGE_TYPE_ACCESS_KEY = 2;
-}
-
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
@@ -740,9 +734,10 @@ enum ViewType {
   VIEW_TYPE_VALUE = 120;
   VIEW_TYPE_SLIDER = 133;
   VIEW_TYPE_NUMBER = 134;
-  VIEW_TYPE_TEXT = 140;
-  VIEW_TYPE_CODE = 141;
-  VIEW_TYPE_JSON = 142;
+  VIEW_TYPE_STRING = 140;
+  VIEW_TYPE_TEXT = 141;
+  VIEW_TYPE_CODE = 142;
+  VIEW_TYPE_JSON = 143;
   VIEW_TYPE_TOGGLE = 150;
   VIEW_TYPE_CHECKBOX = 151;
   VIEW_TYPE_CHECKBOX_GROUP = 152;
@@ -1193,7 +1188,7 @@ message SubjectData {
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
   optional NodeReferenceData identity_ptr = 42;
-  optional NodeReferenceData badge_ptr = 43;
+  repeated NodeReferenceData badges_ptr = 43;
   repeated NodeReferenceData owned_ptr = 44;
   repeated NodeReferenceData memberships_ptr = 45;
   repeated NodeReferenceData roles_ptr = 46;
@@ -1291,15 +1286,13 @@ message BadgeData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
-  BadgeType type = 30;
   optional string name = 31;
   repeated PolicyData delegated_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
-  optional string link_token = 40;
-  optional string link_password = 41;
-  optional string link_password_hash = 42;
-  optional string key_value = 50;
-  optional string key_value_hash = 51;
+  optional string key = 40;
+  optional string key_hash = 41;
+  optional string password = 42;
+  optional string password_hash = 43;
 }
 
 // A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.

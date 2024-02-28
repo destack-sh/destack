@@ -558,7 +558,7 @@ class Session(Node):
         self._tx = Transaction(session=self, is_readonly=self.is_readonly)
 
         self.opened_at = utcnow_with_tz()
-        logger.debug("session.open")
+        logger.trace("session.open")
 
     @_auto_async_to_sync
     async def flush(self):
@@ -596,7 +596,7 @@ class Session(Node):
             self._stdout_collector.stop()
             self._stderr_collector.stop()
             self._flush_session_loop.cancel()
-        logger.debug("session.close", duration=self.duration)
+        logger.trace("session.close", duration=self.duration)
 
     async def __aenter__(self):
         await self.open()

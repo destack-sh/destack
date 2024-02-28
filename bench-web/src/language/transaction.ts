@@ -1,6 +1,6 @@
 import { v4 } from "uuid";
 
-class Transaction {
+export class Transaction {
   id: string;
 
   constructor(id: string | undefined) {

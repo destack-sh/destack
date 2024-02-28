@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.27.0"
+VERSION = "2024.02.28.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -435,11 +435,6 @@ class StoreEngineType(IdEnum):
     POSTGRES = 3
     OPENSEARCH = 4
     CLICKHOUSE = 5
-
-
-class BadgeType(IdEnum):
-    SHARING_LINK = 1
-    ACCESS_KEY = 2
 
 
 class PolicyEffect(IdEnum):

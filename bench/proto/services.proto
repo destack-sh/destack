@@ -11,76 +11,9 @@ import "bench/proto/lang.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
-
 //
-// Global supervisor
+// Common graph operations
 //
-
-message SignupUserRequest {
-  string id = 1;
-  string slug = 2;
-  optional string name = 3;
-  string email = 4 [(sensitive) = true];
-  string password = 5 [(sensitive) = true];
-  ClientData client = 6;
-}
-message SignupUserResponse {
-  UserData user = 1;
-  string access_token = 2 [(sensitive) = true];
-  uint64 epoch = 3;
-}
-
-message ChangeUserPasswordRequest {
-  string old_password = 1 [(sensitive) = true];
-  string new_password = 2 [(sensitive) = true];
-}
-message ChangeUserPasswordResponse {
-  UserData user = 1;
-  uint64 epoch = 2;
-}
-
-message LoginUserRequest {
-  oneof user {
-    string id = 1;
-    string slug = 2;
-    string email = 3 [(sensitive) = true];
-  }
-  string password = 4 [(sensitive) = true];
-  ClientData client = 5;
-}
-message LoginUserResponse {
-  UserData user = 1;
-  ClientData client = 2;
-  string access_token = 3 [(sensitive) = true];
-  uint64 epoch = 4;
-}
-
-message LogoutUserRequest {
-  // If specified, log out only the specified clients (instead of the current client).
-  repeated string client_ids = 1;
-  // If specified, log out all clients (incl. current).
-  optional bool logout_all = 2;
-}
-message LogoutUserResponse {
-}
-
-message CreateOrganizationRequest {
-  OrganizationData organization = 1;
-}
-message CreateOrganizationResponse {
-  OrganizationData organization = 1;
-  uint64 epoch = 2;
-}
-
-message CreateBenchRequest {
-  NodeReferenceData owner = 1;
-  string slug = 2;
-  Region region = 3;
-  bool is_main = 4;
-}
-message CreateBenchResponse {
-  BenchData bench = 1;
-}
 
 message GetNodesRequest {
   GraphScope scope = 1;
@@ -184,20 +117,6 @@ message WatchEditsResponse {
   uint64 epoch = 2;
 }
 
-message RestartServerRequest {
-  GraphScope scope = 1;
-  string server_id = 2;
-}
-message RestartServerResponse {
-}
-
-message PingServerRequest {
-  GraphScope scope = 1;
-  string server_id = 2;
-}
-message PingServerResponse {
-}
-
 // Common service definition for global and bench-local :GraphIO
 service GraphIO {
   // Get nodes in this graph. Error if any node is not found/accessible.
@@ -216,6 +135,84 @@ service GraphIO {
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   // Receive any relevant edits to this graph.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+}
+
+
+//
+// Supervisor
+//
+
+message SignupUserRequest {
+  string id = 1;
+  string slug = 2;
+  optional string name = 3;
+  string email = 4 [(sensitive) = true];
+  string password = 5 [(sensitive) = true];
+  ClientData client = 6;
+}
+message SignupUserResponse {
+  UserData user = 1;
+  string access_token = 2 [(sensitive) = true];
+  uint64 epoch = 3;
+}
+
+message ChangeUserPasswordRequest {
+  string old_password = 1 [(sensitive) = true];
+  string new_password = 2 [(sensitive) = true];
+}
+message ChangeUserPasswordResponse {
+  UserData user = 1;
+  uint64 epoch = 2;
+}
+
+message LoginUserRequest {
+  oneof user {
+    string id = 1;
+    string slug = 2;
+    string email = 3 [(sensitive) = true];
+  }
+  string password = 4 [(sensitive) = true];
+  ClientData client = 5;
+}
+message LoginUserResponse {
+  UserData user = 1;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
+  uint64 epoch = 4;
+}
+
+message LogoutUserRequest {
+  // If specified, log out only the specified clients (instead of the current client).
+  repeated string client_ids = 1;
+  // If specified, log out all clients (incl. current).
+  optional bool logout_all = 2;
+}
+message LogoutUserResponse {
+}
+
+message CreateOrganizationRequest {
+  OrganizationData organization = 1;
+}
+message CreateOrganizationResponse {
+  OrganizationData organization = 1;
+  uint64 epoch = 2;
+}
+
+message CreateBenchRequest {
+  NodeReferenceData owner = 1;
+  string slug = 2;
+  Region region = 3;
+  bool is_main = 4;
+}
+message CreateBenchResponse {
+  BenchData bench = 1;
+}
+
+message GetHostRequest {
+  NodeReferenceData bench = 1;
+}
+message GetHostResponse {
+  string host = 1;
 }
 
 // Global control plane: create & manage the global stuff like Benches, Users, etc..
@@ -252,6 +249,8 @@ service Supervisor {
 
   // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+  // Gets Bench host information.
+  rpc GetHost(GetHostRequest) returns (GetHostResponse);
 }
 
 //
@@ -284,6 +283,20 @@ message DownloadFilesResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
+message RestartServerRequest {
+  GraphScope scope = 1;
+  string server_id = 2;
+}
+message RestartServerResponse {
+}
+
+message PingServerRequest {
+  GraphScope scope = 1;
+  string server_id = 2;
+}
+message PingServerResponse {
+}
+
 message RunIntrinsicBlockRequest {
   oneof block {
     PathData path = 1;
@@ -294,7 +307,6 @@ message RunIntrinsicBlockRequest {
   string run_id = 5;
   string run_ck = 6;
 }
-
 message RunIntrinsicBlockResponse {
   google.protobuf.Struct outputs = 1;
   optional RunErrorData error = 2;

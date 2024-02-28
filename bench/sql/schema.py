@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.02.27.0"
+VERSION = "2024.02.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1051,27 +1051,29 @@ BADGE_TABLE = Table(
             is_nullable=True,
         ),
         Column("updated_by_run_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("link_token", PrimitiveType.UUID, is_unique=True, is_nullable=True),
-        Column("link_password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("link_password_hash", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("key_value", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("key_value_hash", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("key", PrimitiveType.STRING, is_unique=True, is_nullable=True, is_encrypted=True),
+        Column(
+            "key_hash", PrimitiveType.STRING, is_unique=True, is_nullable=True, is_encrypted=True
+        ),
+        Column("password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("password_hash", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
     indexes=(
-        Index("bench_idx_link_token", IndexType.BTREE, ("link_token",), is_unique=True),
+        Index("bench_idx_key", IndexType.BTREE, ("key",), is_unique=True),
+        Index("bench_idx_key_hash", IndexType.BTREE, ("key_hash",), is_unique=True),
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
         Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
     constraints=(
+        Constraint("bench_idx_key", ConstraintType.UNIQUE, columns=("key",), index="bench_idx_key"),
         Constraint(
-            "bench_idx_link_token",
+            "bench_idx_key_hash",
             ConstraintType.UNIQUE,
-            columns=("link_token",),
-            index="bench_idx_link_token",
+            columns=("key_hash",),
+            index="bench_idx_key_hash",
         ),
         Constraint(
             "bench_check_one_parent",

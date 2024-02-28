@@ -16,18 +16,22 @@ message ClientOrigin {
 }
 
 // Core metadata for all RPC requests.
-// (This is passed as specially encoded headers, but it's nice to have a common definition.)
+// This is passed as specially encoded headers with robust dicts,
+// but it's nice to have a common definition.
+// NOTE: update :RpcMetadataEncoding when changing RpcMetadata
 message RpcMetadata {
   // Client
   optional string client_id = 2;
   optional string client_nonce = 3;
   optional string client_access_token = 4;
 
-  // Badge
-  optional string badge_id = 5;
-  optional string badge_link_token = 6;
-  optional string badge_link_password = 7;
-  optional string badge_key_value = 8;
+  // Badges
+  message BadgeInfo {
+    optional string id = 2;
+    optional string key = 3;
+    optional string password = 4;
+  }
+  repeated BadgeInfo badges = 5;
 }
 
 // Scope for an operation in the Bench graph.

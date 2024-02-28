@@ -1,13 +1,11 @@
 import logging
 import logging.config
-import os
 
 import structlog
 
 from bench.utils.utils import get_from_env
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "TRACE")
-NOISY_LOG_LEVEL = os.getenv("NOISY_LOG_LEVEL", "INFO")
+LOG_LEVEL = get_from_env("LOG_LEVEL", "DEBUG")
 
 # monkey patch structlog to add color support for custom 'trace' level
 patched_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
@@ -45,16 +43,6 @@ if not get_from_env("JSON_LOGS", default=False, type_cast=bool):
 else:
     logged_handlers = ["json_console"]
 
-NOISY_LOG_SOURCES = {}
-NOISY_LOGGERS = {
-    source: {
-        "handlers": logged_handlers,
-        "level": NOISY_LOG_LEVEL,
-        "propagate": False,
-    }
-    for source in NOISY_LOG_SOURCES
-}
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -62,7 +50,6 @@ LOGGING = {
     "handlers": HANDLERS,
     "loggers": {
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
-        **NOISY_LOGGERS,
     },
 }
 

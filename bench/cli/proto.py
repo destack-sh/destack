@@ -12,10 +12,11 @@ from bench.language import VERSION, Node
 from bench.language.setup import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
 from bench.proto.engine import generate_proto_schema
 
-TARGET_PY_DIR = "bench/proto/wire"
-TARGET_PY_FILE = TARGET_PY_DIR + ".py"
-TARGET_TS_DIR = "bench-web/src/proto/wire"
-GENERATED_PROTO_FILE = "bench/proto/lang.proto"
+LANG_PROTO = "bench/proto/lang.proto"
+TEMP_PY_DIR = "bench/proto/wire.tmp"
+TEMP_PY_FILE = "bench/proto/wire.py.tmp"
+WIRE_PY_FILE = "bench/proto/wire.py"
+WIRE_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_FILES = "bench/proto/common.proto bench/proto/services.proto"
 
 logger = structlog.get_logger(__name__)
@@ -40,34 +41,29 @@ def _generate_proto_schema() -> str:
 def _regen_proto_artifacts(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
     # regenerate python & TS proto files
-    Path(GENERATED_PROTO_FILE).write_text(schema_str)
+    Path(LANG_PROTO).write_text(schema_str)
 
     # python
     logger.info("proto.regen.py")
-    # backup existing target
-    # (only needed for Python since we need the source to compile to regenerate to retry)
-    shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
-    try:
-        # generate
-        Path(TARGET_PY_FILE).unlink(missing_ok=True)
-        Path(TARGET_PY_DIR).mkdir(parents=True, exist_ok=True)
-        _shell(
-            f"protoc -I . --python_betterproto_out={TARGET_PY_DIR} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-        )
-        _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
+    Path(TEMP_PY_FILE).unlink(missing_ok=True)
+    Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
+    _shell(
+        f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_FILES}",
+    )
+    _shell(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
 
-        # add/patch our extra stuff
-        wire_py = Path(TARGET_PY_FILE).read_text()
+    # add/patch our extra stuff
+    wire_py = Path(TEMP_PY_FILE).read_text()
+    wire_py = re.sub(
         # rename all request parameters to 'request', add subject parameter
-        wire_py = re.sub(
-            # * is used only in stub signatures by betterproto (we only want bases here)
-            r"self, [a-z_]+_request:(?! \"[a-zA-Z]\", \*)",
-            'self, subject: "Subject", request:',
-            wire_py,
-        )
-        wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
-        wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
-        patch_prefix_code = f"""
+        # * is used only in stub signatures by betterproto (we only want bases here)
+        r"self, [a-z_]+_request:(?! \"[a-zA-Z]\", \*)",
+        'self, subject: "Subject", request:',
+        wire_py,
+    )
+    wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
+    wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
+    patch_prefix_code = f"""
 from typing import TYPE_CHECKING
 
 VERSION = '{VERSION}'
@@ -75,37 +71,29 @@ VERSION = '{VERSION}'
 if TYPE_CHECKING:
     from bench.language import Subject
 """
-        patch_postfix_code = f"""
+    patch_postfix_code = f"""
 # extra utility types
 import bench.proto.monkey # noqa
 
 from typing import Union # noqa
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
-        """
-        Path(TARGET_PY_FILE).write_text(
-            patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
-        )
-
-        # and fix it up
-        shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)
-        _shell(f"ruff {TARGET_PY_FILE} --fix", check=False, stdout=DEVNULL)
-        _shell(f"pre-commit run black --files {TARGET_PY_FILE}", check=False, stdout=DEVNULL)
-    except Exception as e:
-        # restore backup
-        Path(TARGET_PY_FILE).unlink(missing_ok=True)
-        shutil.copy(TARGET_PY_FILE + ".bak", TARGET_PY_FILE)
-        raise e
-    finally:
-        Path(TARGET_PY_FILE + ".bak").unlink(missing_ok=True)
+    """
+    Path(TEMP_PY_FILE).write_text(
+        patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
+    )
+    shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
+    _shell(f"ruff {TEMP_PY_FILE} --fix", check=False, stdout=DEVNULL)
+    _shell(f"pre-commit run black --files {TEMP_PY_FILE}", check=False, stdout=DEVNULL)
+    _shell(f"mv {TEMP_PY_FILE} {WIRE_PY_FILE}")
     logger.info("proto.regen.py.done")
 
     # TS
     logger.info("proto.regen.ts")
-    shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
-    Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(WIRE_TS_DIR, ignore_errors=True)
+    Path(WIRE_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"bun x protoc --ts_out {TARGET_TS_DIR} --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
+        f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_FILES}",
     )
     # patch
     patch_postfix_code = f"""
@@ -113,9 +101,9 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 """
-    lang_ts = Path(TARGET_TS_DIR + "/bench/proto/lang.ts").read_text()
-    Path(TARGET_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
-    Path(TARGET_TS_DIR + "/index.ts").write_text(
+    lang_ts = Path(WIRE_TS_DIR + "/bench/proto/lang.ts").read_text()
+    Path(WIRE_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    Path(WIRE_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files
 export * from './bench/proto/common';
@@ -129,7 +117,7 @@ export * from './google/protobuf/timestamp';
     )
 
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
-    for path in Path(TARGET_TS_DIR).glob("**/*.ts"):
+    for path in Path(WIRE_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
     logger.info("proto.regen.ts.done")
 

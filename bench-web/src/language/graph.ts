@@ -12,6 +12,11 @@ export class NodeDataGraph {
     return this.nodesById[id];
   }
 
+  clear() {
+    this.nodesById = {};
+    this.nodesByParentIdAndType = {};
+  }
+
   add(node: AnyNodeData) {
     if (this.nodesById[node.id]) {
       throw new Error(`node with id ${node.id} already exists`);

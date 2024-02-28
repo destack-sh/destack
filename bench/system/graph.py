@@ -145,6 +145,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         )
         await self.check_and_log_request(evaluated_request)
 
+        logger.info("graph.get", subject=subject, request=request, epoch=self.epoch)
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             access=access._to_data(),
@@ -176,6 +177,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         )
         await self.check_and_log_request(evaluated_request)
 
+        logger.info("graph.search", subject=subject, request=request, epoch=self.epoch)
         return SearchNodesResponse(
             roots=[NodeReference.from_node_data(r) for r in result.nodes],
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -204,6 +206,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
             result = await connection.aggregate(query)
 
+        logger.debug("graph.aggregate", subject=subject, request=request, epoch=self.epoch)
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     async def commit_transaction(
@@ -256,6 +259,13 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             # apply the edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
+            logger.info(
+                "graph.commit",
+                subject=subject,
+                request=request,
+                edits=session.tx.edits,
+                epoch=self.epoch,
+            )
             self.on_graph_edited(scopes.graph_scopes, request.edits)
 
         accepted_revisions = [e.revision for e in request.edits]

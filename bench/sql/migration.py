@@ -207,11 +207,11 @@ async def migrate_to(
             raise ValueError("no migrations found")
         target_migration = all_migrations[-1]
 
-    logger.debug("migration.load", target_migration=target_migration, is_global=is_global)
+    logger.trace("migration.load", target_migration=target_migration, is_global=is_global)
     stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
     log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
-    logger.info("migration.apply_missing")
+    logger.debug("migration.apply_missing")
     applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
@@ -228,10 +228,10 @@ async def migrate_to(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.info("migration.apply_missing.noop")
+        log.debug("migration.apply_missing.noop")
         return []
     else:
-        log.info("migration.apply_missing.start", migrations_to_apply=migrations_to_apply)
+        log.debug("migration.apply_missing.start", migrations_to_apply=migrations_to_apply)
         await _do_migrate(cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global)
 
     # update the migration table (applied + missing)
@@ -739,13 +739,6 @@ async def introspect_tables_from_pg(
     table_prefix: str = "bench_",
 ) -> list[Table]:
     start = asyncio.get_running_loop().time()
-    logger.debug(
-        "introspect",
-        cur=cur,
-        include_columns=include_columns,
-        include_constraints=include_constraints,
-        include_indexes=include_indexes,
-    )
 
     def _strip_condition(condition: str) -> str:
         # remove outermost (...) if present until only one (...) remains
@@ -976,6 +969,6 @@ WHERE
         tables.append(table)
 
     duration = asyncio.get_running_loop().time() - start
-    logger.debug("introspect.done", cur=cur, duration=duration, tables=tables)
+    logger.debug("introspect", cur=cur, duration=duration, tables=tables)
 
     return tables
