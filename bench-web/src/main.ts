@@ -1,7 +1,51 @@
-import './assets/index.css'
+import "./assets/index.css";
 
-import { createApp } from 'vue'
-import Space from './Space.vue'
+import { createApp } from "vue";
+import Space from "./Space.vue";
+import * as Sentry from "@sentry/vue";
+import posthog from "posthog-js";
+import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { createHead } from '@unhead/vue'
 
-const app = createApp(Space)
-app.mount('#app')
+async function init() {
+  const app = createApp(Space);
+  app.use(createHead())
+
+  // sentry / posthog instrumentation
+  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", { // public capture key
+    api_host: "https://eu.posthog.com",
+    enable_recording_console_log: true,
+  });
+  if (!IS_DEBUG) {
+    console.info("Setting up Sentry...", import.meta.env.VITE_APP_SENTRY_DSN != null);
+    Sentry.init({
+      app,
+      dsn: import.meta.env.VITE_APP_SENTRY_DSN,
+      integrations: [
+        Sentry.browserTracingIntegration({
+          tracePropagationTargets: ["localhost", "127.0.0.1", "api.justbench.com", /^\//],
+        }),
+      ],
+      tracesSampleRate: 1.0,
+      logErrors: true,
+    });
+    posthog.opt_in_capturing();
+  } else {
+    posthog.opt_out_capturing();
+  }
+
+  // dump startup info
+  console.group(`%cBench OS`, "color:orangered");
+  console.info(`%cVersion: ${VERSION} (${COMMIT})`, "color:orangered");
+  console.info(`%cSupervisor: ${SUPERVISOR_URL}`, "color:orangered");
+  console.info(`%cEnvironment: ${import.meta.env.MODE}`, "color:orangered");
+  console.groupEnd();
+
+  // prevent opening files that are dragged over the window
+  window.addEventListener("dragover", (e) => e.preventDefault(), false);
+  window.addEventListener("drop", (e) => e.preventDefault(), false);
+
+  app.mount("#app");
+}
+
+init();
