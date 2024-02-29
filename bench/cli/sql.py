@@ -64,11 +64,10 @@ def _generate_pg_schema():
 
 @app.command()
 def regen():
-    logger.info("sql.generate")
     start = time.time()
     source = _generate_pg_schema()
     Path("bench/sql/schema.py").write_text(source)
-    logger.info("sql.generate.done", duration=time.time() - start)
+    logger.info("sql.generate", duration=time.time() - start)
 
 
 @app.command(help="generate global AND local SQL migrations")
@@ -80,7 +79,6 @@ async def makemigrations(
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
 ):
-    logger.info("makemigrations", bench=bench)
     start = time.time()
 
     # defensively check existing migrations for inconsistencies
@@ -148,7 +146,7 @@ async def makemigrations(
     else:
         print(migration_code)
 
-    logger.info("makemigrations.done", duration=time.time() - start)
+    logger.info("makemigrations", duration=time.time() - start)
 
 
 @app.command(help="apply global OR local SQL migrations")
@@ -162,7 +160,6 @@ async def migrate(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    logger.info("migrate")
     start = time.time()
 
     # resolve local_pg_name (determine local/global migration)
@@ -185,13 +182,12 @@ async def migrate(
             else:
                 await cur.connection.rollback()
 
-    logger.info("migrate.done", duration=time.time() - start)
+    logger.info("migrate", duration=time.time() - start)
 
 
 @app.command(help="delete migrations")
 @_async_to_sync_blocking
 async def clearmigrations(from_id: int, to_id: int):
-    logger.info("clear_migrations")
     start = time.time()
 
     delete_migrations_in_fs(from_id, to_id)
@@ -207,14 +203,13 @@ async def clearmigrations(from_id: int, to_id: int):
                     await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
                     await cur.connection.commit()
 
-    logger.info("clear_migrations.done", duration=time.time() - start)
+    logger.info("clear_migrations", duration=time.time() - start)
 
 
 @app.command()
 @_async_to_sync_blocking
 async def introspect(bench: str = None):
     """Introspect the current schema of the Postgres instance."""
-    logger.info("pg.introspect", bench=bench)
     start = time.perf_counter()
 
     if bench is not None:
@@ -243,7 +238,7 @@ async def introspect(bench: str = None):
     source = format_python(source)
     print(source)
 
-    logger.info("pg.introspect.done", duration=time.perf_counter() - start)
+    logger.info("sql.introspect", duration=time.perf_counter() - start)
 
 
 @app.command()

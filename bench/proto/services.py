@@ -70,7 +70,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             logger.debug("access.deny", request=request)
             raise AccessError(request)
 
-    async def start_quick(self) -> None:
+    async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
         if self._needs_loopback_stub:
             # create a loopback like the one used for testing
@@ -160,13 +160,11 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
 
                 # call
                 if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                    log.info(rpc_name)
                     request = await stream.recv_message()
                     self._validate_request(subject, request)
                     response = await func(subject, request)
                     await stream.send_message(response)
                 elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
-                    log.info(rpc_name)
                     request = await stream.recv_message()
                     self._validate_request(subject, request)
                     async for response in func(subject, request):
@@ -175,19 +173,19 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
                 duration = asyncio.get_running_loop().time() - start
-                log.info(f"{rpc_name}.done", duration=duration)
+                log.info(f"{rpc_name}", duration=duration)
 
             except GRPCError as e:
                 # pass through GRPC errors
                 duration = asyncio.get_running_loop().time() - start
                 sentry_capture(e)
-                log.exception(f"{rpc_name}.error", duration=duration, error=e)
+                log.exception(rpc_name, duration=duration, error=e)
                 raise
 
             except BenchError as e:
                 # wrap error
                 duration = asyncio.get_running_loop().time() - start
-                log.exception(f"{rpc_name}.error", duration=duration, error=e)
+                log.exception(rpc_name, duration=duration, error=e)
                 status_map: Mapping[type, GRPCStatus] = {
                     NotImplementedError: GRPCStatus.UNIMPLEMENTED,
                     NodeNotFoundError: GRPCStatus.NOT_FOUND,
@@ -240,7 +238,7 @@ class BenchServer(grpclib.server.Server):
         self._host = host
         self._port = port
         logger.info("server.start", server=self)
-        await asyncio.gather(*(h.start_quick() for h in self._custom_handlers))
+        await asyncio.gather(*(h.start() for h in self._custom_handlers))
         await super().start(host=host, port=port, **kwargs)
         logger.info("server.ready", server=self)
 

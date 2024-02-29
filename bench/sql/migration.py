@@ -262,12 +262,11 @@ async def _do_migrate(
         func_name = f"{is_upgrade and 'upgrade' or 'downgrade'}_{is_global and 'global' or 'local'}"
         migration_file = _load_migration_from_path(migration)
         func = getattr(migration_file.module, func_name)
-        logger.info("migration.apply", migration=migration, func=func, func_name=func_name)
         try:
             await func(cur)
         except Exception as e:
             logger.error(
-                "migration.apply.error",
+                "migration.apply",
                 migration=migration,
                 func=func,
                 func_name=func_name,
@@ -278,7 +277,7 @@ async def _do_migrate(
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.info("migration.apply.done", migration=migration, func=func, func_name=func_name)
+        logger.info("migration.apply", migration=migration, func=func, func_name=func_name)
 
 
 #

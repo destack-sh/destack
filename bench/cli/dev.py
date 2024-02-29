@@ -17,7 +17,6 @@ async def imitate_server(bench: str):
     """'Imitate' the env vars of a server for a Bench in .env.server"""
     async with global_session():
         bench: Bench = await Bench.get(slug=bench)
-    logger.info("server.imitate", bench=bench)
     env_vars = {
         "SERVER_ID": "local",
         "BENCH_ID": str(bench.id),
@@ -30,7 +29,7 @@ async def imitate_server(bench: str):
     }
     Path(".env.server").write_text("\n".join(f"{k}={v}" for k, v in env_vars.items()))
     logger.info(
-        "server.imitate.done",
+        "server.imitate",
         bench=bench,
         **{k: v for k, v in env_vars.items() if "PASSWORD" not in k},
     )
@@ -38,9 +37,8 @@ async def imitate_server(bench: str):
 
 @server.command(name="clear")
 def clear_server():
-    logger.info("server.clear")
     Path(".env.server").write_text("")
-    logger.info("server.clear.done")
+    logger.info("server.clear")
 
 
 app.add_typer(server, name="server")

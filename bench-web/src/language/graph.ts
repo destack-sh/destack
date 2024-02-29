@@ -1,15 +1,18 @@
-import type { AnyNodeData } from "@/proto/wire";
-
+import type { AnyNodeData, BenchType, EditData, NodeType } from "@/proto/wire";
 
 export class NodeDataGraph {
-  nodesById: { [id: string]: AnyNodeData } = {};
-  nodesByParentIdAndType: { [parentId: string]: { [type: string]: AnyNodeData[] } } = {};
+  private nodesById: { [id: string]: AnyNodeData } = {};
+  private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
+  private roots: string[] = [];
 
-  constructor() {
-  }
+  constructor() {}
 
   get(id: string) {
     return this.nodesById[id];
+  }
+
+  getRef(id: string) {
+    throw new Error("not implemented");
   }
 
   clear() {
@@ -32,7 +35,9 @@ export class NodeDataGraph {
       if (!this.nodesByParentIdAndType[parentId][node.metatype]) {
         this.nodesByParentIdAndType[parentId][node.metatype] = [];
       }
-      this.nodesByParentIdAndType[parentId][node.metatype].push(node);
+      this.nodesByParentIdAndType[parentId][node.metatype].push(node.id);
+    } else {
+      this.roots.push(node.id);
     }
   }
 
@@ -44,10 +49,10 @@ export class NodeDataGraph {
 
     // remove/re-add to update with parent if needed, otherwise just update in place
     if (existing.parentPtr?.id != node.parentPtr?.id) {
-        this.remove(existing);
-        this.add(node);
+      this.remove(existing);
+      this.add(node);
     } else {
-        this.nodesById[node.id] = node;
+      this.nodesById[node.id] = node;
     }
   }
 
@@ -57,11 +62,22 @@ export class NodeDataGraph {
     // remove from parent
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].indexOf(node);
-      if (nodeIdx === -1) {
-        throw new Error(`node with id ${node.id} not found in parent ${parentId}`);
-      }
+      const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex(n => n == node.id);
+      if (nodeIdx === -1) throw new Error(`node with id ${node.id} not found in parent ${parentId}`);
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
+    } else {
+      const rootIdx = this.roots.findIndex(n => n == node.id);
+      if (rootIdx === -1) throw new Error(`node with id ${node.id} not found in roots`);
+      this.roots.splice(rootIdx, 1);
+    }
+    // remove any children
+    for (const childId of this.nodesByParentIdAndType[node.id]?.children || []) {
+      const child = this.nodesById[childId];
+      this.remove(child);
     }
   }
+}
+
+function editGraph(graph: NodeDataGraph, edits: EditData[]) {
+  throw new Error("not yet implemented");
 }

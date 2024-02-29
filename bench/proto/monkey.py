@@ -17,7 +17,7 @@ from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from betterproto.lib.google.protobuf import Value as BetterprotoValue
 from dateutil.parser import isoparse
 
-from bench.utils.utils import frozendict, omit_empty
+from bench.utils.utils import frozendict
 
 # monkey-patch betterproto 'default generator' to initialize unspecified enums as None
 
@@ -394,7 +394,7 @@ class _PatchedRpcMetadata(RpcMetadata):
         return f"{self.__class__.__name__}({', '.join(str_parts)})"
 
     def to_headers(self) -> dict:
-        # flat encoding, messages as base64 :RpcMetadataEncoding
+        # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
         packed = {
             "2": self.client_id,
             "3": self.client_nonce,
@@ -410,15 +410,15 @@ class _PatchedRpcMetadata(RpcMetadata):
         ]
         if packed_badges:
             packed["5"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
-        return omit_empty(packed)
+        return {"x-bench-" + k: v for k, v in packed.items() if v is not None}
 
     def from_headers(self, headers: Mapping) -> RpcMetadata:
-        # flat encoding, messages as base64 :RpcMetadataEncoding
-        self.client_id = headers.get("2")
-        self.client_nonce = headers.get("3")
-        self.client_access_token = headers.get("4")
+        # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
+        self.client_id = headers.get("x-bench-2")
+        self.client_nonce = headers.get("x-bench-3")
+        self.client_access_token = headers.get("x-bench-4")
         if headers.get("5"):
-            unpacked_badges = json.loads(b64decode(headers.get("5")).decode("utf-8"))
+            unpacked_badges = json.loads(b64decode(headers.get("x-bench-5")).decode("utf-8"))
             self.badges = [
                 RpcMetadataBadgeInfo(
                     id=badge.get("2"),

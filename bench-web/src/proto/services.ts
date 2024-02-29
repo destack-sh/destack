@@ -1,10 +1,10 @@
-import auth from "@/language/auth";
-import { BenchType, HostClient, NodeType, RpcMetadata, SupervisorClient } from "@/proto/wire";
+import auth from "@/system/auth";
+import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
-import { type MethodInfo, type RpcOptions, type ServerStreamingCall, type UnaryCall } from "@protobuf-ts/runtime-rpc";
+import { RpcError, type MethodInfo, type RpcOptions, type ServerStreamingCall, type UnaryCall } from "@protobuf-ts/runtime-rpc";
 import { DateTime } from "luxon";
-import { computed, ref, type Ref } from "vue";
+import { computed, isRef, shallowRef, watch, type Ref } from "vue";
 
 /** An operation is an RPC call which may be retried. */
 type Operation<I extends object, O extends object> = {
@@ -14,7 +14,7 @@ type Operation<I extends object, O extends object> = {
   options: RpcOptions;
   request: I;
   response?: O; // for unary
-  error?: Error;
+  error?: RpcError | Error;
   numResponses?: number; // for streaming
   numRetries?: number;
   call: ServerStreamingCall<I, O> | UnaryCall<I, O>; // last successful call (if retried)
@@ -76,7 +76,8 @@ const operationsTracker = {
         op.error = error;
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        console.error(op.name, "error", error);
+        const code = (error as RpcError).code;
+        console.error(op.name, code, error);
         remove();
       });
     } else {
@@ -88,7 +89,8 @@ const operationsTracker = {
         })
         .catch((error) => {
           op.error = error;
-          console.error(op.name, "error", error);
+          const code = (error as RpcError).code;
+          console.error(op.name, code ?? 'UNKNOWN', error);
         })
         .finally(() => {
           op.terminatedAt = DateTime.now();
@@ -96,7 +98,17 @@ const operationsTracker = {
           remove();
         });
     }
+
+    return op;
   },
+};
+
+type BenchServerStreamingCall<I extends object, O extends object> = ServerStreamingCall<I, O> & {
+  operation: Operation<I, O>;
+};
+
+type BenchUnaryCall<I extends object, O extends object> = UnaryCall<I, O> & {
+  operation: Operation<I, O>;
 };
 
 /**
@@ -117,43 +129,82 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     method: MethodInfo<I, O>,
     input: I,
     options: RpcOptions,
-  ): ServerStreamingCall<I, O> {
-    const call = super.serverStreaming(method, input, options);
-    operationsTracker.track({
+  ): BenchServerStreamingCall<I, O> {
+    const call = super.serverStreaming(method, input, options) as BenchServerStreamingCall<I, O>;
+    const op = operationsTracker.track({
       method,
       request: input,
       options,
       call,
       startedAt: DateTime.now(),
     });
+    call.operation = op;
     return call;
   }
 
-  unary<I extends object, O extends object>(method: MethodInfo<I, O>, input: I, options: RpcOptions): UnaryCall<I, O> {
-    const call = super.unary(method, input, options);
-    operationsTracker.track({
+  unary<I extends object, O extends object>(
+    method: MethodInfo<I, O>,
+    input: I,
+    options: RpcOptions,
+  ): BenchUnaryCall<I, O> {
+    const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
+    const op = operationsTracker.track({
       method,
       request: input,
       options,
       call,
       startedAt: DateTime.now(),
     });
+    call.operation = op;
     return call;
   }
 }
 
-export function callToRefs<I extends object, O extends object>(
-  call: UnaryCall<I, O>,
+export function reactiveUnaryCall<I extends object, O extends object>(
+  client: any, // TODO :Cleanup: type 'client' in reactiveUnaryCall
+  method: (input: I, options?: RpcOptions) => UnaryCall<I, O>,
+  input: Ref<I> | I,
+  options?: RpcOptions & { noswr?: boolean },
 ): {
   result: Ref<O | null>;
   error: Ref<Error | null>;
+  pending: Ref<Operation<I, O> | null>;
+  terminated: Ref<Operation<I, O> | null>;
 } {
-  const result: Ref<O | null> = ref(null);
-  const error: Ref<Error | null> = ref(null);
+  /** Call a unary RPC, and call again every time the input changes.*/
 
-  call.response.then((o) => (result.value = o)).catch((e) => (error.value = e));
+  const result: Ref<O | null> = shallowRef(null);
+  const error: Ref<Error | null> = shallowRef(null);
+  const pending: Ref<Operation<I, O> | null> = shallowRef(null);
+  const terminated: Ref<Operation<I, O> | null> = shallowRef(null);
 
-  return { result, error };
+  // coerce input to ref & call method whenever input changes
+  const inputRef = (isRef(input) ? input : shallowRef(input)) as Ref<I>;
+  method = method.bind(client);
+  const call = () => {
+    if (options?.noswr) {
+      result.value = null;
+      error.value = null;
+    }
+    const call = method(inputRef.value, options);
+    pending.value = (call as BenchUnaryCall<I, O>).operation;
+    call.response
+      .then((output) => {
+        result.value = output;
+        error.value = null;
+      })
+      .catch((err) => {
+        result.value = null;
+        error.value = err;
+      })
+      .finally(() => {
+        terminated.value = pending.value;
+        pending.value = null;
+      });
+  };
+  watch(inputRef, call, { immediate: true });
+
+  return { result, error, pending, terminated };
 }
 
 //
@@ -161,8 +212,9 @@ export function callToRefs<I extends object, O extends object>(
 //
 const currentMetadata: Ref<RpcMetadata> = computed(() => {
   return {
-    clientId: auth.client.value?.id,
-    clientNonce: auth.client.value?.nonce,
+    clientId: auth.clientAccess.value.id ?? undefined,
+    clientNonce: auth.clientInfo.nonce ?? undefined,
+    clientAccessToken: auth.clientAccess.value.token ?? undefined,
     badges: auth.badges,
   };
 });
@@ -170,9 +222,9 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
   // flat encoding, messages as base64 :RpcMetadataEncoding
   const metadata = currentMetadata.value;
   const packed: { [key: string]: any } = {};
-  if (metadata.clientId) packed["2"] = metadata.clientId;
-  if (metadata.clientNonce) packed["3"] = metadata.clientNonce;
-  if (metadata.clientAccessToken) packed["4"] = metadata.clientAccessToken;
+  if (metadata.clientId) packed["x-bench-2"] = metadata.clientId;
+  if (metadata.clientNonce) packed["x-bench-3"] = metadata.clientNonce;
+  if (metadata.clientAccessToken) packed["x-bench-4"] = metadata.clientAccessToken;
   if (metadata.badges.length > 0) {
     const packedBadges = metadata.badges.map((b) => {
       const p: { [key: string]: any } = {};
@@ -180,7 +232,7 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
       if (b.key) p["3"] = b.key;
       if (b.password) p["4"] = b.password;
     });
-    packed["5"] = btoa(JSON.stringify(packedBadges));
+    packed["x-bench-5"] = btoa(JSON.stringify(packedBadges));
   }
   return packed;
 });

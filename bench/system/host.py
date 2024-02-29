@@ -74,7 +74,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
 
-    async def start_quick(self) -> None:
+    async def start(self) -> None:
         async with global_session():
             benches: list[Bench] = await Bench.tolist()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
@@ -88,7 +88,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 
     async def _start_host(self, bench_id: UUID) -> "Host":
         host = Host(bench_id)
-        await host.start_quick()
+        await host.start()
         return host
 
     def _wrap_rpc_func(
@@ -154,9 +154,9 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
         #  also provide & use bench-specific store engines
         return (GLOBAL_POSTGRES_ENGINE,)
 
-    async def start_quick(self) -> None:
+    async def start(self) -> None:
         async with global_session() as session:
-            logger.info("host.start_quick", host=self)
+            start = asyncio.get_event_loop().time()
             self._bench = (
                 await Bench.descendants(
                     Handle, Server, Store, Cache, Drive, Environment, Branch, Package
@@ -167,6 +167,7 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
             # provision any missing resources
             await provision_pending_resources(self._bench, session)
             await session.commit()
+            logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 
     def _on_graph_edited_inner(self, scopes: list[GraphScope], edits: list[EditData]):
         # TODO :Incomplete: re-interp packages after edit (update notices, ...?)
