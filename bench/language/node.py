@@ -844,7 +844,9 @@ class Struct(abc.ABC):
     __is_node__: ClassVar[bool] = False
 
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
-    id: int = p_system(2, default_factory=new_struct_id)
+    # (Struct.id is optional so that external clients don't need to generate ids for every struct,
+    #  and also so that its field presence is tracked and we can validate that it is set when needed)
+    id: Optional[int] = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
     if TYPE_CHECKING:  # contributed via parent, stored/wired only if not inlined
         parent_id: int | None  # (3)

@@ -45,11 +45,9 @@ services:
     restart: on-failure
     volumes:
       - ./infra/envoy.yaml:/etc/envoy/envoy.yaml
-    network_mode: host
+    # can't use network_mode: host because it's only supported on Linux
     ports:
       - '8080:8080'
-    extra_hosts:
-        - "server:host-gateway"
-
+      - '9901:9901'
 volumes:
   redis-data:

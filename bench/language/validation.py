@@ -21,7 +21,7 @@ class ValidationError(BenchError, ValueError):
         properties: list["Property"] | None = None,
         cause: Exception | None = None,
     ):
-        super().__init__(f"{subject!r}: {message}" + f" at {properties}" if properties else "")
+        super().__init__(f"{subject!r}: {message}" + (f" at {properties}" if properties else ""))
         self.subject = subject
         self.properties = properties
         self.message = message

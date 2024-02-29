@@ -8,20 +8,20 @@ import structlog
 
 from bench.language import (
     Bench,
+    Drive,
     Handle,
     Organization,
     Region,
+    Resource,
+    ResourceStatus,
+    Server,
     ServerProfile,
     Session,
+    Store,
     StoreEngineType,
     StoreKind,
     Tenancy,
     User,
-    Resource,
-    ResourceStatus,
-    Server,
-    Store,
-    Drive,
 )
 from bench.language.resource import ResourceCredential
 from bench.opensearch.engine import create_local_os_store
@@ -117,7 +117,7 @@ async def provision_resource(resource: Resource, session: Session) -> None:
     assert resource.status == ResourceStatus.PENDING, f"{resource!r} is already provisioned"
     logger.info("resource.provision", resource=resource)
     if isinstance(resource, Server):
-        server = cast(Server, resource)
+        cast(Server, resource)
         ...  # where should Servers & Machines be provisioned?
     elif isinstance(resource, Store):
         store = cast(Store, resource)

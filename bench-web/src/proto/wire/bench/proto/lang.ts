@@ -26,9 +26,9 @@ export interface AccessData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: symbolx.bench.AccessMode mode = 30;
      */
@@ -61,9 +61,9 @@ export interface AccessMatrixData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -104,9 +104,9 @@ export interface AccessTraceData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -136,9 +136,9 @@ export interface AccessZoneData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -175,9 +175,9 @@ export interface AggregationData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -222,9 +222,9 @@ export interface AggregationBucketData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: google.protobuf.Struct key = 30;
      */
@@ -235,7 +235,7 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -245,9 +245,9 @@ export interface CodeData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -266,7 +266,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -276,9 +276,9 @@ export interface CodeLineData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -307,9 +307,9 @@ export interface ColorData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -346,9 +346,9 @@ export interface ContextData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -397,9 +397,9 @@ export interface ExpressionData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -448,9 +448,9 @@ export interface FileData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -489,7 +489,7 @@ export interface FileData {
     externalUrl?: string;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -499,9 +499,9 @@ export interface IconData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -622,9 +622,9 @@ export interface PathData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -643,7 +643,7 @@ export interface PathData {
     segments: PathSegmentData[];
 }
 /**
- * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -653,9 +653,9 @@ export interface PathSegmentData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: symbolx.bench.PathSegmentType type = 31;
      */
@@ -670,7 +670,7 @@ export interface PathSegmentData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(type: bench.language.path.PathTokenType = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * PathToken(type: bench.language.path.PathTokenType = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -680,9 +680,9 @@ export interface PathTokenData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
      */
@@ -713,9 +713,9 @@ export interface PolicyData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -758,9 +758,9 @@ export interface PolicyRuleData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -851,9 +851,9 @@ export interface ProjectionData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -902,9 +902,9 @@ export interface ReadOptionsData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -961,9 +961,9 @@ export interface RequestData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -994,7 +994,7 @@ export interface RequestData {
     transactionId?: string;
 }
 /**
- * ResourceCredential(username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * ResourceCredential(username: str = <factory>, password: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.ResourceCredentialData
  */
@@ -1004,9 +1004,9 @@ export interface ResourceCredentialData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional string username = 31;
      */
@@ -1017,7 +1017,7 @@ export interface ResourceCredentialData {
     password?: string;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -1027,9 +1027,9 @@ export interface RunCodeFrameData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1064,7 +1064,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1074,9 +1074,9 @@ export interface RunErrorData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1121,9 +1121,9 @@ export interface ScheduleData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1154,7 +1154,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockData
  */
@@ -1164,9 +1164,9 @@ export interface SpaceDockData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1185,7 +1185,7 @@ export interface SpaceDockData {
     items: SpaceDockItemData[];
 }
 /**
- * SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockItemData
  */
@@ -1195,9 +1195,9 @@ export interface SpaceDockItemData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1227,9 +1227,9 @@ export interface SubjectData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1284,7 +1284,7 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Text(lines: list['TextLine'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1294,9 +1294,9 @@ export interface TextData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1315,7 +1315,7 @@ export interface TextData {
     lines: TextLineData[];
 }
 /**
- * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+ * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -1325,9 +1325,9 @@ export interface TextLineData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1374,7 +1374,7 @@ export interface TextLineData {
     isCode: boolean;
 }
 /**
- * TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1384,9 +1384,9 @@ export interface TextSpanData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional string content = 33;
      */
@@ -1421,7 +1421,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1431,9 +1431,9 @@ export interface TypeInfoData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1510,9 +1510,9 @@ export interface ValueReferenceData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: optional int32 id = 2;
      */
-    id: number;
+    id?: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -7472,7 +7472,7 @@ class AccessData$Type extends MessageType<AccessData> {
     constructor() {
         super("symbolx.bench.AccessData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "mode", kind: "enum", T: () => ["symbolx.bench.AccessMode", AccessMode, "ACCESS_MODE_"] },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
@@ -7483,7 +7483,6 @@ class AccessData$Type extends MessageType<AccessData> {
     create(value?: PartialMessage<AccessData>): AccessData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.mode = 0;
         message.decision = 0;
         message.verb = 0;
@@ -7501,7 +7500,7 @@ class AccessData$Type extends MessageType<AccessData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* symbolx.bench.AccessMode mode */ 30:
@@ -7534,8 +7533,8 @@ class AccessData$Type extends MessageType<AccessData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.AccessMode mode = 30; */
         if (message.mode !== 0)
@@ -7567,7 +7566,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -7580,7 +7579,6 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     create(value?: PartialMessage<AccessMatrixData>): AccessMatrixData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.identities = [];
         message.scopedZones = [];
         message.baseZones = [];
@@ -7596,7 +7594,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -7635,8 +7633,8 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -7674,7 +7672,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
     constructor() {
         super("symbolx.bench.AccessTraceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -7684,7 +7682,6 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
     create(value?: PartialMessage<AccessTraceData>): AccessTraceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.matchedRules = [];
         if (value !== undefined)
             reflectionMergePartial<AccessTraceData>(this, message, value);
@@ -7698,7 +7695,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -7728,8 +7725,8 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -7758,7 +7755,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
     constructor() {
         super("symbolx.bench.AccessZoneData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -7770,7 +7767,6 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
     create(value?: PartialMessage<AccessZoneData>): AccessZoneData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.scopeId = "";
         message.identityId = 0;
         message.rules = [];
@@ -7786,7 +7782,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -7822,8 +7818,8 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -7858,7 +7854,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
     constructor() {
         super("symbolx.bench.AggregationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -7872,7 +7868,6 @@ class AggregationData$Type extends MessageType<AggregationData> {
     create(value?: PartialMessage<AggregationData>): AggregationData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.op = 0;
         message.buckets = [];
         if (value !== undefined)
@@ -7887,7 +7882,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -7929,8 +7924,8 @@ class AggregationData$Type extends MessageType<AggregationData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -7971,7 +7966,7 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
     constructor() {
         super("symbolx.bench.AggregationBucketData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "key", kind: "message", T: () => Struct },
             { no: 31, name: "count", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
@@ -7979,7 +7974,6 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
     create(value?: PartialMessage<AggregationBucketData>): AggregationBucketData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.count = 0;
         if (value !== undefined)
             reflectionMergePartial<AggregationBucketData>(this, message, value);
@@ -7993,7 +7987,7 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* google.protobuf.Struct key */ 30:
@@ -8017,8 +8011,8 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* google.protobuf.Struct key = 30; */
         if (message.key)
@@ -8041,7 +8035,7 @@ class CodeData$Type extends MessageType<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8051,7 +8045,6 @@ class CodeData$Type extends MessageType<CodeData> {
     create(value?: PartialMessage<CodeData>): CodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.lines = [];
         if (value !== undefined)
             reflectionMergePartial<CodeData>(this, message, value);
@@ -8065,7 +8058,7 @@ class CodeData$Type extends MessageType<CodeData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8095,8 +8088,8 @@ class CodeData$Type extends MessageType<CodeData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8125,7 +8118,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
     constructor() {
         super("symbolx.bench.CodeLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8135,7 +8128,6 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
     create(value?: PartialMessage<CodeLineData>): CodeLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.line = "";
         if (value !== undefined)
             reflectionMergePartial<CodeLineData>(this, message, value);
@@ -8149,7 +8141,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8179,8 +8171,8 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8209,7 +8201,7 @@ class ColorData$Type extends MessageType<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8221,7 +8213,6 @@ class ColorData$Type extends MessageType<ColorData> {
     create(value?: PartialMessage<ColorData>): ColorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<ColorData>(this, message, value);
         return message;
@@ -8234,7 +8225,7 @@ class ColorData$Type extends MessageType<ColorData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8270,8 +8261,8 @@ class ColorData$Type extends MessageType<ColorData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8306,7 +8297,7 @@ class ContextData$Type extends MessageType<ContextData> {
     constructor() {
         super("symbolx.bench.ContextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8321,7 +8312,6 @@ class ContextData$Type extends MessageType<ContextData> {
     create(value?: PartialMessage<ContextData>): ContextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<ContextData>(this, message, value);
         return message;
@@ -8334,7 +8324,7 @@ class ContextData$Type extends MessageType<ContextData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8379,8 +8369,8 @@ class ContextData$Type extends MessageType<ContextData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8424,7 +8414,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     constructor() {
         super("symbolx.bench.ExpressionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8439,7 +8429,6 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.op = 0;
         message.clauses = [];
         if (value !== undefined)
@@ -8454,7 +8443,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8499,8 +8488,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8544,7 +8533,7 @@ class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8559,7 +8548,6 @@ class FileData$Type extends MessageType<FileData> {
     create(value?: PartialMessage<FileData>): FileData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -8572,7 +8560,7 @@ class FileData$Type extends MessageType<FileData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8617,8 +8605,8 @@ class FileData$Type extends MessageType<FileData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8662,7 +8650,7 @@ class IconData$Type extends MessageType<IconData> {
     constructor() {
         super("symbolx.bench.IconData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8676,7 +8664,6 @@ class IconData$Type extends MessageType<IconData> {
     create(value?: PartialMessage<IconData>): IconData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.kind = 0;
         if (value !== undefined)
             reflectionMergePartial<IconData>(this, message, value);
@@ -8690,7 +8677,7 @@ class IconData$Type extends MessageType<IconData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8732,8 +8719,8 @@ class IconData$Type extends MessageType<IconData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8850,7 +8837,7 @@ class PathData$Type extends MessageType<PathData> {
     constructor() {
         super("symbolx.bench.PathData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8860,7 +8847,6 @@ class PathData$Type extends MessageType<PathData> {
     create(value?: PartialMessage<PathData>): PathData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.segments = [];
         if (value !== undefined)
             reflectionMergePartial<PathData>(this, message, value);
@@ -8874,7 +8860,7 @@ class PathData$Type extends MessageType<PathData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -8904,8 +8890,8 @@ class PathData$Type extends MessageType<PathData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -8934,7 +8920,7 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
     constructor() {
         super("symbolx.bench.PathSegmentData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathSegmentType", PathSegmentType, "PATH_SEGMENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "reference_ptr", kind: "message", T: () => NodeReferenceData }
@@ -8943,7 +8929,6 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
     create(value?: PartialMessage<PathSegmentData>): PathSegmentData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<PathSegmentData>(this, message, value);
@@ -8957,7 +8942,7 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* symbolx.bench.PathSegmentType type */ 31:
@@ -8984,8 +8969,8 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.PathSegmentType type = 31; */
         if (message.type !== 0)
@@ -9011,14 +8996,13 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PathTokenData>): PathTokenData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<PathTokenData>(this, message, value);
@@ -9032,7 +9016,7 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* symbolx.bench.PathTokenType type */ 31:
@@ -9053,8 +9037,8 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.PathTokenType type = 31; */
         if (message.type !== 0)
@@ -9074,7 +9058,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9087,7 +9071,6 @@ class PolicyData$Type extends MessageType<PolicyData> {
     create(value?: PartialMessage<PolicyData>): PolicyData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.rules = [];
         message.scopesPtr = [];
         if (value !== undefined)
@@ -9102,7 +9085,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9141,8 +9124,8 @@ class PolicyData$Type extends MessageType<PolicyData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9180,7 +9163,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     constructor() {
         super("symbolx.bench.PolicyRuleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9204,7 +9187,6 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.effect = 0;
         message.verbs = [];
         message.verbKinds = [];
@@ -9222,7 +9204,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9306,8 +9288,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9390,7 +9372,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
     constructor() {
         super("symbolx.bench.ProjectionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -9399,7 +9381,6 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
     create(value?: PartialMessage<ProjectionData>): ProjectionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<ProjectionData>(this, message, value);
         return message;
@@ -9412,7 +9393,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9439,8 +9420,8 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9536,7 +9517,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     constructor() {
         super("symbolx.bench.ReadOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9553,7 +9534,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.ancestorTypes = [];
         message.descendantTypes = [];
         message.relatedPropertiesPtr = [];
@@ -9574,7 +9554,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9633,8 +9613,8 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9692,7 +9672,7 @@ class RequestData$Type extends MessageType<RequestData> {
     constructor() {
         super("symbolx.bench.RequestData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9705,7 +9685,6 @@ class RequestData$Type extends MessageType<RequestData> {
     create(value?: PartialMessage<RequestData>): RequestData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.decision = 0;
         message.accesses = [];
         if (value !== undefined)
@@ -9720,7 +9699,7 @@ class RequestData$Type extends MessageType<RequestData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9759,8 +9738,8 @@ class RequestData$Type extends MessageType<RequestData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9798,7 +9777,7 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
     constructor() {
         super("symbolx.bench.ResourceCredentialData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -9806,7 +9785,6 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
     create(value?: PartialMessage<ResourceCredentialData>): ResourceCredentialData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<ResourceCredentialData>(this, message, value);
         return message;
@@ -9819,7 +9797,7 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional string username */ 31:
@@ -9843,8 +9821,8 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional string username = 31; */
         if (message.username !== undefined)
@@ -9867,7 +9845,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     constructor() {
         super("symbolx.bench.RunCodeFrameData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9881,7 +9859,6 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     create(value?: PartialMessage<RunCodeFrameData>): RunCodeFrameData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.lineno = 0;
         message.name = "";
         message.line = "";
@@ -9897,7 +9874,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9939,8 +9916,8 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9981,7 +9958,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
     constructor() {
         super("symbolx.bench.RunErrorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9995,7 +9972,6 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
     create(value?: PartialMessage<RunErrorData>): RunErrorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.kind = 0;
         message.type = "";
         message.traceback = [];
@@ -10011,7 +9987,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10053,8 +10029,8 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10095,7 +10071,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
     constructor() {
         super("symbolx.bench.ScheduleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10108,7 +10084,6 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
     create(value?: PartialMessage<ScheduleData>): ScheduleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<ScheduleData>(this, message, value);
@@ -10122,7 +10097,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10161,8 +10136,8 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10200,7 +10175,7 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
     constructor() {
         super("symbolx.bench.SpaceDockData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10210,7 +10185,6 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
     create(value?: PartialMessage<SpaceDockData>): SpaceDockData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.items = [];
         if (value !== undefined)
             reflectionMergePartial<SpaceDockData>(this, message, value);
@@ -10224,7 +10198,7 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10254,8 +10228,8 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10284,7 +10258,7 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
     constructor() {
         super("symbolx.bench.SpaceDockItemData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10294,7 +10268,6 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
     create(value?: PartialMessage<SpaceDockItemData>): SpaceDockItemData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.hidden = false;
         if (value !== undefined)
             reflectionMergePartial<SpaceDockItemData>(this, message, value);
@@ -10308,7 +10281,7 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10338,8 +10311,8 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10368,7 +10341,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10387,7 +10360,6 @@ class SubjectData$Type extends MessageType<SubjectData> {
     create(value?: PartialMessage<SubjectData>): SubjectData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.badgesPtr = [];
         message.ownedPtr = [];
         message.membershipsPtr = [];
@@ -10404,7 +10376,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10461,8 +10433,8 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10518,7 +10490,7 @@ class TextData$Type extends MessageType<TextData> {
     constructor() {
         super("symbolx.bench.TextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10528,7 +10500,6 @@ class TextData$Type extends MessageType<TextData> {
     create(value?: PartialMessage<TextData>): TextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.lines = [];
         if (value !== undefined)
             reflectionMergePartial<TextData>(this, message, value);
@@ -10542,7 +10513,7 @@ class TextData$Type extends MessageType<TextData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10572,8 +10543,8 @@ class TextData$Type extends MessageType<TextData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10602,7 +10573,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
     constructor() {
         super("symbolx.bench.TextLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10619,7 +10590,6 @@ class TextLineData$Type extends MessageType<TextLineData> {
     create(value?: PartialMessage<TextLineData>): TextLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.type = 0;
         message.spans = [];
         message.isBold = false;
@@ -10639,7 +10609,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10690,8 +10660,8 @@ class TextLineData$Type extends MessageType<TextLineData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10741,7 +10711,7 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
@@ -10755,7 +10725,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.isBold = false;
         message.isItalic = false;
         message.isStrikethrough = false;
@@ -10773,7 +10742,7 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional string content */ 33:
@@ -10815,8 +10784,8 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional string content = 33; */
         if (message.content !== undefined)
@@ -10857,7 +10826,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10879,7 +10848,6 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         message.visibility = 0;
         message.isList = false;
         message.isRequired = false;
@@ -10896,7 +10864,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10962,8 +10930,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -11028,7 +10996,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     constructor() {
         super("symbolx.bench.ValueReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11040,7 +11008,6 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     create(value?: PartialMessage<ValueReferenceData>): ValueReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<ValueReferenceData>(this, message, value);
         return message;
@@ -11053,7 +11020,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 id */ 2:
+                case /* optional int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -11089,8 +11056,8 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -18175,3 +18142,82 @@ export const SomeNodeData = new SomeNodeData$Type();
 // extra utility types
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | RecordData | QueryData | ViewData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | PauseData | SignalData | LogData | NotificationData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
 export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | SpaceDockData | SpaceDockItemData
+export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof SpaceDockData | typeof SpaceDockItemData
+
+export interface StructTypeMapping extends Record<StructType, AnyStructData> {
+  [StructType.PATH]: PathData,
+  [StructType.PATH_SEGMENT]: PathSegmentData,
+  [StructType.PATH_TOKEN]: PathTokenData,
+  [StructType.NODE_REFERENCE]: NodeReferenceData,
+  [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [StructType.VALUE_REFERENCE]: ValueReferenceData,
+  [StructType.TYPE_INFO]: TypeInfoData,
+  [StructType.CONTEXT]: ContextData,
+  [StructType.SCHEDULE]: ScheduleData,
+  [StructType.PROJECTION]: ProjectionData,
+  [StructType.FILE]: FileData,
+  [StructType.ICON]: IconData,
+  [StructType.POLICY]: PolicyData,
+  [StructType.POLICY_RULE]: PolicyRuleData,
+  [StructType.SUBJECT]: SubjectData,
+  [StructType.ACCESS_ZONE]: AccessZoneData,
+  [StructType.ACCESS_MATRIX]: AccessMatrixData,
+  [StructType.ACCESS]: AccessData,
+  [StructType.ACCESS_TRACE]: AccessTraceData,
+  [StructType.REQUEST]: RequestData,
+  [StructType.READ_OPTIONS]: ReadOptionsData,
+  [StructType.EXPRESSION]: ExpressionData,
+  [StructType.AGGREGATION]: AggregationData,
+  [StructType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [StructType.CODE]: CodeData,
+  [StructType.CODE_LINE]: CodeLineData,
+  [StructType.RUN_CODE_FRAME]: RunCodeFrameData,
+  [StructType.RUN_ERROR]: RunErrorData,
+  [StructType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
+  [StructType.TEXT]: TextData,
+  [StructType.TEXT_LINE]: TextLineData,
+  [StructType.TEXT_SPAN]: TextSpanData,
+  [StructType.COLOR]: ColorData,
+  [StructType.SPACE_DOCK]: SpaceDockData,
+  [StructType.SPACE_DOCK_ITEM]: SpaceDockItemData,
+}
+
+export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
+  [NodeType.BENCH]: BenchData,
+  [NodeType.ENVIRONMENT]: EnvironmentData,
+  [NodeType.BRANCH]: BranchData,
+  [NodeType.PACKAGE]: PackageData,
+  [NodeType.DEPENDENCY]: DependencyData,
+  [NodeType.UPGRADE]: UpgradeData,
+  [NodeType.SPACE]: SpaceData,
+  [NodeType.LINK]: LinkData,
+  [NodeType.SKIP]: SkipData,
+  [NodeType.NOTICE]: NoticeData,
+  [NodeType.BLOCK]: BlockData,
+  [NodeType.TRIGGER]: TriggerData,
+  [NodeType.FIELD]: FieldData,
+  [NodeType.RECORD]: RecordData,
+  [NodeType.QUERY]: QueryData,
+  [NodeType.VIEW]: ViewData,
+  [NodeType.BADGE]: BadgeData,
+  [NodeType.ROLE]: RoleData,
+  [NodeType.IDENTITY]: IdentityData,
+  [NodeType.MEMBERSHIP]: MembershipData,
+  [NodeType.INVITE]: InviteData,
+  [NodeType.SESSION]: SessionData,
+  [NodeType.RUN]: RunData,
+  [NodeType.PAUSE]: PauseData,
+  [NodeType.SIGNAL]: SignalData,
+  [NodeType.LOG]: LogData,
+  [NodeType.NOTIFICATION]: NotificationData,
+  [NodeType.SERVER]: ServerData,
+  [NodeType.STORE]: StoreData,
+  [NodeType.DRIVE]: DriveData,
+  [NodeType.CACHE]: CacheData,
+  [NodeType.FILE_CONTENT]: FileContentData,
+  [NodeType.HANDLE]: HandleData,
+  [NodeType.USER]: UserData,
+  [NodeType.ORGANIZATION]: OrganizationData,
+  [NodeType.CLIENT]: ClientData,
+}

@@ -4,21 +4,23 @@ import { SUPERVISOR_URL } from "@/utils/globals";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import { type MethodInfo, type RpcOptions, type ServerStreamingCall, type UnaryCall } from "@protobuf-ts/runtime-rpc";
 import { DateTime } from "luxon";
-import { computed, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
+/** An operation is an RPC call which may be retried. */
 type Operation<I extends object, O extends object> = {
   id: number;
   name: string;
   method: MethodInfo<I, O>;
+  options: RpcOptions;
   request: I;
   response?: O; // for unary
-  numResponses?: number; // for streaming
   error?: Error;
-  options: RpcOptions;
-  call: ServerStreamingCall<I, O> | UnaryCall<I, O>;
+  numResponses?: number; // for streaming
+  numRetries?: number;
+  call: ServerStreamingCall<I, O> | UnaryCall<I, O>; // last successful call (if retried)
   startedAt: DateTime;
   updatedAt?: DateTime; // for streaming
-  finishedAt?: DateTime;
+  terminatedAt?: DateTime;
   duration?: number; // in seconds
 };
 
@@ -38,12 +40,12 @@ const operationsTracker = {
   },
 
   track<I extends object, O extends object>(opIn: Omit<Operation<I, O>, "id" | "name">) {
-    const id = this.numTotalOps++
+    const id = this.numTotalOps++;
     const op = {
       ...opIn,
       id,
-      name: `${opIn.method.service.typeName}.${opIn.method.name}:${id}`,
-    }
+      name: `${opIn.method.service.typeName}.${opIn.method.name} [id=${id}]`,
+    };
     this.pendingOps.push(op);
     this.recentOps.push(op);
     if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
@@ -54,46 +56,52 @@ const operationsTracker = {
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
       if (index !== -1) this.pendingOps.splice(index, 1);
-    }
+    };
 
     // subscribe to call events
-    if ("responses" in op.call) { // streaming
+    if ("responses" in op.call) {
+      // streaming
       op.call.responses.onNext(() => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses || 0) + 1;
+        console.debug(op.name, "update", op.numResponses);
       });
       op.call.responses.onComplete(() => {
-        op.finishedAt = DateTime.now();
-        op.duration = op.finishedAt.diff(op.startedAt, "seconds").seconds;
+        op.terminatedAt = DateTime.now();
+        op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
         console.debug(op.name, "completed");
         remove();
       });
       op.call.responses.onError((error) => {
         op.error = error;
-        op.finishedAt = DateTime.now();
-        op.duration = op.finishedAt.diff(op.startedAt, "seconds").seconds;
+        op.terminatedAt = DateTime.now();
+        op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
         console.error(op.name, "error", error);
         remove();
       });
-    } else { // unary
-      op.call.response.then((output) => {
-        op.response = output;
-        console.debug(op.name, "completed", output);
-      }).catch((error) => {
-        op.error = error;
-        console.error(op.name, "error", error);
-      }).finally(() => {
-        op.finishedAt = DateTime.now();
-        op.duration = op.finishedAt.diff(op.startedAt, "seconds").seconds;
-        remove();
-      });
+    } else {
+      // unary
+      op.call.response
+        .then((output) => {
+          op.response = output;
+          console.debug(op.name, "completed", output);
+        })
+        .catch((error) => {
+          op.error = error;
+          console.error(op.name, "error", error);
+        })
+        .finally(() => {
+          op.terminatedAt = DateTime.now();
+          op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
+          remove();
+        });
     }
   },
 };
 
 /**
  * Extend the standard grpc-web fetch clients with:
- *  - authentication using metadata
+ *  - authentication using our RpcMetadata
  *  - automatic retries
  *  - error logging
  *  - instrumentation
@@ -134,7 +142,23 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
   }
 }
 
-// authentication
+export function callToRefs<I extends object, O extends object>(
+  call: UnaryCall<I, O>,
+): {
+  result: Ref<O | null>;
+  error: Ref<Error | null>;
+} {
+  const result: Ref<O | null> = ref(null);
+  const error: Ref<Error | null> = ref(null);
+
+  call.response.then((o) => (result.value = o)).catch((e) => (error.value = e));
+
+  return { result, error };
+}
+
+//
+// Authentication
+//
 const currentMetadata: Ref<RpcMetadata> = computed(() => {
   return {
     clientId: auth.client.value?.id,
@@ -161,26 +185,34 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
   return packed;
 });
 
-const TRANSPORT_FETCH_OPTIONS: Omit<RequestInit, "body" | "headers" | "method" | "signal"> = { credentials: "include" };
-const supervisorTransport = new BenchGrpcWebTransport({
-  baseUrl: SUPERVISOR_URL,
-  fetchInit: TRANSPORT_FETCH_OPTIONS,
-});
-export const supervisor = new SupervisorClient(supervisorTransport);
+//
+// Service clients
+//
 
+const TRANSPORT_FETCH_OPTIONS: Omit<RequestInit, "body" | "headers" | "method" | "signal"> = {};
+const _CACHED_BENCH_IDS: { [slug: string]: string } = {};
 const _CACHED_HOST_CLIENTS: { [benchId: string]: HostClient } = {};
 
-export async function getHostClient(benchId: string): Promise<HostClient> {
-  if (!_CACHED_HOST_CLIENTS[benchId]) {
+export const supervisor = new SupervisorClient(
+  new BenchGrpcWebTransport({
+    baseUrl: SUPERVISOR_URL,
+    fetchInit: TRANSPORT_FETCH_OPTIONS,
+  }),
+);
+export async function getHostClient(bench: { id: string } | { slug: string }): Promise<HostClient> {
+  /** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
+  if ("slug" in bench && _CACHED_BENCH_IDS[bench.slug]) {
+    return _CACHED_HOST_CLIENTS[_CACHED_BENCH_IDS[bench.slug]];
+  } else if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) {
+    return _CACHED_HOST_CLIENTS[bench.id];
+  } else {
+    // fallback: lookup bench host via supervisor
     const hostInfo = await supervisor.getHost({
-      bench: { metatype: BenchType.NODE_REFERENCE, type: NodeType.BENCH, id: benchId },
-    });
-    const hostTransport = new BenchGrpcWebTransport({
-      baseUrl: hostInfo.response.host,
-      fetchInit: TRANSPORT_FETCH_OPTIONS,
-    });
-    const host = new HostClient(hostTransport);
-    _CACHED_HOST_CLIENTS[benchId] = host;
+      bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
+    }).response;
+    const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: hostInfo.host }));
+    _CACHED_BENCH_IDS[hostInfo.benchSlug] = hostInfo.bench!.id!;
+    _CACHED_HOST_CLIENTS[hostInfo.bench!.id!] = hostClient;
+    return hostClient;
   }
-  return _CACHED_HOST_CLIENTS[benchId];
 }

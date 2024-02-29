@@ -500,9 +500,9 @@ export interface LogoutUserRequest {
     /**
      * If specified, log out only the specified clients (instead of the current client).
      *
-     * @generated from protobuf field: repeated string client_ids = 1;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData clients = 1;
      */
-    clientIds: string[];
+    clients: NodeReferenceData[];
     /**
      * If specified, log out all clients (incl. current).
      *
@@ -572,9 +572,23 @@ export interface CreateBenchResponse {
  */
 export interface GetHostRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 1;
+     * @generated from protobuf oneof: bench
      */
-    bench?: NodeReferenceData;
+    bench: {
+        oneofKind: "id";
+        /**
+         * @generated from protobuf field: string id = 1;
+         */
+        id: string;
+    } | {
+        oneofKind: "slug";
+        /**
+         * @generated from protobuf field: string slug = 2;
+         */
+        slug: string;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * @generated from protobuf message symbolx.bench.GetHostResponse
@@ -584,6 +598,14 @@ export interface GetHostResponse {
      * @generated from protobuf field: string host = 1;
      */
     host: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 2;
+     */
+    bench?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string bench_slug = 3;
+     */
+    benchSlug: string;
 }
 // 
 // Package host
@@ -2303,13 +2325,13 @@ export const LoginUserResponse = new LoginUserResponse$Type();
 class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
     constructor() {
         super("symbolx.bench.LogoutUserRequest", [
-            { no: 1, name: "client_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 1, name: "clients", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 2, name: "logout_all", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.clientIds = [];
+        message.clients = [];
         if (value !== undefined)
             reflectionMergePartial<LogoutUserRequest>(this, message, value);
         return message;
@@ -2319,8 +2341,8 @@ class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated string client_ids */ 1:
-                    message.clientIds.push(reader.string());
+                case /* repeated symbolx.bench.NodeReferenceData clients */ 1:
+                    message.clients.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional bool logout_all */ 2:
                     message.logoutAll = reader.bool();
@@ -2337,9 +2359,9 @@ class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
         return message;
     }
     internalBinaryWrite(message: LogoutUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated string client_ids = 1; */
-        for (let i = 0; i < message.clientIds.length; i++)
-            writer.tag(1, WireType.LengthDelimited).string(message.clientIds[i]);
+        /* repeated symbolx.bench.NodeReferenceData clients = 1; */
+        for (let i = 0; i < message.clients.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.clients[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* optional bool logout_all = 2; */
         if (message.logoutAll !== undefined)
             writer.tag(2, WireType.Varint).bool(message.logoutAll);
@@ -2598,11 +2620,13 @@ export const CreateBenchResponse = new CreateBenchResponse$Type();
 class GetHostRequest$Type extends MessageType<GetHostRequest> {
     constructor() {
         super("symbolx.bench.GetHostRequest", [
-            { no: 1, name: "bench", kind: "message", T: () => NodeReferenceData }
+            { no: 1, name: "id", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GetHostRequest>): GetHostRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.bench = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<GetHostRequest>(this, message, value);
         return message;
@@ -2612,8 +2636,17 @@ class GetHostRequest$Type extends MessageType<GetHostRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData bench */ 1:
-                    message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                case /* string id */ 1:
+                    message.bench = {
+                        oneofKind: "id",
+                        id: reader.string()
+                    };
+                    break;
+                case /* string slug */ 2:
+                    message.bench = {
+                        oneofKind: "slug",
+                        slug: reader.string()
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2627,9 +2660,12 @@ class GetHostRequest$Type extends MessageType<GetHostRequest> {
         return message;
     }
     internalBinaryWrite(message: GetHostRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData bench = 1; */
-        if (message.bench)
-            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string id = 1; */
+        if (message.bench.oneofKind === "id")
+            writer.tag(1, WireType.LengthDelimited).string(message.bench.id);
+        /* string slug = 2; */
+        if (message.bench.oneofKind === "slug")
+            writer.tag(2, WireType.LengthDelimited).string(message.bench.slug);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2644,12 +2680,15 @@ export const GetHostRequest = new GetHostRequest$Type();
 class GetHostResponse$Type extends MessageType<GetHostResponse> {
     constructor() {
         super("symbolx.bench.GetHostResponse", [
-            { no: 1, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "bench", kind: "message", T: () => NodeReferenceData },
+            { no: 3, name: "bench_slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GetHostResponse>): GetHostResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.host = "";
+        message.benchSlug = "";
         if (value !== undefined)
             reflectionMergePartial<GetHostResponse>(this, message, value);
         return message;
@@ -2661,6 +2700,12 @@ class GetHostResponse$Type extends MessageType<GetHostResponse> {
             switch (fieldNo) {
                 case /* string host */ 1:
                     message.host = reader.string();
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench */ 2:
+                    message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                case /* string bench_slug */ 3:
+                    message.benchSlug = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2677,6 +2722,12 @@ class GetHostResponse$Type extends MessageType<GetHostResponse> {
         /* string host = 1; */
         if (message.host !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.host);
+        /* symbolx.bench.NodeReferenceData bench = 2; */
+        if (message.bench)
+            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string bench_slug = 3; */
+        if (message.benchSlug !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.benchSlug);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

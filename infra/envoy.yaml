@@ -27,6 +27,7 @@ static_resources:
                             timeout: 0s
                             max_stream_duration:
                               grpc_timeout_header_max: 0s
+                      # TODO :Broken :Infra: replace envoy.yaml 'cors' with 'envoy.filters.http.cors'
                       cors:
                         allow_origin_string_match:
                           - prefix: "*"
@@ -57,5 +58,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: localhost # works locally and as a deployed sidecar
+                      # we string replace this with localhost for deployment :EnvoyLocalhost
+                      #  (which isn't as easy in docker compose for local development)
+                      address: host.docker.internal
                       port_value: 50051

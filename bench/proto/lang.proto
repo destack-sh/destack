@@ -757,7 +757,7 @@ enum ViewType {
 // (And if object_properties is unset, it applies to all properties.)
 message AccessData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   AccessMode mode = 30;
   PolicyEffect decision = 31;
   AccessType verb = 32;
@@ -768,7 +768,7 @@ message AccessData {
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
 message AccessMatrixData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -781,7 +781,7 @@ message AccessMatrixData {
 // The trace of evaluating Access.
 message AccessTraceData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -792,7 +792,7 @@ message AccessTraceData {
 // Clients use this to indicate access rights, but - obviously - only our copy is binding.
 message AccessZoneData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -804,7 +804,7 @@ message AccessZoneData {
 // The result of an aggregation expression.
 message AggregationData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -818,25 +818,25 @@ message AggregationData {
 // One bucket of an aggregation histogram.
 message AggregationBucketData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   google.protobuf.Struct key = 30;
   int32 count = 31;
 }
 
-// Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message CodeData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated CodeLineData lines = 30;
 }
 
-// CodeLine(line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// CodeLine(line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message CodeLineData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -846,7 +846,7 @@ message CodeLineData {
 // A color value.
 message ColorData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -858,7 +858,7 @@ message ColorData {
 // A semi-magical value that accumulates context down the graph (starting with system context).
 message ContextData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -873,7 +873,7 @@ message ContextData {
 // An expression (conditional, aggregation, sort, etc).
 message ExpressionData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -888,7 +888,7 @@ message ExpressionData {
 // A reference to a file stored somewhere.
 message FileData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -900,10 +900,10 @@ message FileData {
   optional string external_url = 37;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message IconData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -975,26 +975,26 @@ message NodeReferenceData {
 // For absolute paths, the bench name is required.
 message PathData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated PathSegmentData segments = 31;
 }
 
-// PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message PathSegmentData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   PathSegmentType type = 31;
   optional string name = 32;
   optional NodeReferenceData reference_ptr = 33;
 }
 
-// PathToken(type: bench.language.path.PathTokenType = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// PathToken(type: bench.language.path.PathTokenType = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message PathTokenData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   PathTokenType type = 31;
 }
 
@@ -1015,7 +1015,7 @@ message PathTokenData {
 // Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1030,7 +1030,7 @@ message PolicyData {
 // (where None/empty -> wildcard, any value -> filter)
 message PolicyRuleData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1060,7 +1060,7 @@ message PolicyRuleData {
 // - How do we make projections reproducible and inspectable in the editor?
 message ProjectionData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1078,7 +1078,7 @@ message PropertyReferenceData {
 // This is an addition to primary options (like the filter for a search or aggregation).
 message ReadOptionsData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1095,7 +1095,7 @@ message ReadOptionsData {
 // A request comprising multiple Accesses.
 message RequestData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1105,18 +1105,18 @@ message RequestData {
   optional string transaction_id = 40;
 }
 
-// ResourceCredential(username: str = <factory>, password: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// ResourceCredential(username: str = <factory>, password: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message ResourceCredentialData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional string username = 31;
   optional string password = 32;
 }
 
-// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1127,10 +1127,10 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunErrorData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1144,7 +1144,7 @@ message RunErrorData {
 // The time-based schedule of something.
 message ScheduleData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1154,20 +1154,20 @@ message ScheduleData {
   optional string cron = 33;
 }
 
-// SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message SpaceDockData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated SpaceDockItemData items = 30;
 }
 
-// SpaceDockItem(hidden: bool = False, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message SpaceDockItemData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1178,7 +1178,7 @@ message SpaceDockItemData {
 // (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message SubjectData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1194,20 +1194,20 @@ message SubjectData {
   repeated NodeReferenceData roles_ptr = 46;
 }
 
-// Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Text(lines: list['TextLine'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message TextData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated TextLineData lines = 32;
 }
 
-// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
 message TextLineData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1221,10 +1221,10 @@ message TextLineData {
   bool is_code = 64;
 }
 
-// TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TextSpanData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional ColorType color = 50;
@@ -1235,10 +1235,10 @@ message TextSpanData {
   bool is_code = 64;
 }
 
-// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+// TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
 message TypeInfoData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;
@@ -1260,7 +1260,7 @@ message TypeInfoData {
 // Reference a value at a path of a Node.
 message ValueReferenceData {
   BenchType metatype = 1;
-  int32 id = 2;
+  optional int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 5;

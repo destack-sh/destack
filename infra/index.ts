@@ -361,7 +361,9 @@ const KUBERNETES_VARS = [
 ];
 
 // get envoy.yaml from this folder and put into configmap
-const envoyConfig = yaml.load(fs.readFileSync("envoy.yaml", "utf8"));
+// (also replace :EnvoyLocalhost with actual localhost)
+const envoyConfigString = fs.readFileSync("envoy.yaml", "utf8")
+const envoyConfig = yaml.load(envoyConfigString.replace('host.docker.internal', 'localhost'));
 const envoyConfigMap = new k8s.core.v1.ConfigMap(
   "envoy-config",
   {

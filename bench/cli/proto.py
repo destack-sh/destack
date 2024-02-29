@@ -9,7 +9,14 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION, Node
-from bench.language.setup import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
+from bench.language.const import NODE_TYPES, STRUCT_TYPES
+from bench.language.setup import (
+    FINAL_BENCH_CLASSES,
+    NODE_CLASS_BY_TYPE,
+    NODE_CLASSES,
+    STRUCT_CLASS_BY_TYPE,
+    STRUCT_CLASSES,
+)
 from bench.proto.engine import generate_proto_schema
 
 LANG_PROTO = "bench/proto/lang.proto"
@@ -63,15 +70,16 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     )
     wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
     wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
-    patch_prefix_code = f"""
-from typing import TYPE_CHECKING
+    patch_prefix_code = """
+"""
+    patch_postfix_code = f"""
+from typing import TYPE_CHECKING # noqa: E402
 
 VERSION = '{VERSION}'
 
 if TYPE_CHECKING:
     from bench.language import Subject
-"""
-    patch_postfix_code = f"""
+    
 # extra utility types
 import bench.proto.monkey # noqa
 
@@ -100,7 +108,26 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 // extra utility types
 export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
+export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 """
+    struct_mapping_parts = [
+        "\nexport interface StructTypeMapping extends Record<StructType, AnyStructData> {\n"
+    ]
+    for struct_t in STRUCT_TYPES:
+        struct_cls = STRUCT_CLASS_BY_TYPE[struct_t]
+        struct_mapping_parts.append(f"  [StructType.{struct_t.name}]: {struct_cls.__name__}Data,\n")
+    struct_mapping_parts.append("}\n")
+    patch_postfix_code += "".join(struct_mapping_parts)
+    node_mapping_parts = [
+        "\nexport interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {\n"
+    ]
+    for node_t in NODE_TYPES:
+        node_cls = NODE_CLASS_BY_TYPE[node_t]
+        node_mapping_parts.append(f"  [NodeType.{node_t.name}]: {node_cls.__name__}Data,\n")
+    node_mapping_parts.append("}\n")
+    patch_postfix_code += "".join(node_mapping_parts)
+
     lang_ts = Path(WIRE_TS_DIR + "/bench/proto/lang.ts").read_text()
     Path(WIRE_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
     Path(WIRE_TS_DIR + "/index.ts").write_text(
