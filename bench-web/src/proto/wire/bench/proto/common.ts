@@ -32,6 +32,7 @@ export interface ClientOrigin {
  * Core metadata for all RPC requests.
  * This is passed as specially encoded headers with robust dicts,
  * but it's nice to have a common definition.
+ * NOTE: update :RpcMetadataEncoding when changing RpcMetadata
  *
  * @generated from protobuf message symbolx.bench.RpcMetadata
  */
@@ -62,15 +63,15 @@ export interface RpcMetadata {
  */
 export interface RpcMetadata_BadgeInfo {
     /**
-     * @generated from protobuf field: optional string id = 1;
+     * @generated from protobuf field: optional string id = 2;
      */
     id?: string;
     /**
-     * @generated from protobuf field: optional string key = 2;
+     * @generated from protobuf field: optional string key = 3;
      */
     key?: string;
     /**
-     * @generated from protobuf field: optional string password = 3;
+     * @generated from protobuf field: optional string password = 4;
      */
     password?: string;
 }
@@ -287,9 +288,9 @@ export const RpcMetadata = new RpcMetadata$Type();
 class RpcMetadata_BadgeInfo$Type extends MessageType<RpcMetadata_BadgeInfo> {
     constructor() {
         super("symbolx.bench.RpcMetadata.BadgeInfo", [
-            { no: 1, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<RpcMetadata_BadgeInfo>): RpcMetadata_BadgeInfo {
@@ -303,13 +304,13 @@ class RpcMetadata_BadgeInfo$Type extends MessageType<RpcMetadata_BadgeInfo> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string id */ 1:
+                case /* optional string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* optional string key */ 2:
+                case /* optional string key */ 3:
                     message.key = reader.string();
                     break;
-                case /* optional string password */ 3:
+                case /* optional string password */ 4:
                     message.password = reader.string();
                     break;
                 default:
@@ -324,15 +325,15 @@ class RpcMetadata_BadgeInfo$Type extends MessageType<RpcMetadata_BadgeInfo> {
         return message;
     }
     internalBinaryWrite(message: RpcMetadata_BadgeInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string id = 1; */
+        /* optional string id = 2; */
         if (message.id !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.id);
-        /* optional string key = 2; */
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional string key = 3; */
         if (message.key !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.key);
-        /* optional string password = 3; */
+            writer.tag(3, WireType.LengthDelimited).string(message.key);
+        /* optional string password = 4; */
         if (message.password !== undefined)
-            writer.tag(3, WireType.LengthDelimited).string(message.password);
+            writer.tag(4, WireType.LengthDelimited).string(message.password);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

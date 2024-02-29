@@ -3,7 +3,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, NodeReference, User
+from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
 from bench.language.const import USER_NODE_TYPES, NodeType
 from bench.language.resource import Region
@@ -177,12 +177,11 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         async with global_session() as session:
             # log out the current or the specified clients
-            if request.client_ids:
-                clients = await Client.filter(
-                    parent=subject.user, id__in=request.client_ids
-                ).tolist()
-                if len(clients) != len(request.client_ids):
-                    missing_ids = set(request.client_ids) - {c.id for c in clients}
+            if request.clients:
+                client_ids = {to_uuid(c.id) for c in request.clients}
+                clients = await Client.filter(parent=subject.user, id__in=client_ids).tolist()
+                if len(clients) != len(request.clients):
+                    missing_ids = client_ids - {c.id for c in clients}
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"clients not found: {missing_ids}")
             elif request.logout_all:
                 clients = await Client.filter(parent=subject.user).tolist()
@@ -258,4 +257,12 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
         return CreateBenchResponse(bench=bench._to_data())
 
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
+        key, value = betterproto.which_one_of(request, "bench")
+        async with global_session():
+            if key == "id":
+                await Bench.get(id=to_uuid(value))
+            elif key == "slug":
+                await Bench.get(slug=value)
+            else:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "nocheckin")

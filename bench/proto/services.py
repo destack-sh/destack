@@ -20,10 +20,12 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 from grpclib.testing import ChannelFor
 
+from bench.language import ValidationError
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
+from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.system.auth import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
@@ -104,8 +106,32 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     @final
     def _validate_request(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message."""
-        ...  # TODO :Robustness!: BenchServiceBase.validate_request
+        self._validate_message(request)
         self._validate_request_self(subject, request)
+
+    @final
+    def _validate_message(self, message: betterproto.Message) -> None:
+        # ensure every Bench struct has its metatype set
+        struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(message.__class__)
+        if struct_cls is not None:
+            if message.metatype is None:
+                raise ValidationError(message, f"missing metatype for {message.__class__.__name__}")
+            if message.metatype != struct_cls.metatype:
+                raise ValidationError(
+                    message, f"invalid metatype {message.metatype} for {message.__class__.__name__}"
+                )
+
+        # walk message recursively
+        defaults = message._betterproto.default_gen
+        for field_name, field in message._betterproto_meta.meta_by_field_name.items():
+            field_is_repeated = defaults[field_name] is list
+            if field.proto_type == betterproto.TYPE_MESSAGE:
+                value = getattr(message, field_name)
+                if field_is_repeated:
+                    for sub_message in value:
+                        self._validate_message(sub_message)
+                elif value is not None:
+                    self._validate_message(value)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
@@ -168,6 +194,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                     SqlNotExistsError: GRPCStatus.NOT_FOUND,
                     SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
                     AccessError: GRPCStatus.PERMISSION_DENIED,
+                    ValidationError: GRPCStatus.INVALID_ARGUMENT,
                 }
                 status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
                 raise GRPCError(status, str(e)) from e

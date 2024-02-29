@@ -15,7 +15,7 @@ from kubernetes_asyncio import client, config, watch
 
 from bench.language import Bench
 from bench.language.const import Region
-from bench.language.resource import ResourceStatus
+from bench.language.resource import ResourceStatus, ServerProfile
 from bench.utils.env import IS_DEBUG
 from bench.utils.utils import get_from_env
 
