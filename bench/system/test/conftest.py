@@ -118,7 +118,7 @@ async def supervisor() -> "SupervisorStub":
     from bench.system.supervisor import Supervisor, SupervisorStub
 
     service = Supervisor()
-    await service.start_quick()
+    await service.start()
     try:
         async with ChannelFor([service]) as channel:
             stub = SupervisorStub(channel)

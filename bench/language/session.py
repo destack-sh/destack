@@ -153,8 +153,8 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
-    TODO :Cleanup: Transaction should be a Struct (or maybe even Node?) (along with Edit)
-      (but we don't have a simple way of representing Edit.node/Edit.properties yet)
+    TODO :Cleanup: Transaction should maybe be a Struct (or maybe even Node?) (along with Edit?)
+      (also we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
     id: UUID = dcfield(default_factory=uuid4)

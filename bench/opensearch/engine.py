@@ -1,13 +1,23 @@
+import asyncio
 import base64
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Collection, Iterable, Optional
 
-from opensearchpy import AsyncOpenSearch
 import structlog
+from opensearchpy import AsyncOpenSearch
 
-from bench.language import C, ConditionalOp, Field, Package, Property, SortMode, SortOp, Store
+from bench.language import (
+    C,
+    ConditionalOp,
+    Field,
+    Package,
+    Property,
+    SortMode,
+    SortOp,
+    Store,
+)
 from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
 from bench.language.expression import METATYPE_KEY, Expression, ExpressionOps, S
 from bench.language.node import STRUCT_CLASS_BY_TYPE, Node, Struct
@@ -61,6 +71,7 @@ async def update_local_os_schema(package: Package, dynamic: str = "strict") -> N
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
     outputs_mappings: dict[str, os.Field] = {}
+    start = asyncio.get_event_loop().time()
 
     # add dynamic user mappings
     for node in package._graph.iter_descendants(package, NodeType.BLOCK, recursive=True):
@@ -82,8 +93,9 @@ async def update_local_os_schema(package: Package, dynamic: str = "strict") -> N
     async with os_client_to_store(package.environment.search) as os_client:
         await os_client.indices.put_mapping(index=package.os_name, body={"properties": mappings})
     logger.info(
-        "os.update_mappings.done",
+        "os.update_mappings",
         package=package,
+        duration=asyncio.get_event_loop().time() - start,
         value_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
@@ -491,7 +503,7 @@ async def _create_os_index(
         replicas=replicas,
         fields=list(fields.keys()),
     )
-    log.info("os.create_index")
+    start = asyncio.get_event_loop().time()
     result = await os_client.indices.create(
         index=index_name,
         body={
@@ -508,7 +520,7 @@ async def _create_os_index(
     if result.get("acknowledged") is not True:
         if not upsert:
             raise IndexError(f"failed to create index {index_name}: {result}")
-        logger.info("os.create_index.upsert", index_name=index_name)
+        log.debug("os.create_index.upsert", index_name=index_name)
         # close index
         await os_client.indices.close(index=index_name)
         # update mutable settings
@@ -524,7 +536,7 @@ async def _create_os_index(
         )
         # reopen index
         await os_client.indices.open(index=index_name)
-    log.info("os.create_index.done")
+    log.info("os.create_index", duration=asyncio.get_event_loop().time() - start)
 
 
 async def create_local_os_store(store: Store) -> None:
@@ -532,7 +544,7 @@ async def create_local_os_store(store: Store) -> None:
     Creates the OpenSearch index and corresponding roles/user for a bench.
     """
     log = logger.bind(store=store)
-    log.info("os.create_local_index")
+    start = asyncio.get_event_loop().time()
     # create index
     async with user_os_client() as os_client:
         await _create_os_index(
@@ -544,7 +556,6 @@ async def create_local_os_store(store: Store) -> None:
         )
 
         # create write access role for bench owner
-        log.info("os.create_owner_role")
         owner_role_name = f"{store.database}-owner"
         rep = await os_client.security.create_role(
             role=owner_role_name,
@@ -566,10 +577,9 @@ async def create_local_os_store(store: Store) -> None:
         )
         if rep.get("error"):
             raise RuntimeError(f"failed to create role {owner_role_name}: {rep['error']}")
-        log.info("os.create_owner_role.done")
+        log.info("os.create_owner_role", role=owner_role_name)
 
         # create user with those roles
-        log.info("os.create_user")
         root = store.main_credential
         rep = await os_client.security.create_user(
             username=root.username,
@@ -580,7 +590,8 @@ async def create_local_os_store(store: Store) -> None:
         )
         if rep.get("error"):
             raise RuntimeError(f"failed to create user {root.username}: {rep['error']}")
-        log.info("os.create_user.done", username=root.username)
+        log.info("os.create_user", username=root.username)
+    log.info("os.create_local_store", duration=asyncio.get_event_loop().time() - start)
 
 
 async def os_write_edits(module: Package, edits: list[EditData]) -> None:
@@ -589,12 +600,12 @@ async def os_write_edits(module: Package, edits: list[EditData]) -> None:
     All regular DB edit come this way.
     """
     log = logger.bind(module=module, edits=edits)
-    log.debug("os.write_edits")
     if not edits:
         return  # nothing to do
 
     # mut state
     ops: list[dict] = []
+    start = asyncio.get_event_loop().time()
 
     async with os_client_to_store(module.environment.search) as os_client:
 
@@ -628,3 +639,5 @@ async def os_write_edits(module: Package, edits: list[EditData]) -> None:
                 raise ValueError(f"unexpected edit type: {edit!r}")
 
         await _flush()  # flush all remaining edits
+
+    log.info("os.write_edits", edits=len(edits), duration=asyncio.get_event_loop().time() - start)

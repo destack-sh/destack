@@ -36,7 +36,7 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle) -> Bench
     bench: Bench = wiring.unpack_node(create_bench_rep.bench)
 
     service = Host(bench.id)
-    await service.start_quick()
+    await service.start()
     try:
         async with ChannelFor([service]) as channel:
             host_stub = HostStub(channel)

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import enum
 import struct
@@ -1958,7 +1959,7 @@ async def create_local_pg_store(store: Store) -> None:
     Creates the local Postgres database and corresponding roles/user for a bench.
     """
     log = logger.bind(store=store)
-    log.info("pg.create_db")
+    start = asyncio.get_event_loop().time()
     assert store.database, f"{store!r} has no database"
 
     # create database from the default one (if not exists)
@@ -2005,7 +2006,7 @@ async def create_local_pg_store(store: Store) -> None:
         )
         await cur.connection.commit()
 
-    log.info("pg.create_db.done")
+    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start)
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {

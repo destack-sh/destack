@@ -94,7 +94,6 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     _shell(f"ruff {TEMP_PY_FILE} --fix", check=False, stdout=DEVNULL)
     _shell(f"pre-commit run black --files {TEMP_PY_FILE}", check=False, stdout=DEVNULL)
     _shell(f"mv {TEMP_PY_FILE} {WIRE_PY_FILE}")
-    logger.info("proto.regen.py.done")
 
     # TS
     logger.info("proto.regen.ts")
@@ -146,13 +145,11 @@ export * from './google/protobuf/timestamp';
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
     for path in Path(WIRE_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
-    logger.info("proto.regen.ts.done")
 
 
 @app.command()
 def regen():
-    logger.info("proto.generate")
     start = time.time()
     schema_str = _generate_proto_schema()
     _regen_proto_artifacts(schema_str)
-    logger.info("proto.generate.done", duration=time.time() - start)
+    logger.info("proto.generate", duration=time.time() - start)

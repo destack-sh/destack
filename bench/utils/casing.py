@@ -51,6 +51,18 @@ TYPESCRIPT_CASING: dict[IdentifierType, Casing] = {
 IdentT = IdentifierType
 
 
+def _strip_alpha_num(name: str) -> str:
+    # remove leading underscores
+    name = re.sub(r"^_+", "", name)
+    # remove trailing underscores
+    name = re.sub(r"_+$", "", name)
+    # remove double underscores
+    name = re.sub(r"__+", "_", name)
+    # remove leading digits
+    name = re.sub(r"^[0-9]+", "", name)
+    return name
+
+
 @cachetools.cached(cache={})
 def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
     """Turns a string into a valid Python identifier."""
@@ -94,15 +106,3 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
 def is_valid_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> bool:
     expected = to_casing(name, casing, allow_whitespace=allow_whitespace)
     return name == expected
-
-
-def _strip_alpha_num(name: str) -> str:
-    # remove leading underscores
-    name = re.sub(r"^_+", "", name)
-    # remove trailing underscores
-    name = re.sub(r"_+$", "", name)
-    # remove double underscores
-    name = re.sub(r"__+", "_", name)
-    # remove leading digits
-    name = re.sub(r"^[0-9]+", "", name)
-    return name

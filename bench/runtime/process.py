@@ -4,9 +4,7 @@ from uuid import UUID
 import structlog
 
 from bench.proto.services import MonitoredServiceBase
-from bench.proto.wire import (
-    RuntimeBase,
-)
+from bench.proto.wire import RuntimeBase
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +34,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
     def __repr__(self):
         return f"<ServerHost {self}>"
 
-    async def start_quick(self):
+    async def start(self):
         raise NotImplementedError("nocheckin: basic runtime")
 
     def close(self):

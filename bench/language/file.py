@@ -114,8 +114,6 @@ class File(Struct):
         self.status = FileStatus.AVAILABLE
 
     async def _do_upload(self, content: bytes) -> None:
-        logger.debug("file.do_upload", file=self)
-
         # prepare upload (skip if already uploaded)
         post_url = await File._prep_upload(self)
         if post_url is None:
@@ -130,7 +128,7 @@ class File(Struct):
         response = requests.post(url_main, data=form_data, files={"file": content})
         response.raise_for_status()
         await File._mark_uploaded(self)
-        logger.debug("file.do_upload.done", file=self)
+        logger.debug("file.do_upload", file=self)
 
     @staticmethod
     @_auto_async_to_sync
