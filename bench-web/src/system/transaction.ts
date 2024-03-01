@@ -1,4 +1,4 @@
-import { EditType, NodeType, type AnyNodeData, type EditData } from "@/proto/wire";
+import { EditType, NodeType, type AnyNodeData, type EditData, NodePropertyEnumByType, BenchType } from "@/proto/wire";
 import { newStructId, wrapSomeNode } from "@/proto/wiring";
 import { v4 } from "uuid";
 
@@ -19,10 +19,10 @@ export class Transaction {
       nodeType: node.metatype as unknown as NodeType,
       properties: properties ?? [],
       scope: {
-        benchId: 'packagePtr' in node ? node.packagePtr?.benchId : undefined,
-        packageId: 'packagePtr' in node ? node.packagePtr?.id : undefined,
+        benchId: "packagePtr" in node ? node.packagePtr?.benchId : undefined,
+        packageId: "packagePtr" in node ? node.packagePtr?.id : undefined,
         transactionId: this.id,
-      }
+      },
     };
     return edit;
   }
@@ -43,8 +43,18 @@ export class Transaction {
   }
 
   /** Update regular properties in this node */
-  update(node: Partial<AnyNodeData> & { id: string }) {
-    throw new Error("not yet implemented");
+  update(node: Partial<AnyNodeData> & { metatype: BenchType, id: string }) {
+    const nodeProperties = NodePropertyEnumByType[node.metatype as unknown as NodeType];
+    const properties: number[] = [];
+    const patchedNode: AnyNodeData = {...node};
+    for (const propName in nodeProperties) {
+      if ((node as any)[propName] !== undefined) {
+        properties.push(nodeProperties[propName]);
+      } else {
+        patchedNode[propName] = undefined;
+      }
+    }
+    this._addEdit(EditType.UPDATE, patchedNode, properties);
   }
 
   /** Move node between parents */

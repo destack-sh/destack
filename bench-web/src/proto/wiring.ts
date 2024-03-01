@@ -5,7 +5,7 @@ import {
   type AnyStructData,
   type StructTypeMapping,
   SomeNodeData,
-NodeType,
+  NodeType,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -44,9 +44,7 @@ export function wrapSomeNode(node: AnyNodeData): SomeNodeData {
 
 export function unwrapSomeNode(node: SomeNodeData): AnyNodeData {
   const oneOfKind = node.node.oneofKind;
-  if (!oneOfKind) {
-    throw new Error("missing oneofKind");
-  }
+  if (!oneOfKind) throw new Error("missing oneofKind");
   return (node.node as any)[oneOfKind];
 }
 

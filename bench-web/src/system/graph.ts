@@ -1,12 +1,26 @@
-import type { AnyNodeData, BenchType, EditData, NodeType, NodeTypeMapping } from "@/proto/wire";
-import type { Ref } from "vue";
+import {
+  EditType,
+  GraphScope,
+  type AnyNodeData,
+  type BenchType,
+  type EditData,
+  type NodeType,
+  type NodeTypeMapping,
+PropertyEnumByType,
+NodePropertyEnumByType,
+} from "@/proto/wire";
+import { unwrapSomeNode } from "@/proto/wiring";
+import { ref, type Ref } from "vue";
 
 export class NodeDataGraph {
+  public readonly scope: GraphScope = {};
   private nodesById: { [id: string]: AnyNodeData } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
   private roots: string[] = [];
 
-  constructor() {}
+  constructor(scope: GraphScope = {}) {
+    this.scope = scope;
+  }
 
   get(id: string) {
     return this.nodesById[id];
@@ -14,7 +28,7 @@ export class NodeDataGraph {
 
   findRoots<T extends NodeType>(metatype: NodeType): NodeTypeMapping[T][] {
     return this.roots
-      .filter((id) => this.nodesById[id].metatype === (metatype as unknown as BenchType))
+      .filter((id) => this.nodesById[id].metatype == (metatype as unknown as BenchType))
       .map((id) => this.nodesById[id] as NodeTypeMapping[T]);
   }
 
@@ -78,11 +92,11 @@ export class NodeDataGraph {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
-      if (nodeIdx === -1) throw new Error(`node with id ${node.id} not found in parent ${parentId}`);
+      if (nodeIdx == -1) throw new Error(`node with id ${node.id} not found in parent ${parentId}`);
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
     } else {
       const rootIdx = this.roots.findIndex((n) => n == node.id);
-      if (rootIdx === -1) throw new Error(`node with id ${node.id} not found in roots`);
+      if (rootIdx == -1) throw new Error(`node with id ${node.id} not found in roots`);
       this.roots.splice(rootIdx, 1);
     }
     // remove any children
@@ -92,19 +106,49 @@ export class NodeDataGraph {
     }
   }
 
-  getRef(id: string) {
-    throw new Error("not implemented");
+  getRef(id: string | Ref<string>): Ref<AnyNodeData | null> {
+    throw new Error("not yet implemented");
   }
 
   findRootRef<T extends NodeType>(metatype: T): Ref<NodeTypeMapping[T] | null> {
-    throw new Error("not implemented");
+    return ref(null); // nocheckin
   }
 
   getChildrenRef<T extends NodeType>(parent: Ref<AnyNodeData | null>, metatype: T): Ref<NodeTypeMapping[T][]> {
-    throw new Error("not implemented");
+    return ref([]); // nocheckin
   }
 }
 
 function editGraph(graph: NodeDataGraph, edits: EditData[]) {
-  throw new Error("not yet implemented");
+  /** Applies the edits to the graph (in place!). */
+
+  for (const edit of edits) {
+    if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
+    const nodeData = unwrapSomeNode(edit.node);
+    const editType = edit.type;
+    if (editType == EditType.CREATE || (editType == EditType.UPSERT && !graph.get(nodeData.id))) {
+      graph.add(nodeData);
+    } else if (editType == EditType.DELETE) {
+      graph.remove(nodeData);
+    } else {
+      let properties: number[];
+      const nodeProperties = NodePropertyEnumByType[nodeData.metatype]!;
+      if (editType == EditType.UPDATE || editType == EditType.MOVE) {
+        properties = edit.properties;
+      } else if (editType == EditType.ARCHIVE || editType == EditType.UNARCHIVE) {
+        properties = [nodeProperties.archivedAt];
+      } else if (editType == EditType.SOFT_DELETE || editType == EditType.RESTORE) {
+        properties = [nodeProperties.deletedAt];
+      } else {
+        throw new Error(`unexpected edit type: ${editType}`);
+      }
+      const existingNode = graph.get(nodeData.id);
+      if (!existingNode) throw new Error(`missing node for update: ${edit}`);
+      for (const propId of properties) {
+        const propName = nodeProperties[propId];
+        (existingNode as any)[propName] = (nodeData as any)[propName];
+      }
+      graph.update(existingNode);
+    }
+  }
 }
