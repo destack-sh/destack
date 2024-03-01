@@ -27,7 +27,7 @@ class ViewType(IdEnum):
     BLOCK = 2
     EXPLORER = 20
     HISTORY = 21
-    RESOURCES = 22
+    RESOURCE = 22
     INSPECTOR = 23
     LIBRARY = 24
     ACCESS = 25

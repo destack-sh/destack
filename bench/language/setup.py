@@ -70,6 +70,7 @@ def _well_known_enum(enum_cls: type[IdEnumT]) -> type[IdEnumT]:
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import Node, Struct, Value, const
+    from bench.language.node import HasBase
 
     global _COMPLETED_SETUP
     if _COMPLETED_SETUP:
@@ -176,7 +177,7 @@ def _complete_bench_setup():
             HAS_CHILD_NODE_TYPES.add(node_type)
 
     # check that is_in_package/is_in_bench was declared correctly
-    #  (need to set that in @node upfront because traversing parents can only happen in finalization)
+    #  (need to set that in @node upfront because traversing parents like here can only happen in finalization)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         in_bench = (
             node_cls.metatype == NodeType.BENCH
@@ -197,6 +198,10 @@ def _complete_bench_setup():
         IN_PACKAGE_NODE_TYPES,
         [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
     )
+
+    # check that BASED_NODE_TYPES is consistent with HasBase
+    base_node_types = [n.metatype for n in get_subclasses(HasBase) if n.metatype]
+    check_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
 
     # check that all enum types are valid proto-able enums
     for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):

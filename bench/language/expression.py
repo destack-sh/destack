@@ -13,8 +13,9 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
+    BASED_NODE_TYPES,
 )
-from bench.language.node import Node, Property, Struct, struct
+from bench.language.node import Node, Property, Struct, struct, HasBase
 from bench.language.property import p_regular
 from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.proto.wire import AnyNodeData, NodeReferenceData
@@ -61,10 +62,19 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 @struct(StructType.NODE_REFERENCE, inline=True)
 class NodeReference(Struct):
+    """
+    A reference to a Node.
+    If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
+    If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
+    Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
+    """
+
     type: NodeType = p_regular(30, require=True)
     id: Optional[UUID] = p_regular(31, default=None)
     ck: Optional[UUID] = p_regular(32, default=None)
-    base_ck: Optional[UUID] = p_regular(33, default=None)
+    bench_id: Optional[UUID] = p_regular(33, default=None)
+    base_ck: Optional[UUID] = p_regular(34, default=None)
+    base_bench_id: Optional[UUID] = p_regular(35, default=None)
 
     def __content_str__(self):
         selector_str_parts = []
@@ -72,6 +82,8 @@ class NodeReference(Struct):
             selector_str_parts.append(f"id={self.id}")
         if self.ck is not None:
             selector_str_parts.append(f"ck={self.ck}")
+        if self.bench_id is not None:
+            selector_str_parts.append(f"bench_id={self.bench_id}")
         if self.base_ck is not None:
             selector_str_parts.append(f"base_ck={self.base_ck}")
         selector_str = ", ".join(selector_str_parts)
@@ -82,16 +94,16 @@ class NodeReference(Struct):
         if node is None:
             return None
         assert isinstance(node, Node), f"expected Node, got {node!r}"
+        reference = NodeReference(type=node.metatype, id=node.id)
+        if "bench" in node.__properties__:
+            reference.bench_id = node.bench_id
         if "ck" in node.__properties__:
-            if node.metatype == NodeType.RECORD:
-                return NodeReference(
-                    type=node.metatype, id=node.id, ck=node.ck, base_ck=node.parent_ck
-                )
-            else:
-                return NodeReference(type=node.metatype, id=node.id, ck=node.ck)
-        else:
-            assert node.id is not None, f"cannot reference node without id: {node!r}"
-            return NodeReference(type=node.metatype, id=node.id)
+            reference.ck = node.ck
+            if node.metatype in BASED_NODE_TYPES:
+                node: HasBase
+                reference.base_ck = node.base
+                reference.base_bench_id = node.base_ck
+        return reference
 
     @staticmethod
     def from_node_data(node_data: Optional[AnyNodeData]) -> Optional["NodeReferenceData"]:
@@ -100,27 +112,20 @@ class NodeReference(Struct):
         if node_data is None:
             return None
         node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
+        reference = NodeReferenceData(
+            metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
+        )
+        if "bench" in node_cls.__properties__ and node_data.package_ptr is not None:
+            reference.bench_id = node_data.package_ptr.bench_id
         if "ck" in node_cls.__properties__:
-            if node_data.metatype == NodeType.RECORD:
-                return NodeReferenceData(
-                    metatype=wire.StructType.NODE_REFERENCE,
-                    type=node_data.metatype,
-                    id=node_data.id,
-                    ck=node_data.ck,
-                    base_ck=node_data.parent_ptr.ck,
-                )
-            else:
-                return NodeReferenceData(
-                    metatype=wire.StructType.NODE_REFERENCE,
-                    type=node_data.metatype,
-                    id=node_data.id,
-                    ck=node_data.ck,
-                )
-        else:
-            assert node_data.id is not None, f"cannot reference node without id: {node_data!r}"
-            return NodeReferenceData(
-                metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
-            )
+            node_cls: type[HasBase]
+            reference.ck = node_data.ck
+            if node_data.metatype in BASED_NODE_TYPES:
+                base = node_cls.get_base_from_data(node_data)
+                if base is not None:
+                    reference.base_ck = base.ck
+                    reference.base_bench_id = base.bench_id
+        return reference
 
 
 @struct(StructType.PROPERTY_REFERENCE, inline=True)

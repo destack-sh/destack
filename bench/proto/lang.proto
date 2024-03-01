@@ -701,7 +701,7 @@ enum ViewType {
   VIEW_TYPE_BLOCK = 2;
   VIEW_TYPE_EXPLORER = 20;
   VIEW_TYPE_HISTORY = 21;
-  VIEW_TYPE_RESOURCES = 22;
+  VIEW_TYPE_RESOURCE = 22;
   VIEW_TYPE_INSPECTOR = 23;
   VIEW_TYPE_LIBRARY = 24;
   VIEW_TYPE_ACCESS = 25;
@@ -914,13 +914,16 @@ message IconData {
   optional ColorData color = 34;
 }
 
-// NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// A reference to a Node.
+// If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
+// If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
 message NodeReferenceData {
   BenchType metatype = 1;
   NodeType type = 30;
   optional string id = 31;
   optional string ck = 32;
   optional string base_ck = 33;
+  optional string bench_id = 34;
 }
 
 // A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -1678,7 +1681,9 @@ message MembershipData {
 }
 
 // A node in the Bench graph: it's a struct with a globally unique identity.
-// Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
+// Source nodes also have a constant identifier key (ck) used to derive the id per Package.
+// All template instances keep the first half of the ck constant
+// (so 'all' instances of a node share the first ck half across templates & versions).
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
@@ -1734,10 +1739,10 @@ message NotificationData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   NotificationKind kind = 30;
+  optional NodeReferenceData type_ptr = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional google.protobuf.Timestamp read_at = 34;
   optional NodeReferenceData sender_ptr = 35;
-  optional NodeReferenceData sender_bench_ptr = 36;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
@@ -1969,7 +1974,7 @@ message SignalData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   optional NodeReferenceData type_ptr = 31;
-  optional NodeReferenceData object_ptr = 32;
+  optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData sender_ptr = 33;
   optional google.protobuf.Struct value_packed = 34;
   optional google.protobuf.Struct secret_value_packed = 35;

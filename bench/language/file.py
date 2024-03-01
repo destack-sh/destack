@@ -1,18 +1,14 @@
-import hashlib
 import io
-import mimetypes
 from typing import TYPE_CHECKING, BinaryIO, Optional
-from urllib.parse import parse_qs, urlparse, urlunparse
 
 import aiohttp
-import requests
 import structlog
 
-from bench.language.const import FileStatus, NodeType, StructType, active_session
+from bench.language.const import FileStatus, NodeType, StructType
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
 from bench.language.setup import _well_known_enum
-from bench.language.validation import ValidationHandler, on_invalid_raise
+from bench.language.validation import ValidationHandler
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
@@ -95,101 +91,6 @@ class File(Struct):
     async def io(self) -> BinaryIO:
         """Get a file-like object for the file."""
         return io.BytesIO(await self.download())
-
-    async def _prep_upload(self) -> Optional[str]:
-        """
-        Prepare to upload the object to the remote storage (or not if already exists).
-        Note that we perform a sleight of hand here: we change the id and status if the object
-        already exists under a different id in the object store.
-        """
-        file, post_url = await self.session.host.prepare_upload_file(self)
-        self._set_untracked("id", file.id)
-        self._set_untracked("ck", file.ck)
-        self.status = file.status
-        return post_url
-
-    async def _mark_uploaded(self) -> None:
-        """Mark the object as uploaded to the remote storage."""
-        await self.session.host.mark_uploaded_file(self)
-        self.status = FileStatus.AVAILABLE
-
-    async def _do_upload(self, content: bytes) -> None:
-        # prepare upload (skip if already uploaded)
-        post_url = await File._prep_upload(self)
-        if post_url is None:
-            logger.debug("file.do_upload.skip", file=self)
-            return  # already uploaded
-        url_parts = urlparse(post_url)
-        query_params = parse_qs(url_parts.query)
-        form_data = {k: v[0] for k, v in query_params.items()}
-        url_main = urlunparse((url_parts.scheme, url_parts.netloc, url_parts.path, "", "", ""))
-
-        # upload (and mark as uploaded in DB)
-        response = requests.post(url_main, data=form_data, files={"file": content})
-        response.raise_for_status()
-        await File._mark_uploaded(self)
-        logger.debug("file.do_upload", file=self)
-
-    @staticmethod
-    @_auto_async_to_sync
-    async def from_url(url: str, name: str = None, timeout: int = None) -> "File":
-        """Upload a file to file storage."""
-        response = requests.get(url, timeout=timeout)
-        return await File.from_requests(response, name=name)
-
-    @staticmethod
-    @_auto_async_to_sync
-    async def from_requests(response: requests.Response, name: str = None) -> "File":
-        """Upload a file to file storage."""
-        session = active_session()
-        response.raise_for_status()
-        obj = File(
-            sha512=hashlib.sha512(response.content).hexdigest(),
-            size=int(response.headers["Content-Length"]),
-            type=response.headers["Content-Type"],
-            name=name or response.url.split("/")[-1],
-        )
-        obj._assign_id_and_ck(session.package.ck)
-        obj._validate_self(["name", "type", "size"], on_invalid=on_invalid_raise)
-        await obj._do_upload(response.content)
-        return obj
-
-    @staticmethod
-    @_auto_async_to_sync
-    async def from_file(file: BinaryIO, name: str = None, type: str = None) -> "File":
-        """Upload a file to file storage."""
-        content = file.read()
-        type = type or mimetypes.guess_type(file.name)[0]
-        return await File.from_content(name or file.name, type, content)
-
-    @staticmethod
-    @_auto_async_to_sync
-    async def from_content(name: str, type: str, content: bytes | BinaryIO) -> "File":
-        """Upload a file to file storage."""
-        session = active_session()
-        if isinstance(content, BinaryIO):
-            content = content.read()
-        obj = File(
-            sha512=hashlib.sha512(content).hexdigest(),
-            size=len(content),
-            type=type,
-            name=name,
-            _session=None,
-        )
-        obj._assign_id_and_ck(session.package.ck)
-        obj._validate_self(["name", "type", "size"], on_invalid=on_invalid_raise)
-        await obj._do_upload(content)
-        return obj
-
-    @staticmethod
-    @_auto_async_to_sync
-    async def from_text(name: str, content: str) -> "File":
-        """Upload a file to file storage."""
-        # append .txt if no extension
-        suffix = name.split(".")[-1]
-        if suffix not in ("txt", "md", "csv", "rst", "log", "json", "yaml", "yml", "toml"):
-            name += ".txt"
-        return await File.from_content(name, "text/plain", content.encode())
 
 
 @_well_known_enum

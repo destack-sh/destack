@@ -1,6 +1,8 @@
-import { EditType, type AnyNodeData, type EditData } from "@/proto/wire";
+import { EditType, NodeType, type AnyNodeData, type EditData } from "@/proto/wire";
+import { newStructId, wrapSomeNode } from "@/proto/wiring";
 import { v4 } from "uuid";
 
+/** A transaction on the Bench state graph. */
 export class Transaction {
   id: string;
   edits: EditData[] = [];
@@ -10,7 +12,19 @@ export class Transaction {
   }
 
   _makeEdit(type: EditType, node: AnyNodeData, properties?: number[]): EditData {
-    throw new Error("not yet implemented");
+    const edit: EditData = {
+      id: newStructId(),
+      type,
+      node: wrapSomeNode(node),
+      nodeType: node.metatype as unknown as NodeType,
+      properties: properties ?? [],
+      scope: {
+        benchId: 'packagePtr' in node ? node.packagePtr?.benchId : undefined,
+        packageId: 'packagePtr' in node ? node.packagePtr?.id : undefined,
+        transactionId: this.id,
+      }
+    };
+    return edit;
   }
 
   _addEdit(type: EditType, node: AnyNodeData, properties?: number[]) {
@@ -18,38 +32,49 @@ export class Transaction {
     this.edits.push(edit);
   }
 
+  /** Create a new node */
   create(node: AnyNodeData) {
     this._addEdit(EditType.CREATE, node);
   }
 
+  /** Create or update all properties in the node */
   upsert(node: AnyNodeData) {
     this._addEdit(EditType.UPSERT, node);
   }
 
-  update(node: Partial<AnyNodeData> & { id: string}) {
+  /** Update regular properties in this node */
+  update(node: Partial<AnyNodeData> & { id: string }) {
     throw new Error("not yet implemented");
   }
 
+  /** Move node between parents */
   move(node: AnyNodeData) {
     this._addEdit(EditType.MOVE, node);
   }
 
+  /** Archive node (incl. descendants) */
   archive(node: AnyNodeData) {
     this._addEdit(EditType.ARCHIVE, node);
   }
 
+  /** Restore node from archive */
   unarchive(node: AnyNodeData) {
     this._addEdit(EditType.UNARCHIVE, node);
   }
 
+  /** Soft delete node (incl.descendants), marked for later deletion after retention period */
   softDelete(node: AnyNodeData) {
     this._addEdit(EditType.SOFT_DELETE, node);
   }
 
+  /** Restore node from soft delete */
   restore(node: AnyNodeData) {
     this._addEdit(EditType.RESTORE, node);
   }
 
+  /**
+   * @deprecated use softDelete by default (not really deprecated, just to make it clear this should be used deliberately)
+   */
   delete(node: AnyNodeData) {
     this._addEdit(EditType.DELETE, node);
   }

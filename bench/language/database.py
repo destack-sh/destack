@@ -13,6 +13,7 @@ from bench.language.node import (
     _Passthrough,
     node,
     node_component,
+    HasBase,
 )
 from bench.language.property import (
     Property,
@@ -35,7 +36,7 @@ from bench.language.query import (
     FetchOptions,
 )
 from bench.language.value import HasValues
-from bench.proto.wire import RecordData, AggregationData
+from bench.proto.wire import RecordData, AggregationData, AnyNodeData, NodeReferenceData
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table
 from bench.utils.func import describe_type
 
@@ -52,7 +53,7 @@ logger = structlog.get_logger(__name__)
     index_in_search=True,
     local=True,
 )
-class Record(Node, HasValues):
+class Record(HasBase, HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
@@ -96,6 +97,14 @@ class Record(Node, HasValues):
 
     def __content_str__(self):
         return f"{describe_type(self.value) or '<empty>'}"
+
+    @property
+    def base(self) -> "Block":
+        return self.parent
+
+    @staticmethod
+    def get_base_from_data(self, data: RecordData) -> Optional[NodeReferenceData]:
+        return data.parent_ptr
 
     @property
     def _type(self) -> Optional["Block"]:

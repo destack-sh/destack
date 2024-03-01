@@ -222,8 +222,9 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     is_input: bool = p_regular(60, default=False)
     is_output: bool = p_regular(61, default=False)
     is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
-    # is_indexed: bool = ... # for record fields
-    # is_unique: bool = ... # for record fields (only?)
+    # is_indexed: bool = ... # for database fields
+    # is_unique: bool = ... # for database fields
+    # is_context: bool = ... # for variable fields (contribute to Context)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

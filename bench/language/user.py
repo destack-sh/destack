@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import Node, _Passthrough, node
+from bench.language.node import Node, _Passthrough, node, HasBase
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -23,6 +23,7 @@ from bench.language.property import (
 )
 from bench.language.validation import SLUG_REGEX, validate_name, validate_slug
 from bench.language.value import HasValues
+from bench.proto.wire import AnyNodeData, NodeReferenceData, NotificationData
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
@@ -196,8 +197,9 @@ class Invite(Node):
     NodeType.NOTIFICATION,
     passthrough=(("value", _Passthrough.Full),),
     index_in_search=True,
+    local=True,
 )
-class Notification(Node, HasValues):
+class Notification(HasBase, HasValues):
     """
     A notification for the Bench's owner.
     As with all owner Bench stuff, the main Bench's main package is the 'truth'.
@@ -205,14 +207,12 @@ class Notification(Node, HasValues):
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
-    # -> builtin_type / custom_type / ... 'type' as union
+    # -> builtin_type / custom_type / ... 'type' as union?
+    type: Optional["Block"] = p_system(32, require=False, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)
     sender: Optional["Block"] = p_internal(
         35, require=False, array=False, references=NodeType.BLOCK
-    )
-    sender_bench: Optional["Bench"] = p_internal(
-        36, require=False, array=False, references=NodeType.BENCH
     )
 
     # content
@@ -221,3 +221,11 @@ class Notification(Node, HasValues):
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
     value: Any = p_value_runtime(42, 43)
+
+    @property
+    def base(self) -> Optional["Block"]:
+        return self.type
+
+    @staticmethod
+    def get_base_from_data(self, data: NotificationData) -> Optional[NodeReferenceData]:
+        return data.type_ptr
