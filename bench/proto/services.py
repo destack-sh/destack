@@ -127,11 +127,12 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             field_is_repeated = defaults[field_name] is list
             if field.proto_type == betterproto.TYPE_MESSAGE:
                 value = getattr(message, field_name)
-                if field_is_repeated:
-                    for sub_message in value:
-                        self._validate_message(sub_message)
-                elif value is not None:
-                    self._validate_message(value)
+                if isinstance(value, betterproto.Message):
+                    if field_is_repeated:
+                        for sub_message in value:
+                            self._validate_message(sub_message)
+                    elif value is not None:
+                        self._validate_message(value)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""

@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import Node, _Passthrough, node, HasBase
+from bench.language.node import HasBase, Node, _Passthrough, node
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -23,7 +23,7 @@ from bench.language.property import (
 )
 from bench.language.validation import SLUG_REGEX, validate_name, validate_slug
 from bench.language.value import HasValues
-from bench.proto.wire import AnyNodeData, NodeReferenceData, NotificationData
+from bench.proto.wire import NodeReferenceData, NotificationData
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 

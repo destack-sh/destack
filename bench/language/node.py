@@ -18,7 +18,6 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
-    Iterator,
     Optional,
     TypeVar,
     Union,
@@ -82,7 +81,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData, NodeReferenceData
+from bench.proto.wire import AnyNodeData, AnyStructData, EditData, NodeReferenceData, SomeNodeData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
@@ -104,7 +103,6 @@ if TYPE_CHECKING:
         Session,
         User,
         Value,
-        ValueReference,
     )
     from bench.language.expression import _NodeQueryBuilder
     from bench.language.notice import NoticeHandler
@@ -327,7 +325,7 @@ def _process_struct_base_cls(
             except AttributeError:
                 pass
             cls.__annotations__.pop(name, None)
-            for name in prop.reference_ptrs:
+            for name in prop.contributed_props:
                 _remove_prop(name.name)
 
     if is_final:
@@ -371,7 +369,7 @@ def _process_struct_base_cls(
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
         # also set extra computed reference properties
-        if prop.is_node_reference and not prop.reference_source and prop.reference_wired_ptr:
+        if prop.is_node_reference and not prop.reference_source:
             for postfix, ref_key, ptr_key in (
                 ("id", "id", "id"),
                 ("ck", "ck", "ck"),
@@ -399,9 +397,11 @@ def _process_struct_base_cls(
     for prop in properties_by_name.values():
         if prop.id is not None and prop.id is not UNSET and not prop.reference_source:
             existing = properties_by_id.get(prop.id, None)
-            if existing is not None:
+            if existing is None:
+                properties_by_id[prop.id] = prop
+            elif not prop.reference_source:
+                # contributed reference properties can share an id
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
-            properties_by_id[prop.id] = prop
     props = properties_by_name.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__properties_name_by_id__ = frozendict(
@@ -435,7 +435,7 @@ def _process_struct_base_cls(
         prop.ord = i
         if prop.reference_wired_ptr:
             prop.reference_wired_ptr.ord = i
-        for p in prop.reference_stored_ptrs or ():
+        for p in prop.reference_stored_props or ():
             p.ord = i
         if prop.reference_source:
             prop.reference_source.ord = i
@@ -650,15 +650,6 @@ def node(
     return decorate
 
 
-def iter_properties(*types: NodeType | StructType) -> Iterator[Property]:
-    """Iterate over all properties of the given node/struct types."""
-    for cls in chain(
-        (NODE_CLASS_BY_TYPE.get(t) for t in types), (STRUCT_CLASS_BY_TYPE.get(t) for t in types)
-    ):
-        if cls is not None:
-            yield from cls.__properties__.values()
-
-
 NodeT = TypeVar("NodeT", bound="Node")
 
 
@@ -688,6 +679,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
             return None
 
         get = get_ancestor_first
+
     elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT:
 
         def get_ancestor_root(self: NodeT) -> Optional[NodeT]:
@@ -700,6 +692,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
             return farthest
 
         get = get_ancestor_root
+
     else:
         raise ValueError(f"unexpected ancestor reference kind: {prop.reference_kind}")
 
@@ -738,13 +731,13 @@ def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
 
 
 def _node_ref_computed_prop(
-    key_ref: str, key_ptr: str, ref_prop: Property, ptr_prop: Property
+    key_ref: str, key_ptr: str, ref_prop: Property, ptr_prop: Property | None
 ) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
     def get(self: NodeT) -> Optional[Any]:
         ref = getattr(self, ref_prop.name)
-        ptr = getattr(self, ptr_prop.name)
+        ptr = getattr(self, ptr_prop.name) if ptr_prop else None
         if ref_prop.is_list:
             if ref:
                 return tuple(getattr(r, key_ref) for r in ref or ())
@@ -1338,6 +1331,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         array=False,
         autoset=True,
         references=(NodeType.USER, NodeType.RUN),
+        reference_force_by_id=True,
     )
     updated_by: Union["User", "Run", None] = p_system(
         18,
@@ -1346,6 +1340,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         array=False,
         autoset=True,
         references=(NodeType.USER, NodeType.RUN),
+        reference_force_by_id=True,
     )
     # changed_by (19), active_by (20), ...
     # for source nodes:
@@ -1437,7 +1432,8 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
             edit_data_graph(self._data_graph, edits, update_nodes_in_place=True)
 
     @final
-    def __str__(self):  # noqa: override the default __str__ for nodes
+    def __str__(self):  # noqa
+        # override the default __str__ for nodes
         content_str = self.__content_str__()
         ident_str = self.py_ident
         if ident_str is None:
@@ -1459,7 +1455,8 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
             return f"'{self.absolute_path}'{content_str}{status_str}"
 
     @final
-    def __repr__(self):  # noqa: override the default __repr__ for nodes
+    def __repr__(self):  # noqa
+        # override the default __repr__ for nodes
         return f"<{self.__class__.__name__} {str(self)}>"
 
     @property
@@ -1761,9 +1758,6 @@ class Link(Node):
     parent: Node = p_node_parent(4, *LINK_PARENT_NODE_TYPES)
     reference: Optional[Node] = p_regular(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
-    )
-    computed_reference: Optional["ValueReference"] = p_regular(
-        31, require=False, array=False, struct=StructType.VALUE_REFERENCE
     )
     order_key: Optional[str] = p_internal(32, default=None)
 
