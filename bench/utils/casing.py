@@ -76,7 +76,7 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
         if allow_whitespace:
             name = name.replace("_", " ").strip()
         return name
-    elif casing == Casing.CAMEL:  # camelCase
+    elif casing == Casing.CAMEL:  # CamelCase
         # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
         if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
             return name
