@@ -30,7 +30,14 @@ from bench.sql.core import (
     Table,
     TableObject,
 )
-from bench.sql.engine import SqlUndefinedObjectError, pg_delete, pg_select, pg_select_raw, pg_upsert
+from bench.sql.engine import (
+    SqlUndefinedObjectError,
+    pg_delete,
+    pg_select,
+    pg_select_raw,
+    pg_upsert,
+    sqlstr,
+)
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition
 from bench.utils.utils import format_python
@@ -231,8 +238,13 @@ async def migrate_to(
         log.debug("migration.apply_missing.noop")
         return []
     else:
-        log.debug("migration.apply_missing.start", migrations_to_apply=migrations_to_apply)
+        start = asyncio.get_event_loop().time()
         await _do_migrate(cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global)
+        log.debug(
+            "migration.apply_missing",
+            migrations=migrations_to_apply,
+            duration=asyncio.get_event_loop().time() - start,
+        )
 
     # update the migration table (applied + missing)
     missing_migrations = [
@@ -755,7 +767,7 @@ async def introspect_tables_from_pg(
         table_schema = 'public'
         AND table_name LIKE {};
     """
-    tables_query = sql.SQL(tables_query).format(sql.Literal(table_prefix + "%"))
+    tables_query = sqlstr(tables_query).format(sql.Literal(table_prefix + "%"))
     tables_rows = await pg_select_raw(cur, tables_query)
     tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 

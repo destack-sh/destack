@@ -28,15 +28,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
-from bench.language.node import (
-    NODE_CLASS_BY_TYPE,
-    Node,
-    Struct,
-    _on_completing_setup,
-    iter_properties,
-    node,
-    struct,
-)
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, _on_completing_setup, node, struct
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
@@ -407,13 +399,15 @@ class PolicyRule(Struct):
             or self.object_properties_is_kernel is not None
         ):
             all_properties = list(all_properties)
-            for prop in iter_properties(*(self.object_node_types or NODE_TYPES)):
-                if prop.has_id and (
-                    prop.is_system == self.object_properties_is_system
-                    or prop.is_sensitive == self.object_properties_is_sensitive
-                    or prop.is_kernel == self.object_properties_is_kernel
-                ):
-                    all_properties.append(prop)
+            for node_type in self.object_node_types or NODE_TYPES:
+                node_cls = NODE_CLASS_BY_TYPE[node_type]
+                for prop in node_cls.__runtime_properties__.values():
+                    if prop.has_id and (
+                        prop.is_system == self.object_properties_is_system
+                        or prop.is_sensitive == self.object_properties_is_sensitive
+                        or prop.is_kernel == self.object_properties_is_kernel
+                    ):
+                        all_properties.append(prop)
         for prop in all_properties:
             if prop.type not in self._object_properties_masks:
                 self._object_properties_masks[prop.type] = bitarray(
@@ -1130,7 +1124,7 @@ def evaluate_and_adapt_read(
         object_properties: bitarray = object_node_cls.__properties_mask_set__
 
         root = graph.get_root(n)  # a bit inefficient?
-        adapted_properties, access, was_cached = evaluate_access(
+        allowed_properties, access, was_cached = evaluate_access(
             matrix=matrix,
             verb=verb,
             object_node_type=object_node_type,
@@ -1145,7 +1139,7 @@ def evaluate_and_adapt_read(
             accesses.append(access)
         if access.decision == PolicyEffect.DENY:
             skips[n.id] = UNSET  # mark as skipped
-        elif adapted_properties == object_properties:
+        elif allowed_properties == object_properties:
             visible_nodes.append(n)
         else:
             node_cls = NODE_CLASS_BY_TYPE[object_node_type]
@@ -1153,10 +1147,11 @@ def evaluate_and_adapt_read(
             if not adapt_nodes_in_place:
                 # TODO :Performance: avoid copying properties that we'll prune anyway
                 n = wiring.copy_data(n)
-            pruned_properties = object_properties & (object_properties ^ adapted_properties)
+            pruned_properties = object_properties & (object_properties ^ allowed_properties)
             for pruned_prop_ord in pruned_properties.search(True):
                 prop = node_cls.__properties_in_order__[pruned_prop_ord]
                 setattr(n, prop.name, None)
+            n.metatype = object_node_type  # always keep metatype
             visible_nodes.append(n)
 
     # add any required skipped nodes back in (as Skips)

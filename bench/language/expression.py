@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
+    BASED_NODE_TYPES,
+    IN_BENCH_NODE_TYPES,
     AggregationOp,
     BenchType,
     ConditionalOp,
@@ -13,11 +15,11 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
-    BASED_NODE_TYPES,
 )
-from bench.language.node import Node, Property, Struct, struct, HasBase
+from bench.language.node import HasBase, Node, Property, Struct, struct
 from bench.language.property import p_regular
 from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.validation import ValidationHandler
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
@@ -74,6 +76,7 @@ class NodeReference(Struct):
     ck: Optional[UUID] = p_regular(32, default=None)
     bench_id: Optional[UUID] = p_regular(33, default=None)
     base_ck: Optional[UUID] = p_regular(34, default=None)
+    # base could be in a different Bench (e.g. a Signal in Bench A with a type from Bench B)
     base_bench_id: Optional[UUID] = p_regular(35, default=None)
 
     def __content_str__(self):
@@ -88,6 +91,16 @@ class NodeReference(Struct):
             selector_str_parts.append(f"base_ck={self.base_ck}")
         selector_str = ", ".join(selector_str_parts)
         return f"{self.type.bench_name}:[{selector_str}]"
+
+    def _validate_inner(
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+    ) -> None:
+        if self.id is None:
+            on_invalid(self, "id is required", (NodeReference.id,))
+        if self.type in IN_BENCH_NODE_TYPES and self.bench_id is None:
+            on_invalid(self, "bench_id is required", (NodeReference.bench_id,))
+        if self.type in BASED_NODE_TYPES and self.base_ck is None:
+            on_invalid(self, "base_ck is required", (NodeReference.base_ck,))
 
     @staticmethod
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
@@ -115,8 +128,8 @@ class NodeReference(Struct):
         reference = NodeReferenceData(
             metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
         )
-        if "bench" in node_cls.__properties__ and node_data.package_ptr is not None:
-            reference.bench_id = node_data.package_ptr.bench_id
+        if "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
+            reference.bench_id = node_data.parent_ptr.bench_id
         if "ck" in node_cls.__properties__:
             node_cls: type[HasBase]
             reference.ck = node_data.ck

@@ -29,6 +29,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
+    HasBase,
     Node,
     Struct,
     _Passthrough,
@@ -36,7 +37,6 @@ from bench.language.node import (
     node,
     node_component,
     struct,
-    HasBase,
 )
 from bench.language.property import (
     Property,
@@ -56,13 +56,13 @@ from bench.language.query import StoreConnection, StoreEngine
 from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.proto.wire import (
+    AnyNodeData,
     EditData,
     GraphScope,
     HostStub,
-    SupervisorStub,
-    AnyNodeData,
     NodeReferenceData,
     RunData,
+    SupervisorStub,
 )
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -93,9 +93,6 @@ class Signal(HasBase, HasValues):
     # builtin_type: ...
     type: Optional["Block"] = p_internal(
         31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    block: Optional["Block"] = p_internal(
-        32, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
     sender: Optional["Block"] = p_internal(
         33, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
@@ -870,7 +867,7 @@ class Run(HasBase, HasValues):
         31, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
     )
     server: Optional["Server"] = p_internal(
-        32, index_in_pg=True, require=False, array=False, references=NodeType.SERVER
+        32, require=False, array=False, references=NodeType.SERVER
     )
     block: Optional["Block"] = p_internal(
         33, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True

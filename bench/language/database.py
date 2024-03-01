@@ -3,40 +3,40 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import UNSET, ConditionalOp, NodeType, new_dynamic_node_key, AggregationOp
+from bench.language.const import UNSET, AggregationOp, ConditionalOp, NodeType, new_dynamic_node_key
 from bench.language.expression import C
 from bench.language.node import (
+    HasBase,
+    InterpStatus,
     Node,
     NodeList,
-    InterpStatus,
     NRel,
     _Passthrough,
     node,
     node_component,
-    HasBase,
-)
-from bench.language.property import (
-    Property,
-    p_runtime,
-    p_node_parent,
-    p_node_child,
-    p_value_runtime,
-    p_value_packed,
-    p_secret_value_packed,
-    p_internal,
 )
 from bench.language.notice import NoticeHandler
+from bench.language.property import (
+    Property,
+    p_internal,
+    p_node_child,
+    p_node_parent,
+    p_runtime,
+    p_secret_value_packed,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.query import (
+    AggregateResult,
+    FetchOptions,
+    FetchResult,
+    PostgresConnection,
     PostgresEngine,
     QueryBuilder,
-    AggregateResult,
     StoreEngineIncapableError,
-    PostgresConnection,
-    FetchResult,
-    FetchOptions,
 )
 from bench.language.value import HasValues
-from bench.proto.wire import RecordData, AggregationData, AnyNodeData, NodeReferenceData
+from bench.proto.wire import AggregationData, NodeReferenceData, RecordData
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table
 from bench.utils.func import describe_type
 
@@ -129,13 +129,13 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
     async def fetch(
         self, query: "QueryBuilder[Record, RecordData]", options: FetchOptions
     ) -> FetchResult:
+        from bench.language.expression import NodeReference
         from bench.sql.engine import (
             compile_pg_conditional_maybe,
             compile_pg_sorts,
-            pg_select_records_data,
             pg_count,
+            pg_select_records_data,
         )
-        from bench.language.expression import NodeReference
 
         filter = query._filter & C(
             ConditionalOp.EQUALS, field_key="block_key", value=query._base.dynamic_key

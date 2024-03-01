@@ -539,6 +539,7 @@ export interface IconData {
  * A reference to a Node.
  * If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
  * If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
+ * Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
  *
  * @generated from protobuf message symbolx.bench.NodeReferenceData
  */
@@ -560,13 +561,17 @@ export interface NodeReferenceData {
      */
     ck?: string;
     /**
-     * @generated from protobuf field: optional string base_ck = 33;
+     * @generated from protobuf field: optional string bench_id = 33;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string base_ck = 34;
      */
     baseCk?: string;
     /**
-     * @generated from protobuf field: optional string bench_id = 34;
+     * @generated from protobuf field: optional string base_bench_id = 35;
      */
-    benchId?: string;
+    baseBenchId?: string;
 }
 /**
  * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -2821,10 +2826,6 @@ export interface LinkData {
      */
     referencePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ValueReferenceData computed_reference = 31;
-     */
-    computedReference?: ValueReferenceData;
-    /**
      * @generated from protobuf field: optional string order_key = 32;
      */
     orderKey?: string;
@@ -4035,10 +4036,6 @@ export interface SignalData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 31;
      */
     typePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 32;
-     */
-    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData sender_ptr = 33;
      */
@@ -8772,8 +8769,9 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceData>): NodeReferenceData {
@@ -8801,11 +8799,14 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
                 case /* optional string ck */ 32:
                     message.ck = reader.string();
                     break;
-                case /* optional string base_ck */ 33:
+                case /* optional string bench_id */ 33:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string base_ck */ 34:
                     message.baseCk = reader.string();
                     break;
-                case /* optional string bench_id */ 34:
-                    message.benchId = reader.string();
+                case /* optional string base_bench_id */ 35:
+                    message.baseBenchId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -8831,12 +8832,15 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         /* optional string ck = 32; */
         if (message.ck !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.ck);
-        /* optional string base_ck = 33; */
-        if (message.baseCk !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.baseCk);
-        /* optional string bench_id = 34; */
+        /* optional string bench_id = 33; */
         if (message.benchId !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.benchId);
+            writer.tag(33, WireType.LengthDelimited).string(message.benchId);
+        /* optional string base_ck = 34; */
+        if (message.baseCk !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.baseCk);
+        /* optional string base_bench_id = 35; */
+        if (message.baseBenchId !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.baseBenchId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13711,7 +13715,6 @@ class LinkData$Type extends MessageType<LinkData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "computed_reference", kind: "message", T: () => ValueReferenceData },
             { no: 32, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -13773,9 +13776,6 @@ class LinkData$Type extends MessageType<LinkData> {
                 case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 30:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
                     break;
-                case /* optional symbolx.bench.ValueReferenceData computed_reference */ 31:
-                    message.computedReference = ValueReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computedReference);
-                    break;
                 case /* optional string order_key */ 32:
                     message.orderKey = reader.string();
                     break;
@@ -13833,9 +13833,6 @@ class LinkData$Type extends MessageType<LinkData> {
         /* optional symbolx.bench.NodeReferenceData reference_ptr = 30; */
         if (message.referencePtr)
             NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ValueReferenceData computed_reference = 31; */
-        if (message.computedReference)
-            ValueReferenceData.internalBinaryWrite(message.computedReference, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* optional string order_key = 32; */
         if (message.orderKey !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.orderKey);
@@ -16315,7 +16312,6 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "sender_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "value_packed", kind: "message", T: () => Struct },
             { no: 35, name: "secret_value_packed", kind: "message", T: () => Struct }
@@ -16378,9 +16374,6 @@ class SignalData$Type extends MessageType<SignalData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData type_ptr */ 31:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 32:
-                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData sender_ptr */ 33:
                     message.senderPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.senderPtr);
@@ -16445,9 +16438,6 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional symbolx.bench.NodeReferenceData type_ptr = 31; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData block_ptr = 32; */
-        if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData sender_ptr = 33; */
         if (message.senderPtr)
             NodeReferenceData.internalBinaryWrite(message.senderPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
