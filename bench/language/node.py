@@ -82,7 +82,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData
+from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData, NodeReferenceData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
@@ -1282,7 +1282,9 @@ def _make_rec_method(
 class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
     A node in the Bench graph: it's a struct with a globally unique identity.
-    Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
+    Source nodes also have a constant identifier key (ck) used to derive the id per Package.
+    All template instances keep the first half of the ck constant
+     (so 'all' instances of a node share the first ck half across templates & versions).
     """
 
     metatype: ClassVar[NodeType]
@@ -1775,3 +1777,20 @@ class Skip(Node):
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
     order_key: Optional[str] = p_internal(31, default=None)
+
+
+@node_component
+class HasBase(Node):
+    """A node that requires an explicit base (parent, type, whatever) in another node."""
+
+    @property
+    def base(self) -> Optional[Node]:
+        raise NotImplementedError
+
+    @property
+    def base_ck(self) -> Optional[UUID]:
+        return self.base.ck if self.base is not None else None
+
+    @staticmethod
+    def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
+        raise NotImplementedError

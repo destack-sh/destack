@@ -1,4 +1,5 @@
-import type { AnyNodeData, BenchType, EditData, NodeType } from "@/proto/wire";
+import type { AnyNodeData, BenchType, EditData, NodeType, NodeTypeMapping } from "@/proto/wire";
+import type { Ref } from "vue";
 
 export class NodeDataGraph {
   private nodesById: { [id: string]: AnyNodeData } = {};
@@ -11,8 +12,22 @@ export class NodeDataGraph {
     return this.nodesById[id];
   }
 
-  getRef(id: string) {
-    throw new Error("not implemented");
+  findRoots<T extends NodeType>(metatype: NodeType): NodeTypeMapping[T][] {
+    return this.roots
+      .filter((id) => this.nodesById[id].metatype === (metatype as unknown as BenchType))
+      .map((id) => this.nodesById[id] as NodeTypeMapping[T]);
+  }
+
+  findRoot<T extends NodeType>(metatype: T): NodeTypeMapping[T] {
+    const roots = this.findRoots(metatype);
+    if (roots.length > 1) throw new Error(`multiple roots of type ${metatype}`);
+    return roots[0] as NodeTypeMapping[T];
+  }
+
+  getChildren<T extends NodeType>(parent: AnyNodeData, metatype: T): NodeTypeMapping[T][] {
+    const children = this.nodesByParentIdAndType[parent.id]?.[metatype];
+    if (!children) return [];
+    return children.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
   }
 
   clear() {
@@ -62,11 +77,11 @@ export class NodeDataGraph {
     // remove from parent
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex(n => n == node.id);
+      const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
       if (nodeIdx === -1) throw new Error(`node with id ${node.id} not found in parent ${parentId}`);
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
     } else {
-      const rootIdx = this.roots.findIndex(n => n == node.id);
+      const rootIdx = this.roots.findIndex((n) => n == node.id);
       if (rootIdx === -1) throw new Error(`node with id ${node.id} not found in roots`);
       this.roots.splice(rootIdx, 1);
     }
@@ -75,6 +90,18 @@ export class NodeDataGraph {
       const child = this.nodesById[childId];
       this.remove(child);
     }
+  }
+
+  getRef(id: string) {
+    throw new Error("not implemented");
+  }
+
+  findRootRef<T extends NodeType>(metatype: T): Ref<NodeTypeMapping[T] | null> {
+    throw new Error("not implemented");
+  }
+
+  getChildrenRef<T extends NodeType>(parent: Ref<AnyNodeData | null>, metatype: T): Ref<NodeTypeMapping[T][]> {
+    throw new Error("not implemented");
   }
 }
 

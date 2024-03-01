@@ -36,6 +36,7 @@ from bench.language.node import (
     node,
     node_component,
     struct,
+    HasBase,
 )
 from bench.language.property import (
     Property,
@@ -54,7 +55,15 @@ from bench.language.property import (
 from bench.language.query import StoreConnection, StoreEngine
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.proto.wire import EditData, GraphScope, HostStub, SupervisorStub
+from bench.proto.wire import (
+    EditData,
+    GraphScope,
+    HostStub,
+    SupervisorStub,
+    AnyNodeData,
+    NodeReferenceData,
+    RunData,
+)
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
@@ -77,7 +86,7 @@ MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeTyp
     index_in_search=True,
     id_factory=UUIDT,
 )
-class Signal(Node, HasValues):
+class Signal(HasBase, HasValues):
     """A signal emitted in this Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -85,7 +94,7 @@ class Signal(Node, HasValues):
     type: Optional["Block"] = p_internal(
         31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    object: Optional["Block"] = p_internal(
+    block: Optional["Block"] = p_internal(
         32, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
     sender: Optional["Block"] = p_internal(
@@ -94,6 +103,14 @@ class Signal(Node, HasValues):
     value_packed: Any | None = p_value_packed(34)
     secret_value_packed: Any | None = p_secret_value_packed(35)
     value = p_value_runtime(34, 35, type=31)
+
+    @property
+    def base(self) -> Optional["Block"]:
+        return self.block
+
+    @staticmethod
+    def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return data.block_ptr
 
 
 class LogKind(IdEnum):
@@ -840,7 +857,7 @@ class Session(Node):
 #  because they may be in different contexts, and we cannot reset across contexts.
 # This will need to be expanded when we get to parallel runs.
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
-class Run(Node, HasValues):
+class Run(HasBase, HasValues):
     """
     A 'run' of a block (in a session).
     """
@@ -887,6 +904,14 @@ class Run(Node, HasValues):
     @property
     def active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
+
+    @property
+    def base(self) -> Optional["Block"]:
+        return self.block
+
+    @staticmethod
+    def get_base_from_data(self, data: RunData) -> Optional[NodeReferenceData]:
+        return data.block_ptr
 
 
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)

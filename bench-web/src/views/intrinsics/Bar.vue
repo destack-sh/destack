@@ -1,4 +1,6 @@
-<script lang="tsx" setup></script>
+<script lang="tsx" setup>
+import userState from "@/system/user";
+</script>
 <template>
   <div class="w-full flex flex-row">
     <!-- Bench info -->
@@ -6,6 +8,8 @@
     <!-- Dock -->
     <div class="bg">Dock</div>
     <!-- User -->
-    <div class="bg">User</div>
+    <div class="bg">
+      {{ userState.auth.isAuthenticated ? userState.user.value?.name : "Log in" }}
+    </div>
   </div>
 </template>

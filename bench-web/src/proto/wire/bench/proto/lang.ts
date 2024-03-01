@@ -536,7 +536,9 @@ export interface IconData {
     color?: ColorData;
 }
 /**
- * NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * A reference to a Node.
+ * If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
+ * If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
  *
  * @generated from protobuf message symbolx.bench.NodeReferenceData
  */
@@ -561,6 +563,10 @@ export interface NodeReferenceData {
      * @generated from protobuf field: optional string base_ck = 33;
      */
     baseCk?: string;
+    /**
+     * @generated from protobuf field: optional string bench_id = 34;
+     */
+    benchId?: string;
 }
 /**
  * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -2992,7 +2998,9 @@ export interface MembershipData {
 }
 /**
  * A node in the Bench graph: it's a struct with a globally unique identity.
- * Source nodes may also have a constant identifier key (ck) used to derive the id per Package.
+ * Source nodes also have a constant identifier key (ck) used to derive the id per Package.
+ * All template instances keep the first half of the ck constant
+ * (so 'all' instances of a node share the first ck half across templates & versions).
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
  */
@@ -3193,6 +3201,10 @@ export interface NotificationData {
      */
     kind: NotificationKind;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 32;
+     */
+    typePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 33;
      */
     expiresAt?: Timestamp;
@@ -3204,10 +3216,6 @@ export interface NotificationData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData sender_ptr = 35;
      */
     senderPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData sender_bench_ptr = 36;
-     */
-    senderBenchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string title = 40;
      */
@@ -4028,9 +4036,9 @@ export interface SignalData {
      */
     typePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData object_ptr = 32;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 32;
      */
-    objectPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData sender_ptr = 33;
      */
@@ -7271,9 +7279,9 @@ export enum ViewType {
      */
     HISTORY = 21,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_RESOURCES = 22;
+     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 22;
      */
-    RESOURCES = 22,
+    RESOURCE = 22,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 23;
      */
@@ -8764,7 +8772,8 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 33, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceData>): NodeReferenceData {
@@ -8795,6 +8804,9 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
                 case /* optional string base_ck */ 33:
                     message.baseCk = reader.string();
                     break;
+                case /* optional string bench_id */ 34:
+                    message.benchId = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -8822,6 +8834,9 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         /* optional string base_ck = 33; */
         if (message.baseCk !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.baseCk);
+        /* optional string bench_id = 34; */
+        if (message.benchId !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.benchId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14516,10 +14531,10 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NotificationKind", NotificationKind, "NOTIFICATION_KIND_"] },
+            { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
             { no: 34, name: "read_at", kind: "message", T: () => Timestamp },
             { no: 35, name: "sender_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 36, name: "sender_bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
@@ -14585,6 +14600,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* symbolx.bench.NotificationKind kind */ 30:
                     message.kind = reader.int32();
                     break;
+                case /* optional symbolx.bench.NodeReferenceData type_ptr */ 32:
+                    message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
+                    break;
                 case /* optional google.protobuf.Timestamp expires_at */ 33:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
@@ -14593,9 +14611,6 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData sender_ptr */ 35:
                     message.senderPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.senderPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData sender_bench_ptr */ 36:
-                    message.senderBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.senderBenchPtr);
                     break;
                 case /* optional string title */ 40:
                     message.title = reader.string();
@@ -14663,6 +14678,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* symbolx.bench.NotificationKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
+        /* optional symbolx.bench.NodeReferenceData type_ptr = 32; */
+        if (message.typePtr)
+            NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp expires_at = 33; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
@@ -14672,9 +14690,6 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional symbolx.bench.NodeReferenceData sender_ptr = 35; */
         if (message.senderPtr)
             NodeReferenceData.internalBinaryWrite(message.senderPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData sender_bench_ptr = 36; */
-        if (message.senderBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.senderBenchPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional string title = 40; */
         if (message.title !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.title);
@@ -16300,7 +16315,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "object_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "sender_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "value_packed", kind: "message", T: () => Struct },
             { no: 35, name: "secret_value_packed", kind: "message", T: () => Struct }
@@ -16364,8 +16379,8 @@ class SignalData$Type extends MessageType<SignalData> {
                 case /* optional symbolx.bench.NodeReferenceData type_ptr */ 31:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData object_ptr */ 32:
-                    message.objectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.objectPtr);
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 32:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData sender_ptr */ 33:
                     message.senderPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.senderPtr);
@@ -16430,9 +16445,9 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional symbolx.bench.NodeReferenceData type_ptr = 31; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData object_ptr = 32; */
-        if (message.objectPtr)
-            NodeReferenceData.internalBinaryWrite(message.objectPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 32; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData sender_ptr = 33; */
         if (message.senderPtr)
             NodeReferenceData.internalBinaryWrite(message.senderPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();

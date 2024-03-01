@@ -4,7 +4,7 @@ import authState from "@/system/auth";
 
 const graph = new NodeDataGraph();
 const user = graph.findRootRef(NodeType.USER);
-const clients = graph.getChildrenRef(NodeType.CLIENT);
+const clients = graph.getChildrenRef(user, NodeType.CLIENT);
 
 const userState = {
   auth: authState,

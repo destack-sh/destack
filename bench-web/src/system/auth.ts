@@ -1,6 +1,4 @@
-import { supervisor } from "@/proto/services";
 import type { BadgeData, ClientData } from "@/proto/wire";
-import { toProtoOneOf } from "@/proto/wiring";
 import { useStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 
@@ -33,12 +31,12 @@ const authState = {
     return Object.values(this.badgesById.value);
   },
 
-  async login(user: { username: string } | { email: string } | { id: string }, password: string) {
-    const rep = await supervisor.loginUser({
-      user: toProtoOneOf(user),
-      password,
-    });
-    authState.clientAccess.value = { id: rep.response.client?.id ?? null, token: rep.response.accessToken };
+  onLoggedIn(clientId: string, clientAccessToken: string) {
+    authState.clientAccess.value = { id: clientId, token: clientAccessToken };
+  },
+
+  onLoggedOut() {
+    authState.clientAccess.value = { id: null, token: null };
   },
 };
 

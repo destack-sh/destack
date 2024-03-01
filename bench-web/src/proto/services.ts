@@ -5,6 +5,7 @@ import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import { RpcError, type MethodInfo, type RpcOptions, type ServerStreamingCall, type UnaryCall } from "@protobuf-ts/runtime-rpc";
 import { DateTime } from "luxon";
 import { computed, isRef, shallowRef, watch, type Ref } from "vue";
+import { toRef } from "@vueuse/core";
 
 /** An operation is an RPC call which may be retried. */
 type Operation<I extends object, O extends object> = {
@@ -178,8 +179,8 @@ export function reactiveUnaryCall<I extends object, O extends object>(
   const pending: Ref<Operation<I, O> | null> = shallowRef(null);
   const terminated: Ref<Operation<I, O> | null> = shallowRef(null);
 
-  // coerce input to ref & call method whenever input changes
-  const inputRef = (isRef(input) ? input : shallowRef(input)) as Ref<I>;
+  // call method whenever input changes
+  const inputRef = toRef(input);
   method = method.bind(client);
   const call = () => {
     if (options?.noswr) {

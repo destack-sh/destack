@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.02.29.0"
+VERSION = "2024.03.01.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -43,7 +43,7 @@ class NodeType(IdEnum):
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
-    RECORD = 33  # (local)
+    RECORD = 33  # (local, based)
     QUERY = 34
     VIEW = 35
     # TAG?  (not sure what to do with tags yet)
@@ -62,11 +62,11 @@ class NodeType(IdEnum):
 
     # session/runtime
     SESSION = 80  # (local)
-    RUN = 81  # (local)
+    RUN = 81  # (local, based)
     PAUSE = 82  # (local)
-    SIGNAL = 83  # (local)
-    LOG = 84  # (local, analytics only)
-    NOTIFICATION = 85
+    SIGNAL = 83  # (local, based)
+    LOG = 84  # (local)
+    NOTIFICATION = 85  # (local, based)
     # METRIC = ...?
 
     # resources (compute/storage/external/etc.)
@@ -88,6 +88,11 @@ class NodeType(IdEnum):
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
 ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+)
+# based = instances are directly based on some other node
+# (e.g. Run.block->Block, Record.parent->Block)
+BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION)
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
