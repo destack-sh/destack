@@ -2,20 +2,26 @@ import auth from "@/system/auth";
 import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
-import { RpcError, type MethodInfo, type RpcOptions, type ServerStreamingCall, type UnaryCall } from "@protobuf-ts/runtime-rpc";
+import {
+  RpcError,
+  type MethodInfo,
+  type RpcOptions,
+  type ServerStreamingCall,
+  type UnaryCall,
+} from "@protobuf-ts/runtime-rpc";
 import { DateTime } from "luxon";
 import { computed, isRef, shallowRef, watch, type Ref } from "vue";
 import { toRef } from "@vueuse/core";
 
 /** An operation is an RPC call which may be retried. */
-type Operation<I extends object, O extends object> = {
+export type Operation<I extends object, O extends object> = {
   id: number;
   name: string;
   method: MethodInfo<I, O>;
   options: RpcOptions;
   request: I;
   response?: O; // for unary
-  error?: RpcError | Error;
+  error?: OperationError;
   numResponses?: number; // for streaming
   numRetries?: number;
   call: ServerStreamingCall<I, O> | UnaryCall<I, O>; // last successful call (if retried)
@@ -23,7 +29,12 @@ type Operation<I extends object, O extends object> = {
   updatedAt?: DateTime; // for streaming
   terminatedAt?: DateTime;
   duration?: number; // in seconds
+
+  isStreaming: boolean;
+  get isPending(): boolean;
 };
+
+export type OperationError = RpcError | Error;
 
 const operationsTracker = {
   RECENT_BUFFER_SIZE: 1000,
@@ -91,7 +102,7 @@ const operationsTracker = {
         .catch((error) => {
           op.error = error;
           const code = (error as RpcError).code;
-          console.error(op.name, code ?? 'UNKNOWN', error);
+          console.error(op.name, code ?? "UNKNOWN", error);
         })
         .finally(() => {
           op.terminatedAt = DateTime.now();
@@ -138,6 +149,10 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
       options,
       call,
       startedAt: DateTime.now(),
+      isStreaming: true,
+      get isPending() {
+        return !this.terminatedAt;
+      },
     });
     call.operation = op;
     return call;
@@ -155,6 +170,10 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
       options,
       call,
       startedAt: DateTime.now(),
+      isStreaming: false,
+      get isPending() {
+        return !this.terminatedAt;
+      },
     });
     call.operation = op;
     return call;

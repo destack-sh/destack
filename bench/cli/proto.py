@@ -110,6 +110,16 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     _shell(
         f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_FILES}",
     )
+    # message type mappings
+    message_type_map_parts = []
+    for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
+        message_type_map_parts.append(f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Data,\n")
+    message_type_map_str = (
+        "export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {\n"
+        + "".join(message_type_map_parts)
+        + "}\n"
+    )
+
     # type mappings
     struct_mapping_parts = [
         "export interface StructTypeMapping extends Record<StructType, AnyStructData> {\n"
@@ -169,6 +179,9 @@ export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLAS
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+
+// Message types
+{message_type_map_str}
 
 // TypeMappings
 {struct_mapping_str}

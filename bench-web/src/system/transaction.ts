@@ -1,5 +1,15 @@
-import { EditType, NodeType, type AnyNodeData, type EditData, NodePropertyEnumByType, BenchType } from "@/proto/wire";
-import { newStructId, wrapSomeNode } from "@/proto/wiring";
+import {
+  EditType,
+  NodeType,
+  type AnyNodeData,
+  type EditData,
+  NodePropertyEnumByType,
+  BenchType,
+  type NodeTypeMapping,
+  MESSAGE_TYPE_BY_BENCH_TYPE,
+} from "@/proto/wire";
+import { newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
+import { InMemoryNodeGraph, type NodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
 
 /** A transaction on the Bench state graph. */
@@ -7,7 +17,7 @@ export class Transaction {
   id: string;
   edits: EditData[] = [];
 
-  constructor(id: string | undefined) {
+  constructor(id: string | undefined = undefined) {
     this.id = id ?? v4();
   }
 
@@ -43,18 +53,29 @@ export class Transaction {
   }
 
   /** Update regular properties in this node */
-  update(node: Partial<AnyNodeData> & { metatype: BenchType, id: string }) {
-    const nodeProperties = NodePropertyEnumByType[node.metatype as unknown as NodeType];
+  update<T extends NodeType>(
+    update: Partial<Omit<NodeTypeMapping[T], "id" | "metatype">> & { metatype: T; id: string },
+  ) {
+    const nodeProperties = NodePropertyEnumByType[update.metatype as unknown as NodeType];
+    const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
     const properties: number[] = [];
-    const patchedNode: AnyNodeData = {...node};
+    const patchedNode = { ...update };
+    let ord = 0;
     for (const propName in nodeProperties) {
-      if ((node as any)[propName] !== undefined) {
-        properties.push(nodeProperties[propName]);
+      if (propName === "id" || propName === "metatype") {
+        // keep as is (but not part of the 'update')
+      } else if ((update as any)[propName] !== undefined) {
+        // updateg the assigned property
+        properties.push((nodeProperties as any)[propName]);
       } else {
-        patchedNode[propName] = undefined;
+        // init unset fields with an allowed default value
+        //  (will be ignored anyway since its not in 'properties', but required for protobuf validation)
+        const field = messageType.fields[ord];
+        (patchedNode as any)[propName] = field.repeat ? [] : undefined;
       }
+      ord += 1;
     }
-    this._addEdit(EditType.UPDATE, patchedNode, properties);
+    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties);
   }
 
   /** Move node between parents */
@@ -87,5 +108,39 @@ export class Transaction {
    */
   delete(node: AnyNodeData) {
     this._addEdit(EditType.DELETE, node);
+  }
+}
+
+export function editGraph(graph: NodeGraph, edits: EditData[]) {
+  /** Applies the edits to the graph (in place!). */
+
+  for (const edit of edits) {
+    if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
+    const nodeData = unwrapSomeNode(edit.node);
+    const editType = edit.type;
+    if (editType == EditType.CREATE || (editType == EditType.UPSERT && !graph.get({ id: nodeData.id }))) {
+      graph.add(nodeData);
+    } else if (editType == EditType.DELETE) {
+      graph.remove(nodeData);
+    } else {
+      let properties: number[];
+      const nodeProperties = NodePropertyEnumByType[nodeData.metatype]!;
+      if (editType == EditType.UPDATE || editType == EditType.MOVE) {
+        properties = edit.properties;
+      } else if (editType == EditType.ARCHIVE || editType == EditType.UNARCHIVE) {
+        properties = [nodeProperties.archivedAt];
+      } else if (editType == EditType.SOFT_DELETE || editType == EditType.RESTORE) {
+        properties = [nodeProperties.deletedAt];
+      } else {
+        throw new Error(`unexpected edit type: ${editType}`);
+      }
+      const existingNode = graph.get({ id: nodeData.id });
+      if (!existingNode) throw new Error(`missing node for update: ${edit}`);
+      for (const propId of properties) {
+        const propName = nodeProperties[propId];
+        (existingNode as any)[propName] = (nodeData as any)[propName];
+      }
+      graph.update(existingNode);
+    }
   }
 }

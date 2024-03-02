@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import userState from "@/system/user";
+import { user } from "@/system/space";
 </script>
 <template>
   <div class="w-full flex flex-row">
@@ -9,7 +9,7 @@ import userState from "@/system/user";
     <div class="bg">Dock</div>
     <!-- User -->
     <div class="bg">
-      {{ userState.auth.isAuthenticated ? userState.user.value?.name : "Log in" }}
+      {{ user.auth.isAuthenticated ? user : "Log in" }}
     </div>
   </div>
 </template>

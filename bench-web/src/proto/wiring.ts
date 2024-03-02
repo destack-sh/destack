@@ -31,6 +31,10 @@ export function makeStruct<T extends StructType>(
   return struct as StructTypeMapping[T];
 }
 
+export function makeDefaultStruct<T extends StructType>(metatype: T): StructTypeMapping[T] {
+  throw new Error("not yet implemented");
+}
+
 export function toProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof T } {
   /** Turn { [key]: value } into { key: value, oneofKind: key } for protobuf unions */
   const key = Object.keys(value)[0] as keyof T;
