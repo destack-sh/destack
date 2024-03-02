@@ -30,6 +30,7 @@ class ViewType(IdEnum):
     RESOURCE = 22
     INSPECTOR = 23
     LIBRARY = 24
+    LOG = 25
     ACCESS = 25
     SCREEN = 49
 

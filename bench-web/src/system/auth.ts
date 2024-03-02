@@ -1,15 +1,17 @@
-import type { BadgeData, ClientData } from "@/proto/wire";
+import type { BadgeData, ClientData, UserData } from "@/proto/wire";
 import { useStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 
+type UserInfo = Pick<UserData, "id" | "email" | "name" | "icon">;
 type BadgeInfo = Pick<BadgeData, "id" | "key" | "password">;
 type ClientInfo = Pick<ClientData, "deviceName" | "browserName"> & { nonce: string };
 
 const BROWSER_NAME = getBrowserName();
 const DEVICE_NAME = getDeviceName();
 const nonce = v4();
-const authState = {
-  clientAccess: useStorage<{ id: string | null; token: string | null }>("client", {
+const auth = {
+  userInfo: useStorage<UserInfo | null>("userInfo", null),
+  clientAccess: useStorage<{ id: string | null; token: string | null }>("clientAccess", {
     id: null,
     token: null,
   }),
@@ -32,15 +34,15 @@ const authState = {
   },
 
   onLoggedIn(clientId: string, clientAccessToken: string) {
-    authState.clientAccess.value = { id: clientId, token: clientAccessToken };
+    auth.clientAccess.value = { id: clientId, token: clientAccessToken };
   },
 
   onLoggedOut() {
-    authState.clientAccess.value = { id: null, token: null };
+    auth.clientAccess.value = { id: null, token: null };
   },
 };
 
-export default authState;
+export default auth;
 
 function getBrowserName() {
   /** Gets the clients browser name and version */
