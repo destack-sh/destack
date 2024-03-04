@@ -1,5 +1,5 @@
 import auth from "@/system/auth";
-import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
+import { GraphIOClient, GraphScope, HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
@@ -32,6 +32,7 @@ export type Operation<I extends object, O extends object> = {
 
   isStreaming: boolean;
   get isPending(): boolean;
+  abort?(): void;
 };
 
 export type OperationError = RpcError | Error;
@@ -115,11 +116,11 @@ const operationsTracker = {
   },
 };
 
-type BenchServerStreamingCall<I extends object, O extends object> = ServerStreamingCall<I, O> & {
+export type BenchServerStreamingCall<I extends object, O extends object> = ServerStreamingCall<I, O> & {
   operation: Operation<I, O>;
 };
 
-type BenchUnaryCall<I extends object, O extends object> = UnaryCall<I, O> & {
+export type BenchUnaryCall<I extends object, O extends object> = UnaryCall<I, O> & {
   operation: Operation<I, O>;
 };
 
