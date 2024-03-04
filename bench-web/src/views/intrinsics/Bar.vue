@@ -9,7 +9,7 @@ import { user } from "@/system/space";
     <div class="bg">Dock</div>
     <!-- User -->
     <div class="bg">
-      {{ user.auth.isAuthenticated ? user : "Log in" }}
+      {{ user ? user.slug : "Log in" }}
     </div>
   </div>
 </template>

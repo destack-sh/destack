@@ -1,4 +1,4 @@
-import { customRef, type Ref, watch, isRef } from "vue";
+import { customRef, type Ref, watch, isRef, onUnmounted } from "vue";
 
 export function valueRef<T>(value: T) {
   return customRef<T>((track, trigger) => {
@@ -56,4 +56,12 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
     }
   }
   return result as RefsToValueRefs<T>;
+}
+
+export function onUnmountedMaybe(callback: () => void) {
+  try {
+    onUnmounted(callback);
+  } catch (e) {
+    /* not a vue component */
+  }
 }
