@@ -2,21 +2,21 @@ import type { NodeReferenceData } from "@/proto/wire";
 import { useStorage } from "@vueuse/core";
 import { NodeType } from "@/proto/wire";
 import auth from "@/system/auth";
-import { getNodes, nodeRef } from "@/system/graph";
+import { getNodes, nodeReference, toNodeReferenceRef } from "@/system/graph";
 import { computed } from "vue";
 
 const { graph: userGraph } = getNodes(
   computed(() => ({
-    roots: [nodeRef(NodeType.USER, auth.userInfo.value?.id!)],
+    roots: [nodeReference(NodeType.USER, auth.userInfo.value?.id!)],
     options: { descendantTypes: [NodeType.CLIENT] },
     enabled: auth.isAuthenticated,
     live: true,
   })),
 );
 export const user = userGraph.getRef(
-  computed(() => (auth.isAuthenticated ? { metatype: NodeType.USER, id: auth.userInfo.value?.id! } : null)),
+  computed(() => (auth.isAuthenticated ? { type: NodeType.USER, id: auth.userInfo.value?.id! } : null)),
 );
-export const clients = userGraph.getChildrenRef(user, NodeType.CLIENT);
+export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
 
 export const spacePtr = useStorage<NodeReferenceData | null>("spacePtr", null);
 export const packageIdByBenchId = useStorage<{ [benchId: string]: string }>("packageIdByBenchId", {});
