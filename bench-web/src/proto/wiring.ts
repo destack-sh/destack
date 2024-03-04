@@ -1,11 +1,11 @@
 import {
   BenchType,
+  NodeType,
+  SomeNodeData,
   StructType,
   type AnyNodeData,
   type AnyStructData,
   type StructTypeMapping,
-  SomeNodeData,
-  NodeType,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";

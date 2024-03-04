@@ -31,7 +31,7 @@ class ViewType(IdEnum):
     INSPECTOR = 23
     LIBRARY = 24
     LOG = 25
-    ACCESS = 25
+    ACCESS = 26
     SCREEN = 49
 
     # containers
