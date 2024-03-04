@@ -58,7 +58,7 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   return result as RefsToValueRefs<T>;
 }
 
-export function onUnmountedMaybe(callback: () => void) {
+export function onUnmountedIfComponent(callback: () => void) {
   try {
     onUnmounted(callback);
   } catch (e) {
