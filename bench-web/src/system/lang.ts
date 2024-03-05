@@ -11,6 +11,8 @@ import {
   RunData,
   SignalData,
   NotificationData,
+  type NodeTypeMapping,
+  NODE_PROPERTY_ENUM_BY_TYPE,
 } from "@/proto/wire";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
@@ -26,4 +28,10 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   } else {
     return null;
   }
+}
+
+export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapping[T][]) {
+  const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
+  if ("orderKey" in properties) nodes.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
+  else nodes.sort((a, b) => (b.createdAt?.nanos ?? 0) - (a.createdAt?.nanos ?? 0));
 }

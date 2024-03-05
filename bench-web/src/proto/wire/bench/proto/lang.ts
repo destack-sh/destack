@@ -77,6 +77,10 @@ export interface AccessMatrixData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
      */
     subject?: SubjectData;
@@ -120,6 +124,10 @@ export interface AccessTraceData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyRuleData matched_rules = 30;
      */
     matchedRules: PolicyRuleData[];
@@ -151,6 +159,10 @@ export interface AccessZoneData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: string scope_id = 30;
      */
@@ -190,6 +202,10 @@ export interface AggregationData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.AggregationOp op = 30;
      */
@@ -235,7 +251,7 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -261,12 +277,16 @@ export interface CodeData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.CodeLineData lines = 30;
      */
     lines: CodeLineData[];
 }
 /**
- * CodeLine(line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -291,6 +311,10 @@ export interface CodeLineData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: string line = 32;
      */
@@ -322,6 +346,10 @@ export interface ColorData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.ColorType type = 31;
      */
@@ -361,6 +389,10 @@ export interface ContextData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 30;
      */
@@ -413,6 +445,10 @@ export interface ExpressionData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.ExpressionOp op = 30;
      */
     op: ExpressionOp;
@@ -464,6 +500,10 @@ export interface FileData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional string type = 31;
      */
     type?: string;
@@ -489,7 +529,7 @@ export interface FileData {
     externalUrl?: string;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -514,6 +554,10 @@ export interface IconData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.IconKind kind = 30;
      */
@@ -649,6 +693,10 @@ export interface PathData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.PathSegmentData segments = 31;
      */
     segments: PathSegmentData[];
@@ -740,6 +788,10 @@ export interface PolicyData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional string name = 30;
      */
     name?: string;
@@ -784,6 +836,10 @@ export interface PolicyRuleData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 30;
      */
@@ -877,6 +933,10 @@ export interface ProjectionData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
 }
 /**
  * PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
@@ -928,6 +988,10 @@ export interface ReadOptionsData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 31;
      */
@@ -988,6 +1052,10 @@ export interface RequestData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.SubjectData subject = 30;
      */
     subject?: SubjectData;
@@ -1028,7 +1096,7 @@ export interface ResourceCredentialData {
     password?: string;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -1054,6 +1122,10 @@ export interface RunCodeFrameData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 30;
      */
     nodePtr?: NodeReferenceData;
@@ -1075,7 +1147,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1100,6 +1172,10 @@ export interface RunErrorData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.RunErrorKind kind = 30;
      */
@@ -1148,6 +1224,10 @@ export interface ScheduleData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.ScheduleType type = 30;
      */
     type: ScheduleType;
@@ -1165,7 +1245,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockData
  */
@@ -1191,12 +1271,16 @@ export interface SpaceDockData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.SpaceDockItemData items = 30;
      */
     items: SpaceDockItemData[];
 }
 /**
- * SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SpaceDockItemData
  */
@@ -1221,6 +1305,10 @@ export interface SpaceDockItemData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: bool hidden = 31;
      */
@@ -1253,6 +1341,10 @@ export interface SubjectData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional bool is_authenticated = 30;
      */
@@ -1295,7 +1387,7 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Text(lines: list['TextLine'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Text(lines: list['TextLine'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1321,12 +1413,16 @@ export interface TextData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.TextLineData lines = 32;
      */
     lines: TextLineData[];
 }
 /**
- * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+ * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -1351,6 +1447,10 @@ export interface TextLineData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.TextLineType type = 30;
      */
@@ -1432,7 +1532,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1457,6 +1557,10 @@ export interface TypeInfoData {
      * @generated from protobuf field: optional string order_key = 5;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 40;
      */
@@ -1537,6 +1641,10 @@ export interface ValueReferenceData {
      */
     orderKey?: string;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.PathData path = 31;
      */
     path?: PathData;
@@ -1609,6 +1717,10 @@ export interface BadgeData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 31;
      */
@@ -1688,6 +1800,10 @@ export interface BenchData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
@@ -1795,6 +1911,10 @@ export interface BlockData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.BlockType type = 30;
      */
@@ -1935,6 +2055,10 @@ export interface BranchData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional string name = 32;
      */
     name?: string;
@@ -2010,6 +2134,10 @@ export interface CacheData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -2080,6 +2208,10 @@ export interface ClientData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 32;
      */
@@ -2169,6 +2301,10 @@ export interface DependencyData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData scopes_ptr = 30;
      */
     scopesPtr: NodeReferenceData[];
@@ -2232,6 +2368,10 @@ export interface DriveData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -2303,6 +2443,10 @@ export interface EnvironmentData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 32;
      */
@@ -2402,6 +2546,10 @@ export interface FieldData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 30;
      */
@@ -2542,6 +2690,10 @@ export interface FileContentData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: string sha512 = 30;
      */
     sha512: string;
@@ -2617,6 +2769,10 @@ export interface HandleData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: string slug = 30;
      */
     slug: string;
@@ -2682,6 +2838,10 @@ export interface IdentityData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData type_ptr = 30;
      */
     typePtr?: NodeReferenceData;
@@ -2744,6 +2904,10 @@ export interface InviteData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 30;
      */
@@ -2822,6 +2986,10 @@ export interface LinkData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 30;
      */
     referencePtr?: NodeReferenceData;
@@ -2885,6 +3053,10 @@ export interface LogData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.LogKind kind = 30;
      */
@@ -2989,6 +3161,10 @@ export interface MembershipData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData user_ptr = 30;
      */
     userPtr?: NodeReferenceData;
@@ -3058,9 +3234,13 @@ export interface BaseNodeData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3117,6 +3297,10 @@ export interface NoticeData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.NoticeKind kind = 30;
      */
@@ -3197,6 +3381,10 @@ export interface NotificationData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.NotificationKind kind = 30;
      */
@@ -3286,6 +3474,10 @@ export interface OrganizationData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
     mainHandlePtr?: NodeReferenceData;
@@ -3364,6 +3556,10 @@ export interface PackageData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string slug = 33;
      */
@@ -3451,6 +3647,10 @@ export interface PauseData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
 }
 /**
  * A stored query.
@@ -3510,6 +3710,10 @@ export interface QueryData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional string name = 30;
      */
@@ -3594,6 +3798,10 @@ export interface RecordData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 30;
      */
     valuePacked?: Struct;
@@ -3663,6 +3871,10 @@ export interface RoleData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData type_ptr = 30;
      */
     typePtr?: NodeReferenceData;
@@ -3725,6 +3937,10 @@ export interface RunData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData session_ptr = 30;
      */
@@ -3843,6 +4059,10 @@ export interface ServerData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -3950,6 +4170,10 @@ export interface SessionData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 31;
      */
     serverPtr?: NodeReferenceData;
@@ -4033,6 +4257,10 @@ export interface SignalData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 31;
      */
     typePtr?: NodeReferenceData;
@@ -4108,6 +4336,10 @@ export interface SkipData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData reference_ptr = 30;
      */
     referencePtr?: NodeReferenceData;
@@ -4174,6 +4406,10 @@ export interface SpaceData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -4247,6 +4483,10 @@ export interface StoreData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -4296,7 +4536,7 @@ export interface StoreData {
     mainCredential?: ResourceCredentialData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -4353,6 +4593,10 @@ export interface TriggerData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.TriggerType type = 30;
      */
@@ -4433,6 +4677,10 @@ export interface UpgradeData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
      * @generated from protobuf field: optional string name = 32;
      */
     name?: string;
@@ -4495,6 +4743,10 @@ export interface UserData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
@@ -4602,6 +4854,10 @@ export interface ViewData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
      */
     updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
     /**
      * @generated from protobuf field: symbolx.bench.ViewType type = 30;
      */
@@ -7579,6 +7835,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "subject", kind: "message", T: () => SubjectData },
             { no: 32, name: "identities", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SubjectData },
             { no: 33, name: "scoped_zones", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessZoneData },
@@ -7588,6 +7845,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     create(value?: PartialMessage<AccessMatrixData>): AccessMatrixData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.identities = [];
         message.scopedZones = [];
         message.baseZones = [];
@@ -7614,6 +7872,13 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.SubjectData subject */ 30:
                     message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
@@ -7654,6 +7919,13 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.SubjectData subject = 30; */
         if (message.subject)
             SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -7685,12 +7957,14 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "matched_rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData }
         ]);
     }
     create(value?: PartialMessage<AccessTraceData>): AccessTraceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.matchedRules = [];
         if (value !== undefined)
             reflectionMergePartial<AccessTraceData>(this, message, value);
@@ -7715,6 +7989,13 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.PolicyRuleData matched_rules */ 30:
                     message.matchedRules.push(PolicyRuleData.internalBinaryRead(reader, reader.uint32(), options));
@@ -7746,6 +8027,13 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.PolicyRuleData matched_rules = 30; */
         for (let i = 0; i < message.matchedRules.length; i++)
             PolicyRuleData.internalBinaryWrite(message.matchedRules[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -7768,6 +8056,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "scope_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "identity_id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData }
@@ -7776,6 +8065,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
     create(value?: PartialMessage<AccessZoneData>): AccessZoneData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.scopeId = "";
         message.identityId = 0;
         message.rules = [];
@@ -7802,6 +8092,13 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string scope_id */ 30:
                     message.scopeId = reader.string();
@@ -7839,6 +8136,13 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string scope_id = 30; */
         if (message.scopeId !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.scopeId);
@@ -7867,6 +8171,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.AggregationOp", AggregationOp, "AGGREGATION_OP_"] },
             { no: 31, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 32, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -7877,6 +8182,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
     create(value?: PartialMessage<AggregationData>): AggregationData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.op = 0;
         message.buckets = [];
         if (value !== undefined)
@@ -7902,6 +8208,13 @@ class AggregationData$Type extends MessageType<AggregationData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.AggregationOp op */ 30:
                     message.op = reader.int32();
@@ -7945,6 +8258,13 @@ class AggregationData$Type extends MessageType<AggregationData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.AggregationOp op = 30; */
         if (message.op !== 0)
             writer.tag(30, WireType.Varint).int32(message.op);
@@ -8048,12 +8368,14 @@ class CodeData$Type extends MessageType<CodeData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CodeLineData }
         ]);
     }
     create(value?: PartialMessage<CodeData>): CodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.lines = [];
         if (value !== undefined)
             reflectionMergePartial<CodeData>(this, message, value);
@@ -8078,6 +8400,13 @@ class CodeData$Type extends MessageType<CodeData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.CodeLineData lines */ 30:
                     message.lines.push(CodeLineData.internalBinaryRead(reader, reader.uint32(), options));
@@ -8109,6 +8438,13 @@ class CodeData$Type extends MessageType<CodeData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.CodeLineData lines = 30; */
         for (let i = 0; i < message.lines.length; i++)
             CodeLineData.internalBinaryWrite(message.lines[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -8131,12 +8467,14 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "line", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CodeLineData>): CodeLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.line = "";
         if (value !== undefined)
             reflectionMergePartial<CodeLineData>(this, message, value);
@@ -8161,6 +8499,13 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string line */ 32:
                     message.line = reader.string();
@@ -8192,6 +8537,13 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string line = 32; */
         if (message.line !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.line);
@@ -8214,6 +8566,7 @@ class ColorData$Type extends MessageType<ColorData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -8222,6 +8575,7 @@ class ColorData$Type extends MessageType<ColorData> {
     create(value?: PartialMessage<ColorData>): ColorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ColorData>(this, message, value);
         return message;
@@ -8245,6 +8599,13 @@ class ColorData$Type extends MessageType<ColorData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.ColorType type */ 31:
                     message.type = reader.int32();
@@ -8282,6 +8643,13 @@ class ColorData$Type extends MessageType<ColorData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.ColorType type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -8310,6 +8678,7 @@ class ContextData$Type extends MessageType<ContextData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "environment_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "branch_ptr", kind: "message", T: () => NodeReferenceData },
@@ -8321,6 +8690,7 @@ class ContextData$Type extends MessageType<ContextData> {
     create(value?: PartialMessage<ContextData>): ContextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ContextData>(this, message, value);
         return message;
@@ -8344,6 +8714,13 @@ class ContextData$Type extends MessageType<ContextData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 30:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
@@ -8390,6 +8767,13 @@ class ContextData$Type extends MessageType<ContextData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData bench_ptr = 30; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -8427,6 +8811,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.ExpressionOp", ExpressionOp, "EXPRESSION_OP_"] },
             { no: 31, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
@@ -8438,6 +8823,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.op = 0;
         message.clauses = [];
         if (value !== undefined)
@@ -8463,6 +8849,13 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.ExpressionOp op */ 30:
                     message.op = reader.int32();
@@ -8509,6 +8902,13 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.ExpressionOp op = 30; */
         if (message.op !== 0)
             writer.tag(30, WireType.Varint).int32(message.op);
@@ -8546,6 +8946,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -8557,6 +8958,7 @@ class FileData$Type extends MessageType<FileData> {
     create(value?: PartialMessage<FileData>): FileData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -8580,6 +8982,13 @@ class FileData$Type extends MessageType<FileData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string type */ 31:
                     message.type = reader.string();
@@ -8626,6 +9035,13 @@ class FileData$Type extends MessageType<FileData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.type);
@@ -8663,6 +9079,7 @@ class IconData$Type extends MessageType<IconData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.IconKind", IconKind, "ICON_KIND_"] },
             { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.IconType", IconType, "ICON_TYPE_"] },
@@ -8673,6 +9090,7 @@ class IconData$Type extends MessageType<IconData> {
     create(value?: PartialMessage<IconData>): IconData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.kind = 0;
         if (value !== undefined)
             reflectionMergePartial<IconData>(this, message, value);
@@ -8697,6 +9115,13 @@ class IconData$Type extends MessageType<IconData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.IconKind kind */ 30:
                     message.kind = reader.int32();
@@ -8740,6 +9165,13 @@ class IconData$Type extends MessageType<IconData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.IconKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -8864,12 +9296,14 @@ class PathData$Type extends MessageType<PathData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "segments", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathSegmentData }
         ]);
     }
     create(value?: PartialMessage<PathData>): PathData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.segments = [];
         if (value !== undefined)
             reflectionMergePartial<PathData>(this, message, value);
@@ -8894,6 +9328,13 @@ class PathData$Type extends MessageType<PathData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.PathSegmentData segments */ 31:
                     message.segments.push(PathSegmentData.internalBinaryRead(reader, reader.uint32(), options));
@@ -8925,6 +9366,13 @@ class PathData$Type extends MessageType<PathData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.PathSegmentData segments = 31; */
         for (let i = 0; i < message.segments.length; i++)
             PathSegmentData.internalBinaryWrite(message.segments[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -9085,6 +9533,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => TextData },
             { no: 32, name: "rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData },
@@ -9094,6 +9543,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
     create(value?: PartialMessage<PolicyData>): PolicyData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.rules = [];
         message.scopesPtr = [];
         if (value !== undefined)
@@ -9119,6 +9569,13 @@ class PolicyData$Type extends MessageType<PolicyData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 30:
                     message.name = reader.string();
@@ -9159,6 +9616,13 @@ class PolicyData$Type extends MessageType<PolicyData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -9190,6 +9654,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "subject_is_delegated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -9210,6 +9675,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.effect = 0;
         message.verbs = [];
         message.verbKinds = [];
@@ -9238,6 +9704,13 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 30:
                     message.name = reader.string();
@@ -9323,6 +9796,13 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -9398,12 +9878,14 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<ProjectionData>): ProjectionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ProjectionData>(this, message, value);
         return message;
@@ -9427,6 +9909,13 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -9455,6 +9944,13 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -9544,6 +10040,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 33, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
@@ -9557,6 +10054,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.ancestorTypes = [];
         message.descendantTypes = [];
         message.relatedPropertiesPtr = [];
@@ -9588,6 +10086,13 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.NodeType ancestor_types */ 31:
                     if (wireType === WireType.LengthDelimited)
@@ -9648,6 +10153,13 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.NodeType ancestor_types = 31; */
         if (message.ancestorTypes.length) {
             writer.tag(31, WireType.LengthDelimited).fork();
@@ -9699,6 +10211,7 @@ class RequestData$Type extends MessageType<RequestData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "subject", kind: "message", T: () => SubjectData },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "accesses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AccessData },
@@ -9708,6 +10221,7 @@ class RequestData$Type extends MessageType<RequestData> {
     create(value?: PartialMessage<RequestData>): RequestData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.decision = 0;
         message.accesses = [];
         if (value !== undefined)
@@ -9733,6 +10247,13 @@ class RequestData$Type extends MessageType<RequestData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.SubjectData subject */ 30:
                     message.subject = SubjectData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
@@ -9773,6 +10294,13 @@ class RequestData$Type extends MessageType<RequestData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.SubjectData subject = 30; */
         if (message.subject)
             SubjectData.internalBinaryWrite(message.subject, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -9872,6 +10400,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "lineno", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -9882,6 +10411,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     create(value?: PartialMessage<RunCodeFrameData>): RunCodeFrameData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.lineno = 0;
         message.name = "";
         message.line = "";
@@ -9908,6 +10438,13 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData node_ptr */ 30:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
@@ -9951,6 +10488,13 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData node_ptr = 30; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -9985,6 +10529,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunErrorKind", RunErrorKind, "RUN_ERROR_KIND_"] },
             { no: 31, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9995,6 +10540,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
     create(value?: PartialMessage<RunErrorData>): RunErrorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.kind = 0;
         message.type = "";
         message.traceback = [];
@@ -10021,6 +10567,13 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.RunErrorKind kind */ 30:
                     message.kind = reader.int32();
@@ -10064,6 +10617,13 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.RunErrorKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -10098,6 +10658,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ScheduleType", ScheduleType, "SCHEDULE_TYPE_"] },
             { no: 31, name: "timezone", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "interval", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -10107,6 +10668,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
     create(value?: PartialMessage<ScheduleData>): ScheduleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<ScheduleData>(this, message, value);
@@ -10131,6 +10693,13 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.ScheduleType type */ 30:
                     message.type = reader.int32();
@@ -10171,6 +10740,13 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.ScheduleType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -10202,12 +10778,14 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "items", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SpaceDockItemData }
         ]);
     }
     create(value?: PartialMessage<SpaceDockData>): SpaceDockData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.items = [];
         if (value !== undefined)
             reflectionMergePartial<SpaceDockData>(this, message, value);
@@ -10232,6 +10810,13 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.SpaceDockItemData items */ 30:
                     message.items.push(SpaceDockItemData.internalBinaryRead(reader, reader.uint32(), options));
@@ -10263,6 +10848,13 @@ class SpaceDockData$Type extends MessageType<SpaceDockData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.SpaceDockItemData items = 30; */
         for (let i = 0; i < message.items.length; i++)
             SpaceDockItemData.internalBinaryWrite(message.items[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -10285,12 +10877,14 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SpaceDockItemData>): SpaceDockItemData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.hidden = false;
         if (value !== undefined)
             reflectionMergePartial<SpaceDockItemData>(this, message, value);
@@ -10315,6 +10909,13 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* bool hidden */ 31:
                     message.hidden = reader.bool();
@@ -10346,6 +10947,13 @@ class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* bool hidden = 31; */
         if (message.hidden !== false)
             writer.tag(31, WireType.Varint).bool(message.hidden);
@@ -10368,6 +10976,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 31, name: "is_staff", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 32, name: "is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -10383,6 +10992,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
     create(value?: PartialMessage<SubjectData>): SubjectData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.badgesPtr = [];
         message.ownedPtr = [];
         message.membershipsPtr = [];
@@ -10410,6 +11020,13 @@ class SubjectData$Type extends MessageType<SubjectData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional bool is_authenticated */ 30:
                     message.isAuthenticated = reader.bool();
@@ -10468,6 +11085,13 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional bool is_authenticated = 30; */
         if (message.isAuthenticated !== undefined)
             writer.tag(30, WireType.Varint).bool(message.isAuthenticated);
@@ -10517,12 +11141,14 @@ class TextData$Type extends MessageType<TextData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextLineData }
         ]);
     }
     create(value?: PartialMessage<TextData>): TextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.lines = [];
         if (value !== undefined)
             reflectionMergePartial<TextData>(this, message, value);
@@ -10547,6 +11173,13 @@ class TextData$Type extends MessageType<TextData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.TextLineData lines */ 32:
                     message.lines.push(TextLineData.internalBinaryRead(reader, reader.uint32(), options));
@@ -10578,6 +11211,13 @@ class TextData$Type extends MessageType<TextData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.TextLineData lines = 32; */
         for (let i = 0; i < message.lines.length; i++)
             TextLineData.internalBinaryWrite(message.lines[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -10600,6 +11240,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
             { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
@@ -10613,6 +11254,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
     create(value?: PartialMessage<TextLineData>): TextLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.type = 0;
         message.spans = [];
         message.isBold = false;
@@ -10643,6 +11285,13 @@ class TextLineData$Type extends MessageType<TextLineData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.TextLineType type */ 30:
                     message.type = reader.int32();
@@ -10695,6 +11344,13 @@ class TextLineData$Type extends MessageType<TextLineData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.TextLineType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -10853,6 +11509,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
@@ -10871,6 +11528,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         message.visibility = 0;
         message.isList = false;
         message.isRequired = false;
@@ -10898,6 +11556,13 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
                     message.primitiveType = reader.int32();
@@ -10965,6 +11630,13 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
         if (message.primitiveType !== undefined)
             writer.tag(40, WireType.Varint).int32(message.primitiveType);
@@ -11023,6 +11695,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "path", kind: "message", T: () => PathData },
             { no: 32, name: "subvalue_from", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "subvalue_to", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
@@ -11031,6 +11704,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     create(value?: PartialMessage<ValueReferenceData>): ValueReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ValueReferenceData>(this, message, value);
         return message;
@@ -11054,6 +11728,13 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
                     break;
                 case /* optional string order_key */ 5:
                     message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.PathData path */ 31:
                     message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
@@ -11091,6 +11772,13 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         /* optional string order_key = 5; */
         if (message.orderKey !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.PathData path = 31; */
         if (message.path)
             PathData.internalBinaryWrite(message.path, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -11127,6 +11815,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -11143,6 +11832,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.delegatedPolicies = [];
         if (value !== undefined)
             reflectionMergePartial<BadgeData>(this, message, value);
@@ -11191,6 +11881,13 @@ class BadgeData$Type extends MessageType<BadgeData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 31:
                     message.name = reader.string();
@@ -11264,6 +11961,13 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -11310,6 +12014,7 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -11330,6 +12035,7 @@ class BenchData$Type extends MessageType<BenchData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.slug = "";
         message.name = "";
         message.region = 0;
@@ -11375,6 +12081,13 @@ class BenchData$Type extends MessageType<BenchData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -11457,6 +12170,13 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -11520,6 +12240,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11551,6 +12272,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.type = 0;
         message.visibility = 0;
         message.policies = [];
@@ -11609,6 +12331,13 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.BlockType type */ 30:
                     message.type = reader.int32();
@@ -11727,6 +12456,13 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -11818,6 +12554,7 @@ class BranchData$Type extends MessageType<BranchData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
@@ -11832,6 +12569,7 @@ class BranchData$Type extends MessageType<BranchData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<BranchData>(this, message, value);
@@ -11874,6 +12612,13 @@ class BranchData$Type extends MessageType<BranchData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 32:
                     message.name = reader.string();
@@ -11938,6 +12683,13 @@ class BranchData$Type extends MessageType<BranchData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -11981,6 +12733,7 @@ class CacheData$Type extends MessageType<CacheData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -11994,6 +12747,7 @@ class CacheData$Type extends MessageType<CacheData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.region = 0;
         message.tenancy = 0;
@@ -12039,6 +12793,13 @@ class CacheData$Type extends MessageType<CacheData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -12100,6 +12861,13 @@ class CacheData$Type extends MessageType<CacheData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -12140,6 +12908,7 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "device_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12155,6 +12924,7 @@ class ClientData$Type extends MessageType<ClientData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.deviceName = "";
         if (value !== undefined)
             reflectionMergePartial<ClientData>(this, message, value);
@@ -12197,6 +12967,13 @@ class ClientData$Type extends MessageType<ClientData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 32:
                     message.name = reader.string();
@@ -12264,6 +13041,13 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -12312,6 +13096,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "dependency_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "dependency_scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
@@ -12324,6 +13109,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.scopesPtr = [];
         message.dependencyScopesPtr = [];
         if (value !== undefined)
@@ -12373,6 +13159,13 @@ class DependencyData$Type extends MessageType<DependencyData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData scopes_ptr */ 30:
                     message.scopesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -12434,6 +13227,13 @@ class DependencyData$Type extends MessageType<DependencyData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.NodeReferenceData scopes_ptr = 30; */
         for (let i = 0; i < message.scopesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.scopesPtr[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -12468,6 +13268,7 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -12481,6 +13282,7 @@ class DriveData$Type extends MessageType<DriveData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.region = 0;
         message.tenancy = 0;
@@ -12526,6 +13328,13 @@ class DriveData$Type extends MessageType<DriveData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -12587,6 +13396,13 @@ class DriveData$Type extends MessageType<DriveData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -12627,6 +13443,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
@@ -12645,6 +13462,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<EnvironmentData>(this, message, value);
@@ -12687,6 +13505,13 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 32:
                     message.name = reader.string();
@@ -12763,6 +13588,13 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -12820,6 +13652,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12851,6 +13684,7 @@ class FieldData$Type extends MessageType<FieldData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.visibility = 0;
         message.isList = false;
         message.isRequired = false;
@@ -12905,6 +13739,13 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 30:
                     message.name = reader.string();
@@ -13023,6 +13864,13 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -13114,6 +13962,7 @@ class FileContentData$Type extends MessageType<FileContentData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "sha512", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 32, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -13128,6 +13977,7 @@ class FileContentData$Type extends MessageType<FileContentData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.sha512 = "";
         message.size = 0n;
         message.type = "";
@@ -13174,6 +14024,13 @@ class FileContentData$Type extends MessageType<FileContentData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string sha512 */ 30:
                     message.sha512 = reader.string();
@@ -13238,6 +14095,13 @@ class FileContentData$Type extends MessageType<FileContentData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string sha512 = 30; */
         if (message.sha512 !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.sha512);
@@ -13281,6 +14145,7 @@ class HandleData$Type extends MessageType<HandleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -13290,6 +14155,7 @@ class HandleData$Type extends MessageType<HandleData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.slug = "";
         if (value !== undefined)
             reflectionMergePartial<HandleData>(this, message, value);
@@ -13332,6 +14198,13 @@ class HandleData$Type extends MessageType<HandleData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string slug */ 30:
                     message.slug = reader.string();
@@ -13381,6 +14254,13 @@ class HandleData$Type extends MessageType<HandleData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string slug = 30; */
         if (message.slug !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.slug);
@@ -13411,6 +14291,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -13421,6 +14302,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<IdentityData>(this, message, value);
         return message;
@@ -13468,6 +14350,13 @@ class IdentityData$Type extends MessageType<IdentityData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData type_ptr */ 30:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
@@ -13523,6 +14412,13 @@ class IdentityData$Type extends MessageType<IdentityData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData type_ptr = 30; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -13553,6 +14449,7 @@ class InviteData$Type extends MessageType<InviteData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "user_email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -13566,6 +14463,7 @@ class InviteData$Type extends MessageType<InviteData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.isOwner = false;
         message.rolesPtr = [];
         if (value !== undefined)
@@ -13615,6 +14513,13 @@ class InviteData$Type extends MessageType<InviteData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData user_ptr */ 30:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
@@ -13679,6 +14584,13 @@ class InviteData$Type extends MessageType<InviteData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData user_ptr = 30; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -13718,6 +14630,7 @@ class LinkData$Type extends MessageType<LinkData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -13729,6 +14642,7 @@ class LinkData$Type extends MessageType<LinkData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<LinkData>(this, message, value);
         return message;
@@ -13776,6 +14690,13 @@ class LinkData$Type extends MessageType<LinkData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 30:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
@@ -13834,6 +14755,13 @@ class LinkData$Type extends MessageType<LinkData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData reference_ptr = 30; */
         if (message.referencePtr)
             NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -13866,6 +14794,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.LogKind", LogKind, "LOG_KIND_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
             { no: 32, name: "logger", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -13885,6 +14814,7 @@ class LogData$Type extends MessageType<LogData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.kind = 0;
         message.level = 0;
         if (value !== undefined)
@@ -13931,6 +14861,13 @@ class LogData$Type extends MessageType<LogData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.LogKind kind */ 30:
                     message.kind = reader.int32();
@@ -14013,6 +14950,13 @@ class LogData$Type extends MessageType<LogData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.LogKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -14073,6 +15017,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -14084,6 +15029,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.isOwner = false;
         if (value !== undefined)
             reflectionMergePartial<MembershipData>(this, message, value);
@@ -14132,6 +15078,13 @@ class MembershipData$Type extends MessageType<MembershipData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData user_ptr */ 30:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
@@ -14190,6 +15143,13 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData user_ptr = 30; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -14222,7 +15182,8 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<BaseNodeData>): BaseNodeData {
@@ -14232,6 +15193,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<BaseNodeData>(this, message, value);
         return message;
@@ -14279,6 +15241,13 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14331,6 +15300,13 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14358,6 +15334,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NoticeKind", NoticeKind, "NOTICE_KIND_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.NoticeType", NoticeType, "NOTICE_TYPE_"] },
             { no: 33, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -14372,6 +15349,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.kind = 0;
         message.type = 0;
         message.propertiesPtr = [];
@@ -14422,6 +15400,13 @@ class NoticeData$Type extends MessageType<NoticeData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NoticeKind kind */ 30:
                     message.kind = reader.int32();
@@ -14489,6 +15474,13 @@ class NoticeData$Type extends MessageType<NoticeData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NoticeKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -14531,6 +15523,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NotificationKind", NotificationKind, "NOTIFICATION_KIND_"] },
             { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -14549,6 +15542,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.kind = 0;
         if (value !== undefined)
             reflectionMergePartial<NotificationData>(this, message, value);
@@ -14597,6 +15591,13 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NotificationKind kind */ 30:
                     message.kind = reader.int32();
@@ -14676,6 +15677,13 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NotificationKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -14728,6 +15736,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -14743,6 +15752,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.status = 0;
         if (value !== undefined)
@@ -14786,6 +15796,13 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -14853,6 +15870,13 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -14899,6 +15923,7 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
@@ -14914,6 +15939,7 @@ class PackageData$Type extends MessageType<PackageData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.policies = [];
         message.basesPtr = [];
         if (value !== undefined)
@@ -14957,6 +15983,13 @@ class PackageData$Type extends MessageType<PackageData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string slug */ 33:
                     message.slug = reader.string();
@@ -15024,6 +16057,13 @@ class PackageData$Type extends MessageType<PackageData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string slug = 33; */
         if (message.slug !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.slug);
@@ -15071,7 +16111,8 @@ class PauseData$Type extends MessageType<PauseData> {
             { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<PauseData>): PauseData {
@@ -15081,6 +16122,7 @@ class PauseData$Type extends MessageType<PauseData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<PauseData>(this, message, value);
         return message;
@@ -15128,6 +16170,13 @@ class PauseData$Type extends MessageType<PauseData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15180,6 +16229,13 @@ class PauseData$Type extends MessageType<PauseData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15207,6 +16263,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
@@ -15222,6 +16279,7 @@ class QueryData$Type extends MessageType<QueryData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.nodeType = 0;
         message.sort = [];
         if (value !== undefined)
@@ -15271,6 +16329,13 @@ class QueryData$Type extends MessageType<QueryData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 30:
                     message.name = reader.string();
@@ -15341,6 +16406,13 @@ class QueryData$Type extends MessageType<QueryData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -15386,6 +16458,7 @@ class RecordData$Type extends MessageType<RecordData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "value_packed", kind: "message", T: () => Struct },
             { no: 31, name: "secret_value_packed", kind: "message", T: () => Struct }
         ]);
@@ -15397,6 +16470,7 @@ class RecordData$Type extends MessageType<RecordData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<RecordData>(this, message, value);
         return message;
@@ -15444,6 +16518,13 @@ class RecordData$Type extends MessageType<RecordData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 30:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
@@ -15502,6 +16583,13 @@ class RecordData$Type extends MessageType<RecordData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional google.protobuf.Struct value_packed = 30; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -15535,6 +16623,7 @@ class RoleData$Type extends MessageType<RoleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -15545,6 +16634,7 @@ class RoleData$Type extends MessageType<RoleData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<RoleData>(this, message, value);
         return message;
@@ -15592,6 +16682,13 @@ class RoleData$Type extends MessageType<RoleData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData type_ptr */ 30:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
@@ -15647,6 +16744,13 @@ class RoleData$Type extends MessageType<RoleData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData type_ptr = 30; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -15677,6 +16781,7 @@ class RunData$Type extends MessageType<RunData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15702,6 +16807,7 @@ class RunData$Type extends MessageType<RunData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.duration = 0;
         message.status = 0;
         if (value !== undefined)
@@ -15751,6 +16857,13 @@ class RunData$Type extends MessageType<RunData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData session_ptr */ 30:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
@@ -15851,6 +16964,13 @@ class RunData$Type extends MessageType<RunData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData session_ptr = 30; */
         if (message.sessionPtr)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -15924,6 +17044,7 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -15944,6 +17065,7 @@ class ServerData$Type extends MessageType<ServerData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.region = 0;
         message.tenancy = 0;
@@ -15991,6 +17113,13 @@ class ServerData$Type extends MessageType<ServerData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -16073,6 +17202,13 @@ class ServerData$Type extends MessageType<ServerData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -16136,6 +17272,7 @@ class SessionData$Type extends MessageType<SessionData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "opened_at", kind: "message", T: () => Timestamp },
             { no: 33, name: "closed_at", kind: "message", T: () => Timestamp },
@@ -16151,6 +17288,7 @@ class SessionData$Type extends MessageType<SessionData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.isRuntime = false;
         message.isReadonly = false;
         if (value !== undefined)
@@ -16200,6 +17338,13 @@ class SessionData$Type extends MessageType<SessionData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData server_ptr */ 31:
                     message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
@@ -16270,6 +17415,13 @@ class SessionData$Type extends MessageType<SessionData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData server_ptr = 31; */
         if (message.serverPtr)
             NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -16315,6 +17467,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "sender_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "value_packed", kind: "message", T: () => Struct },
@@ -16328,6 +17481,7 @@ class SignalData$Type extends MessageType<SignalData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<SignalData>(this, message, value);
         return message;
@@ -16375,6 +17529,13 @@ class SignalData$Type extends MessageType<SignalData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData type_ptr */ 31:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
@@ -16439,6 +17600,13 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData type_ptr = 31; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -16478,6 +17646,7 @@ class SkipData$Type extends MessageType<SkipData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -16489,6 +17658,7 @@ class SkipData$Type extends MessageType<SkipData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<SkipData>(this, message, value);
         return message;
@@ -16536,6 +17706,13 @@ class SkipData$Type extends MessageType<SkipData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.NodeReferenceData reference_ptr */ 30:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
@@ -16594,6 +17771,13 @@ class SkipData$Type extends MessageType<SkipData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.NodeReferenceData reference_ptr = 30; */
         if (message.referencePtr)
             NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -16627,6 +17811,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -16641,6 +17826,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.orderKey = "";
         message.policies = [];
@@ -16691,6 +17877,13 @@ class SpaceData$Type extends MessageType<SpaceData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -16758,6 +17951,13 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -16798,6 +17998,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -16818,6 +18019,7 @@ class StoreData$Type extends MessageType<StoreData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.name = "";
         message.region = 0;
         message.tenancy = 0;
@@ -16865,6 +18067,13 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -16947,6 +18156,13 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -17010,6 +18226,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -17024,6 +18241,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.type = 0;
         message.active = false;
         if (value !== undefined)
@@ -17073,6 +18291,13 @@ class TriggerData$Type extends MessageType<TriggerData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.TriggerType type */ 30:
                     message.type = reader.int32();
@@ -17140,6 +18365,13 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.TriggerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -17182,6 +18414,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "text", kind: "message", T: () => TextData }
@@ -17194,6 +18427,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<UpgradeData>(this, message, value);
         return message;
@@ -17241,6 +18475,13 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string name */ 32:
                     message.name = reader.string();
@@ -17302,6 +18543,13 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -17336,6 +18584,7 @@ class UserData$Type extends MessageType<UserData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -17356,6 +18605,7 @@ class UserData$Type extends MessageType<UserData> {
         message.id = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.status = 0;
         message.isStaff = false;
         if (value !== undefined)
@@ -17399,6 +18649,13 @@ class UserData$Type extends MessageType<UserData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -17481,6 +18738,13 @@ class UserData$Type extends MessageType<UserData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -17544,6 +18808,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -17564,6 +18829,7 @@ class ViewData$Type extends MessageType<ViewData> {
         message.ck = "";
         message.source = 0;
         message.revision = 0n;
+        message.setProperties = [];
         message.type = 0;
         message.isVisible = false;
         message.isDisabled = false;
@@ -17617,6 +18883,13 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
                     break;
                 case /* symbolx.bench.ViewType type */ 30:
                     message.type = reader.int32();
@@ -17702,6 +18975,13 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
         /* symbolx.bench.ViewType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -18474,6 +19754,7 @@ export enum BenchProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -18500,6 +19781,7 @@ export enum EnvironmentProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   text = 34,
   icon = 35,
@@ -18524,6 +19806,7 @@ export enum BranchProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   slug = 33,
   text = 34,
@@ -18544,6 +19827,7 @@ export enum PackageProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   slug = 33,
   text = 34,
   icon = 35,
@@ -18567,6 +19851,7 @@ export enum DependencyProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   scopesPtr = 30,
   dependencyPtr = 40,
   dependencyScopesPtr = 41,
@@ -18586,6 +19871,7 @@ export enum UpgradeProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   title = 34,
   text = 35,
@@ -18605,6 +19891,7 @@ export enum SpaceProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 31,
   text = 32,
   orderKey = 33,
@@ -18626,6 +19913,7 @@ export enum LinkProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   referencePtr = 30,
   orderKey = 32,
 }
@@ -18644,6 +19932,7 @@ export enum SkipProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   referencePtr = 30,
   orderKey = 31,
 }
@@ -18662,6 +19951,7 @@ export enum NoticeProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   kind = 30,
   type = 31,
   message = 33,
@@ -18683,6 +19973,7 @@ export enum BlockProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   type = 30,
   name = 32,
   orderKey = 33,
@@ -18721,6 +20012,7 @@ export enum TriggerProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   type = 30,
   name = 31,
   active = 32,
@@ -18742,6 +20034,7 @@ export enum FieldProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 30,
   orderKey = 31,
   dynamicKey = 32,
@@ -18780,6 +20073,7 @@ export enum RecordProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   valuePacked = 30,
   secretValuePacked = 31,
 }
@@ -18798,6 +20092,7 @@ export enum QueryProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 30,
   orderKey = 31,
   nodeType = 32,
@@ -18820,6 +20115,7 @@ export enum ViewProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   type = 30,
   name = 31,
   title = 32,
@@ -18847,6 +20143,7 @@ export enum BadgeProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 31,
   delegatedPolicies = 32,
   expiresAt = 33,
@@ -18870,6 +20167,7 @@ export enum RoleProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   typePtr = 30,
 }
 
@@ -18887,6 +20185,7 @@ export enum IdentityProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   typePtr = 30,
 }
 
@@ -18904,6 +20203,7 @@ export enum MembershipProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   userPtr = 30,
   isOwner = 31,
 }
@@ -18922,6 +20222,7 @@ export enum InviteProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   userPtr = 30,
   userEmail = 31,
   isOwner = 32,
@@ -18942,6 +20243,7 @@ export enum SessionProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   serverPtr = 31,
   openedAt = 32,
   closedAt = 33,
@@ -18964,6 +20266,7 @@ export enum RunProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   sessionPtr = 30,
   rootPtr = 31,
   serverPtr = 32,
@@ -18996,6 +20299,7 @@ export enum PauseProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
 }
 
 export enum SignalProperty {
@@ -19012,6 +20316,7 @@ export enum SignalProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   typePtr = 31,
   senderPtr = 33,
   valuePacked = 34,
@@ -19031,6 +20336,7 @@ export enum LogProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   kind = 30,
   level = 31,
   logger = 32,
@@ -19058,6 +20364,7 @@ export enum NotificationProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   kind = 30,
   typePtr = 32,
   expiresAt = 33,
@@ -19081,6 +20388,7 @@ export enum ServerProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   text = 34,
   region = 35,
@@ -19107,6 +20415,7 @@ export enum StoreProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   text = 34,
   region = 35,
@@ -19133,6 +20442,7 @@ export enum DriveProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   text = 34,
   region = 35,
@@ -19152,6 +20462,7 @@ export enum CacheProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   text = 34,
   region = 35,
@@ -19171,6 +20482,7 @@ export enum FileContentProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   sha512 = 30,
   size = 31,
   type = 32,
@@ -19191,6 +20503,7 @@ export enum HandleProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   slug = 30,
 }
 
@@ -19206,6 +20519,7 @@ export enum UserProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -19232,6 +20546,7 @@ export enum OrganizationProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -19253,6 +20568,7 @@ export enum ClientProperty {
   archivedAt = 14,
   createdByPtr = 17,
   updatedByPtr = 18,
+  setProperties = 22,
   name = 32,
   deviceName = 33,
   browserName = 34,
@@ -19268,6 +20584,7 @@ export enum PathProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   segments = 31,
 }
 
@@ -19308,6 +20625,7 @@ export enum ValueReferenceProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   path = 31,
   subvalueFrom = 32,
   subvalueTo = 33,
@@ -19319,6 +20637,7 @@ export enum TypeInfoProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   primitiveType = 40,
   benchType = 41,
   baseTypePtr = 42,
@@ -19340,6 +20659,7 @@ export enum ContextProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   benchPtr = 30,
   environmentPtr = 31,
   branchPtr = 32,
@@ -19354,6 +20674,7 @@ export enum ScheduleProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   type = 30,
   timezone = 31,
   interval = 32,
@@ -19366,6 +20687,7 @@ export enum ProjectionProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
 }
 
 export enum FileProperty {
@@ -19374,6 +20696,7 @@ export enum FileProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   type = 31,
   name = 33,
   size = 34,
@@ -19388,6 +20711,7 @@ export enum IconProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   kind = 30,
   emoji = 31,
   type = 32,
@@ -19401,6 +20725,7 @@ export enum PolicyProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   name = 30,
   text = 31,
   rules = 32,
@@ -19413,6 +20738,7 @@ export enum PolicyRuleProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   name = 30,
   text = 31,
   subjectIsDelegated = 40,
@@ -19436,6 +20762,7 @@ export enum SubjectProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   isAuthenticated = 30,
   isStaff = 31,
   isSystem = 32,
@@ -19454,6 +20781,7 @@ export enum AccessZoneProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   scopeId = 30,
   identityId = 31,
   rules = 32,
@@ -19465,6 +20793,7 @@ export enum AccessMatrixProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   subject = 30,
   identities = 32,
   scopedZones = 33,
@@ -19487,6 +20816,7 @@ export enum AccessTraceProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   matchedRules = 30,
 }
 
@@ -19496,6 +20826,7 @@ export enum RequestProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   subject = 30,
   decision = 31,
   accesses = 32,
@@ -19508,6 +20839,7 @@ export enum ReadOptionsProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   ancestorTypes = 31,
   descendantTypes = 32,
   relatedPropertiesPtr = 33,
@@ -19524,6 +20856,7 @@ export enum ExpressionProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   op = 30,
   fieldPtr = 31,
   propertyPtr = 32,
@@ -19538,6 +20871,7 @@ export enum AggregationProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   op = 30,
   exists = 31,
   count = 32,
@@ -19558,6 +20892,7 @@ export enum CodeProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   lines = 30,
 }
 
@@ -19567,6 +20902,7 @@ export enum CodeLineProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   line = 32,
 }
 
@@ -19576,6 +20912,7 @@ export enum RunCodeFrameProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   nodePtr = 30,
   lineno = 31,
   name = 32,
@@ -19589,6 +20926,7 @@ export enum RunErrorProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   kind = 30,
   type = 31,
   message = 32,
@@ -19609,6 +20947,7 @@ export enum TextProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   lines = 32,
 }
 
@@ -19618,6 +20957,7 @@ export enum TextLineProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   type = 30,
   spans = 33,
   color = 50,
@@ -19647,6 +20987,7 @@ export enum ColorProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   type = 31,
   shade = 32,
   hex = 33,
@@ -19658,6 +20999,7 @@ export enum SpaceDockProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   items = 30,
 }
 
@@ -19667,6 +21009,7 @@ export enum SpaceDockItemProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 5,
+  setProperties = 22,
   hidden = 31,
 }
 
