@@ -6,7 +6,7 @@ import {
   GetNodesRequest,
   GetNodesResponse,
   GraphScope,
-  NodePropertyEnumByType,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   ReadOptionsData,
   StructType,
@@ -17,12 +17,12 @@ import {
 } from "@/proto/wire";
 import { makeDefaultStruct, unwrapSomeNode } from "@/proto/wiring";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/const";
-import { manualComputed, onUnmountedIfComponent as onUnmountedIfComponent } from "@/utils/ref";
+import { manualComputed, onUnmountedIfComponent } from "@/utils/ref";
 import type { Transaction } from "@sentry/vue";
-import { computed, ref, shallowRef, toRef, watch, watchEffect, type MaybeRef, type Ref, customRef } from "vue";
+import { computed, shallowRef, toRef, watch, type MaybeRef, type Ref } from "vue";
 
 /** A NodeReference but with proper typing */
-export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type: T };
+export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type?: T };
 
 /** A read-only reference to something in the graph */
 export type GraphRef<T> = Ref<T> & {
@@ -66,7 +66,7 @@ export type WriteNodeGraph = {
   /** Adds a node to the graph (error if exists) */
   add(node: AnyNodeData): void;
   /** Adds multiple nodes to the graph (error if exists) */
-  extend(nodes: AnyNodeData[]): void;
+  extend(...nodes: AnyNodeData[]): void;
   /** Updates an existing node in the graph (error if does not exist) */
   update(node: AnyNodeData): void;
   /** Removes a node from the graph (error if does not exist) */
@@ -80,10 +80,10 @@ export type WriteNodeGraph = {
  * @returns the ref and a trigger to trigger its update (via Vue's reactivity system for batching)
  */
 function manualGraphRef<T>(get: () => T, stop: () => void): { ref: GraphRef<T>; trigger: () => void } {
-    const manualRef = manualComputed(get);
-    const ref = manualRef as unknown as GraphRef<T>;
-    ref.stop = stop;
-    return { ref, trigger: manualRef.trigger };
+  const manualRef = manualComputed(get);
+  const ref = manualRef as unknown as GraphRef<T>;
+  ref.stop = stop;
+  return { ref, trigger: manualRef.trigger };
 }
 
 /**
@@ -179,6 +179,7 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
   }
 
   add(node: AnyNodeData) {
+    if (!node.id) throw new Error("node must have an id");
     if (this.nodesById[node.id]) throw new Error(`node [id=${node.id}] already exists`);
     this.nodesById[node.id] = node;
     if ("ck" in node) {
@@ -206,7 +207,7 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
     this.notify(node);
   }
 
-  extend(nodes: AnyNodeData[]) {
+  extend(...nodes: AnyNodeData[]) {
     for (const node of nodes) {
       this.add(node);
     }
@@ -263,7 +264,7 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
     if (!childrenIds) return [];
     const children = childrenIds.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
     // sort if needed
-    const properties = NodePropertyEnumByType[metatype as unknown as BenchType]!;
+    const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
     if ("orderKey" in properties)
       children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
     return children;
@@ -365,7 +366,7 @@ export class LayerNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGr
     }
     const children = Object.values(mergedChildrenById);
     // sort if needed
-    const properties = NodePropertyEnumByType[metatype as unknown as BenchType]!;
+    const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
     if ("orderKey" in properties)
       children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
     return children;
@@ -420,7 +421,7 @@ export class LayerNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGr
       }
       const children = Object.values(mergedChildrenById);
       // sort if needed
-      const properties = NodePropertyEnumByType[metatype as unknown as BenchType]!;
+      const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
       if ("orderKey" in properties)
         children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
       return children;
@@ -489,9 +490,11 @@ export function nodeReference<T extends NodeType>(nodeType: T, id: string): Node
   return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id };
 }
 
+export function toNodeReference(node: null): null;
+export function toNodeReference(node: AnyNodeData): NodeReferenceData;
 export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | null {
   if (!node) return null;
-  const nodeProperties = NodePropertyEnumByType[node.metatype]!;
+  const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const reference: NodeReferenceData = {
     metatype: BenchType.NODE_REFERENCE,
     type: node.metatype as unknown as NodeType,
@@ -587,7 +590,7 @@ export function getNodes<T extends NodeType>(
       });
       fetchOp.value = (fetchCall as BenchUnaryCall<GetNodesRequest, GetNodesResponse>).operation;
       const fetched = await fetchCall.response;
-      graph.extend(fetched.nodes.map(unwrapSomeNode));
+      graph.extend(...fetched.nodes.map(unwrapSomeNode));
       error.value = null;
       compositeGraph.resetLayers();
       compositeGraph.addLayer(graph);

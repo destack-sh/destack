@@ -35,6 +35,18 @@ export function makeDefaultStruct<T extends StructType>(metatype: T): StructType
   throw new Error("not yet implemented");
 }
 
+export function isNode(value: AnyNodeData | AnyStructData): value is AnyNodeData {
+  return value.metatype < 500;
+}
+
+export function isStruct(value: AnyNodeData | AnyStructData): value is AnyStructData {
+  return value.metatype >= 500;
+}
+
+export function toBenchType(type: NodeType | StructType): BenchType {
+  return type as unknown as BenchType;
+}
+
 export function toProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof T } {
   /** Turn { [key]: value } into { key: value, oneofKind: key } for protobuf unions */
   const key = Object.keys(value)[0] as keyof T;

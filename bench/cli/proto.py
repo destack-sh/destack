@@ -119,6 +119,14 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         + "".join(message_type_map_parts)
         + "}\n"
     )
+    message_type_inv_map_str = (
+        "export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {\n"
+        + "".join(
+            f'  ["symbolx.bench.{cls.__name__}Data"]: BenchType.{cls.metatype.name},\n'
+            for cls in chain(NODE_CLASSES, STRUCT_CLASSES)
+        )
+        + "}\n"
+    )
 
     # type mappings
     struct_mapping_parts = [
@@ -137,6 +145,14 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         node_mapping_parts.append(f"  [NodeType.{node_t.name}]: {node_cls.__name__}Data,\n")
     node_mapping_parts.append("}\n")
     node_mapping_str = "".join(node_mapping_parts)
+    any_mapping_parts = [
+        "export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNodeData> {\n"
+    ]
+    for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
+        any_mapping_parts.append(f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Data,\n")
+    any_mapping_parts.append("}\n")
+    any_mapping_str = "".join(any_mapping_parts)
+
     # property enum for each class
     property_enums_parts: list[str] = []
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
@@ -151,10 +167,10 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         )
     property_enums_str = "\n".join(property_enums_parts)
     property_enum_maps_parts: list[str] = []
-    for prefix, classes in (
-        ("Node", NODE_CLASSES),
-        ("Struct", STRUCT_CLASSES),
-        ("", chain(NODE_CLASSES, STRUCT_CLASSES)),
+    for camel_prefix, upper_prefix, classes in (
+        ("Node", "NODE_", NODE_CLASSES),
+        ("Struct", "STRUCT_", STRUCT_CLASSES),
+        ("", "", chain(NODE_CLASSES, STRUCT_CLASSES)),
     ):
         property_enum_map_parts: list[str] = []
         for cls in classes:
@@ -162,7 +178,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
                 f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Property,\n"
             )
         property_enum_map_str = (
-            f"export const {prefix}PropertyEnumByType: Partial<Record<BenchType, Any{prefix}PropertyType>> = {{\n"
+            f"export const {upper_prefix}PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, Any{camel_prefix}PropertyType>> = {{\n"
             + "".join(property_enum_map_parts)
             + "}\n"
         )
@@ -182,10 +198,12 @@ export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' fo
 
 // Message types
 {message_type_map_str}
+{message_type_inv_map_str}
 
 // TypeMappings
 {struct_mapping_str}
 {node_mapping_str}
+{any_mapping_str}
 
 // Property enums
 {property_enums_str}

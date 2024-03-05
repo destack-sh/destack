@@ -3,13 +3,14 @@ import {
   NodeType,
   type AnyNodeData,
   type EditData,
-  NodePropertyEnumByType,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   BenchType,
   type NodeTypeMapping,
   MESSAGE_TYPE_BY_BENCH_TYPE,
+  type AnyPropertyType,
 } from "@/proto/wire";
 import { newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
-import { InMemoryNodeGraph, type NodeGraph } from "@/system/graph";
+import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
 
 /** A transaction on the Bench state graph. */
@@ -56,17 +57,18 @@ export class Transaction {
   update<T extends NodeType>(
     update: Partial<Omit<NodeTypeMapping[T], "id" | "metatype">> & { metatype: T; id: string },
   ) {
-    const nodeProperties = NodePropertyEnumByType[update.metatype as unknown as NodeType];
+    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
     const properties: number[] = [];
     const patchedNode = { ...update };
     let ord = 0;
-    for (const propName in nodeProperties) {
+    for (const propName in Object.keys(allProperties)) {
+      if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
       if (propName === "id" || propName === "metatype") {
         // keep as is (but not part of the 'update')
       } else if ((update as any)[propName] !== undefined) {
-        // updateg the assigned property
-        properties.push((nodeProperties as any)[propName]);
+        // update the assigned property
+        properties.push((allProperties as any)[propName]);
       } else {
         // init unset fields with an allowed default value
         //  (will be ignored anyway since its not in 'properties', but required for protobuf validation)
@@ -111,7 +113,7 @@ export class Transaction {
   }
 }
 
-export function editGraph(graph: NodeGraph, edits: EditData[]) {
+export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
   /** Applies the edits to the graph (in place!). */
 
   for (const edit of edits) {
@@ -124,7 +126,7 @@ export function editGraph(graph: NodeGraph, edits: EditData[]) {
       graph.remove(nodeData);
     } else {
       let properties: number[];
-      const nodeProperties = NodePropertyEnumByType[nodeData.metatype]!;
+      const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeData.metatype]!;
       if (editType == EditType.UPDATE || editType == EditType.MOVE) {
         properties = edit.properties;
       } else if (editType == EditType.ARCHIVE || editType == EditType.UNARCHIVE) {

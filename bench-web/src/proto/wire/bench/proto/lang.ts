@@ -7288,9 +7288,13 @@ export enum ViewType {
      */
     LIBRARY = 24,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 25;
+     * @generated from protobuf enum value: VIEW_TYPE_LOG = 25;
      */
-    ACCESS = 25,
+    LOG = 25,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 26;
+     */
+    ACCESS = 26,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_SCREEN = 49;
      */
@@ -18229,6 +18233,80 @@ export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<a
   [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemData,
 }
 
+export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
+  ["symbolx.bench.BenchData"]: BenchType.BENCH,
+  ["symbolx.bench.EnvironmentData"]: BenchType.ENVIRONMENT,
+  ["symbolx.bench.BranchData"]: BenchType.BRANCH,
+  ["symbolx.bench.PackageData"]: BenchType.PACKAGE,
+  ["symbolx.bench.DependencyData"]: BenchType.DEPENDENCY,
+  ["symbolx.bench.UpgradeData"]: BenchType.UPGRADE,
+  ["symbolx.bench.SpaceData"]: BenchType.SPACE,
+  ["symbolx.bench.LinkData"]: BenchType.LINK,
+  ["symbolx.bench.SkipData"]: BenchType.SKIP,
+  ["symbolx.bench.NoticeData"]: BenchType.NOTICE,
+  ["symbolx.bench.BlockData"]: BenchType.BLOCK,
+  ["symbolx.bench.TriggerData"]: BenchType.TRIGGER,
+  ["symbolx.bench.FieldData"]: BenchType.FIELD,
+  ["symbolx.bench.RecordData"]: BenchType.RECORD,
+  ["symbolx.bench.QueryData"]: BenchType.QUERY,
+  ["symbolx.bench.ViewData"]: BenchType.VIEW,
+  ["symbolx.bench.BadgeData"]: BenchType.BADGE,
+  ["symbolx.bench.RoleData"]: BenchType.ROLE,
+  ["symbolx.bench.IdentityData"]: BenchType.IDENTITY,
+  ["symbolx.bench.MembershipData"]: BenchType.MEMBERSHIP,
+  ["symbolx.bench.InviteData"]: BenchType.INVITE,
+  ["symbolx.bench.SessionData"]: BenchType.SESSION,
+  ["symbolx.bench.RunData"]: BenchType.RUN,
+  ["symbolx.bench.PauseData"]: BenchType.PAUSE,
+  ["symbolx.bench.SignalData"]: BenchType.SIGNAL,
+  ["symbolx.bench.LogData"]: BenchType.LOG,
+  ["symbolx.bench.NotificationData"]: BenchType.NOTIFICATION,
+  ["symbolx.bench.ServerData"]: BenchType.SERVER,
+  ["symbolx.bench.StoreData"]: BenchType.STORE,
+  ["symbolx.bench.DriveData"]: BenchType.DRIVE,
+  ["symbolx.bench.CacheData"]: BenchType.CACHE,
+  ["symbolx.bench.FileContentData"]: BenchType.FILE_CONTENT,
+  ["symbolx.bench.HandleData"]: BenchType.HANDLE,
+  ["symbolx.bench.UserData"]: BenchType.USER,
+  ["symbolx.bench.OrganizationData"]: BenchType.ORGANIZATION,
+  ["symbolx.bench.ClientData"]: BenchType.CLIENT,
+  ["symbolx.bench.PathData"]: BenchType.PATH,
+  ["symbolx.bench.PathSegmentData"]: BenchType.PATH_SEGMENT,
+  ["symbolx.bench.PathTokenData"]: BenchType.PATH_TOKEN,
+  ["symbolx.bench.NodeReferenceData"]: BenchType.NODE_REFERENCE,
+  ["symbolx.bench.PropertyReferenceData"]: BenchType.PROPERTY_REFERENCE,
+  ["symbolx.bench.ValueReferenceData"]: BenchType.VALUE_REFERENCE,
+  ["symbolx.bench.TypeInfoData"]: BenchType.TYPE_INFO,
+  ["symbolx.bench.ContextData"]: BenchType.CONTEXT,
+  ["symbolx.bench.ScheduleData"]: BenchType.SCHEDULE,
+  ["symbolx.bench.ProjectionData"]: BenchType.PROJECTION,
+  ["symbolx.bench.FileData"]: BenchType.FILE,
+  ["symbolx.bench.IconData"]: BenchType.ICON,
+  ["symbolx.bench.PolicyData"]: BenchType.POLICY,
+  ["symbolx.bench.PolicyRuleData"]: BenchType.POLICY_RULE,
+  ["symbolx.bench.SubjectData"]: BenchType.SUBJECT,
+  ["symbolx.bench.AccessZoneData"]: BenchType.ACCESS_ZONE,
+  ["symbolx.bench.AccessMatrixData"]: BenchType.ACCESS_MATRIX,
+  ["symbolx.bench.AccessData"]: BenchType.ACCESS,
+  ["symbolx.bench.AccessTraceData"]: BenchType.ACCESS_TRACE,
+  ["symbolx.bench.RequestData"]: BenchType.REQUEST,
+  ["symbolx.bench.ReadOptionsData"]: BenchType.READ_OPTIONS,
+  ["symbolx.bench.ExpressionData"]: BenchType.EXPRESSION,
+  ["symbolx.bench.AggregationData"]: BenchType.AGGREGATION,
+  ["symbolx.bench.AggregationBucketData"]: BenchType.AGGREGATION_BUCKET,
+  ["symbolx.bench.CodeData"]: BenchType.CODE,
+  ["symbolx.bench.CodeLineData"]: BenchType.CODE_LINE,
+  ["symbolx.bench.RunCodeFrameData"]: BenchType.RUN_CODE_FRAME,
+  ["symbolx.bench.RunErrorData"]: BenchType.RUN_ERROR,
+  ["symbolx.bench.ResourceCredentialData"]: BenchType.RESOURCE_CREDENTIAL,
+  ["symbolx.bench.TextData"]: BenchType.TEXT,
+  ["symbolx.bench.TextLineData"]: BenchType.TEXT_LINE,
+  ["symbolx.bench.TextSpanData"]: BenchType.TEXT_SPAN,
+  ["symbolx.bench.ColorData"]: BenchType.COLOR,
+  ["symbolx.bench.SpaceDockData"]: BenchType.SPACE_DOCK,
+  ["symbolx.bench.SpaceDockItemData"]: BenchType.SPACE_DOCK_ITEM,
+}
+
 
 // TypeMappings
 export interface StructTypeMapping extends Record<StructType, AnyStructData> {
@@ -18306,6 +18384,80 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.USER]: UserData,
   [NodeType.ORGANIZATION]: OrganizationData,
   [NodeType.CLIENT]: ClientData,
+}
+
+export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNodeData> {
+  [BenchType.BENCH]: BenchData,
+  [BenchType.ENVIRONMENT]: EnvironmentData,
+  [BenchType.BRANCH]: BranchData,
+  [BenchType.PACKAGE]: PackageData,
+  [BenchType.DEPENDENCY]: DependencyData,
+  [BenchType.UPGRADE]: UpgradeData,
+  [BenchType.SPACE]: SpaceData,
+  [BenchType.LINK]: LinkData,
+  [BenchType.SKIP]: SkipData,
+  [BenchType.NOTICE]: NoticeData,
+  [BenchType.BLOCK]: BlockData,
+  [BenchType.TRIGGER]: TriggerData,
+  [BenchType.FIELD]: FieldData,
+  [BenchType.RECORD]: RecordData,
+  [BenchType.QUERY]: QueryData,
+  [BenchType.VIEW]: ViewData,
+  [BenchType.BADGE]: BadgeData,
+  [BenchType.ROLE]: RoleData,
+  [BenchType.IDENTITY]: IdentityData,
+  [BenchType.MEMBERSHIP]: MembershipData,
+  [BenchType.INVITE]: InviteData,
+  [BenchType.SESSION]: SessionData,
+  [BenchType.RUN]: RunData,
+  [BenchType.PAUSE]: PauseData,
+  [BenchType.SIGNAL]: SignalData,
+  [BenchType.LOG]: LogData,
+  [BenchType.NOTIFICATION]: NotificationData,
+  [BenchType.SERVER]: ServerData,
+  [BenchType.STORE]: StoreData,
+  [BenchType.DRIVE]: DriveData,
+  [BenchType.CACHE]: CacheData,
+  [BenchType.FILE_CONTENT]: FileContentData,
+  [BenchType.HANDLE]: HandleData,
+  [BenchType.USER]: UserData,
+  [BenchType.ORGANIZATION]: OrganizationData,
+  [BenchType.CLIENT]: ClientData,
+  [BenchType.PATH]: PathData,
+  [BenchType.PATH_SEGMENT]: PathSegmentData,
+  [BenchType.PATH_TOKEN]: PathTokenData,
+  [BenchType.NODE_REFERENCE]: NodeReferenceData,
+  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [BenchType.VALUE_REFERENCE]: ValueReferenceData,
+  [BenchType.TYPE_INFO]: TypeInfoData,
+  [BenchType.CONTEXT]: ContextData,
+  [BenchType.SCHEDULE]: ScheduleData,
+  [BenchType.PROJECTION]: ProjectionData,
+  [BenchType.FILE]: FileData,
+  [BenchType.ICON]: IconData,
+  [BenchType.POLICY]: PolicyData,
+  [BenchType.POLICY_RULE]: PolicyRuleData,
+  [BenchType.SUBJECT]: SubjectData,
+  [BenchType.ACCESS_ZONE]: AccessZoneData,
+  [BenchType.ACCESS_MATRIX]: AccessMatrixData,
+  [BenchType.ACCESS]: AccessData,
+  [BenchType.ACCESS_TRACE]: AccessTraceData,
+  [BenchType.REQUEST]: RequestData,
+  [BenchType.READ_OPTIONS]: ReadOptionsData,
+  [BenchType.EXPRESSION]: ExpressionData,
+  [BenchType.AGGREGATION]: AggregationData,
+  [BenchType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [BenchType.CODE]: CodeData,
+  [BenchType.CODE_LINE]: CodeLineData,
+  [BenchType.RUN_CODE_FRAME]: RunCodeFrameData,
+  [BenchType.RUN_ERROR]: RunErrorData,
+  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
+  [BenchType.TEXT]: TextData,
+  [BenchType.TEXT_LINE]: TextLineData,
+  [BenchType.TEXT_SPAN]: TextSpanData,
+  [BenchType.COLOR]: ColorData,
+  [BenchType.SPACE_DOCK]: SpaceDockData,
+  [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemData,
 }
 
 
@@ -19524,7 +19676,7 @@ export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
 export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof SpaceDockProperty | typeof SpaceDockItemProperty
 export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof SpaceDockProperty | typeof SpaceDockItemProperty
-export const NodePropertyEnumByType: Partial<Record<BenchType, AnyNodePropertyType>> = {
+export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyNodePropertyType>> = {
   [BenchType.BENCH]: BenchProperty,
   [BenchType.ENVIRONMENT]: EnvironmentProperty,
   [BenchType.BRANCH]: BranchProperty,
@@ -19563,7 +19715,7 @@ export const NodePropertyEnumByType: Partial<Record<BenchType, AnyNodePropertyTy
   [BenchType.CLIENT]: ClientProperty,
 }
 
-export const StructPropertyEnumByType: Partial<Record<BenchType, AnyStructPropertyType>> = {
+export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyStructPropertyType>> = {
   [BenchType.PATH]: PathProperty,
   [BenchType.PATH_SEGMENT]: PathSegmentProperty,
   [BenchType.PATH_TOKEN]: PathTokenProperty,
@@ -19601,7 +19753,7 @@ export const StructPropertyEnumByType: Partial<Record<BenchType, AnyStructProper
   [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemProperty,
 }
 
-export const PropertyEnumByType: Partial<Record<BenchType, AnyPropertyType>> = {
+export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> = {
   [BenchType.BENCH]: BenchProperty,
   [BenchType.ENVIRONMENT]: EnvironmentProperty,
   [BenchType.BRANCH]: BranchProperty,

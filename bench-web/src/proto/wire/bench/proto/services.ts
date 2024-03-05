@@ -155,9 +155,9 @@ export interface SearchNodesResponse {
      */
     startCursor: string;
     /**
-     * @generated from protobuf field: int32 total = 5;
+     * @generated from protobuf field: optional int32 total = 5;
      */
-    total: number;
+    total?: number;
     /**
      * @generated from protobuf field: optional symbolx.bench.AccessMatrixData access = 6;
      */
@@ -1048,7 +1048,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 5, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "access", kind: "message", T: () => AccessMatrixData },
             { no: 7, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
@@ -1059,7 +1059,6 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.roots = [];
         message.cursors = [];
         message.startCursor = "";
-        message.total = 0;
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
@@ -1082,7 +1081,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                 case /* string start_cursor */ 4:
                     message.startCursor = reader.string();
                     break;
-                case /* int32 total */ 5:
+                case /* optional int32 total */ 5:
                     message.total = reader.int32();
                     break;
                 case /* optional symbolx.bench.AccessMatrixData access */ 6:
@@ -1115,8 +1114,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* string start_cursor = 4; */
         if (message.startCursor !== "")
             writer.tag(4, WireType.LengthDelimited).string(message.startCursor);
-        /* int32 total = 5; */
-        if (message.total !== 0)
+        /* optional int32 total = 5; */
+        if (message.total !== undefined)
             writer.tag(5, WireType.Varint).int32(message.total);
         /* optional symbolx.bench.AccessMatrixData access = 6; */
         if (message.access)
