@@ -338,6 +338,8 @@ def _process_struct_base_cls(
             setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
         if is_struct and is_inlined:
             _remove_prop("order_key")
+            _remove_prop("computed_properties")
+            _remove_prop("set_properties")
 
     # create class (map properties to dataclass fields)
     for name, prop in list(properties_by_name.items()):
@@ -845,6 +847,10 @@ class Struct(abc.ABC):
         parent_id: int | None  # (3)
         parent_key: str | None  # (4)
     order_key: str | None = p_internal(5, default=None)
+    # for source nodes:
+    # computed_properties: dict[int, ValueReference] | None = p_regular(21)
+    # for template instances (= 'template' is set)
+    set_properties: list[int] = p_regular(22, array=True)
 
     _status: InterpStatus = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
@@ -1343,10 +1349,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         reference_force_by_id=True,
     )
     # changed_by (19), active_by (20), ...
-    # for source nodes:
-    # computed_properties: dict[int, ValueReference] | None = p_regular(21)
-    # for template instances (= 'template' is set)
-    # set_properties: list[int] = p_regular(22)
+    # from Struct: computed_properties (21), set_properties (22)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

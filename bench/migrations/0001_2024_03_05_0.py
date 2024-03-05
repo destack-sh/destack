@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.03.01. Edit as needed.
+# This migration was automatically generated on 2024.03.05. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.03.01.2"
+VERSION = "2024.03.05.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -38,6 +38,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         slug varchar NOT NULL,
         name varchar NOT NULL,
         text jsonb,
@@ -61,6 +62,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         text jsonb,
         icon jsonb,
@@ -81,6 +83,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         slug varchar,
         text jsonb,
@@ -102,6 +105,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         slug varchar,
         text jsonb,
         icon jsonb,
@@ -125,6 +129,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         scopes_ck uuid NOT NULL,
         dependency_scopes_ck uuid NOT NULL
     )
@@ -144,6 +149,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         title varchar,
         text jsonb
@@ -164,6 +170,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         order_key varchar NOT NULL,
@@ -186,6 +193,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         reference_ck uuid,
         reference_type smallint,
         reference_base_ck uuid,
@@ -207,6 +215,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         kind smallint NOT NULL,
         type smallint NOT NULL,
         message varchar,
@@ -229,6 +238,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         type smallint NOT NULL DEFAULT 2,
         name varchar,
         order_key varchar,
@@ -268,6 +278,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         type smallint NOT NULL,
         name varchar,
         active boolean NOT NULL DEFAULT true,
@@ -290,6 +301,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         order_key varchar,
         dynamic_key varchar,
@@ -329,6 +341,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         order_key varchar,
         node_type smallint NOT NULL,
@@ -352,6 +365,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         type smallint NOT NULL,
         name varchar,
         title varchar,
@@ -380,6 +394,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         delegated_policies jsonb[] NOT NULL,
         expires_at timestamp,
@@ -404,6 +419,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         type_ck uuid NOT NULL
     )
     """
@@ -422,6 +438,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         type_ck uuid NOT NULL
     )
     """
@@ -440,6 +457,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         is_owner boolean NOT NULL DEFAULT false
     )
     """
@@ -458,6 +476,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         user_email varchar,
         is_owner boolean NOT NULL DEFAULT false,
         roles_ck uuid
@@ -477,6 +496,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
@@ -505,6 +525,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
@@ -533,6 +554,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
@@ -554,6 +576,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         region smallint NOT NULL DEFAULT 1,
@@ -575,6 +598,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         sha512 varchar NOT NULL,
         size bigint NOT NULL,
         type varchar NOT NULL,
@@ -597,6 +621,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         slug varchar NOT NULL
     )
     """
@@ -614,6 +639,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         slug varchar,
         name varchar,
         text jsonb,
@@ -640,6 +666,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         slug varchar,
         name varchar NOT NULL,
         text jsonb,
@@ -661,6 +688,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_run_id uuid,
         updated_by_run_id uuid,
+        set_properties integer[] NOT NULL,
         name varchar,
         device_name varchar NOT NULL,
         browser_name varchar,
@@ -1448,6 +1476,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_user_id uuid,
         updated_by_user_id uuid,
+        set_properties integer[] NOT NULL,
         server_id uuid,
         opened_at timestamp,
         closed_at timestamp,
@@ -1472,6 +1501,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_user_id uuid,
         updated_by_user_id uuid,
+        set_properties integer[] NOT NULL,
         root_ck uuid,
         root_bench_id uuid,
         root_base_ck uuid,
@@ -1508,7 +1538,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         deleted_at timestamp,
         archived_at timestamp,
         created_by_user_id uuid,
-        updated_by_user_id uuid
+        updated_by_user_id uuid,
+        set_properties integer[] NOT NULL
     )
     """
     )
@@ -1528,6 +1559,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_user_id uuid,
         updated_by_user_id uuid,
+        set_properties integer[] NOT NULL,
         type_ck uuid,
         type_bench_id uuid,
         sender_ck uuid,
@@ -1552,6 +1584,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_user_id uuid,
         updated_by_user_id uuid,
+        set_properties integer[] NOT NULL,
         kind smallint NOT NULL,
         level smallint NOT NULL,
         logger varchar,
@@ -1587,6 +1620,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         archived_at timestamp,
         created_by_user_id uuid,
         updated_by_user_id uuid,
+        set_properties integer[] NOT NULL,
         kind smallint NOT NULL,
         type_ck uuid,
         type_bench_id uuid,

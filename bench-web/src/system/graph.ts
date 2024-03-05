@@ -14,9 +14,10 @@ import {
   type IGraphIOClient,
   type NodeType,
   type NodeTypeMapping,
+  type AnyPropertyType,
 } from "@/proto/wire";
 import { makeDefaultStruct, unwrapSomeNode } from "@/proto/wiring";
-import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/const";
+import { BASED_NODE_TYPES, defaultSort, getBaseFromNode } from "@/system/lang";
 import { manualComputed, onUnmountedIfComponent } from "@/utils/ref";
 import type { Transaction } from "@sentry/vue";
 import { computed, shallowRef, toRef, watch, type MaybeRef, type Ref } from "vue";
@@ -46,6 +47,8 @@ export type ReactiveNodeGraph = {
 export type ReadNodeGraph = ReactiveNodeGraph & {
   /** The scope contained in this graph */
   get scope(): GraphScope;
+  /** Whether this graph is partial */
+  readonly isPartial: boolean;
   /** Gets the current node with that key (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   /** Gets the children of the given parent with the given metatype (not reactive) */
@@ -165,17 +168,20 @@ class ReactiveNodeGraphMixin implements ReactiveNodeGraph {
 
 /**
  * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, archived, etc.).
+ * If 'isPartial', we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
-export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
+export class NodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
   public readonly scope: GraphScope = {};
+  public readonly isPartial: boolean = false;
   private nodesById: { [id: string]: AnyNodeData } = {};
   private nodesByCk: { [ck: string]: string } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
   private rootsIds: string[] = [];
 
-  constructor(scope: GraphScope = {}) {
+  constructor(options: { scope?: GraphScope; isPartial?: boolean } = { scope: {}, isPartial: false }) {
     super();
-    this.scope = scope;
+    this.scope = options.scope ?? {};
+    this.isPartial = options.isPartial ?? false;
   }
 
   add(node: AnyNodeData) {
@@ -190,7 +196,7 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
     // add to parent/roots
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      if (!this.nodesById[parentId]) {
+      if (!this.nodesById[parentId] && !this.isPartial) {
         throw new Error(`parent [id=${parentId}] does not exist for node [id=${node.id}]`);
       }
       if (!this.nodesByParentIdAndType[parentId]) {
@@ -215,11 +221,11 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
 
   update(node: AnyNodeData) {
     const existing = this.nodesById[node.id];
-    if (!existing) throw new Error(`node [id=${node.id}] does not exist`);
+    if (!existing && !this.isPartial) throw new Error(`node [id=${node.id}] does not exist`);
 
     // remove/re-add to update with parent if needed, otherwise just update in place
-    if (existing.parentPtr?.id != node.parentPtr?.id) {
-      this.remove(existing);
+    if (existing?.parentPtr?.id != node.parentPtr?.id) {
+      if (existing != null) this.remove(existing);
       this.add(node);
     } else {
       this.nodesById[node.id] = node;
@@ -245,9 +251,10 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
       this.rootsIds.splice(rootIdx, 1);
     }
     // remove any children (recursively)
-    for (const childId of this.nodesByParentIdAndType[node.id]?.children || []) {
-      const child = this.nodesById[childId];
-      this.remove(child);
+    for (const metatype in this.nodesByParentIdAndType[node.id]) {
+      for (const childId of this.nodesByParentIdAndType[node.id][metatype]) {
+        this.remove(this.nodesById[childId]);
+      }
     }
 
     this.notify(node);
@@ -256,17 +263,14 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const id = "id" in key ? key.id : this.nodesByCk[key.ck!];
     if (!id) return null;
-    return this.nodesById[id] as NodeTypeMapping[T];
+    return (this.nodesById[id] ?? null) as NodeTypeMapping[T] | null;
   }
 
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
     const childrenIds = this.nodesByParentIdAndType[parent.id!]?.[metatype];
     if (!childrenIds) return [];
     const children = childrenIds.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
-    // sort if needed
-    const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-    if ("orderKey" in properties)
-      children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
+    defaultSort(metatype, children);
     return children;
   }
 
@@ -297,7 +301,7 @@ export class InMemoryNodeGraph extends ReactiveNodeGraphMixin implements ReadNod
   ): GraphRef<NodeTypeMapping[T][]> {
     const parentRef = toRef(parent);
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub());
+    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
     const get: () => NodeTypeMapping[T][] = () => {
       unsub();
       if (!parentRef.value) return [];
@@ -323,6 +327,10 @@ export class LayerNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGr
   constructor(layers: ReadNodeGraph[]) {
     super();
     this.layers = shallowRef(layers);
+  }
+
+  get isPartial(): boolean {
+    return this.layers.value[0]?.isPartial ?? false;
   }
 
   resetLayers() {
@@ -357,25 +365,24 @@ export class LayerNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGr
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
     const mergedChildrenById: { [id: string]: NodeTypeMapping[T] } = {};
     for (const layer of this.layers.value) {
-      if (layer.get(parent)) {
-        const children = layer.getChildren(parent, metatype);
-        for (const child of children) {
+      const children = layer.getChildren(parent, metatype);
+      for (const child of children) {
+        if (!mergedChildrenById[child.id]) {
           mergedChildrenById[child.id] = child;
+        } else {
+          mergedChildrenById[child.id] = mergeNode(mergedChildrenById[child.id], child);
         }
       }
     }
     const children = Object.values(mergedChildrenById);
-    // sort if needed
-    const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-    if ("orderKey" in properties)
-      children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
+    defaultSort(metatype, children);
     return children;
   }
 
   getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): GraphRef<NodeTypeMapping[T] | null> {
     const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub());
+    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
     const get: () => NodeTypeMapping[T] | null = () => {
       unsub();
       if (!keyRef.value) return null;
@@ -402,28 +409,25 @@ export class LayerNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGr
   ): GraphRef<NodeTypeMapping[T][]> {
     const parentRef = toRef(parent);
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub());
+    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
     const get: () => NodeTypeMapping[T][] = () => {
       unsub();
       if (!parentRef.value) return [];
       const mergedChildrenById: { [id: string]: NodeTypeMapping[T] } = {};
       for (const layer of this.layers.value) {
         subs.push(layer.subscribeChildren(parentRef.value, metatype, trigger));
-        if (layer.get(parentRef.value)) {
-          const children = layer.getChildren(parentRef.value, metatype);
-          children.forEach((child) => {
-            if (!mergedChildrenById[child.id]) {
-              mergedChildrenById[child.id] = child;
-              subs.push(layer.subscribe(child, trigger));
-            }
-          });
-        }
+        const children = layer.getChildren(parentRef.value, metatype);
+        children.forEach((child) => {
+          if (!mergedChildrenById[child.id]) {
+            mergedChildrenById[child.id] = child;
+          } else {
+            mergedChildrenById[child.id] = mergeNode(mergedChildrenById[child.id], child);
+          }
+          subs.push(layer.subscribe(child, trigger));
+        });
       }
       const children = Object.values(mergedChildrenById);
-      // sort if needed
-      const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-      if ("orderKey" in properties)
-        children.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
+      defaultSort(metatype, children);
       return children;
     };
     const { ref, trigger } = manualGraphRef(get, unsub);
@@ -448,6 +452,10 @@ export class FilterNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeG
 
   get scope(): GraphScope {
     return this.graph.scope;
+  }
+
+  get isPartial(): boolean {
+    return this.graph.isPartial;
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
@@ -482,8 +490,30 @@ export class FilterNodeGraph extends ReactiveNodeGraphMixin implements ReadNodeG
   }
 }
 
-export function mergeNode<T extends NodeType>(node: NodeTypeMapping[T], patch: NodeTypeMapping[T]): NodeTypeMapping[T] {
-  return { ...node, ...patch };
+export function mergeNode<T extends NodeType>(
+  base: NodeTypeMapping[T],
+  partial: NodeTypeMapping[T],
+): NodeTypeMapping[T] {
+  if (partial.setProperties.length > 0) {
+    const merged: NodeTypeMapping[T] = { ...base };
+    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[base.metatype]!;
+    for (const propId of partial.setProperties) {
+      if (propId == allProperties.setProperties) {
+        // merge setProperties
+        merged.setProperties = [...merged.setProperties];
+        partial.setProperties
+          .filter((propId) => !merged.setProperties.includes(propId))
+          .forEach((propId) => merged.setProperties.push(propId));
+      } else {
+        // overwrite property
+        const propName = allProperties[propId];
+        (merged as any)[propName] = (partial as any)[propName];
+      }
+    }
+    return merged;
+  } else {
+    return { ...base, ...partial };
+  }
 }
 
 export function nodeReference<T extends NodeType>(nodeType: T, id: string): NodeReferenceData {
@@ -494,16 +524,16 @@ export function toNodeReference(node: null): null;
 export function toNodeReference(node: AnyNodeData): NodeReferenceData;
 export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | null {
   if (!node) return null;
-  const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+  const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const reference: NodeReferenceData = {
     metatype: BenchType.NODE_REFERENCE,
     type: node.metatype as unknown as NodeType,
     id: node.id,
   };
-  if ("bench" in nodeProperties && node.parentPtr) {
+  if ("bench" in allProperties && node.parentPtr) {
     reference.benchId = node.parentPtr.benchId;
   }
-  if ("ck" in nodeProperties) {
+  if ("ck" in allProperties) {
     reference.ck = (node as { ck: string }).ck;
     if (node.metatype in BASED_NODE_TYPES) {
       const base = getBaseFromNode(node);
@@ -517,8 +547,8 @@ export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | n
 }
 
 export function toNodeReferenceRef(node: MaybeRef<AnyNodeData | null>): Ref<NodeReferenceData | null> {
-  const nodeRef = toRef(node);
-  return computed(() => toNodeReference(nodeRef.value));
+  const nodeRef = toRef(node) as Ref<AnyNodeData | null>;
+  return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
 }
 
 export function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
@@ -528,7 +558,7 @@ export function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptions
   };
 }
 
-const graphsByScopeKey: Ref<{ [scopeKey: string]: InMemoryNodeGraph }> = shallowRef({});
+const graphsByScopeKey: Ref<{ [scopeKey: string]: NodeGraph }> = shallowRef({});
 
 function getScopeKey(scope: GraphScope): string {
   return JSON.stringify(scope);
@@ -537,7 +567,7 @@ function getScopeKey(scope: GraphScope): string {
 function getGraph(scope: GraphScope) {
   const key = getScopeKey(scope);
   if (!graphsByScopeKey.value[key]) {
-    graphsByScopeKey.value[key] = new InMemoryNodeGraph(scope);
+    graphsByScopeKey.value[key] = new NodeGraph({ scope });
   }
   return graphsByScopeKey.value[key];
 }
@@ -572,7 +602,7 @@ export function getNodes<T extends NodeType>(
   const error: Ref<OperationError | null> = shallowRef(null);
   const fetchOp: Ref<Operation<GetNodesRequest, GetNodesResponse> | null> = shallowRef(null);
   const watchOp: Ref<Operation<GetNodesRequest, GetNodesResponse> | null> = shallowRef(null);
-  let graph: InMemoryNodeGraph | null = null;
+  let graph: NodeGraph | null = null;
 
   const fetch = async () => {
     const request = requestRef.value;
