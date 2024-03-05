@@ -1,4 +1,5 @@
-import { customRef, type Ref, watch, isRef, onUnmounted } from "vue";
+import type { Fn } from "@vueuse/core";
+import { customRef, type Ref, watch, isRef, onUnmounted, ref, type ComputedGetter, getCurrentInstance } from "vue";
 
 export function valueRef<T>(value: T) {
   return customRef<T>((track, trigger) => {
@@ -58,10 +59,53 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   return result as RefsToValueRefs<T>;
 }
 
+export type ManualComputedRef<T> = Ref<T> & {
+  trigger: () => void;
+};
+
+/**
+ * A computed ref that is only triggered manually.
+ */
+export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> {
+  let value: T = undefined!;
+  let track: Fn;
+  let trigger: Fn;
+  const dirty = ref(true);
+
+  const update = () => {
+    dirty.value = true;
+    trigger();
+  };
+
+  const result = customRef<T>((_track, _trigger) => {
+    track = _track;
+    trigger = _trigger;
+
+    return {
+      get() {
+        if (dirty.value) {
+          value = get();
+          dirty.value = false;
+        }
+        track();
+        return value;
+      },
+      set(v) {
+        throw new Error("manualComputed is readonly");
+      },
+    };
+  }) as ManualComputedRef<T>;
+
+  if (Object.isExtensible(result)) result.trigger = update;
+
+  return result;
+}
+
+/**
+ * Run a callback when the component is unmounted (only if we're in a component).
+ */
 export function onUnmountedIfComponent(callback: () => void) {
-  try {
+  if (getCurrentInstance()) {
     onUnmounted(callback);
-  } catch (e) {
-    /* not a vue component */
   }
 }
