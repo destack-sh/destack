@@ -403,7 +403,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
             // auto-migrate
             {
               name: serverName + "-migrate",
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              image: `ghcr.io/symbolx/bench-system:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
@@ -434,7 +434,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
             // main server
             {
               name: serverName,
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              image: `ghcr.io/symbolx/bench-system:${imageVersion}`,
               ports: [
                 { containerPort: 80, name: "http" },
                 { containerPort: 50051, name: "grpc" },
@@ -479,10 +479,10 @@ const serverDeployment = new k8s.apps.v1.Deployment(
 );
 
 // Expose server via HTTPS ingress
-const apiDomain = "api.bench.is";
+const serverDomain = "server.justbench.com";
 // TODO @Infra: manage AWS certificate via aws.acm.Certificate
 // (without causing issues with current certificate)
-const apiIngress = new k8s.networking.v1.Ingress(
+const serverIngress = new k8s.networking.v1.Ingress(
   serverName,
   {
     metadata: {
@@ -501,10 +501,10 @@ const apiIngress = new k8s.networking.v1.Ingress(
       namespace: "default",
     },
     spec: {
-      tls: [{ hosts: [apiDomain], secretName: "api-cert" }],
+      tls: [{ hosts: [serverDomain], secretName: "server-cert" }],
       rules: [
         {
-          host: apiDomain,
+          host: serverDomain,
           http: {
             paths: [
               {
