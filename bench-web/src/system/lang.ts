@@ -17,6 +17,30 @@ import {
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
+export const RUNTIME_NODE_TYPES = [
+  NodeType.SESSION,
+  NodeType.RUN,
+  NodeType.PAUSE,
+  NodeType.SIGNAL,
+  NodeType.LOG,
+  NodeType.NOTIFICATION,
+];
+export const LOCAL_NODE_TYPES = [NodeType.RECORD, ...RUNTIME_NODE_TYPES];
+export const LOADED_SOURCE_NODE_TYPES = [
+  NodeType.PACKAGE,
+  NodeType.DEPENDENCY,
+  NodeType.UPGRADE,
+  NodeType.SPACE,
+  NodeType.LINK,
+  NodeType.SKIP,
+  NodeType.NOTICE,
+  NodeType.BLOCK,
+  NodeType.TRIGGER,
+  NodeType.FIELD,
+  NodeType.RECORD, // nocheckin: should error because crosses store boundaries (then remove Record from loaded)
+  NodeType.QUERY,
+  NodeType.VIEW,
+]
 
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   if (node.metatype == BenchType.RECORD) {

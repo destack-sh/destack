@@ -13,6 +13,7 @@ export default {
       colors: {
         neutral: colors.black,
         primary: colors.orange,
+        secondary: colors.teal,
         accent: colors.orange,
         gray: colors.zinc,
         success: colors.green,

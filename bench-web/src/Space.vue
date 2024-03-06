@@ -5,6 +5,6 @@ import Bar from "@/views/intrinsics/Bar.vue";
 <template>
   <div class="w-full">
     <Bar class="w-full h-9 border-b border-gray-200" />
-    <Windowed />
+    <Windowed :node="null" />
   </div>
 </template>

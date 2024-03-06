@@ -221,5 +221,3 @@ describe("layered graph", () => {
     expect(user1ClientsRef.value).toEqual([clientA, clientB, clientC]);
   });
 });
-
-// describe("filtered graph", () => {});

@@ -60,7 +60,7 @@ class NodeType(IdEnum):
     MEMBERSHIP = 63
     INVITE = 64
 
-    # session/runtime
+    # runtime
     SESSION = 80  # (local)
     RUN = 81  # (local, based)
     PAUSE = 82  # (local)

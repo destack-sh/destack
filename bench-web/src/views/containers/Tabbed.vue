@@ -1,8 +1,16 @@
 <script lang="tsx" setup>
+import { NodeType } from "@/proto/wire";
+import { getChildrenRef } from "@/system/graph";
+import { type ViewEmits, type ViewProps } from "@/views/common";
+import { toRef } from "vue";
 
+const props = defineProps<Pick<ViewProps, "node" | "name" | "title" | "text" | "icon"> & {}>();
+const emits = defineEmits<ViewEmits>();
+
+const { children: tabs } = getChildrenRef(toRef(props, "node"), NodeType.VIEW);
+
+defineExpose({ node: toRef(props, "node") });
 </script>
 <template>
-  <div>
-
-  </div>
+  <div class="bg-secondary-100 font-bold">{{ tabs.length }} tabs</div>
 </template>

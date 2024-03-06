@@ -8,10 +8,13 @@ import {
   type NodeTypeMapping,
   MESSAGE_TYPE_BY_BENCH_TYPE,
   type AnyPropertyType,
+  GraphScope,
 } from "@/proto/wire";
 import { newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
-import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { packageIdByBenchId } from "@/system/global";
+import { type ObservableNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
+import { computed, getCurrentInstance, inject, ref, type Ref } from "vue";
 
 /** A transaction on the Bench state graph. */
 export class Transaction {
@@ -53,9 +56,12 @@ export class Transaction {
     this._addEdit(EditType.UPSERT, node);
   }
 
-  /** Update regular properties in this node */
+  /**
+   * Update regular properties in this node. If we already have an update for this node, extend that
+   * TODO :Broken: handle debounced updates
+   */
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "id" | "metatype">> & { metatype: T; id: string },
+    update: Partial<Omit<NodeTypeMapping[T], "id" | "metatype">> & { metatype: T; id: string; debounced?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
@@ -114,7 +120,7 @@ export class Transaction {
 }
 
 export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
-  /** Applies the edits to the graph (in place!). */
+  /** Applies the edits to the graph (in place!). Ignores soft deletion & archivation. */
 
   for (const edit of edits) {
     if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
@@ -146,3 +152,61 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     }
   }
 }
+
+export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
+  /** Apply the given edits to an 'optimistic' overlay of a graph. */
+
+  throw new Error("not yet implemented");
+}
+
+/**
+ * Buffer and record pending edits for transactions in some scope.
+ */
+export class TransactionBuffer {
+  public scope: GraphScope;
+  public currentTx: Transaction | null;
+
+  constructor(scope: GraphScope) {
+    this.scope = scope;
+    this.currentTx = new Transaction();
+  }
+}
+
+/**
+ * The component-level context for graph operations (read & write).
+ */
+export type GraphContext = {
+  scopeByBenchId: Ref<{ [benchId: string]: GraphScope }>;
+  packageIdByBenchId: Ref<{ [benchId: string]: string }>;
+  optimisticGraphs: Ref<ObservableNodeGraph[]>;
+};
+
+export const GLOBAL_GRAPH_CONTEXT: GraphContext = {
+  packageIdByBenchId: computed(() => packageIdByBenchId.value),
+  scopeByBenchId: computed(() => {
+    const scopeByBenchId: { [benchId: string]: GraphScope } = {};
+    for (const benchId of Object.keys(packageIdByBenchId.value)) {
+      scopeByBenchId[benchId] = { benchId, packageId: packageIdByBenchId.value[benchId] };
+    }
+    return scopeByBenchId;
+  }),
+  optimisticGraphs: ref([]),
+};
+
+export const GRAPH_CONTEXT_KEY = Symbol("graphContext");
+
+export function useGraphContext(): GraphContext {
+  const component = getCurrentInstance();
+  if (component == null) {
+    return GLOBAL_GRAPH_CONTEXT;
+  } else {
+    const localContext = inject(GRAPH_CONTEXT_KEY, null);
+    if (localContext != null) {
+      return localContext;
+    } else {
+      return GLOBAL_GRAPH_CONTEXT;
+    }
+  }
+}
+
+export const txBuffersByBench: Ref<{ [benchId: string]: TransactionBuffer[] }> = ref({});
