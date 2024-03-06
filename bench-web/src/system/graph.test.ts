@@ -199,7 +199,9 @@ describe("layered graph", () => {
       name: "clientAOverlay",
       setProperties: [ClientProperty.setProperties, ClientProperty.name],
     } as ClientData;
-    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" }); // deviceName in overlay should be ignored because it's not in setProperties
+    // deviceName in overlay should be ignored because it's not in setProperties
+    // (this is a smaller version of the 'higher level' partial update / transaction stuff)
+    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" }); 
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
