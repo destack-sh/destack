@@ -1,5 +1,15 @@
 import type { Fn } from "@vueuse/core";
-import { customRef, type Ref, watch, isRef, onUnmounted, ref, type ComputedGetter, getCurrentInstance } from "vue";
+import {
+  customRef,
+  type Ref,
+  watch,
+  isRef,
+  onUnmounted,
+  ref,
+  type ComputedGetter,
+  getCurrentInstance,
+  computed,
+} from "vue";
 
 export function valueRef<T>(value: T) {
   return customRef<T>((track, trigger) => {
@@ -108,4 +118,35 @@ export function onUnmountedIfComponent(callback: () => void) {
   if (getCurrentInstance()) {
     onUnmounted(callback);
   }
+}
+
+/** A read-only reference that can stop its reactivity subscription (permanently) */
+export type SubRef<T> = Ref<T> & {
+  /** Stops tracking */
+  stop(): void;
+};
+
+/**
+ * A manually triggered stoppable reference.
+ * @param get - the computed getter, should update its own dependencies
+ * @param stop - the function to stop tracking any dependencies
+ * @returns the ref and a trigger to trigger its update (via Vue's reactivity system for batching)
+ */
+export function manualSubRef<T>(get: () => T, stop: () => void): { ref: SubRef<T>; trigger: () => void } {
+  const manualRef = manualComputed(get);
+  const ref = manualRef as unknown as SubRef<T>;
+  ref.stop = stop;
+  return { ref, trigger: manualRef.trigger };
+}
+
+/**
+ * An automatically triggered stoppable reference.
+ * @param get - a computed getter, should update its own dependencies
+ * @param stop - the function to stop tracking any dependencies
+ */
+export function computedSubRef<T>(get: () => T, stop: () => void): SubRef<T> {
+  const computedRef = computed(get);
+  const ref = computedRef as unknown as SubRef<T>;
+  ref.stop = stop;
+  return ref;
 }
