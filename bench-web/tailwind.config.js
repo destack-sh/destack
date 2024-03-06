@@ -1,3 +1,5 @@
+import colors from "tailwindcss/colors";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
@@ -7,8 +9,18 @@ export default {
       serif: ["IBM Plex Serif", "Georgia", "Cambria", "Times New Roman", "Times", "serif"],
       mono: ["Droid Sans Mono", "monospace"],
     },
-    extend: {},
+    extend: {
+      colors: {
+        neutral: colors.black,
+        primary: colors.orange,
+        accent: colors.orange,
+        gray: colors.zinc,
+        success: colors.green,
+        hint: colors.sky,
+        warning: colors.yellow,
+        danger: colors.red,
+      },
+    },
   },
   plugins: [],
-}
-
+};

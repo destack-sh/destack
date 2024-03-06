@@ -1,14 +1,15 @@
 <script lang="tsx" setup>
 import { user } from "@/system/space";
+import Dock from "@/views/intrinsics/Dock.vue";
 </script>
 <template>
-  <div class="w-full flex flex-row">
+  <div class="w-full flex text-sm items-center justify-between flex-row px-4 bg-gray-100">
     <!-- Bench info -->
-    <div class="bg">Bench</div>
+    <div class="bg-white px-2 py-1 rounded-sm border border-gray-200">Bench</div>
     <!-- Dock -->
-    <div class="bg">Dock</div>
+    <Dock class="bg-white px-2 py-1 rounded-sm border border-gray-200" />
     <!-- User -->
-    <div class="bg">
+    <div class="bg-white px-2 py-1 rounded-sm border border-gray-200">
       {{ user ? user.slug : "Log in" }}
     </div>
   </div>

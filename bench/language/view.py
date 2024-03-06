@@ -36,6 +36,7 @@ class ViewType(IdEnum):
 
     # containers
     WINDOWED = 50
+    # WINDOW = 51 (force window appearance)
     TABBED = 52
     STEPPED = 55
     SPLIT = 57
@@ -72,6 +73,7 @@ class ViewType(IdEnum):
     # numeric
     SLIDER = 133
     NUMBER = 134
+    PHONE = 135
     # stringy
     STRING = 140
     TEXT = 141
@@ -83,7 +85,9 @@ class ViewType(IdEnum):
     CHECKBOX_GROUP = 152
     PICKER = 153
     DATE = 154
-    COLOR = 155
+    TIME = 155
+    CALENDAR = 156
+    COLOR = 157
     # file
     FILE = 160
     DOCUMENT = 161
@@ -105,9 +109,8 @@ class ColorType(IdEnum):
     # semantic
     SUCCESS = 10
     HINT = 11
-    INFO = 12
-    WARNING = 13
-    DANGER = 14
+    WARNING = 12
+    DANGER = 13
     # actual (like Tailwind)
     SLATE = 20
     GRAY = 21

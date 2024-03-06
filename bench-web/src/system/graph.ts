@@ -299,6 +299,8 @@ export class NodeGraph extends ReactiveNodeGraphMixin implements ReadNodeGraph, 
     parent: MaybeRef<NodeKey<any> | null>,
     metatype: T,
   ): GraphRef<NodeTypeMapping[T][]> {
+    // TODO :Performance: trigger getChildrenRef more selectively
+    // (discriminate parent update, individual node updates, ...)
     const parentRef = toRef(parent);
     const subs: Array<() => void> = [];
     const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
@@ -584,7 +586,7 @@ async function getGraphClient(scope: GraphScope): Promise<IGraphIOClient> {
  * Gets the given nodes from the relevant subgraph, fetching as needed.
  * If watch, will also ensure that edits for the given nodes are watched.
  */
-export function getNodes<T extends NodeType>(
+export function getNodesRef<T extends NodeType>(
   request: MaybeRef<{
     scope?: GraphScope;
     roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
@@ -649,7 +651,7 @@ export function getNodes<T extends NodeType>(
   return { graph: compositeGraph, roots, error };
 }
 
-export function getChildren<T extends NodeType>(
+export function getChildrenRef<T extends NodeType>(
   parent: MaybeRef<AnyNodeData | null>,
   metatype: T,
 ): {
@@ -658,7 +660,7 @@ export function getChildren<T extends NodeType>(
   error: Ref<OperationError | null>;
 } {
   const parentRef = toRef(parent);
-  const { graph, error } = getNodes(
+  const { graph, error } = getNodesRef(
     computed(() => ({
       roots: parentRef.value != null ? [toNodeReference(parentRef.value)!] : [],
       options: { descendantTypes: [metatype] },
@@ -672,7 +674,7 @@ export function getChildren<T extends NodeType>(
  * Searches for nodes of the given type in the relevant subgraph, fetching as needed.
  * If watch, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
  */
-export function searchNodes<T extends NodeType>(
+export function searchNodesRef<T extends NodeType>(
   request: MaybeRef<{
     scope?: GraphScope;
     nodeType: T;
@@ -699,7 +701,7 @@ export function searchNodes<T extends NodeType>(
  * Aggregates nodes of the given type in the relevant subgraph, fetching as needed.
  * TODO :Feature: watch aggregation
  */
-export function aggregateNodes(
+export function aggregateNodesRef(
   aggregate: MaybeRef<{
     scope?: GraphScope;
     nodeType: NodeType;
