@@ -31,7 +31,6 @@ export function useElementSize(target: MaybeComputedElementRef) {
   };
 }
 
-
 export const VIEW_MARGIN = 8;
 
 export function pinAbsoluteElement(
@@ -42,19 +41,23 @@ export function pinAbsoluteElement(
     height?: boolean;
     keepInView?: boolean;
     sourcePos?: Ref<{ x: number; y: number } | null>;
-  }
+  },
 ) {
   // fixes the element at the first available position
   const fixed: Ref<{ x: number; y: number; width: number; height: number } | null> = ref(null);
-  const panelContext = inject<PanelContext<any> | null>(PANEL_CONTEXT, null);
-  if (fix.keepInView && panelContext == null) {
+  // const panelContext = inject<PanelContext<any> | null>(PANEL_CONTEXT, null);
+  const view: any = () => {
+    throw new Error("not yet implemented - where to get view context?");
+    return {} as any;
+  };
+  if (fix.keepInView && view == null) {
     throw new Error("keepInView requires editor context");
   }
   if (fix.keepInView && !fix.pos) {
     throw new Error("keepInView requires pos");
   }
 
-  watch([target, () => fix.sourcePos?.value, () => panelContext?.pos.value, () => panelContext?.size.value], () => {
+  watch([target, () => fix.sourcePos?.value, () => view?.pos.value, () => view?.size.value], () => {
     const el = unrefElement(target);
     if (el == null && fixed.value != null) fixed.value = null; // reset
     if (el == null) return; // no element
@@ -67,9 +70,9 @@ export function pinAbsoluteElement(
       rect.y = fix.sourcePos.value.y;
     }
     fixed.value = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-    if (fix.keepInView && panelContext != null) {
-      const cpos = panelContext.pos.value;
-      const crect = panelContext.size.value;
+    if (fix.keepInView && view != null) {
+      const cpos = view.pos.value;
+      const crect = view.size.value;
       if (rect.x + rect.width > cpos.left + crect.width - VIEW_MARGIN) {
         // crosses on the right, move left
         fixed.value.x -= rect.right - (cpos.left + crect.width - VIEW_MARGIN);
