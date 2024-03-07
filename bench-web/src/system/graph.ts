@@ -17,8 +17,9 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { makeDefaultStruct } from "@/proto/wiring";
+import type { AccessQuery } from "@/system/access";
 import { BASED_NODE_TYPES, defaultSort, getBaseFromNode } from "@/system/lang";
-import { useGraphContext } from "@/system/transaction";
+import { TransactionBuffer, useGraphContext } from "@/system/transaction";
 import { computedSubRef, manualSubRef, onUnmountedIfComponent, type SubRef } from "@/utils/ref";
 import type { Transaction } from "@sentry/vue";
 import { computed, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, isRef } from "vue";
@@ -28,9 +29,8 @@ export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "
 
 /** A node graph with change subscriptions */
 export type ObservableNodeGraph = {
-  /** Observable helpers */
+  /** Subs */
   subscribe(key: { id?: string; ck?: string }, callback: () => void): () => void;
-  unsubscribe(key: { id?: string; ck?: string }, callback: () => void): void;
   subscribeChildren<T extends NodeType>(
     parent: { id?: string; ck?: string },
     metatype: T,
@@ -245,7 +245,8 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
 
   getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
     const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
-    const unsub: () => void = () => keyRef.value == null || this.unsubscribe(keyRef.value, trigger);
+    let sub: (() => void) | null = null;
+    const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
     const get = () => (keyRef.value != null ? this.get(keyRef.value as NodeKey<T>) : null);
     const { ref, trigger } = manualSubRef(get, unsub);
     watch(
@@ -253,8 +254,8 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
       (newKey, oldKey) => {
         if (newKey != oldKey) {
           // update subscription
-          if (oldKey) this.unsubscribe(oldKey, trigger);
-          if (newKey) this.subscribe(newKey, trigger);
+          if (oldKey) unsub();
+          if (newKey) sub = this.subscribe(newKey, trigger);
         }
         trigger();
       },
@@ -289,13 +290,12 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
  * A graph composed of multiple (potentially overlapping subgraphs).
  * Nodes are merged from the layers in order, with later layers taking precedence.
  */
-export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
+export class LayerNodeGraph implements ReadNodeGraph {
   // TODO :Performance: LayerNodeGraph.layers should be scoped
   //  (so we only need to acquire refs from layers with the requested scope)
   public readonly layers: Ref<ObservableReadNodeGraph[]>;
 
   constructor(layers: MaybeRef<ObservableReadNodeGraph[]>) {
-    super();
     this.layers = !isRef(layers) ? shallowRef(layers) : layers;
   }
 
@@ -583,17 +583,22 @@ export function toNodeReferenceRef(node: MaybeRef<AnyNodeData | null>): Ref<Node
   return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
 }
 
-export function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
+function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
     ...makeDefaultStruct(StructType.READ_OPTIONS),
     ...options,
   };
 }
 
-export function deriveScope(roots: NodeReferenceData[]): GraphScope {
+function deriveScope(roots: NodeReferenceData[]): GraphScope {
   const scope: GraphScope = {};
   for (const root of roots) {
-    if (root.benchId) scope.benchId = root.benchId;
+    if (root.benchId) {
+      if (scope.benchId && scope.benchId != root.benchId) {
+        throw new Error(`cannot derive scope from multiple benches: ${scope.benchId} and ${root.benchId}`);
+      }
+      scope.benchId = root.benchId;
+    }
   }
   return scope;
 }
@@ -603,12 +608,13 @@ export function getScopeKey(scope: GraphScope): string {
 }
 
 /**
- * A connection to a graph client for a specific fetch operation.
- * Connections are 'pooled' so that subsequent requests for the same subgraph re-use the same connection.
+ * A connection to a graph client for an overlapping set of read operations.
  */
 export type GraphConnection = {
   scope: GraphScope;
   graph: ReadNodeGraph;
+  access: AccessQuery;
+  tx: TransactionBuffer; // shared per host
   client: IGraphIOClient;
   options: ReadOptionsData;
   active: Ref<boolean>;
@@ -624,6 +630,10 @@ async function getGraphClient(scope: GraphScope): Promise<IGraphIOClient> {
   } else {
     return supervisor;
   }
+}
+
+export function getGraph(): { graph: ReadNodeGraph; connection: GraphConnection } {
+  throw new Error("not yet implemented");
 }
 
 /**
@@ -649,9 +659,29 @@ export function getNodesRef<T extends NodeType>(
   const graph = new LayerNodeGraph(graphLayers);
   const context = useGraphContext();
 
-  // const roots 
+  // const roots
 
   return { graph };
+}
+
+/**
+ * Gets a single node from the relevant subgraph, fetching as needed.
+ * If watch, will also ensure that edits for the given node are watched.
+ */
+export function getNodeRef<T extends NodeType>(
+  request: MaybeRef<{
+    scope?: GraphScope; // else scope is inferred from refs & context
+    root: Omit<NodeReferenceData, "type"> & { type: T };
+    options?: Partial<ReadOptionsData>;
+    watch?: boolean;
+    enabled?: boolean;
+  }>,
+): {
+  graph: ReadNodeGraph;
+  connection: GraphConnection;
+  root: SubRef<NodeTypeMapping[T] | null>;
+} {
+  throw new Error("not yet implemented");
 }
 
 /**

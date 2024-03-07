@@ -177,9 +177,8 @@ enum ColorType {
   COLOR_TYPE_ACCENT = 3;
   COLOR_TYPE_SUCCESS = 10;
   COLOR_TYPE_HINT = 11;
-  COLOR_TYPE_INFO = 12;
-  COLOR_TYPE_WARNING = 13;
-  COLOR_TYPE_DANGER = 14;
+  COLOR_TYPE_WARNING = 12;
+  COLOR_TYPE_DANGER = 13;
   COLOR_TYPE_SLATE = 20;
   COLOR_TYPE_GRAY = 21;
   COLOR_TYPE_ZINC = 22;
@@ -735,6 +734,7 @@ enum ViewType {
   VIEW_TYPE_VALUE = 120;
   VIEW_TYPE_SLIDER = 133;
   VIEW_TYPE_NUMBER = 134;
+  VIEW_TYPE_PHONE = 135;
   VIEW_TYPE_STRING = 140;
   VIEW_TYPE_TEXT = 141;
   VIEW_TYPE_CODE = 142;
@@ -744,7 +744,9 @@ enum ViewType {
   VIEW_TYPE_CHECKBOX_GROUP = 152;
   VIEW_TYPE_PICKER = 153;
   VIEW_TYPE_DATE = 154;
-  VIEW_TYPE_COLOR = 155;
+  VIEW_TYPE_TIME = 155;
+  VIEW_TYPE_CALENDAR = 156;
+  VIEW_TYPE_COLOR = 157;
   VIEW_TYPE_FILE = 160;
   VIEW_TYPE_DOCUMENT = 161;
   VIEW_TYPE_ICON = 162;
@@ -2203,6 +2205,7 @@ message ViewData {
   optional string title = 32;
   optional TextData text = 33;
   optional IconData icon = 35;
+  optional NodeReferenceData node_ptr = 36;
   optional google.protobuf.Struct value_packed = 40;
   bool is_visible = 80;
   bool is_disabled = 81;

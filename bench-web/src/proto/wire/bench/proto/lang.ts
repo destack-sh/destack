@@ -4879,6 +4879,10 @@ export interface ViewData {
      */
     icon?: IconData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 36;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
     valuePacked?: Struct;
@@ -5766,17 +5770,13 @@ export enum ColorType {
      */
     HINT = 11,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_INFO = 12;
+     * @generated from protobuf enum value: COLOR_TYPE_WARNING = 12;
      */
-    INFO = 12,
+    WARNING = 12,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_WARNING = 13;
+     * @generated from protobuf enum value: COLOR_TYPE_DANGER = 13;
      */
-    WARNING = 13,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_DANGER = 14;
-     */
-    DANGER = 14,
+    DANGER = 13,
     /**
      * @generated from protobuf enum value: COLOR_TYPE_SLATE = 20;
      */
@@ -7668,6 +7668,10 @@ export enum ViewType {
      */
     NUMBER = 134,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_PHONE = 135;
+     */
+    PHONE = 135,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_STRING = 140;
      */
     STRING = 140,
@@ -7704,9 +7708,17 @@ export enum ViewType {
      */
     DATE = 154,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 155;
+     * @generated from protobuf enum value: VIEW_TYPE_TIME = 155;
      */
-    COLOR = 155,
+    TIME = 155,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 156;
+     */
+    CALENDAR = 156,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 157;
+     */
+    COLOR = 157,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_FILE = 160;
      */
@@ -18814,6 +18826,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 80, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -18906,6 +18919,9 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 36:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
                 case /* optional google.protobuf.Struct value_packed */ 40:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
@@ -18997,6 +19013,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 36; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 40; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -20121,6 +20140,7 @@ export enum ViewProperty {
   title = 32,
   text = 33,
   icon = 35,
+  nodePtr = 36,
   valuePacked = 40,
   isVisible = 80,
   isDisabled = 81,
