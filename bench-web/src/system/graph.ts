@@ -661,7 +661,7 @@ export function getNodesRef<T extends NodeType>(
 
   // const roots
 
-  return { graph };
+  return { graph } as any /* nocheckin */;
 }
 
 /**
