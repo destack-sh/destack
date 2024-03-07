@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import Node, Struct, node, node_component, struct
+from bench.language.node import Node, Struct, node, node_component, struct, LINK_TARGET_NODE_TYPES
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -36,7 +36,7 @@ class ViewType(IdEnum):
 
     # containers
     WINDOWED = 50
-    # WINDOW = 51 (force window appearance)
+    WINDOW = 51  # (force window appearance)
     TABBED = 52
     STEPPED = 55
     SPLIT = 57
@@ -195,6 +195,11 @@ class View(HasViews, HasValues):
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
+    )
+    # TODO :Cleanup :Architecture: View.node should probably just be in View.value
+    #  (with relevant Views having that type... once we have the Value system more figured out)
+    node: Optional["Node"] = p_regular(
+        36, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
     )
 
     # content

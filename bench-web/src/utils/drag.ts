@@ -1,24 +1,23 @@
+import type { NodeReferenceData, NodeType } from "@/proto/wire";
 import { toValueRef } from "@/utils/ref";
 import { useEventListener, useMouseInElement } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 
-export type DraggedType = "Statement" | "Type" | "Record" | "File" | "Tile" | "Editor" | "BrowserFile";
-export type Dragged = {
+export type DraggedType = NodeType | "native_file";
+export type Dragged = Omit<NodeReferenceData, "metatype" | "type"> & {
   type: DraggedType;
-  id: string;
-  statementId?: string;
 };
 
 export function setDragData(event: DragEvent, data: Dragged) {
   const json = JSON.stringify(data);
-  event?.dataTransfer?.setData("application/symbolx.bench." + data.type.toLowerCase(), json);
+  event?.dataTransfer?.setData("application/symbolx.bench." + data.type, json);
 }
 
 export function useRelativeDropZone(
   target: Ref<HTMLElement | null | undefined>,
   types: DraggedType[],
   onDrop?: (thing: File[] | Dragged | null) => void,
-  enabled?: Ref<boolean>
+  enabled?: Ref<boolean>,
 ) {
   enabled = enabled ?? ref(true);
   const isOverDropZone = ref(false);
@@ -35,7 +34,7 @@ export function useRelativeDropZone(
         }
       }
       if (event.dataTransfer.types.includes("Files")) {
-        return "BrowserFile";
+        return "native_file";
       }
     }
     return null;
@@ -82,11 +81,11 @@ export function useRelativeDropZone(
     event.preventDefault();
     counter = 0;
     const type = getType(event);
-    if (type == "BrowserFile") {
+    if (type == "native_file") {
       const files = Array.from(event.dataTransfer?.files ?? []);
       onDrop?.(files.length === 0 ? null : files);
     } else if (type != null) {
-      const data = event.dataTransfer?.getData("application/symbolx.bench." + type.toLowerCase());
+      const data = event.dataTransfer?.getData("application/symbolx.bench." + type);
       onDrop?.(data == null ? null : JSON.parse(data));
     }
   });

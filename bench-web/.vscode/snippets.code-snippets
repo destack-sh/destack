@@ -1,0 +1,30 @@
+{
+	"Vue SFC setup Component": {
+		"prefix": "vsfc",
+		"description": "Insert styleless Vue SFC in TS with setup sugar",
+		"body": [
+			"<script lang=\"tsx\" setup>\n$2\n</script>",
+			"<template>",
+			"  <div>$1</div>",
+			"</template>",
+		]
+	},
+	"Bench View SFC": {
+		"prefix": "view",
+		"description": "A Bench View as a Vue SFC",
+		"body": [
+			"<script lang=\"tsx\" setup>",
+			"import { type ViewEmits, type ViewPropsAnchored } from \"@/views/common\";",
+			"import { computed, toRef } from \"vue\";",
+			"",
+			"const props = defineProps<Pick<ViewPropsAnchored, \"self\" | \"name\" | \"title\" | \"text\" | \"icon\" | \"node\"> & {}>();",
+			"const emits = defineEmits<ViewEmits & {}>();",
+			"",
+			"defineExpose({ node: toRef(props, \"node\") });",
+			"</script>",
+			"<template>",
+			"  <div>$1</div>",
+			"</template>"
+		]
+	}
+}

@@ -16,8 +16,36 @@ import { type ObservableNodeGraph, type ReadNodeGraph, type WriteNodeGraph } fro
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, inject, ref, type Ref } from "vue";
 
+export type TransactionBase = {
+  /** Create a new node */
+  create(node: AnyNodeData): void;
+  /** Create or update all properties in the node */
+  upsert(node: AnyNodeData): void;
+    /**
+   * Update regular properties in this node. If we already have an update for this node, extend that
+   * TODO :Broken: handle debounced updates
+   */
+  update<T extends NodeType>(
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
+  ): void;
+  /** Move node between parents */
+  move(node: AnyNodeData): void;
+  /** Archive node (incl. descendants) */
+  archive(node: AnyNodeData): void;
+  /** Restore node from archive (incl. descendants) */
+  unarchive(node: AnyNodeData): void;
+  /** Soft delete node (incl. descendants), marked for later deletion after retention period */
+  softDelete(node: AnyNodeData): void;
+  /** Restore node from soft delete */
+  restore(node: AnyNodeData): void;
+  /**
+   * @deprecated use softDelete by default (not really deprecated, just to make it clear this should be used deliberately)
+   */
+  delete(node: AnyNodeData): void;
+};
+
 /** A transaction on the Bench state graph. */
-export class Transaction {
+export class Transaction implements TransactionBase {
   id: string;
   edits: EditData[] = [];
 
@@ -46,22 +74,17 @@ export class Transaction {
     this.edits.push(edit);
   }
 
-  /** Create a new node */
   create(node: AnyNodeData) {
     this._addEdit(EditType.CREATE, node);
   }
 
-  /** Create or update all properties in the node */
   upsert(node: AnyNodeData) {
     this._addEdit(EditType.UPSERT, node);
   }
 
-  /**
-   * Update regular properties in this node. If we already have an update for this node, extend that
-   * TODO :Broken: handle debounced updates
-   */
+
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "id" | "metatype">> & { metatype: T; id: string; debounced?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
@@ -86,34 +109,26 @@ export class Transaction {
     this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties);
   }
 
-  /** Move node between parents */
   move(node: AnyNodeData) {
     this._addEdit(EditType.MOVE, node);
   }
 
-  /** Archive node (incl. descendants) */
   archive(node: AnyNodeData) {
     this._addEdit(EditType.ARCHIVE, node);
   }
 
-  /** Restore node from archive */
   unarchive(node: AnyNodeData) {
     this._addEdit(EditType.UNARCHIVE, node);
   }
 
-  /** Soft delete node (incl.descendants), marked for later deletion after retention period */
   softDelete(node: AnyNodeData) {
     this._addEdit(EditType.SOFT_DELETE, node);
   }
 
-  /** Restore node from soft delete */
   restore(node: AnyNodeData) {
     this._addEdit(EditType.RESTORE, node);
   }
 
-  /**
-   * @deprecated use softDelete by default (not really deprecated, just to make it clear this should be used deliberately)
-   */
   delete(node: AnyNodeData) {
     this._addEdit(EditType.DELETE, node);
   }
@@ -160,7 +175,7 @@ export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & W
 }
 
 /**
- * Buffer and record pending edits for transactions in some scope.
+ * Buffer edits for a Transaction in some scope.
  */
 export class TransactionBuffer {
   public scope: GraphScope;
@@ -169,6 +184,49 @@ export class TransactionBuffer {
   constructor(scope: GraphScope) {
     this.scope = scope;
     this.currentTx = new Transaction();
+  }
+
+  public get tx(): Transaction {
+    if (this.currentTx == null) throw new Error("no current transaction");
+    return this.currentTx;
+  }
+
+  create(node: AnyNodeData) {
+    this.tx.create(node);
+  }
+
+  upsert(node: AnyNodeData) {
+    this.tx.upsert(node);
+  }
+
+  update<T extends NodeType>(
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
+  ) {
+    this.tx.update(update);
+  }
+
+  move(node: AnyNodeData) {
+    this.tx.move(node);
+  }
+
+  archive(node: AnyNodeData) {
+    this.tx.archive(node);
+  }
+
+  unarchive(node: AnyNodeData) {
+    this.tx.unarchive(node);
+  }
+
+  softDelete(node: AnyNodeData) {
+    this.tx.softDelete(node);
+  }
+
+  restore(node: AnyNodeData) {
+    this.tx.restore(node);
+  }
+
+  delete(node: AnyNodeData) {
+    this.tx.delete(node);
   }
 }
 
