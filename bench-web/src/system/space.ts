@@ -34,6 +34,8 @@ export const { graph: benchGraph, connection: benchConnection } = getNodesRef(
     watch: true,
   })),
 );
+export const bench = benchGraph.getRef(benchPtr);
+export const space = benchGraph.getRef(spacePtr);
 export const { graph: packageGraph, connection: packageConnection } = getNodesRef(
   computed(() => ({
     roots: [packagePtr.value!],
@@ -42,9 +44,7 @@ export const { graph: packageGraph, connection: packageConnection } = getNodesRe
     watch: true,
   })),
 );
-// export const dependencies = getGraphsRef(
-//   packageGraph.getChildrenRef(toNodeReferenceRef(packagePtr), NodeType.DEPENDENCY),
-// )
+export const pkg = packageGraph.getRef(packagePtr);
 export const allGraphs: Ref<GraphConnection[]> = computed(() => {
   const graphs = [userConnection, benchConnection, packageConnection];
   return graphs.filter((g) => g.active.value);
