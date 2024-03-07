@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import Node, Struct, node, node_component, struct, LINK_TARGET_NODE_TYPES
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, node_component, struct
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -244,16 +244,3 @@ class Space(HasViews):
     order_key: str = p_internal(33)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
     # layout/views/...
-    dock: "SpaceDock" = p_regular(35, require=True, array=False, struct=StructType.SPACE_DOCK)
-
-
-@struct(StructType.SPACE_DOCK_ITEM)
-class SpaceDockItem(Struct):
-    hidden: bool = p_regular(31, default=False)
-
-
-@struct(StructType.SPACE_DOCK)
-class SpaceDock(Struct):
-    items: list[SpaceDockItem] = p_regular(
-        30, require=True, array=True, struct=StructType.SPACE_DOCK_ITEM
-    )

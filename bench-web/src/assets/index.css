@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .corner-border {
+    position: relative;
+  }
+
+  .corner-border::before {
+    @apply absolute border-l-2 border-t-2 border-gray-900;
+    content: "";
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+  }
+  .corner-border::after {
+    @apply absolute border-b-2 border-r-2 border-gray-900;
+    content: "";
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+  }
+}

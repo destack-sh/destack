@@ -95,20 +95,17 @@ class File(Struct):
 
 @_well_known_enum
 class IconKind(IdEnum):
-    INTRINSIC = 1
-    EMOJI = 2
-    CUSTOM = 3
-
-
-@_well_known_enum
-class IconType(IdEnum):
-    pass
+    EMOJI = 1
+    FILE = 2
+    FONT_AWESOME = 3
 
 
 @struct(StructType.ICON)
 class Icon(Struct):
     kind: IconKind = p_internal(30, default=False)
+    # content
     emoji: Optional[str] = p_internal(31, require=False)
-    type: Optional[IconType] = p_internal(32, require=False)
-    image: Optional["File"] = p_internal(33, require=False, array=False, struct=StructType.FILE)
-    color: Optional["Color"] = p_internal(34, require=False, array=False, struct=StructType.COLOR)
+    file: Optional["File"] = p_internal(32, require=False, array=False, struct=StructType.FILE)
+    name: Optional[str] = p_internal(33, require=False)
+    # style
+    color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
