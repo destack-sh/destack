@@ -1,5 +1,5 @@
 import { unrefElement, type MaybeComputedElementRef } from "@vueuse/core";
-import { onUpdated, ref, watch, type Ref, inject } from "vue";
+import { onUpdated, ref, watch, type Ref, inject, computed } from "vue";
 
 export function useElementSize(target: MaybeComputedElementRef) {
   /* 
