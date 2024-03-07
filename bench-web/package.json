@@ -17,7 +17,6 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@floating-ui/vue": "^1.0.6",
     "@leeoniya/ufuzzy": "^1.0.14",
     "@protobuf-ts/grpcweb-transport": "^2.9.3",
     "@protobuf-ts/runtime": "^2.9.3",
