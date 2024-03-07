@@ -22,79 +22,93 @@ if TYPE_CHECKING:
 
 @_well_known_enum
 class ViewType(IdEnum):
-    # 'intrinsic' roots for editor
-    PAGE = 1
-    BLOCK = 2
-    EXPLORER = 20
-    HISTORY = 21
-    RESOURCE = 22
-    INSPECTOR = 23
-    LIBRARY = 24
-    LOG = 25
-    ACCESS = 26
-    SCREEN = 49
+    #
+    # Intrinsics
+    #
+
+    # 'kernel'
+    # auth
+    SIGN_IN = 1
+    KEYMAP = 40
+    PERFORMANCE = 50
+
+    # 'system'
+    PAGE = 101
+    BLOCK = 102
+    EXPLORER = 120
+    HISTORY = 121
+    RESOURCE = 122
+    INSPECTOR = 123
+    LIBRARY = 124
+    LOG = 125
+    ACCESS = 126
+    CLIENT = 127
+
+    #
+    # General
+    #
 
     # containers
-    WINDOWED = 50
-    WINDOW = 51  # (force window appearance)
-    TABBED = 52
-    STEPPED = 55
-    SPLIT = 57
-    STACK = 60
-    DISCLOSURE = 61
-    GRID = 62
-    ROW = 63
-    COLUMN = 64
+    WINDOWED = 500
+    WINDOW = 501  # (force window appearance)
+    TABBED = 502
+    STEPPED = 505
+    SPLIT = 507
+    STACK = 510
+    DISCLOSURE = 511
+    GRID = 512
+    ROW = 513
+    COLUMN = 514
     # data
-    LIST = 70
-    TABLE = 71
-    FEED = 72
+    LIST = 520
+    TABLE = 521
+    FEED = 522
     # group
-    GROUP = 75
-    FORM = 76
-    MENU = 77
-    SECTION = 78
+    GROUP = 535
+    FORM = 536
+    MENU = 537
+    SECTION = 538
 
     # presentation
-    SPACER = 80
-    DIVIDER = 81
-    SHAPE = 83
-    CHART = 84
-    PROGRESS = 85
-    AVATAR = 86
-    BADGE = 87
+    SPACER = 540
+    DIVIDER = 541
+    SHAPE = 543
+    CHART = 544
+    PROGRESS = 545
+    AVATAR = 546
+    BADGE = 547
 
     # controls
-    BUTTON = 100
-    LINK = 101
+    BUTTON = 500
+    LINK = 501
 
     # content
-    VALUE = 120  # (generic value based on type)
+    VALUE = 520  # (generic value based on type)
     # numeric
-    SLIDER = 133
-    NUMBER = 134
-    PHONE = 135
+    SLIDER = 533
+    NUMBER = 534
+    PHONE = 535
     # stringy
-    STRING = 140
-    TEXT = 141
-    CODE = 142
-    JSON = 143
+    STRING = 540
+    TEXT = 541
+    CODE = 542
+    JSON = 543
     # selection
-    TOGGLE = 150
-    CHECKBOX = 151
-    CHECKBOX_GROUP = 152
-    PICKER = 153
-    DATE = 154
-    TIME = 155
-    CALENDAR = 156
-    COLOR = 157
+    TOGGLE = 550
+    CHECKBOX = 551
+    CHECKBOX_GROUP = 552
+    PICKER = 553
+    DATE = 554
+    TIME = 555
+    CALENDAR = 556
+    COLOR = 557
     # file
-    FILE = 160
-    DOCUMENT = 161
-    ICON = 162
-    IMAGE = 163
-    VIDEO = 164
-    AUDIO = 165
+    FILE = 560
+    DOCUMENT = 561
+    ICON = 562
+    IMAGE = 563
+    VIDEO = 564
+    AUDIO = 565
     ...
 
 

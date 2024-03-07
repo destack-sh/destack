@@ -2,7 +2,7 @@
 import { toNodeReference } from "@/system/graph";
 import { space } from "@/system/space";
 import Windowed from "@/views/containers/Windowed.vue";
-import Bar from "@/views/intrinsics/Bar.vue";
+import Bar from "@/views/system/Bar.vue";
 </script>
 <template>
   <div class="w-full">
