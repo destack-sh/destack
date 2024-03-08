@@ -1,12 +1,15 @@
 <script lang="tsx" setup>
-import type { TextData } from "@/proto/wire";
-import { type ViewEmits, type ViewPropsBase } from "@/views/common";
+import { NodeReferenceData, type ViewData } from "@/proto/wire";
+import { viewEmits } from "@/views/common";
 import { toRef } from "vue";
 
 const props = defineProps<
-  Pick<ViewPropsBase, "self" | "name" | "title" | "text" | "icon" | "isInput" | "isDisabled" | "isSecret"> & {}
+  { self?: NodeReferenceData | null } & Pick<
+    ViewData,
+    "name" | "title" | "text" | "icon" | "isInput" | "isDisabled" | "isSecret"
+  >
 >();
-const emits = defineEmits<ViewEmits & {}>();
+const emit = defineEmits(viewEmits());
 const modelValue = defineModel<string>();
 
 defineExpose({ self: toRef(props, "self") });
