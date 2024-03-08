@@ -68,6 +68,16 @@ class AggregationOp(betterproto.Enum):
     HISTOGRAM = 107
 
 
+class Alignment(betterproto.Enum):
+    """How to align the contents/subviews of a view along its orientation."""
+
+    UNSPECIFIED = 0
+    START = 1
+    MIDDLE = 2
+    END = 3
+    SPACE_BETWEEN = 4
+
+
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
@@ -140,6 +150,8 @@ class BenchType(betterproto.Enum):
     TEXT_SPAN = 662
     COLOR = 700
     FONT = 701
+    BOX = 702
+    OFFSET = 703
 
 
 class BlockType(betterproto.Enum):
@@ -490,6 +502,16 @@ class OrganizationStatus(betterproto.Enum):
     ACTIVATED = 10
 
 
+class Orientation(betterproto.Enum):
+    """Which way to orient the contents/subviews of a view."""
+
+    UNSPECIFIED = 0
+    HORIZONTAL = 1
+    HORIZONTAL_REVERSED = 2
+    VERTICAL = 11
+    VERTICAL_REVERSED = 12
+
+
 class PathSegmentType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
@@ -701,6 +723,8 @@ class StructType(betterproto.Enum):
     TEXT_SPAN = 662
     COLOR = 700
     FONT = 701
+    BOX = 702
+    OFFSET = 703
 
 
 class Tenancy(betterproto.Enum):
@@ -824,7 +848,6 @@ class ViewVariant(betterproto.Enum):
     PRIMARY = 1
     SECONDARY = 2
     TERTIARY = 3
-    QUATERNARY = 4
 
 
 @dataclass(eq=False, repr=False)
@@ -918,6 +941,18 @@ class AggregationBucketData(betterproto.Message):
     id: Optional[int] = betterproto.int32_field(2, optional=True)
     key: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(30)
     count: int = betterproto.int32_field(31)
+
+
+@dataclass(eq=False, repr=False)
+class BoxData(betterproto.Message):
+    """A box value. Units are in pixels, ideally in Spacing scale."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: Optional[int] = betterproto.int32_field(2, optional=True)
+    width: Optional[int] = betterproto.int32_field(50, optional=True)
+    width_relative: Optional[float] = betterproto.float_field(51, optional=True)
+    height: Optional[int] = betterproto.int32_field(52, optional=True)
+    height_relative: Optional[float] = betterproto.float_field(53, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1059,6 +1094,18 @@ class NodeReferenceData(betterproto.Message):
     bench_id: Optional[str] = betterproto.string_field(33, optional=True)
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)
     base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class OffsetData(betterproto.Message):
+    """A position value. Units are in pixels, ideally in Spacing scale."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: Optional[int] = betterproto.int32_field(2, optional=True)
+    top: Optional[int] = betterproto.int32_field(40, optional=True)
+    right: Optional[int] = betterproto.int32_field(41, optional=True)
+    bottom: Optional[int] = betterproto.int32_field(42, optional=True)
+    left: Optional[int] = betterproto.int32_field(43, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2541,11 +2588,18 @@ class ViewData(betterproto.Message):
     )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     variant: Optional["ViewVariant"] = betterproto.enum_field(50, optional=True)
-    is_visible: bool = betterproto.bool_field(80)
-    is_disabled: bool = betterproto.bool_field(81)
-    is_loading: bool = betterproto.bool_field(82)
-    is_input: bool = betterproto.bool_field(83)
-    is_secret: bool = betterproto.bool_field(84)
+    font: Optional["FontData"] = betterproto.message_field(51, optional=True)
+    position: Optional["OffsetData"] = betterproto.message_field(60, optional=True)
+    size: Optional["BoxData"] = betterproto.message_field(61, optional=True)
+    margin: Optional["OffsetData"] = betterproto.message_field(62, optional=True)
+    padding: Optional["OffsetData"] = betterproto.message_field(63, optional=True)
+    orientation: Optional["Orientation"] = betterproto.enum_field(64, optional=True)
+    alignment: Optional["Alignment"] = betterproto.enum_field(65, optional=True)
+    is_visible: Optional[bool] = betterproto.bool_field(80, optional=True)
+    is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
+    is_loading: Optional[bool] = betterproto.bool_field(82, optional=True)
+    is_input: Optional[bool] = betterproto.bool_field(83, optional=True)
+    is_secret: Optional[bool] = betterproto.bool_field(84, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4375,7 +4429,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.08.4"
+VERSION = "2024.03.08.6"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4458,4 +4512,6 @@ AnyStructData = Union[
     TextSpanData,
     ColorData,
     FontData,
+    BoxData,
+    OffsetData,
 ]

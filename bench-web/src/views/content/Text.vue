@@ -1,10 +1,10 @@
 <script lang="tsx" setup>
 import type { TextData } from "@/proto/wire";
-import { type ViewEmits, type ViewProps } from "@/views/common";
+import { type ViewEmits, type ViewPropsBase } from "@/views/common";
 import { toRef } from "vue";
 
 const props = defineProps<
-  Pick<ViewProps, "self" | "name" | "title" | "text" | "icon" | "isInput" | "isDisabled" | "isSecret"> & {}
+  Pick<ViewPropsBase, "self" | "name" | "title" | "text" | "icon" | "isInput" | "isDisabled" | "isSecret"> & {}
 >();
 const emits = defineEmits<ViewEmits & {}>();
 const modelValue = defineModel<TextData>();

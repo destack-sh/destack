@@ -251,6 +251,37 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
+ * A box value. Units are in pixels, ideally in Spacing scale.
+ *
+ * @generated from protobuf message symbolx.bench.BoxData
+ */
+export interface BoxData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: optional int32 id = 2;
+     */
+    id?: number;
+    /**
+     * @generated from protobuf field: optional int32 width = 50;
+     */
+    width?: number;
+    /**
+     * @generated from protobuf field: optional float width_relative = 51;
+     */
+    widthRelative?: number;
+    /**
+     * @generated from protobuf field: optional int32 height = 52;
+     */
+    height?: number;
+    /**
+     * @generated from protobuf field: optional float height_relative = 53;
+     */
+    heightRelative?: number;
+}
+/**
  * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
@@ -611,6 +642,37 @@ export interface NodeReferenceData {
      * @generated from protobuf field: optional string base_bench_id = 35;
      */
     baseBenchId?: string;
+}
+/**
+ * A position value. Units are in pixels, ideally in Spacing scale.
+ *
+ * @generated from protobuf message symbolx.bench.OffsetData
+ */
+export interface OffsetData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: optional int32 id = 2;
+     */
+    id?: number;
+    /**
+     * @generated from protobuf field: optional int32 top = 40;
+     */
+    top?: number;
+    /**
+     * @generated from protobuf field: optional int32 right = 41;
+     */
+    right?: number;
+    /**
+     * @generated from protobuf field: optional int32 bottom = 42;
+     */
+    bottom?: number;
+    /**
+     * @generated from protobuf field: optional int32 left = 43;
+     */
+    left?: number;
 }
 /**
  * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -4824,25 +4886,53 @@ export interface ViewData {
      */
     variant?: ViewVariant;
     /**
-     * @generated from protobuf field: bool is_visible = 80;
+     * @generated from protobuf field: optional symbolx.bench.FontData font = 51;
      */
-    isVisible: boolean;
+    font?: FontData;
     /**
-     * @generated from protobuf field: bool is_disabled = 81;
+     * @generated from protobuf field: optional symbolx.bench.OffsetData position = 60;
      */
-    isDisabled: boolean;
+    position?: OffsetData;
     /**
-     * @generated from protobuf field: bool is_loading = 82;
+     * @generated from protobuf field: optional symbolx.bench.BoxData size = 61;
      */
-    isLoading: boolean;
+    size?: BoxData;
     /**
-     * @generated from protobuf field: bool is_input = 83;
+     * @generated from protobuf field: optional symbolx.bench.OffsetData margin = 62;
      */
-    isInput: boolean;
+    margin?: OffsetData;
     /**
-     * @generated from protobuf field: bool is_secret = 84;
+     * @generated from protobuf field: optional symbolx.bench.OffsetData padding = 63;
      */
-    isSecret: boolean;
+    padding?: OffsetData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Orientation orientation = 64;
+     */
+    orientation?: Orientation;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Alignment alignment = 65;
+     */
+    alignment?: Alignment;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 80;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_disabled = 81;
+     */
+    isDisabled?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_loading = 82;
+     */
+    isLoading?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_input = 83;
+     */
+    isInput?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_secret = 84;
+     */
+    isSecret?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -5244,6 +5334,33 @@ export enum AggregationOp {
     HISTOGRAM = 107
 }
 /**
+ * How to align the contents/subviews of a view along its orientation.
+ *
+ * @generated from protobuf enum symbolx.bench.Alignment
+ */
+export enum Alignment {
+    /**
+     * @generated from protobuf enum value: ALIGNMENT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ALIGNMENT_START = 1;
+     */
+    START = 1,
+    /**
+     * @generated from protobuf enum value: ALIGNMENT_MIDDLE = 2;
+     */
+    MIDDLE = 2,
+    /**
+     * @generated from protobuf enum value: ALIGNMENT_END = 3;
+     */
+    END = 3,
+    /**
+     * @generated from protobuf enum value: ALIGNMENT_SPACE_BETWEEN = 4;
+     */
+    SPACE_BETWEEN = 4
+}
+/**
  * @generated from protobuf enum symbolx.bench.BenchType
  */
 export enum BenchType {
@@ -5530,7 +5647,15 @@ export enum BenchType {
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FONT = 701;
      */
-    FONT = 701
+    FONT = 701,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BOX = 702;
+     */
+    BOX = 702,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 703;
+     */
+    OFFSET = 703
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -6708,6 +6833,33 @@ export enum OrganizationStatus {
     ACTIVATED = 10
 }
 /**
+ * Which way to orient the contents/subviews of a view.
+ *
+ * @generated from protobuf enum symbolx.bench.Orientation
+ */
+export enum Orientation {
+    /**
+     * @generated from protobuf enum value: ORIENTATION_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ORIENTATION_HORIZONTAL = 1;
+     */
+    HORIZONTAL = 1,
+    /**
+     * @generated from protobuf enum value: ORIENTATION_HORIZONTAL_REVERSED = 2;
+     */
+    HORIZONTAL_REVERSED = 2,
+    /**
+     * @generated from protobuf enum value: ORIENTATION_VERTICAL = 11;
+     */
+    VERTICAL = 11,
+    /**
+     * @generated from protobuf enum value: ORIENTATION_VERTICAL_REVERSED = 12;
+     */
+    VERTICAL_REVERSED = 12
+}
+/**
  * @generated from protobuf enum symbolx.bench.PathSegmentType
  */
 export enum PathSegmentType {
@@ -7389,7 +7541,15 @@ export enum StructType {
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_FONT = 701;
      */
-    FONT = 701
+    FONT = 701,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_BOX = 702;
+     */
+    BOX = 702,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 703;
+     */
+    OFFSET = 703
 }
 /**
  * How a Resource is shared (if at all).
@@ -7808,11 +7968,7 @@ export enum ViewVariant {
     /**
      * @generated from protobuf enum value: VIEW_VARIANT_TERTIARY = 3;
      */
-    TERTIARY = 3,
-    /**
-     * @generated from protobuf enum value: VIEW_VARIANT_QUATERNARY = 4;
-     */
-    QUATERNARY = 4
+    TERTIARY = 3
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -8441,6 +8597,88 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
  * @generated MessageType for protobuf message symbolx.bench.AggregationBucketData
  */
 export const AggregationBucketData = new AggregationBucketData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class BoxData$Type extends MessageType<BoxData> {
+    constructor() {
+        super("symbolx.bench.BoxData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "width_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "height_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<BoxData>): BoxData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<BoxData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BoxData): BoxData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 width */ 50:
+                    message.width = reader.int32();
+                    break;
+                case /* optional float width_relative */ 51:
+                    message.widthRelative = reader.float();
+                    break;
+                case /* optional int32 height */ 52:
+                    message.height = reader.int32();
+                    break;
+                case /* optional float height_relative */ 53:
+                    message.heightRelative = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: BoxData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 width = 50; */
+        if (message.width !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.width);
+        /* optional float width_relative = 51; */
+        if (message.widthRelative !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.widthRelative);
+        /* optional int32 height = 52; */
+        if (message.height !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.height);
+        /* optional float height_relative = 53; */
+        if (message.heightRelative !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.heightRelative);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.BoxData
+ */
+export const BoxData = new BoxData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CodeData$Type extends MessageType<CodeData> {
     constructor() {
@@ -9370,6 +9608,88 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
  * @generated MessageType for protobuf message symbolx.bench.NodeReferenceData
  */
 export const NodeReferenceData = new NodeReferenceData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class OffsetData$Type extends MessageType<OffsetData> {
+    constructor() {
+        super("symbolx.bench.OffsetData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 40, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<OffsetData>): OffsetData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<OffsetData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OffsetData): OffsetData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 top */ 40:
+                    message.top = reader.int32();
+                    break;
+                case /* optional int32 right */ 41:
+                    message.right = reader.int32();
+                    break;
+                case /* optional int32 bottom */ 42:
+                    message.bottom = reader.int32();
+                    break;
+                case /* optional int32 left */ 43:
+                    message.left = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: OffsetData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 top = 40; */
+        if (message.top !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.top);
+        /* optional int32 right = 41; */
+        if (message.right !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.right);
+        /* optional int32 bottom = 42; */
+        if (message.bottom !== undefined)
+            writer.tag(42, WireType.Varint).int32(message.bottom);
+        /* optional int32 left = 43; */
+        if (message.left !== undefined)
+            writer.tag(43, WireType.Varint).int32(message.left);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.OffsetData
+ */
+export const OffsetData = new OffsetData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PathData$Type extends MessageType<PathData> {
     constructor() {
@@ -18715,11 +19035,18 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.ViewVariant", ViewVariant, "VIEW_VARIANT_"] },
-            { no: 80, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 82, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 84, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 51, name: "font", kind: "message", T: () => FontData },
+            { no: 60, name: "position", kind: "message", T: () => OffsetData },
+            { no: 61, name: "size", kind: "message", T: () => BoxData },
+            { no: 62, name: "margin", kind: "message", T: () => OffsetData },
+            { no: 63, name: "padding", kind: "message", T: () => OffsetData },
+            { no: 64, name: "orientation", kind: "enum", opt: true, T: () => ["symbolx.bench.Orientation", Orientation, "ORIENTATION_"] },
+            { no: 65, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
+            { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "is_secret", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -18731,11 +19058,6 @@ class ViewData$Type extends MessageType<ViewData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
-        message.isVisible = false;
-        message.isDisabled = false;
-        message.isLoading = false;
-        message.isInput = false;
-        message.isSecret = false;
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
         return message;
@@ -18815,19 +19137,40 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.ViewVariant variant */ 50:
                     message.variant = reader.int32();
                     break;
-                case /* bool is_visible */ 80:
+                case /* optional symbolx.bench.FontData font */ 51:
+                    message.font = FontData.internalBinaryRead(reader, reader.uint32(), options, message.font);
+                    break;
+                case /* optional symbolx.bench.OffsetData position */ 60:
+                    message.position = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbolx.bench.BoxData size */ 61:
+                    message.size = BoxData.internalBinaryRead(reader, reader.uint32(), options, message.size);
+                    break;
+                case /* optional symbolx.bench.OffsetData margin */ 62:
+                    message.margin = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.margin);
+                    break;
+                case /* optional symbolx.bench.OffsetData padding */ 63:
+                    message.padding = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                    break;
+                case /* optional symbolx.bench.Orientation orientation */ 64:
+                    message.orientation = reader.int32();
+                    break;
+                case /* optional symbolx.bench.Alignment alignment */ 65:
+                    message.alignment = reader.int32();
+                    break;
+                case /* optional bool is_visible */ 80:
                     message.isVisible = reader.bool();
                     break;
-                case /* bool is_disabled */ 81:
+                case /* optional bool is_disabled */ 81:
                     message.isDisabled = reader.bool();
                     break;
-                case /* bool is_loading */ 82:
+                case /* optional bool is_loading */ 82:
                     message.isLoading = reader.bool();
                     break;
-                case /* bool is_input */ 83:
+                case /* optional bool is_input */ 83:
                     message.isInput = reader.bool();
                     break;
-                case /* bool is_secret */ 84:
+                case /* optional bool is_secret */ 84:
                     message.isSecret = reader.bool();
                     break;
                 default:
@@ -18912,20 +19255,41 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.ViewVariant variant = 50; */
         if (message.variant !== undefined)
             writer.tag(50, WireType.Varint).int32(message.variant);
-        /* bool is_visible = 80; */
-        if (message.isVisible !== false)
+        /* optional symbolx.bench.FontData font = 51; */
+        if (message.font)
+            FontData.internalBinaryWrite(message.font, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.OffsetData position = 60; */
+        if (message.position)
+            OffsetData.internalBinaryWrite(message.position, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.BoxData size = 61; */
+        if (message.size)
+            BoxData.internalBinaryWrite(message.size, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.OffsetData margin = 62; */
+        if (message.margin)
+            OffsetData.internalBinaryWrite(message.margin, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.OffsetData padding = 63; */
+        if (message.padding)
+            OffsetData.internalBinaryWrite(message.padding, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.Orientation orientation = 64; */
+        if (message.orientation !== undefined)
+            writer.tag(64, WireType.Varint).int32(message.orientation);
+        /* optional symbolx.bench.Alignment alignment = 65; */
+        if (message.alignment !== undefined)
+            writer.tag(65, WireType.Varint).int32(message.alignment);
+        /* optional bool is_visible = 80; */
+        if (message.isVisible !== undefined)
             writer.tag(80, WireType.Varint).bool(message.isVisible);
-        /* bool is_disabled = 81; */
-        if (message.isDisabled !== false)
+        /* optional bool is_disabled = 81; */
+        if (message.isDisabled !== undefined)
             writer.tag(81, WireType.Varint).bool(message.isDisabled);
-        /* bool is_loading = 82; */
-        if (message.isLoading !== false)
+        /* optional bool is_loading = 82; */
+        if (message.isLoading !== undefined)
             writer.tag(82, WireType.Varint).bool(message.isLoading);
-        /* bool is_input = 83; */
-        if (message.isInput !== false)
+        /* optional bool is_input = 83; */
+        if (message.isInput !== undefined)
             writer.tag(83, WireType.Varint).bool(message.isInput);
-        /* bool is_secret = 84; */
-        if (message.isSecret !== false)
+        /* optional bool is_secret = 84; */
+        if (message.isSecret !== undefined)
             writer.tag(84, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -19346,9 +19710,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | RecordData | QueryData | ViewData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | PauseData | SignalData | LogData | NotificationData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
 
 // Message types
 export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {
@@ -19422,6 +19786,8 @@ export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<a
   [BenchType.TEXT_SPAN]: TextSpanData,
   [BenchType.COLOR]: ColorData,
   [BenchType.FONT]: FontData,
+  [BenchType.BOX]: BoxData,
+  [BenchType.OFFSET]: OffsetData,
 }
 
 export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
@@ -19495,6 +19861,8 @@ export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
   ["symbolx.bench.TextSpanData"]: BenchType.TEXT_SPAN,
   ["symbolx.bench.ColorData"]: BenchType.COLOR,
   ["symbolx.bench.FontData"]: BenchType.FONT,
+  ["symbolx.bench.BoxData"]: BenchType.BOX,
+  ["symbolx.bench.OffsetData"]: BenchType.OFFSET,
 }
 
 
@@ -19534,6 +19902,8 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.TEXT_SPAN]: TextSpanData,
   [StructType.COLOR]: ColorData,
   [StructType.FONT]: FontData,
+  [StructType.BOX]: BoxData,
+  [StructType.OFFSET]: OffsetData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -19646,6 +20016,8 @@ export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNod
   [BenchType.TEXT_SPAN]: TextSpanData,
   [BenchType.COLOR]: ColorData,
   [BenchType.FONT]: FontData,
+  [BenchType.BOX]: BoxData,
+  [BenchType.OFFSET]: OffsetData,
 }
 
 
@@ -20031,6 +20403,13 @@ export enum ViewProperty {
   valuePacked = 40,
   nodePtr = 41,
   variant = 50,
+  font = 51,
+  position = 60,
+  size = 61,
+  margin = 62,
+  padding = 63,
+  orientation = 64,
+  alignment = 65,
   isVisible = 80,
   isDisabled = 81,
   isLoading = 82,
@@ -20905,12 +21284,30 @@ export enum FontProperty {
   size = 33,
 }
 
+export enum BoxProperty {
+  metatype = 1,
+  id = 2,
+  width = 50,
+  widthRelative = 51,
+  height = 52,
+  heightRelative = 53,
+}
+
+export enum OffsetProperty {
+  metatype = 1,
+  id = 2,
+  top = 40,
+  right = 41,
+  bottom = 42,
+  left = 43,
+}
+
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyNodePropertyType>> = {
   [BenchType.BENCH]: BenchProperty,
   [BenchType.ENVIRONMENT]: EnvironmentProperty,
@@ -20985,6 +21382,8 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyStructPr
   [BenchType.TEXT_SPAN]: TextSpanProperty,
   [BenchType.COLOR]: ColorProperty,
   [BenchType.FONT]: FontProperty,
+  [BenchType.BOX]: BoxProperty,
+  [BenchType.OFFSET]: OffsetProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> = {
@@ -21058,6 +21457,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> 
   [BenchType.TEXT_SPAN]: TextSpanProperty,
   [BenchType.COLOR]: ColorProperty,
   [BenchType.FONT]: FontProperty,
+  [BenchType.BOX]: BoxProperty,
+  [BenchType.OFFSET]: OffsetProperty,
 }
 
     

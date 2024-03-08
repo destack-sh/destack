@@ -1,10 +1,10 @@
 <script lang="tsx" setup>
-import { type ViewEmits, type ViewPropsAnchored } from "@/views/common";
+import { type ViewEmits, type ViewPropsAnchoredBase } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
-const props = defineProps<Pick<ViewPropsAnchored, "self" | "name" | "title" | "text" | "icon" | "nodePtr"> & {}>();
+const props = defineProps<Pick<ViewPropsAnchoredBase, "self" | "name" | "title" | "text" | "icon" | "nodePtr"> & {}>();
 const emits = defineEmits<ViewEmits & {}>();
 
 const status: Ref<"sign-up" | "log-in" | "welcome"> = ref("log-in");
