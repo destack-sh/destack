@@ -168,7 +168,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
 }
 
 export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
-  /** Apply the given edits to an 'optimistic' overlay of a graph. */
+  /** Apply the given edits to an 'optimistic' overlay of a graph (using setProperties for updates). */
 
   throw new Error("not yet implemented");
 }

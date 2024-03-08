@@ -142,17 +142,22 @@ class Client(Node):
     parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
     name: Optional[str] = p_regular(32, default=None, validate=validate_name)
-    device_name: str = p_regular(33, validate=validate_name)
-    browser_name: Optional[str] = p_regular(34, default=None)
-    last_seen_at: datetime = p_system(35)
-    logged_in_at: Optional[datetime] = p_system(36, default=None)
+
+    device_name: Optional[str] = p_regular(40, default=None)
+    device_type: Optional[str] = p_regular(41, default=None)
+    operating_system: Optional[str] = p_regular(42, default=None)
+    browser_name: Optional[str] = p_regular(43, default=None)
+    browser_version: Optional[str] = p_regular(44, default=None)
+
     access_token: Optional[str] = p_kernel(
-        37, default=None, defer=True, unique=True, sensitive=True
+        50, default=None, defer=True, unique=True, sensitive=True
     )
+    last_seen_at: datetime = p_system(51)
+    logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     # for user clients
     main_space: Optional["Space"] = p_system(
-        40, array=False, require=False, references=NodeType.SPACE
+        60, array=False, require=False, references=NodeType.SPACE
     )
 
     def __content_str__(self) -> str:

@@ -109,7 +109,7 @@ async def makemigrations(
     if not no_local:
         async with global_session():
             try:
-                bench = await Bench.descendants(Environment, Store).get(slug=bench)
+                bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
                 async with pg_cursor_to_store(bench.main_environment.store) as cur:
                     old_local_tables = await introspect_tables_from_pg(cur)
             except (NodeNotFoundError, SqlUndefinedObjectError):
