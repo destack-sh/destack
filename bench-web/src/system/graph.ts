@@ -50,9 +50,9 @@ export type ReadNodeGraph = {
   /** Gets the children of the given parent with the given metatype (not reactive) */
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
   /** Gets a reactive reference to the current node with that key */
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null>;
+  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | undefined | null>): SubRef<NodeTypeMapping[T] | null>;
   /** Gets a reactive reference to the children of the given parent with the given metatype */
-  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]>;
+  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | undefined | null>, metatype: T): SubRef<NodeTypeMapping[T][]>;
 };
 
 export type ObservableReadNodeGraph = ReadNodeGraph & ObservableNodeGraph;
@@ -692,7 +692,7 @@ export function getNodeRef<T extends NodeType>(
  * Gets the children of the given parent in the current scope. No fetch.
  */
 export function getChildrenRef<T extends NodeType>(
-  parent: MaybeRef<NodeReferenceData | null>,
+  parent: MaybeRef<NodeReferenceData | undefined | null>,
   metatype: T,
 ): {
   graph: ReadNodeGraph;

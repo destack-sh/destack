@@ -1,17 +1,18 @@
 <script lang="tsx" setup>
-import { BoxData, NodeType, Orientation } from "@/proto/wire";
+import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { getChildrenRef } from "@/system/graph";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView } from "@/utils/positioning";
-import { type ViewEmits, type ViewPropsAllAnchored } from "@/views/common";
+import { viewEmits } from "@/views/common";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
 import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  Pick<ViewPropsAllAnchored, "self" | "name" | "title" | "text" | "icon" | "orientation"> & {
+  {
+    self?: NodeReferenceData | null;
     size: Required<Pick<BoxData, "width" | "height">>;
-  }
+  } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation">
 >();
-const emits = defineEmits<ViewEmits>();
+const emit = defineEmits(viewEmits());
 
 const { children: windows } = getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 
