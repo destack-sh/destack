@@ -149,8 +149,7 @@ class BenchType(betterproto.Enum):
     TEXT_LINE = 661
     TEXT_SPAN = 662
     COLOR = 700
-    SPACE_DOCK = 800
-    SPACE_DOCK_ITEM = 801
+    FONT = 701
 
 
 class BlockType(betterproto.Enum):
@@ -200,32 +199,29 @@ class ColorType(betterproto.Enum):
     PRIMARY = 1
     SECONDARY = 2
     ACCENT = 3
+    BACKGROUND = 4
     SUCCESS = 10
     HINT = 11
     WARNING = 12
     DANGER = 13
-    SLATE = 20
-    GRAY = 21
-    ZINC = 22
-    NEUTRAL = 23
-    STONE = 24
-    RED = 30
-    ORANGE = 31
-    AMBER = 32
-    YELLOW = 33
-    LIME = 34
-    GREEN = 35
-    EMERALD = 36
-    TEAL = 37
-    CYAN = 38
-    SKY = 39
-    BLUE = 40
-    INDIGO = 41
-    VIOLET = 42
-    PURPLE = 43
-    FUCHSIA = 44
-    PINK = 45
-    ROSE = 46
+    GRAY = 30
+    RED = 31
+    ORANGE = 32
+    AMBER = 33
+    YELLOW = 34
+    LIME = 35
+    GREEN = 36
+    EMERALD = 37
+    TEAL = 38
+    CYAN = 39
+    SKY = 40
+    BLUE = 41
+    INDIGO = 42
+    VIOLET = 43
+    PURPLE = 44
+    FUCHSIA = 45
+    PINK = 46
+    ROSE = 47
 
 
 class ConditionalOp(betterproto.Enum):
@@ -325,6 +321,41 @@ class FileStatus(betterproto.Enum):
     AVAILABLE = 3
 
 
+class FontSize(betterproto.Enum):
+    UNSPECIFIED = 0
+    XS = 12
+    SM = 14
+    BASE = 16
+    LG = 18
+    XL = 20
+    XL2 = 24
+    XL3 = 30
+    XL4 = 36
+    XL5 = 48
+    XL6 = 60
+    XL7 = 72
+
+
+class FontType(betterproto.Enum):
+    UNSPECIFIED = 0
+    SERIF = 1
+    SANS_SERIF = 2
+    MONOSPACE = 3
+
+
+class FontWeight(betterproto.Enum):
+    UNSPECIFIED = 0
+    THIN = 100
+    EXTRA_LIGHT = 200
+    LIGHT = 300
+    NORMAL = 400
+    MEDIUM = 500
+    SEMI_BOLD = 600
+    BOLD = 700
+    EXTRA_BOLD = 800
+    BLACK = 900
+
+
 class FormatHint(betterproto.Enum):
     """Extra semantic hint for types."""
 
@@ -345,13 +376,9 @@ class FormatHint(betterproto.Enum):
 
 class IconKind(betterproto.Enum):
     UNSPECIFIED = 0
-    INTRINSIC = 1
-    EMOJI = 2
-    CUSTOM = 3
-
-
-class IconType(betterproto.Enum):
-    UNSPECIFIED = 0
+    EMOJI = 1
+    FILE = 2
+    FONT_AWESOME = 3
 
 
 class IdEnum(betterproto.Enum):
@@ -683,8 +710,7 @@ class StructType(betterproto.Enum):
     TEXT_LINE = 661
     TEXT_SPAN = 662
     COLOR = 700
-    SPACE_DOCK = 800
-    SPACE_DOCK_ITEM = 801
+    FONT = 701
 
 
 class Tenancy(betterproto.Enum):
@@ -738,63 +764,77 @@ class UserStatus(betterproto.Enum):
 
 class ViewType(betterproto.Enum):
     UNSPECIFIED = 0
-    PAGE = 1
-    BLOCK = 2
-    EXPLORER = 20
-    HISTORY = 21
-    RESOURCE = 22
-    INSPECTOR = 23
-    LIBRARY = 24
-    LOG = 25
-    ACCESS = 26
-    SCREEN = 49
-    WINDOWED = 50
-    TABBED = 52
-    STEPPED = 55
-    SPLIT = 57
-    STACK = 60
-    DISCLOSURE = 61
-    GRID = 62
-    ROW = 63
-    COLUMN = 64
-    LIST = 70
-    TABLE = 71
-    FEED = 72
-    GROUP = 75
-    FORM = 76
-    MENU = 77
-    SECTION = 78
-    SPACER = 80
-    DIVIDER = 81
-    SHAPE = 83
-    CHART = 84
-    PROGRESS = 85
-    AVATAR = 86
-    BADGE = 87
-    BUTTON = 100
-    LINK = 101
-    VALUE = 120
-    SLIDER = 133
-    NUMBER = 134
-    PHONE = 135
-    STRING = 140
-    TEXT = 141
-    CODE = 142
-    JSON = 143
-    TOGGLE = 150
-    CHECKBOX = 151
-    CHECKBOX_GROUP = 152
-    PICKER = 153
-    DATE = 154
-    TIME = 155
-    CALENDAR = 156
-    COLOR = 157
-    FILE = 160
-    DOCUMENT = 161
-    ICON = 162
-    IMAGE = 163
-    VIDEO = 164
-    AUDIO = 165
+    SIGN_IN = 1
+    KEYMAP = 40
+    PAGE = 101
+    BLOCK = 102
+    EXPLORER = 120
+    HISTORY = 121
+    RESOURCE = 122
+    INSPECTOR = 123
+    LIBRARY = 124
+    LOG = 125
+    ACCESS = 126
+    CLIENT = 127
+    WINDOWED = 500
+    WINDOW = 501
+    TABBED = 502
+    STEPPED = 505
+    SPLIT = 507
+    STACK = 510
+    DISCLOSURE = 511
+    GRID = 512
+    ROW = 513
+    COLUMN = 514
+    LIST = 520
+    TABLE = 521
+    FEED = 522
+    GROUP = 535
+    FORM = 536
+    MENU = 537
+    SECTION = 538
+    SPACER = 540
+    DIVIDER = 541
+    SHAPE = 543
+    PROGRESS = 544
+    AVATAR = 545
+    BADGE = 546
+    CHART = 547
+    BUTTON = 600
+    MULTI_BUTTON = 601
+    LINK = 610
+    VALUE = 620
+    SLIDER = 633
+    NUMBER = 634
+    PHONE = 635
+    STRING = 640
+    TEXT = 641
+    CODE = 642
+    JSON = 643
+    TOGGLE = 650
+    CHECKBOX = 651
+    CHECKBOX_GROUP = 652
+    PICKER = 653
+    DATE = 654
+    TIME = 655
+    CALENDAR = 656
+    COLOR = 657
+    FILE = 660
+    DOCUMENT = 661
+    ICON = 662
+    IMAGE = 663
+    VIDEO = 664
+    AUDIO = 665
+
+
+class ViewVariant(betterproto.Enum):
+    """The style variant of a view."""
+
+    UNSPECIFIED = 0
+    PRIMARY = 1
+    SECONDARY = 2
+    TERTIARY = 3
+    QUATERNARY = 4
 
 
 @dataclass(eq=False, repr=False)
@@ -926,10 +966,6 @@ class ColorData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: Optional[int] = betterproto.int32_field(2, optional=True)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
     type: Optional["ColorType"] = betterproto.enum_field(31, optional=True)
     shade: Optional["ColorShade"] = betterproto.enum_field(32, optional=True)
     hex: Optional[str] = betterproto.string_field(33, optional=True)
@@ -995,10 +1031,6 @@ class FileData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: Optional[int] = betterproto.int32_field(2, optional=True)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
     type: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(33, optional=True)
     size: Optional[int] = betterproto.int32_field(34, optional=True)
@@ -1010,9 +1042,20 @@ class FileData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class FontData(betterproto.Message):
+    """A font value."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: Optional[int] = betterproto.int32_field(2, optional=True)
+    type: Optional["FontType"] = betterproto.enum_field(31, optional=True)
+    weight: Optional["FontWeight"] = betterproto.enum_field(32, optional=True)
+    size: Optional["FontSize"] = betterproto.enum_field(33, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1023,9 +1066,9 @@ class IconData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     kind: "IconKind" = betterproto.enum_field(30)
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
-    type: Optional["IconType"] = betterproto.enum_field(32, optional=True)
-    image: Optional["FileData"] = betterproto.message_field(33, optional=True)
-    color: Optional["ColorData"] = betterproto.message_field(34, optional=True)
+    file: Optional["FileData"] = betterproto.message_field(32, optional=True)
+    name: Optional[str] = betterproto.string_field(33, optional=True)
+    color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1350,36 +1393,6 @@ class ScheduleData(betterproto.Message):
     timezone: Optional[str] = betterproto.string_field(31, optional=True)
     interval: Optional[int] = betterproto.int32_field(32, optional=True)
     cron: Optional[str] = betterproto.string_field(33, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class SpaceDockData(betterproto.Message):
-    """
-    SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: Optional[int] = betterproto.int32_field(2, optional=True)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    items: List["SpaceDockItemData"] = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
-class SpaceDockItemData(betterproto.Message):
-    """
-    SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: Optional[int] = betterproto.int32_field(2, optional=True)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    hidden: bool = betterproto.bool_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -2682,7 +2695,6 @@ class SpaceData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
     policies: List["PolicyData"] = betterproto.message_field(34)
-    dock: "SpaceDockData" = betterproto.message_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -2861,12 +2873,14 @@ class ViewData(betterproto.Message):
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
-        36, optional=True
-    )
     value_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(40, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
+        41, optional=True
+    )
+    variant: Optional["ViewVariant"] = betterproto.enum_field(50, optional=True)
+    font: Optional["FontData"] = betterproto.message_field(51, optional=True)
     is_visible: bool = betterproto.bool_field(80)
     is_disabled: bool = betterproto.bool_field(81)
     is_loading: bool = betterproto.bool_field(82)
@@ -4710,7 +4724,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING # noqa: E402
 
-VERSION = '2024.03.07.0'
+VERSION = '2024.03.08.2'
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4720,5 +4734,5 @@ import bench.proto.monkey # noqa
 
 from typing import Union # noqa
 AnyNodeData = Union[BenchData, EnvironmentData, BranchData, PackageData, DependencyData, UpgradeData, SpaceData, LinkData, SkipData, NoticeData, BlockData, TriggerData, FieldData, RecordData, QueryData, ViewData, BadgeData, RoleData, IdentityData, MembershipData, InviteData, SessionData, RunData, PauseData, SignalData, LogData, NotificationData, ServerData, StoreData, DriveData, CacheData, FileContentData, HandleData, UserData, OrganizationData, ClientData]
-AnyStructData = Union[PathData, PathSegmentData, PathTokenData, NodeReferenceData, PropertyReferenceData, ValueReferenceData, TypeInfoData, ContextData, ScheduleData, ProjectionData, FileData, IconData, PolicyData, PolicyRuleData, SubjectData, AccessZoneData, AccessMatrixData, AccessData, AccessTraceData, RequestData, ReadOptionsData, ExpressionData, AggregationData, AggregationBucketData, CodeData, CodeLineData, RunCodeFrameData, RunErrorData, ResourceCredentialData, TextData, TextLineData, TextSpanData, ColorData, SpaceDockData, SpaceDockItemData]
+AnyStructData = Union[PathData, PathSegmentData, PathTokenData, NodeReferenceData, PropertyReferenceData, ValueReferenceData, TypeInfoData, ContextData, ScheduleData, ProjectionData, FileData, IconData, PolicyData, PolicyRuleData, SubjectData, AccessZoneData, AccessMatrixData, AccessData, AccessTraceData, RequestData, ReadOptionsData, ExpressionData, AggregationData, AggregationBucketData, CodeData, CodeLineData, RunCodeFrameData, RunErrorData, ResourceCredentialData, TextData, TextLineData, TextSpanData, ColorData, FontData]
     

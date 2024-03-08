@@ -75,7 +75,7 @@ from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .view import Space, SpaceDock, View, ViewType, ColorShade, ColorType, Color
+from .view import Space, View, ViewType, ColorShade, ColorType, Color
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -149,7 +149,6 @@ __all__ = [
     "SortMode",
     "SortOp",
     "Space",
-    "SpaceDock",
     "Store",
     "StoreEngineType",
     "StoreKind",

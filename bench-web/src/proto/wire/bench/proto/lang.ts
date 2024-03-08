@@ -335,22 +335,6 @@ export interface ColorData {
      */
     id?: number;
     /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
      * @generated from protobuf field: optional symbolx.bench.ColorType type = 31;
      */
     type?: ColorType;
@@ -488,22 +472,6 @@ export interface FileData {
      */
     id?: number;
     /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
      * @generated from protobuf field: optional string type = 31;
      */
     type?: string;
@@ -529,7 +497,34 @@ export interface FileData {
     externalUrl?: string;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * A font value.
+ *
+ * @generated from protobuf message symbolx.bench.FontData
+ */
+export interface FontData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: optional int32 id = 2;
+     */
+    id?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FontType type = 31;
+     */
+    type?: FontType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FontWeight weight = 32;
+     */
+    weight?: FontWeight;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FontSize size = 33;
+     */
+    size?: FontSize;
+}
+/**
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -567,15 +562,15 @@ export interface IconData {
      */
     emoji?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.IconType type = 32;
+     * @generated from protobuf field: optional symbolx.bench.FileData file = 32;
      */
-    type?: IconType;
+    file?: FileData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FileData image = 33;
+     * @generated from protobuf field: optional string name = 33;
      */
-    image?: FileData;
+    name?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ColorData color = 34;
+     * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
      */
     color?: ColorData;
 }
@@ -1243,76 +1238,6 @@ export interface ScheduleData {
      * @generated from protobuf field: optional string cron = 33;
      */
     cron?: string;
-}
-/**
- * SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.SpaceDockData
- */
-export interface SpaceDockData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.SpaceDockItemData items = 30;
-     */
-    items: SpaceDockItemData[];
-}
-/**
- * SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.SpaceDockItemData
- */
-export interface SpaceDockItemData {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
-     */
-    metatype: BenchType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
-     * @generated from protobuf field: bool hidden = 31;
-     */
-    hidden: boolean;
 }
 /**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -4426,10 +4351,6 @@ export interface SpaceData {
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 34;
      */
     policies: PolicyData[];
-    /**
-     * @generated from protobuf field: symbolx.bench.SpaceDockData dock = 35;
-     */
-    dock?: SpaceDockData;
 }
 /**
  * A store for database-like storage in a Bench.
@@ -4879,13 +4800,21 @@ export interface ViewData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 36;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
     valuePacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 41;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ViewVariant variant = 50;
+     */
+    variant?: ViewVariant;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FontData font = 51;
+     */
+    font?: FontData;
     /**
      * @generated from protobuf field: bool is_visible = 80;
      */
@@ -5591,13 +5520,9 @@ export enum BenchType {
      */
     COLOR = 700,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK = 800;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT = 701;
      */
-    SPACE_DOCK = 800,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_DOCK_ITEM = 801;
-     */
-    SPACE_DOCK_ITEM = 801
+    FONT = 701
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -5762,6 +5687,10 @@ export enum ColorType {
      */
     ACCENT = 3,
     /**
+     * @generated from protobuf enum value: COLOR_TYPE_BACKGROUND = 4;
+     */
+    BACKGROUND = 4,
+    /**
      * @generated from protobuf enum value: COLOR_TYPE_SUCCESS = 10;
      */
     SUCCESS = 10,
@@ -5778,93 +5707,77 @@ export enum ColorType {
      */
     DANGER = 13,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_SLATE = 20;
+     * @generated from protobuf enum value: COLOR_TYPE_GRAY = 30;
      */
-    SLATE = 20,
+    GRAY = 30,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_GRAY = 21;
+     * @generated from protobuf enum value: COLOR_TYPE_RED = 31;
      */
-    GRAY = 21,
+    RED = 31,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_ZINC = 22;
+     * @generated from protobuf enum value: COLOR_TYPE_ORANGE = 32;
      */
-    ZINC = 22,
+    ORANGE = 32,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_NEUTRAL = 23;
+     * @generated from protobuf enum value: COLOR_TYPE_AMBER = 33;
      */
-    NEUTRAL = 23,
+    AMBER = 33,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_STONE = 24;
+     * @generated from protobuf enum value: COLOR_TYPE_YELLOW = 34;
      */
-    STONE = 24,
+    YELLOW = 34,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_RED = 30;
+     * @generated from protobuf enum value: COLOR_TYPE_LIME = 35;
      */
-    RED = 30,
+    LIME = 35,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_ORANGE = 31;
+     * @generated from protobuf enum value: COLOR_TYPE_GREEN = 36;
      */
-    ORANGE = 31,
+    GREEN = 36,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_AMBER = 32;
+     * @generated from protobuf enum value: COLOR_TYPE_EMERALD = 37;
      */
-    AMBER = 32,
+    EMERALD = 37,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_YELLOW = 33;
+     * @generated from protobuf enum value: COLOR_TYPE_TEAL = 38;
      */
-    YELLOW = 33,
+    TEAL = 38,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_LIME = 34;
+     * @generated from protobuf enum value: COLOR_TYPE_CYAN = 39;
      */
-    LIME = 34,
+    CYAN = 39,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_GREEN = 35;
+     * @generated from protobuf enum value: COLOR_TYPE_SKY = 40;
      */
-    GREEN = 35,
+    SKY = 40,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_EMERALD = 36;
+     * @generated from protobuf enum value: COLOR_TYPE_BLUE = 41;
      */
-    EMERALD = 36,
+    BLUE = 41,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_TEAL = 37;
+     * @generated from protobuf enum value: COLOR_TYPE_INDIGO = 42;
      */
-    TEAL = 37,
+    INDIGO = 42,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_CYAN = 38;
+     * @generated from protobuf enum value: COLOR_TYPE_VIOLET = 43;
      */
-    CYAN = 38,
+    VIOLET = 43,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_SKY = 39;
+     * @generated from protobuf enum value: COLOR_TYPE_PURPLE = 44;
      */
-    SKY = 39,
+    PURPLE = 44,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_BLUE = 40;
+     * @generated from protobuf enum value: COLOR_TYPE_FUCHSIA = 45;
      */
-    BLUE = 40,
+    FUCHSIA = 45,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_INDIGO = 41;
+     * @generated from protobuf enum value: COLOR_TYPE_PINK = 46;
      */
-    INDIGO = 41,
+    PINK = 46,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_VIOLET = 42;
+     * @generated from protobuf enum value: COLOR_TYPE_ROSE = 47;
      */
-    VIOLET = 42,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_PURPLE = 43;
-     */
-    PURPLE = 43,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_FUCHSIA = 44;
-     */
-    FUCHSIA = 44,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_PINK = 45;
-     */
-    PINK = 45,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_ROSE = 46;
-     */
-    ROSE = 46
+    ROSE = 47
 }
 /**
  * @generated from protobuf enum symbolx.bench.ConditionalOp
@@ -6207,6 +6120,125 @@ export enum FileStatus {
     AVAILABLE = 3
 }
 /**
+ * @generated from protobuf enum symbolx.bench.FontSize
+ */
+export enum FontSize {
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XS = 12;
+     */
+    XS = 12,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_SM = 14;
+     */
+    SM = 14,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_BASE = 16;
+     */
+    BASE = 16,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_LG = 18;
+     */
+    LG = 18,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL = 20;
+     */
+    XL = 20,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL2 = 24;
+     */
+    XL2 = 24,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL3 = 30;
+     */
+    XL3 = 30,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL4 = 36;
+     */
+    XL4 = 36,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL5 = 48;
+     */
+    XL5 = 48,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL6 = 60;
+     */
+    XL6 = 60,
+    /**
+     * @generated from protobuf enum value: FONT_SIZE_XL7 = 72;
+     */
+    XL7 = 72
+}
+/**
+ * @generated from protobuf enum symbolx.bench.FontType
+ */
+export enum FontType {
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_SERIF = 1;
+     */
+    SERIF = 1,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_SANS_SERIF = 2;
+     */
+    SANS_SERIF = 2,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_MONOSPACE = 3;
+     */
+    MONOSPACE = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.FontWeight
+ */
+export enum FontWeight {
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_THIN = 100;
+     */
+    THIN = 100,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_EXTRA_LIGHT = 200;
+     */
+    EXTRA_LIGHT = 200,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_LIGHT = 300;
+     */
+    LIGHT = 300,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_NORMAL = 400;
+     */
+    NORMAL = 400,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_MEDIUM = 500;
+     */
+    MEDIUM = 500,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_SEMI_BOLD = 600;
+     */
+    SEMI_BOLD = 600,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_BOLD = 700;
+     */
+    BOLD = 700,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_EXTRA_BOLD = 800;
+     */
+    EXTRA_BOLD = 800,
+    /**
+     * @generated from protobuf enum value: FONT_WEIGHT_BLACK = 900;
+     */
+    BLACK = 900
+}
+/**
  * Extra semantic hint for types.
  *
  * @generated from protobuf enum symbolx.bench.FormatHint
@@ -6274,26 +6306,17 @@ export enum IconKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ICON_KIND_INTRINSIC = 1;
+     * @generated from protobuf enum value: ICON_KIND_EMOJI = 1;
      */
-    INTRINSIC = 1,
+    EMOJI = 1,
     /**
-     * @generated from protobuf enum value: ICON_KIND_EMOJI = 2;
+     * @generated from protobuf enum value: ICON_KIND_FILE = 2;
      */
-    EMOJI = 2,
+    FILE = 2,
     /**
-     * @generated from protobuf enum value: ICON_KIND_CUSTOM = 3;
+     * @generated from protobuf enum value: ICON_KIND_FONT_AWESOME = 3;
      */
-    CUSTOM = 3
-}
-/**
- * @generated from protobuf enum symbolx.bench.IconType
- */
-export enum IconType {
-    /**
-     * @generated from protobuf enum value: ICON_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0
+    FONT_AWESOME = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.IdEnum
@@ -7356,13 +7379,9 @@ export enum StructType {
      */
     COLOR = 700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK = 800;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 701;
      */
-    SPACE_DOCK = 800,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SPACE_DOCK_ITEM = 801;
-     */
-    SPACE_DOCK_ITEM = 801
+    FONT = 701
 }
 /**
  * How a Resource is shared (if at all).
@@ -7516,233 +7535,276 @@ export enum ViewType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PAGE = 1;
+     * @generated from protobuf enum value: VIEW_TYPE_SIGN_IN = 1;
      */
-    PAGE = 1,
+    SIGN_IN = 1,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BLOCK = 2;
+     * @generated from protobuf enum value: VIEW_TYPE_KEYMAP = 40;
      */
-    BLOCK = 2,
+    KEYMAP = 40,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_EXPLORER = 20;
+     * @generated from protobuf enum value: VIEW_TYPE_PAGE = 101;
      */
-    EXPLORER = 20,
+    PAGE = 101,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 21;
+     * @generated from protobuf enum value: VIEW_TYPE_BLOCK = 102;
      */
-    HISTORY = 21,
+    BLOCK = 102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 22;
+     * @generated from protobuf enum value: VIEW_TYPE_EXPLORER = 120;
      */
-    RESOURCE = 22,
+    EXPLORER = 120,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 23;
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 121;
      */
-    INSPECTOR = 23,
+    HISTORY = 121,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIBRARY = 24;
+     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 122;
      */
-    LIBRARY = 24,
+    RESOURCE = 122,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LOG = 25;
+     * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 123;
      */
-    LOG = 25,
+    INSPECTOR = 123,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 26;
+     * @generated from protobuf enum value: VIEW_TYPE_LIBRARY = 124;
      */
-    ACCESS = 26,
+    LIBRARY = 124,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SCREEN = 49;
+     * @generated from protobuf enum value: VIEW_TYPE_LOG = 125;
      */
-    SCREEN = 49,
+    LOG = 125,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOWED = 50;
+     * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 126;
      */
-    WINDOWED = 50,
+    ACCESS = 126,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABBED = 52;
+     * @generated from protobuf enum value: VIEW_TYPE_CLIENT = 127;
      */
-    TABBED = 52,
+    CLIENT = 127,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 55;
+     * @generated from protobuf enum value: VIEW_TYPE_WINDOWED = 500;
      */
-    STEPPED = 55,
+    WINDOWED = 500,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 57;
+     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 501;
      */
-    SPLIT = 57,
+    WINDOW = 501,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STACK = 60;
+     * @generated from protobuf enum value: VIEW_TYPE_TABBED = 502;
      */
-    STACK = 60,
+    TABBED = 502,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DISCLOSURE = 61;
+     * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 505;
      */
-    DISCLOSURE = 61,
+    STEPPED = 505,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GRID = 62;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 507;
      */
-    GRID = 62,
+    SPLIT = 507,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ROW = 63;
+     * @generated from protobuf enum value: VIEW_TYPE_STACK = 510;
      */
-    ROW = 63,
+    STACK = 510,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLUMN = 64;
+     * @generated from protobuf enum value: VIEW_TYPE_DISCLOSURE = 511;
      */
-    COLUMN = 64,
+    DISCLOSURE = 511,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIST = 70;
+     * @generated from protobuf enum value: VIEW_TYPE_GRID = 512;
      */
-    LIST = 70,
+    GRID = 512,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 71;
+     * @generated from protobuf enum value: VIEW_TYPE_ROW = 513;
      */
-    TABLE = 71,
+    ROW = 513,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FEED = 72;
+     * @generated from protobuf enum value: VIEW_TYPE_COLUMN = 514;
      */
-    FEED = 72,
+    COLUMN = 514,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 75;
+     * @generated from protobuf enum value: VIEW_TYPE_LIST = 520;
      */
-    GROUP = 75,
+    LIST = 520,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FORM = 76;
+     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 521;
      */
-    FORM = 76,
+    TABLE = 521,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MENU = 77;
+     * @generated from protobuf enum value: VIEW_TYPE_FEED = 522;
      */
-    MENU = 77,
+    FEED = 522,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 78;
+     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 535;
      */
-    SECTION = 78,
+    GROUP = 535,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 80;
+     * @generated from protobuf enum value: VIEW_TYPE_FORM = 536;
      */
-    SPACER = 80,
+    FORM = 536,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 81;
+     * @generated from protobuf enum value: VIEW_TYPE_MENU = 537;
      */
-    DIVIDER = 81,
+    MENU = 537,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 83;
+     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 538;
      */
-    SHAPE = 83,
+    SECTION = 538,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHART = 84;
+     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 540;
      */
-    CHART = 84,
+    SPACER = 540,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 85;
+     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 541;
      */
-    PROGRESS = 85,
+    DIVIDER = 541,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 86;
+     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 543;
      */
-    AVATAR = 86,
+    SHAPE = 543,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 87;
+     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 544;
      */
-    BADGE = 87,
+    PROGRESS = 544,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 100;
+     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 545;
      */
-    BUTTON = 100,
+    AVATAR = 545,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LINK = 101;
+     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 546;
      */
-    LINK = 101,
+    BADGE = 546,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 120;
+     * @generated from protobuf enum value: VIEW_TYPE_CHART = 547;
      */
-    VALUE = 120,
+    CHART = 547,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 133;
+     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 600;
      */
-    SLIDER = 133,
+    BUTTON = 600,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 134;
+     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 601;
      */
-    NUMBER = 134,
+    MULTI_BUTTON = 601,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PHONE = 135;
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 610;
      */
-    PHONE = 135,
+    LINK = 610,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 140;
+     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 620;
      */
-    STRING = 140,
+    VALUE = 620,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 141;
+     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 633;
      */
-    TEXT = 141,
+    SLIDER = 633,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 142;
+     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 634;
      */
-    CODE = 142,
+    NUMBER = 634,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 143;
+     * @generated from protobuf enum value: VIEW_TYPE_PHONE = 635;
      */
-    JSON = 143,
+    PHONE = 635,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 150;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 640;
      */
-    TOGGLE = 150,
+    STRING = 640,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX = 151;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 641;
      */
-    CHECKBOX = 151,
+    TEXT = 641,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX_GROUP = 152;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 642;
      */
-    CHECKBOX_GROUP = 152,
+    CODE = 642,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 153;
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 643;
      */
-    PICKER = 153,
+    JSON = 643,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATE = 154;
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 650;
      */
-    DATE = 154,
+    TOGGLE = 650,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TIME = 155;
+     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX = 651;
      */
-    TIME = 155,
+    CHECKBOX = 651,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 156;
+     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX_GROUP = 652;
      */
-    CALENDAR = 156,
+    CHECKBOX_GROUP = 652,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 157;
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 653;
      */
-    COLOR = 157,
+    PICKER = 653,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 160;
+     * @generated from protobuf enum value: VIEW_TYPE_DATE = 654;
      */
-    FILE = 160,
+    DATE = 654,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 161;
+     * @generated from protobuf enum value: VIEW_TYPE_TIME = 655;
      */
-    DOCUMENT = 161,
+    TIME = 655,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 162;
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 656;
      */
-    ICON = 162,
+    CALENDAR = 656,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 163;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 657;
      */
-    IMAGE = 163,
+    COLOR = 657,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 164;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 660;
      */
-    VIDEO = 164,
+    FILE = 660,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 165;
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 661;
      */
-    AUDIO = 165
+    DOCUMENT = 661,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 662;
+     */
+    ICON = 662,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 663;
+     */
+    IMAGE = 663,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 664;
+     */
+    VIDEO = 664,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 665;
+     */
+    AUDIO = 665
+}
+/**
+ * The style variant of a view.
+ *
+ * @generated from protobuf enum symbolx.bench.ViewVariant
+ */
+export enum ViewVariant {
+    /**
+     * @generated from protobuf enum value: VIEW_VARIANT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: VIEW_VARIANT_PRIMARY = 1;
+     */
+    PRIMARY = 1,
+    /**
+     * @generated from protobuf enum value: VIEW_VARIANT_SECONDARY = 2;
+     */
+    SECONDARY = 2,
+    /**
+     * @generated from protobuf enum value: VIEW_VARIANT_TERTIARY = 3;
+     */
+    TERTIARY = 3,
+    /**
+     * @generated from protobuf enum value: VIEW_VARIANT_QUATERNARY = 4;
+     */
+    QUATERNARY = 4
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -8575,10 +8637,6 @@ class ColorData$Type extends MessageType<ColorData> {
         super("symbolx.bench.ColorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -8587,7 +8645,6 @@ class ColorData$Type extends MessageType<ColorData> {
     create(value?: PartialMessage<ColorData>): ColorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ColorData>(this, message, value);
         return message;
@@ -8602,22 +8659,6 @@ class ColorData$Type extends MessageType<ColorData> {
                     break;
                 case /* optional int32 id */ 2:
                     message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional symbolx.bench.ColorType type */ 31:
                     message.type = reader.int32();
@@ -8646,22 +8687,6 @@ class ColorData$Type extends MessageType<ColorData> {
         /* optional int32 id = 2; */
         if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
         /* optional symbolx.bench.ColorType type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -8955,10 +8980,6 @@ class FileData$Type extends MessageType<FileData> {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -8970,7 +8991,6 @@ class FileData$Type extends MessageType<FileData> {
     create(value?: PartialMessage<FileData>): FileData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -8985,22 +9005,6 @@ class FileData$Type extends MessageType<FileData> {
                     break;
                 case /* optional int32 id */ 2:
                     message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
                     break;
                 case /* optional string type */ 31:
                     message.type = reader.string();
@@ -9038,22 +9042,6 @@ class FileData$Type extends MessageType<FileData> {
         /* optional int32 id = 2; */
         if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
         /* optional string type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.type);
@@ -9083,6 +9071,81 @@ class FileData$Type extends MessageType<FileData> {
  */
 export const FileData = new FileData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class FontData$Type extends MessageType<FontData> {
+    constructor() {
+        super("symbolx.bench.FontData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.FontType", FontType, "FONT_TYPE_"] },
+            { no: 32, name: "weight", kind: "enum", opt: true, T: () => ["symbolx.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
+            { no: 33, name: "size", kind: "enum", opt: true, T: () => ["symbolx.bench.FontSize", FontSize, "FONT_SIZE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<FontData>): FontData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<FontData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FontData): FontData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional symbolx.bench.FontType type */ 31:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbolx.bench.FontWeight weight */ 32:
+                    message.weight = reader.int32();
+                    break;
+                case /* optional symbolx.bench.FontSize size */ 33:
+                    message.size = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FontData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional symbolx.bench.FontType type = 31; */
+        if (message.type !== undefined)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional symbolx.bench.FontWeight weight = 32; */
+        if (message.weight !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.weight);
+        /* optional symbolx.bench.FontSize size = 33; */
+        if (message.size !== undefined)
+            writer.tag(33, WireType.Varint).int32(message.size);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.FontData
+ */
+export const FontData = new FontData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class IconData$Type extends MessageType<IconData> {
     constructor() {
         super("symbolx.bench.IconData", [
@@ -9094,9 +9157,9 @@ class IconData$Type extends MessageType<IconData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.IconKind", IconKind, "ICON_KIND_"] },
             { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.IconType", IconType, "ICON_TYPE_"] },
-            { no: 33, name: "image", kind: "message", T: () => FileData },
-            { no: 34, name: "color", kind: "message", T: () => ColorData }
+            { no: 32, name: "file", kind: "message", T: () => FileData },
+            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
     create(value?: PartialMessage<IconData>): IconData {
@@ -9141,13 +9204,13 @@ class IconData$Type extends MessageType<IconData> {
                 case /* optional string emoji */ 31:
                     message.emoji = reader.string();
                     break;
-                case /* optional symbolx.bench.IconType type */ 32:
-                    message.type = reader.int32();
+                case /* optional symbolx.bench.FileData file */ 32:
+                    message.file = FileData.internalBinaryRead(reader, reader.uint32(), options, message.file);
                     break;
-                case /* optional symbolx.bench.FileData image */ 33:
-                    message.image = FileData.internalBinaryRead(reader, reader.uint32(), options, message.image);
+                case /* optional string name */ 33:
+                    message.name = reader.string();
                     break;
-                case /* optional symbolx.bench.ColorData color */ 34:
+                case /* optional symbolx.bench.ColorData color */ 40:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
                 default:
@@ -9190,15 +9253,15 @@ class IconData$Type extends MessageType<IconData> {
         /* optional string emoji = 31; */
         if (message.emoji !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.emoji);
-        /* optional symbolx.bench.IconType type = 32; */
-        if (message.type !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.type);
-        /* optional symbolx.bench.FileData image = 33; */
-        if (message.image)
-            FileData.internalBinaryWrite(message.image, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ColorData color = 34; */
+        /* optional symbolx.bench.FileData file = 32; */
+        if (message.file)
+            FileData.internalBinaryWrite(message.file, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional string name = 33; */
+        if (message.name !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.ColorData color = 40; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -10781,204 +10844,6 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
  * @generated MessageType for protobuf message symbolx.bench.ScheduleData
  */
 export const ScheduleData = new ScheduleData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SpaceDockData$Type extends MessageType<SpaceDockData> {
-    constructor() {
-        super("symbolx.bench.SpaceDockData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "items", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SpaceDockItemData }
-        ]);
-    }
-    create(value?: PartialMessage<SpaceDockData>): SpaceDockData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.setProperties = [];
-        message.items = [];
-        if (value !== undefined)
-            reflectionMergePartial<SpaceDockData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SpaceDockData): SpaceDockData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.SpaceDockItemData items */ 30:
-                    message.items.push(SpaceDockItemData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SpaceDockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.SpaceDockItemData items = 30; */
-        for (let i = 0; i < message.items.length; i++)
-            SpaceDockItemData.internalBinaryWrite(message.items[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SpaceDockData
- */
-export const SpaceDockData = new SpaceDockData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SpaceDockItemData$Type extends MessageType<SpaceDockItemData> {
-    constructor() {
-        super("symbolx.bench.SpaceDockItemData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<SpaceDockItemData>): SpaceDockItemData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.setProperties = [];
-        message.hidden = false;
-        if (value !== undefined)
-            reflectionMergePartial<SpaceDockItemData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SpaceDockItemData): SpaceDockItemData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
-                    break;
-                case /* bool hidden */ 31:
-                    message.hidden = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SpaceDockItemData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
-        /* bool hidden = 31; */
-        if (message.hidden !== false)
-            writer.tag(31, WireType.Varint).bool(message.hidden);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SpaceDockItemData
- */
-export const SpaceDockItemData = new SpaceDockItemData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
@@ -17827,8 +17692,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 35, name: "dock", kind: "message", T: () => SpaceDockData }
+            { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -17909,9 +17773,6 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* repeated symbolx.bench.PolicyData policies */ 34:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* symbolx.bench.SpaceDockData dock */ 35:
-                    message.dock = SpaceDockData.internalBinaryRead(reader, reader.uint32(), options, message.dock);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -17982,9 +17843,6 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* repeated symbolx.bench.PolicyData policies = 34; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SpaceDockData dock = 35; */
-        if (message.dock)
-            SpaceDockData.internalBinaryWrite(message.dock, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18826,8 +18684,10 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
-            { no: 36, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.ViewVariant", ViewVariant, "VIEW_VARIANT_"] },
+            { no: 51, name: "font", kind: "message", T: () => FontData },
             { no: 80, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -18919,11 +18779,17 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 36:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
                 case /* optional google.protobuf.Struct value_packed */ 40:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 41:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional symbolx.bench.ViewVariant variant */ 50:
+                    message.variant = reader.int32();
+                    break;
+                case /* optional symbolx.bench.FontData font */ 51:
+                    message.font = FontData.internalBinaryRead(reader, reader.uint32(), options, message.font);
                     break;
                 case /* bool is_visible */ 80:
                     message.isVisible = reader.bool();
@@ -19013,12 +18879,18 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 36; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 40; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 41; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ViewVariant variant = 50; */
+        if (message.variant !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.variant);
+        /* optional symbolx.bench.FontData font = 51; */
+        if (message.font)
+            FontData.internalBinaryWrite(message.font, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* bool is_visible = 80; */
         if (message.isVisible !== false)
             writer.tag(80, WireType.Varint).bool(message.isVisible);
@@ -19453,9 +19325,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | RecordData | QueryData | ViewData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | PauseData | SignalData | LogData | NotificationData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | SpaceDockData | SpaceDockItemData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof SpaceDockData | typeof SpaceDockItemData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData
 
 // Message types
 export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {
@@ -19528,8 +19400,7 @@ export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<a
   [BenchType.TEXT_LINE]: TextLineData,
   [BenchType.TEXT_SPAN]: TextSpanData,
   [BenchType.COLOR]: ColorData,
-  [BenchType.SPACE_DOCK]: SpaceDockData,
-  [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemData,
+  [BenchType.FONT]: FontData,
 }
 
 export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
@@ -19602,8 +19473,7 @@ export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
   ["symbolx.bench.TextLineData"]: BenchType.TEXT_LINE,
   ["symbolx.bench.TextSpanData"]: BenchType.TEXT_SPAN,
   ["symbolx.bench.ColorData"]: BenchType.COLOR,
-  ["symbolx.bench.SpaceDockData"]: BenchType.SPACE_DOCK,
-  ["symbolx.bench.SpaceDockItemData"]: BenchType.SPACE_DOCK_ITEM,
+  ["symbolx.bench.FontData"]: BenchType.FONT,
 }
 
 
@@ -19642,8 +19512,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.TEXT_LINE]: TextLineData,
   [StructType.TEXT_SPAN]: TextSpanData,
   [StructType.COLOR]: ColorData,
-  [StructType.SPACE_DOCK]: SpaceDockData,
-  [StructType.SPACE_DOCK_ITEM]: SpaceDockItemData,
+  [StructType.FONT]: FontData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -19755,8 +19624,7 @@ export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNod
   [BenchType.TEXT_LINE]: TextLineData,
   [BenchType.TEXT_SPAN]: TextSpanData,
   [BenchType.COLOR]: ColorData,
-  [BenchType.SPACE_DOCK]: SpaceDockData,
-  [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemData,
+  [BenchType.FONT]: FontData,
 }
 
 
@@ -19915,7 +19783,6 @@ export enum SpaceProperty {
   text = 32,
   orderKey = 33,
   policies = 34,
-  dock = 35,
 }
 
 export enum LinkProperty {
@@ -20140,8 +20007,10 @@ export enum ViewProperty {
   title = 32,
   text = 33,
   icon = 35,
-  nodePtr = 36,
   valuePacked = 40,
+  nodePtr = 41,
+  variant = 50,
+  font = 51,
   isVisible = 80,
   isDisabled = 81,
   isLoading = 82,
@@ -20713,10 +20582,6 @@ export enum ProjectionProperty {
 export enum FileProperty {
   metatype = 1,
   id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
   type = 31,
   name = 33,
   size = 34,
@@ -20734,9 +20599,9 @@ export enum IconProperty {
   setProperties = 22,
   kind = 30,
   emoji = 31,
-  type = 32,
-  image = 33,
-  color = 34,
+  file = 32,
+  name = 33,
+  color = 40,
 }
 
 export enum PolicyProperty {
@@ -21004,41 +20869,25 @@ export enum TextSpanProperty {
 export enum ColorProperty {
   metatype = 1,
   id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
   type = 31,
   shade = 32,
   hex = 33,
 }
 
-export enum SpaceDockProperty {
+export enum FontProperty {
   metatype = 1,
   id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
-  items = 30,
-}
-
-export enum SpaceDockItemProperty {
-  metatype = 1,
-  id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
-  hidden = 31,
+  type = 31,
+  weight = 32,
+  size = 33,
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof SpaceDockProperty | typeof SpaceDockItemProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof SpaceDockProperty | typeof SpaceDockItemProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof SpaceDockProperty | typeof SpaceDockItemProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyNodePropertyType>> = {
   [BenchType.BENCH]: BenchProperty,
   [BenchType.ENVIRONMENT]: EnvironmentProperty,
@@ -21112,8 +20961,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyStructPr
   [BenchType.TEXT_LINE]: TextLineProperty,
   [BenchType.TEXT_SPAN]: TextSpanProperty,
   [BenchType.COLOR]: ColorProperty,
-  [BenchType.SPACE_DOCK]: SpaceDockProperty,
-  [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemProperty,
+  [BenchType.FONT]: FontProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> = {
@@ -21186,8 +21034,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> 
   [BenchType.TEXT_LINE]: TextLineProperty,
   [BenchType.TEXT_SPAN]: TextSpanProperty,
   [BenchType.COLOR]: ColorProperty,
-  [BenchType.SPACE_DOCK]: SpaceDockProperty,
-  [BenchType.SPACE_DOCK_ITEM]: SpaceDockItemProperty,
+  [BenchType.FONT]: FontProperty,
 }
 
     

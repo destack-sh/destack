@@ -44,6 +44,10 @@ export type ReadNodeGraph = {
   get scope(): GraphScope;
   /** Whether this graph is partial */
   readonly isPartial: boolean;
+  /** All the nodes in this graph */
+  get nodes(): AnyNodeData[];
+  /** Number of nodes in this graph */
+  get size(): number;
   /** Gets the current node with that key (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   /** Gets the children of the given parent with the given metatype (not reactive) */
@@ -229,6 +233,14 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     this.notify(node);
   }
 
+  get nodes(): AnyNodeData[] {
+    return Object.values(this.nodesById);
+  }
+
+  get size(): number {
+    return Object.keys(this.nodesById).length;
+  }
+
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const id = "id" in key ? key.id : this.nodesByCk[key.ck!];
     if (!id) return null;
@@ -301,6 +313,21 @@ export class LayerNodeGraph implements ReadNodeGraph {
 
   get isPartial(): boolean {
     return this.layers.value[0]?.isPartial ?? false;
+  }
+
+  get nodes(): AnyNodeData[] {
+    const nodesById: { [id: string]: AnyNodeData } = {};
+    for (const layer of this.layers.value) {
+      for (const node of layer.nodes) {
+        if (!nodesById[node.id]) nodesById[node.id] = node;
+        else nodesById[node.id] = mergeNode(nodesById[node.id], node);
+      }
+    }
+    return Object.values(nodesById);
+  }
+
+  get size(): number {
+    return this.nodes.length;
   }
 
   resetLayers() {
@@ -422,6 +449,14 @@ export class ProxyNodeGraph implements ReadNodeGraph {
     return this.graph.value?.isPartial ?? false;
   }
 
+  get nodes(): AnyNodeData[] {
+    return this.graph.value?.nodes ?? [];
+  }
+
+  get size(): number {
+    return this.graph.value?.size ?? 0;
+  }
+
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     return this.graph.value?.get(key) ?? null;
   }
@@ -491,6 +526,15 @@ export class FilterNodeGraph implements ReadNodeGraph {
 
   get isPartial(): boolean {
     return this.graph.isPartial;
+  }
+
+  get nodes(): AnyNodeData[] {
+    if (this.includeHidden.value) return this.graph.nodes;
+    else return this.graph.nodes.filter((n) => !n.deletedAt && !n.archivedAt);
+  }
+
+  get size(): number {
+    return this.nodes.length;
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
@@ -617,12 +661,7 @@ export type GraphConnection = {
   tx: TransactionBuffer; // shared per host
   client: IGraphIOClient;
   options: ReadOptionsData;
-  active: Ref<boolean>;
-  fetchOp: Ref<Operation<any, any> | null>;
-  watchOp: Ref<Operation<WatchEditsRequest, WatchEditsResponse> | null>;
 };
-
-const graphConnections: { [scope: string]: GraphConnection[] } = {};
 
 async function getGraphClient(scope: GraphScope): Promise<IGraphIOClient> {
   if (scope.benchId) {
@@ -632,6 +671,9 @@ async function getGraphClient(scope: GraphScope): Promise<IGraphIOClient> {
   }
 }
 
+/**
+ * Gets the current graph for the given scope.
+ */
 export function getGraph(): { graph: ReadNodeGraph; connection: GraphConnection } {
   throw new Error("not yet implemented");
 }

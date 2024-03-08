@@ -30,7 +30,6 @@ class ViewType(IdEnum):
     # auth
     SIGN_IN = 1
     KEYMAP = 40
-    PERFORMANCE = 50
 
     # 'system'
     PAGE = 101
@@ -73,43 +72,54 @@ class ViewType(IdEnum):
     SPACER = 540
     DIVIDER = 541
     SHAPE = 543
-    CHART = 544
-    PROGRESS = 545
-    AVATAR = 546
-    BADGE = 547
+    PROGRESS = 544
+    AVATAR = 545
+    BADGE = 546
+    CHART = 547
 
     # controls
-    BUTTON = 500
-    LINK = 501
+    BUTTON = 600
+    MULTI_BUTTON = 601
+    LINK = 610
 
     # content
-    VALUE = 520  # (generic value based on type)
+    VALUE = 620  # (generic value based on type)
     # numeric
-    SLIDER = 533
-    NUMBER = 534
-    PHONE = 535
+    SLIDER = 633
+    NUMBER = 634
+    PHONE = 635
     # stringy
-    STRING = 540
-    TEXT = 541
-    CODE = 542
-    JSON = 543
+    STRING = 640
+    TEXT = 641
+    CODE = 642
+    JSON = 643
     # selection
-    TOGGLE = 550
-    CHECKBOX = 551
-    CHECKBOX_GROUP = 552
-    PICKER = 553
-    DATE = 554
-    TIME = 555
-    CALENDAR = 556
-    COLOR = 557
+    TOGGLE = 650
+    CHECKBOX = 651
+    CHECKBOX_GROUP = 652
+    PICKER = 653
+    DATE = 654
+    TIME = 655
+    CALENDAR = 656
+    COLOR = 657
     # file
-    FILE = 560
-    DOCUMENT = 561
-    ICON = 562
-    IMAGE = 563
-    VIDEO = 564
-    AUDIO = 565
+    FILE = 660
+    DOCUMENT = 661
+    ICON = 662
+    IMAGE = 663
+    VIDEO = 664
+    AUDIO = 665
     ...
+
+
+@_well_known_enum
+class ViewVariant(IdEnum):
+    """The style variant of a view."""
+
+    PRIMARY = 1
+    SECONDARY = 2
+    TERTIARY = 3
+    QUATERNARY = 4
 
 
 @_well_known_enum
@@ -120,34 +130,31 @@ class ColorType(IdEnum):
     PRIMARY = 1
     SECONDARY = 2
     ACCENT = 3
+    BACKGROUND = 4
     # semantic
     SUCCESS = 10
     HINT = 11
     WARNING = 12
     DANGER = 13
-    # actual (like Tailwind)
-    SLATE = 20
-    GRAY = 21
-    ZINC = 22
-    NEUTRAL = 23
-    STONE = 24
-    RED = 30
-    ORANGE = 31
-    AMBER = 32
-    YELLOW = 33
-    LIME = 34
-    GREEN = 35
-    EMERALD = 36
-    TEAL = 37
-    CYAN = 38
-    SKY = 39
-    BLUE = 40
-    INDIGO = 41
-    VIOLET = 42
-    PURPLE = 43
-    FUCHSIA = 44
-    PINK = 45
-    ROSE = 46
+    # actual
+    GRAY = 30
+    RED = 31
+    ORANGE = 32
+    AMBER = 33
+    YELLOW = 34
+    LIME = 35
+    GREEN = 36
+    EMERALD = 37
+    TEAL = 38
+    CYAN = 39
+    SKY = 40
+    BLUE = 41
+    INDIGO = 42
+    VIOLET = 43
+    PURPLE = 44
+    FUCHSIA = 45
+    PINK = 46
+    ROSE = 47
 
 
 @_well_known_enum
@@ -170,13 +177,57 @@ class ColorShade(IdEnum):
     S950 = 950
 
 
-@struct(StructType.COLOR)
+@struct(StructType.COLOR, inline=True)
 class Color(Struct):
     """A color value."""
 
     type: Optional[ColorType] = p_regular(31, default=None, validate=enum_validator(ColorType))
     shade: Optional[ColorShade] = p_regular(32, default=None, validate=enum_validator(ColorShade))
     hex: Optional[str] = p_regular(33, default=None)
+
+
+@_well_known_enum
+class FontType(IdEnum):
+    SERIF = 1
+    SANS_SERIF = 2
+    MONOSPACE = 3
+
+
+@_well_known_enum
+class FontWeight(IdEnum):
+    THIN = 100
+    EXTRA_LIGHT = 200
+    LIGHT = 300
+    NORMAL = 400
+    MEDIUM = 500
+    SEMI_BOLD = 600
+    BOLD = 700
+    EXTRA_BOLD = 800
+    BLACK = 900
+
+
+@_well_known_enum
+class FontSize(IdEnum):
+    XS = 12
+    SM = 14
+    BASE = 16
+    LG = 18
+    XL = 20
+    XL2 = 24
+    XL3 = 30
+    XL4 = 36
+    XL5 = 48
+    XL6 = 60
+    XL7 = 72
+
+
+@struct(StructType.FONT, inline=True)
+class Font(Struct):
+    """A font value."""
+
+    type: Optional[FontType] = p_regular(31, default=None, validate=enum_validator(FontType))
+    weight: Optional[FontWeight] = p_regular(32, default=None, validate=enum_validator(FontWeight))
+    size: Optional[FontSize] = p_regular(33, default=None, validate=enum_validator(FontSize))
 
 
 @_well_known_enum
@@ -210,18 +261,22 @@ class View(HasViews, HasValues):
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )
-    # TODO :Cleanup :Architecture: View.node should probably just be in View.value
-    #  (with relevant Views having that type... once we have the Value system more figured out)
-    node: Optional["Node"] = p_regular(
-        36, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
-    )
 
     # content
     value_packed: Any = p_value_packed(40)
     value = p_value_runtime(packed=40)
+    # TODO :Cleanup :Architecture: View.node should probably just be in View.value
+    #  (with relevant Views having that type... once we have the Value system more figured out)
+    node: Optional["Node"] = p_regular(
+        41, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
+    )
     ...  # value/value source/file/node...
 
     # style
+    variant: Optional[ViewVariant] = p_regular(50, default=None, require=False)
+    # font: Optional[Font] = p_regular(
+    #     51, default=None, require=False, array=False, struct=StructType.FONT
+    # )
     ...  # font/border/corner/foreground/background/...
 
     # layout

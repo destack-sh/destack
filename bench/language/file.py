@@ -23,7 +23,7 @@ FILE_MAX_NAME_LENGTH = 256
 GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
 
 
-@struct(StructType.FILE)
+@struct(StructType.FILE, inline=True)
 class File(Struct):
     """A reference to a file stored somewhere."""
 
