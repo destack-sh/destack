@@ -8,8 +8,14 @@ const props = defineProps<Pick<ViewPropsAll, "self" | "name" | "title" | "text" 
 const emits = defineEmits<ViewEmits & {}>();
 
 const styleByVariant: Partial<Record<ViewVariant, string>> = {
+  // prominent filled button
   [ViewVariant.PRIMARY]:
     "bg-primary-300 border rounded-md border-gray-900 px-2 py-1 text-gray-900 shadow-sm shadow-gray-900 hover:bg-primary-400",
+  // outline button
+  [ViewVariant.SECONDARY]:
+    "border border-gray-900 bg-white shadow-sm shadow-gray-900 rounded-md px-2 py-1 text-gray-900 hover:bg-gray-100",
+  // 'link' button
+  [ViewVariant.TERTIARY]: "text-gray-900 underline decoration-2 underline-offset-4 decoration-gray-400 hover:decoration-primary-400 hover:text-gray-700",
 };
 
 defineExpose({ self: toRef(props, "self") });

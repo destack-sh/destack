@@ -47,10 +47,11 @@ class ViewType(IdEnum):
     # General
     #
 
-    # containers
+    # containers (root)
     WINDOWED = 500
     WINDOW = 501  # (force window appearance)
     TABBED = 502
+    # containers (layout)
     STEPPED = 505
     SPLIT = 507
     STACK = 510
@@ -58,11 +59,11 @@ class ViewType(IdEnum):
     GRID = 512
     ROW = 513
     COLUMN = 514
-    # data
+    # containers (data)
     LIST = 520
     TABLE = 521
     FEED = 522
-    # group
+    # containers (group)
     GROUP = 535
     FORM = 536
     MENU = 537
@@ -83,7 +84,7 @@ class ViewType(IdEnum):
     LINK = 610
 
     # content
-    VALUE = 620  # (generic value based on type)
+    VALUE = 620  # (generic content based on ... type?)
     # numeric
     SLIDER = 633
     NUMBER = 634

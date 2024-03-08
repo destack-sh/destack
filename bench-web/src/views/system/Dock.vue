@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { Tooltip } from "@/utils/tooltip";
-import { computed, shallowRef, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 
 type DockItem = {
   id: string;
@@ -16,37 +16,31 @@ const items: Ref<DockItem[]> = computed(
   () =>
     [
       {
-        id: "home",
-        name: "Home",
-        text: "Go to the home page",
-        icon: "fas fa-house",
-      },
-      {
         id: "search",
         name: "Search",
         text: "Search everything in the space",
         icon: "fas fa-magnifying-glass",
         shortcut: "Ctrl+K",
       },
-      // {
-      //   id: "chat",
-      //   name: "Chat",
-      //   text: "Launch chat with your Bench",
-      //   icon: "fas fa-comment-dots",
-      // },
+      {
+        id: "chat",
+        name: "Chat",
+        text: "Chat with everything in the space",
+        icon: "fas fa-comment-dots",
+      },
       {
         id: "inspect",
         name: "Inspector",
-        text: "Get details on some node",
+        text: "Get details on a block",
         icon: "fas fa-eye-dropper",
         shortcut: "Ctrl+I",
       },
-      // {
-      //   id: "library",
-      //   name: "Library",
-      //   text: "Reuse common nodes from our library"
-      //   icon: "fas fa-book",
-      // },
+      {
+        id: "library",
+        name: "Library",
+        text: "Get blocks from our library",
+        icon: "fas fa-landmark",
+      },
       {
         id: "docs",
         name: "Documentation",

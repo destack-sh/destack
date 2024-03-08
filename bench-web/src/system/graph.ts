@@ -1,28 +1,25 @@
-import { getHostClient, supervisor, type Operation } from "@/proto/services";
+import { getHostClient, supervisor } from "@/proto/services";
 import {
   AggregationData,
-  BenchType,
   ExpressionData,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   ReadOptionsData,
   StructType,
-  WatchEditsRequest,
-  WatchEditsResponse,
   type AnyNodeData,
   type AnyPropertyType,
   type IGraphIOClient,
   type NodeType,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import { makeDefaultStruct } from "@/proto/wiring";
 import type { AccessQuery } from "@/system/access";
-import { BASED_NODE_TYPES, defaultSort, getBaseFromNode } from "@/system/lang";
+import { defaultSort } from "@/system/lang";
 import { TransactionBuffer, useGraphContext } from "@/system/transaction";
 import { computedSubRef, manualSubRef, onUnmountedIfComponent, type SubRef } from "@/utils/ref";
 import type { Transaction } from "@sentry/vue";
-import { computed, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, isRef } from "vue";
+import { computed, isRef, ref, shallowRef, toRef, watch, type MaybeRef, type Ref } from "vue";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type?: T };

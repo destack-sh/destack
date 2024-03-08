@@ -51,6 +51,7 @@ export const spaceGraphLocal = new NodeGraph();
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
+export const isSpaceLocal = computed(() => spacePtr.value?.id === LOCAL_SPACE_ID);
 
 watch(
   spaceRemote,

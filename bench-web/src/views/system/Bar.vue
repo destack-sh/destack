@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
-import { bench, user } from "@/system/space";
 import { makeIcon } from "@/system/icon";
+import { bench, user } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/system/Dock.vue";
 </script>
@@ -12,7 +12,7 @@ import Dock from "@/views/system/Dock.vue";
       <button class="rounded-md border border-gray-300 bg-white px-2 py-1" v-if="bench">Bench</button>
       <button v-else class="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300">
         <span class="font-semibold">Bench</span>
-        <span class="skew-y-4 ml-1.5 rounded-md bg-primary-300 px-1 py-0.5 font-semibold">Beta</span>
+        <span class="skew-y-4 inset-thick-underline ml-1 pl-0.5 font-semibold">Beta</span>
       </button>
       <!-- Status -->
       <!-- ... -->
@@ -38,3 +38,24 @@ import Dock from "@/views/system/Dock.vue";
     </div>
   </div>
 </template>
+
+<style scoped>
+.inset-thick-underline {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+}
+
+.inset-thick-underline:after {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  width: 100%;
+  border-radius: 1px;
+  height: 4px;
+  background-color: #fcd34d;
+  bottom: 2px;
+  transform: skewY(-3deg);
+  left: 1px;
+}
+</style>
