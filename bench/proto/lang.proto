@@ -1475,12 +1475,15 @@ message ClientData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   optional string name = 32;
-  string device_name = 33;
-  optional string browser_name = 34;
-  google.protobuf.Timestamp last_seen_at = 35;
-  optional google.protobuf.Timestamp logged_in_at = 36;
-  optional string access_token = 37;
-  optional NodeReferenceData main_space_ptr = 40;
+  optional string device_name = 40;
+  optional string device_type = 41;
+  optional string operating_system = 42;
+  optional string browser_name = 43;
+  optional string browser_version = 44;
+  optional string access_token = 50;
+  google.protobuf.Timestamp last_seen_at = 51;
+  optional google.protobuf.Timestamp logged_in_at = 52;
+  optional NodeReferenceData main_space_ptr = 60;
 }
 
 // A dependency on another Bench (pointing to a specific Package).
@@ -2225,7 +2228,6 @@ message ViewData {
   optional google.protobuf.Struct value_packed = 40;
   optional NodeReferenceData node_ptr = 41;
   optional ViewVariant variant = 50;
-  optional FontData font = 51;
   bool is_visible = 80;
   bool is_disabled = 81;
   bool is_loading = 82;

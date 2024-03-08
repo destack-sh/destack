@@ -2142,27 +2142,39 @@ export interface ClientData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: string device_name = 33;
+     * @generated from protobuf field: optional string device_name = 40;
      */
-    deviceName: string;
+    deviceName?: string;
     /**
-     * @generated from protobuf field: optional string browser_name = 34;
+     * @generated from protobuf field: optional string device_type = 41;
+     */
+    deviceType?: string;
+    /**
+     * @generated from protobuf field: optional string operating_system = 42;
+     */
+    operatingSystem?: string;
+    /**
+     * @generated from protobuf field: optional string browser_name = 43;
      */
     browserName?: string;
     /**
-     * @generated from protobuf field: google.protobuf.Timestamp last_seen_at = 35;
+     * @generated from protobuf field: optional string browser_version = 44;
      */
-    lastSeenAt?: Timestamp;
+    browserVersion?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp logged_in_at = 36;
-     */
-    loggedInAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional string access_token = 37;
+     * @generated from protobuf field: optional string access_token = 50;
      */
     accessToken?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_space_ptr = 40;
+     * @generated from protobuf field: google.protobuf.Timestamp last_seen_at = 51;
+     */
+    lastSeenAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp logged_in_at = 52;
+     */
+    loggedInAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_space_ptr = 60;
      */
     mainSpacePtr?: NodeReferenceData;
 }
@@ -4811,10 +4823,6 @@ export interface ViewData {
      * @generated from protobuf field: optional symbolx.bench.ViewVariant variant = 50;
      */
     variant?: ViewVariant;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.FontData font = 51;
-     */
-    font?: FontData;
     /**
      * @generated from protobuf field: bool is_visible = 80;
      */
@@ -12787,12 +12795,15 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "device_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "last_seen_at", kind: "message", T: () => Timestamp },
-            { no: 36, name: "logged_in_at", kind: "message", T: () => Timestamp },
-            { no: 37, name: "access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "main_space_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 44, name: "browser_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "last_seen_at", kind: "message", T: () => Timestamp },
+            { no: 52, name: "logged_in_at", kind: "message", T: () => Timestamp },
+            { no: 60, name: "main_space_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ClientData>): ClientData {
@@ -12802,7 +12813,6 @@ class ClientData$Type extends MessageType<ClientData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
-        message.deviceName = "";
         if (value !== undefined)
             reflectionMergePartial<ClientData>(this, message, value);
         return message;
@@ -12855,22 +12865,31 @@ class ClientData$Type extends MessageType<ClientData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* string device_name */ 33:
+                case /* optional string device_name */ 40:
                     message.deviceName = reader.string();
                     break;
-                case /* optional string browser_name */ 34:
+                case /* optional string device_type */ 41:
+                    message.deviceType = reader.string();
+                    break;
+                case /* optional string operating_system */ 42:
+                    message.operatingSystem = reader.string();
+                    break;
+                case /* optional string browser_name */ 43:
                     message.browserName = reader.string();
                     break;
-                case /* google.protobuf.Timestamp last_seen_at */ 35:
-                    message.lastSeenAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastSeenAt);
+                case /* optional string browser_version */ 44:
+                    message.browserVersion = reader.string();
                     break;
-                case /* optional google.protobuf.Timestamp logged_in_at */ 36:
-                    message.loggedInAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.loggedInAt);
-                    break;
-                case /* optional string access_token */ 37:
+                case /* optional string access_token */ 50:
                     message.accessToken = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_space_ptr */ 40:
+                case /* google.protobuf.Timestamp last_seen_at */ 51:
+                    message.lastSeenAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastSeenAt);
+                    break;
+                case /* optional google.protobuf.Timestamp logged_in_at */ 52:
+                    message.loggedInAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.loggedInAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData main_space_ptr */ 60:
                     message.mainSpacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainSpacePtr);
                     break;
                 default:
@@ -12928,24 +12947,33 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string device_name = 33; */
-        if (message.deviceName !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.deviceName);
-        /* optional string browser_name = 34; */
+        /* optional string device_name = 40; */
+        if (message.deviceName !== undefined)
+            writer.tag(40, WireType.LengthDelimited).string(message.deviceName);
+        /* optional string device_type = 41; */
+        if (message.deviceType !== undefined)
+            writer.tag(41, WireType.LengthDelimited).string(message.deviceType);
+        /* optional string operating_system = 42; */
+        if (message.operatingSystem !== undefined)
+            writer.tag(42, WireType.LengthDelimited).string(message.operatingSystem);
+        /* optional string browser_name = 43; */
         if (message.browserName !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.browserName);
-        /* google.protobuf.Timestamp last_seen_at = 35; */
-        if (message.lastSeenAt)
-            Timestamp.internalBinaryWrite(message.lastSeenAt, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp logged_in_at = 36; */
-        if (message.loggedInAt)
-            Timestamp.internalBinaryWrite(message.loggedInAt, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional string access_token = 37; */
+            writer.tag(43, WireType.LengthDelimited).string(message.browserName);
+        /* optional string browser_version = 44; */
+        if (message.browserVersion !== undefined)
+            writer.tag(44, WireType.LengthDelimited).string(message.browserVersion);
+        /* optional string access_token = 50; */
         if (message.accessToken !== undefined)
-            writer.tag(37, WireType.LengthDelimited).string(message.accessToken);
-        /* optional symbolx.bench.NodeReferenceData main_space_ptr = 40; */
+            writer.tag(50, WireType.LengthDelimited).string(message.accessToken);
+        /* google.protobuf.Timestamp last_seen_at = 51; */
+        if (message.lastSeenAt)
+            Timestamp.internalBinaryWrite(message.lastSeenAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp logged_in_at = 52; */
+        if (message.loggedInAt)
+            Timestamp.internalBinaryWrite(message.loggedInAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_space_ptr = 60; */
         if (message.mainSpacePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainSpacePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainSpacePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18687,7 +18715,6 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.ViewVariant", ViewVariant, "VIEW_VARIANT_"] },
-            { no: 51, name: "font", kind: "message", T: () => FontData },
             { no: 80, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -18788,9 +18815,6 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.ViewVariant variant */ 50:
                     message.variant = reader.int32();
                     break;
-                case /* optional symbolx.bench.FontData font */ 51:
-                    message.font = FontData.internalBinaryRead(reader, reader.uint32(), options, message.font);
-                    break;
                 case /* bool is_visible */ 80:
                     message.isVisible = reader.bool();
                     break;
@@ -18888,9 +18912,6 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.ViewVariant variant = 50; */
         if (message.variant !== undefined)
             writer.tag(50, WireType.Varint).int32(message.variant);
-        /* optional symbolx.bench.FontData font = 51; */
-        if (message.font)
-            FontData.internalBinaryWrite(message.font, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* bool is_visible = 80; */
         if (message.isVisible !== false)
             writer.tag(80, WireType.Varint).bool(message.isVisible);
@@ -20010,7 +20031,6 @@ export enum ViewProperty {
   valuePacked = 40,
   nodePtr = 41,
   variant = 50,
-  font = 51,
   isVisible = 80,
   isDisabled = 81,
   isLoading = 82,
@@ -20459,12 +20479,15 @@ export enum ClientProperty {
   updatedByPtr = 18,
   setProperties = 22,
   name = 32,
-  deviceName = 33,
-  browserName = 34,
-  lastSeenAt = 35,
-  loggedInAt = 36,
-  accessToken = 37,
-  mainSpacePtr = 40,
+  deviceName = 40,
+  deviceType = 41,
+  operatingSystem = 42,
+  browserName = 43,
+  browserVersion = 44,
+  accessToken = 50,
+  lastSeenAt = 51,
+  loggedInAt = 52,
+  mainSpacePtr = 60,
 }
 
 export enum PathProperty {
