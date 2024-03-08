@@ -119,7 +119,6 @@ class ViewVariant(IdEnum):
     PRIMARY = 1
     SECONDARY = 2
     TERTIARY = 3
-    QUATERNARY = 4
 
 
 @_well_known_enum
@@ -231,13 +230,86 @@ class Font(Struct):
 
 
 @_well_known_enum
-class SpacingType(IdEnum):
-    """Built-in spacings like in Tailwind."""
+class Spacing(IdEnum):
+    """
+    The spacing scale for positions, padding, margin, etc. We don't enforce this.
+    This is reminiscent of Tailwind's spacing scale.
+    """
 
-    # purpose
-    ...
-    # actual
-    ...
+    S1 = 1
+    S2 = 2
+    S3 = 3
+    S4 = 4
+    S5 = 5
+    S6 = 6
+    S7 = 7
+    S8 = 8
+    S9 = 9
+    S10 = 10
+    S11 = 11
+    S12 = 12
+    S14 = 14
+    S16 = 16
+    S20 = 20
+    S24 = 24
+    S28 = 28
+    S32 = 32
+    S36 = 36
+    S40 = 40
+    S44 = 44
+    S48 = 48
+    S52 = 52
+    S56 = 56
+    S60 = 60
+    S64 = 64
+    S72 = 72
+    S80 = 80
+    S96 = 96
+    S128 = 128
+    S160 = 160
+    S192 = 192
+    S224 = 224
+    S256 = 256
+
+
+@struct(StructType.OFFSET, inline=True)
+class Offset(Struct):
+    """A position value. Units are in pixels, ideally in Spacing scale."""
+
+    top: Optional[int] = p_regular(40, default=None)
+    right: Optional[int] = p_regular(41, default=None)
+    bottom: Optional[int] = p_regular(42, default=None)
+    left: Optional[int] = p_regular(43, default=None)
+
+
+@struct(StructType.BOX, inline=True)
+class Box(Struct):
+    """A box value. Units are in pixels, ideally in Spacing scale."""
+
+    width: Optional[int] = p_regular(50, default=None)
+    width_relative: Optional[float] = p_regular(51, default=None)
+    height: Optional[int] = p_regular(52, default=None)
+    height_relative: Optional[float] = p_regular(53, default=None)
+
+
+@_well_known_enum
+class Orientation(IdEnum):
+    """Which way to orient the contents/subviews of a view."""
+
+    HORIZONTAL = 1
+    HORIZONTAL_REVERSED = 2
+    VERTICAL = 11
+    VERTICAL_REVERSED = 12
+
+
+@_well_known_enum
+class Alignment(IdEnum):
+    """How to align the contents/subviews of a view along its orientation."""
+
+    START = 1
+    MIDDLE = 2
+    END = 3
+    SPACE_BETWEEN = 4
 
 
 @node_component
@@ -274,23 +346,36 @@ class View(HasViews, HasValues):
 
     # style
     variant: Optional[ViewVariant] = p_regular(50, default=None, require=False)
-    # font: Optional[Font] = p_regular(
-    #     51, default=None, require=False, array=False, struct=StructType.FONT
-    # )
-    ...  # font/border/corner/foreground/background/...
+    font: Optional[Font] = p_regular(
+        51, default=None, require=False, array=False, struct=StructType.FONT
+    )
+    ...  # border/corner/foreground/background/...
 
     # layout
-    ...  # size/position/alignment/margin/padding/...
+    position: Optional[Offset] = p_regular(
+        60, default=None, require=False, array=False, struct=StructType.BOX
+    )
+    size: Optional[Box] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.BOX
+    )
+    margin: Optional[Offset] = p_regular(
+        62, default=None, require=False, array=False, struct=StructType.BOX
+    )
+    padding: Optional[Offset] = p_regular(
+        63, default=None, require=False, array=False, struct=StructType.BOX
+    )
+    orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
+    alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
 
     # interaction
     ...  # behavior/effects/...
 
     # flags
-    is_visible: bool = p_regular(80, default=True)
-    is_disabled: bool = p_regular(81, default=False)
-    is_loading: bool = p_regular(82, default=False)
-    is_input: bool = p_regular(83, default=False)
-    is_secret: bool = p_regular(84, default=False)
+    is_visible: Optional[bool] = p_regular(80, default=True)
+    is_disabled: Optional[bool] = p_regular(81, default=False)
+    is_loading: Optional[bool] = p_regular(82, default=False)
+    is_input: Optional[bool] = p_regular(83, default=False)
+    is_secret: Optional[bool] = p_regular(84, default=False)
 
     def __repr__(self):  # noqa: we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"

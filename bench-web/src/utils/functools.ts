@@ -1,4 +1,3 @@
-
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
 }
@@ -18,4 +17,9 @@ export function cyrb53a(str: string, seed = 0): number {
   h1 ^= h2 >>> 16;
   h2 ^= h1 >>> 16;
   return 2097152 * (h2 >>> 0) + (h1 >>> 11);
+}
+
+export function roundToDigits(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }

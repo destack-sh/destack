@@ -1,14 +1,8 @@
 import { BenchType, NodeType, SpaceData } from "@/proto/wire";
+import { nodeReference, toNodeReference, toNodeReferenceRef } from "@/proto/wiring";
 import auth from "@/system/auth";
 import { LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
-import {
-  NodeGraph,
-  ProxyNodeGraph,
-  getNodesRef,
-  nodeReference,
-  toNodeReference,
-  toNodeReferenceRef,
-} from "@/system/graph";
+import { NodeGraph, ProxyNodeGraph, getNodesRef } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { log } from "@/utils/log";
 import { computed, watch } from "vue";

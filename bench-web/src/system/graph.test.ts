@@ -11,7 +11,8 @@ import {
   UserData,
   ClientProperty,
 } from "@/proto/wire";
-import { NodeGraph, LayerNodeGraph, toNodeReference } from "@/system/graph";
+import { toNodeReference } from "@/proto/wiring";
+import { NodeGraph, LayerNodeGraph } from "@/system/graph";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";

@@ -1,5 +1,5 @@
 import { NodeType, type NodeReferenceData } from "@/proto/wire";
-import { nodeReference } from "@/system/graph";
+import { nodeReference } from "@/proto/wiring";
 import { useStorage } from "@vueuse/core";
 import { computed, type Ref } from "vue";
 

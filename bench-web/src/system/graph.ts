@@ -592,41 +592,6 @@ export function mergeNode<T extends NodeType>(
   }
 }
 
-export function nodeReference<T extends NodeType>(nodeType: T, id: string): NodeReferenceData {
-  return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id };
-}
-
-export function toNodeReference(node: null): null;
-export function toNodeReference(node: AnyNodeData): NodeReferenceData;
-export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | null {
-  if (!node) return null;
-  const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
-  const reference: NodeReferenceData = {
-    metatype: BenchType.NODE_REFERENCE,
-    type: node.metatype as unknown as NodeType,
-    id: node.id,
-  };
-  if ("bench" in allProperties && node.parentPtr) {
-    reference.benchId = node.parentPtr.benchId;
-  }
-  if ("ck" in allProperties) {
-    reference.ck = (node as { ck: string }).ck;
-    if (node.metatype in BASED_NODE_TYPES) {
-      const base = getBaseFromNode(node);
-      if (base != null) {
-        reference.baseCk = base.ck;
-        reference.baseBenchId = base.benchId;
-      }
-    }
-  }
-  return reference;
-}
-
-export function toNodeReferenceRef(node: MaybeRef<AnyNodeData | null>): Ref<NodeReferenceData | null> {
-  const nodeRef = toRef(node) as Ref<AnyNodeData | null>;
-  return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
-}
-
 function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
     ...makeDefaultStruct(StructType.READ_OPTIONS),

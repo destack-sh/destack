@@ -55,6 +55,15 @@ enum AggregationOp {
   AGGREGATION_OP_HISTOGRAM = 107;
 }
 
+// How to align the contents/subviews of a view along its orientation.
+enum Alignment {
+  ALIGNMENT_UNSPECIFIED = 0;
+  ALIGNMENT_START = 1;
+  ALIGNMENT_MIDDLE = 2;
+  ALIGNMENT_END = 3;
+  ALIGNMENT_SPACE_BETWEEN = 4;
+}
+
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
@@ -127,6 +136,8 @@ enum BenchType {
   BENCH_TYPE_TEXT_SPAN = 662;
   BENCH_TYPE_COLOR = 700;
   BENCH_TYPE_FONT = 701;
+  BENCH_TYPE_BOX = 702;
+  BENCH_TYPE_OFFSET = 703;
 }
 
 enum BlockType {
@@ -470,6 +481,15 @@ enum OrganizationStatus {
   ORGANIZATION_STATUS_ACTIVATED = 10;
 }
 
+// Which way to orient the contents/subviews of a view.
+enum Orientation {
+  ORIENTATION_UNSPECIFIED = 0;
+  ORIENTATION_HORIZONTAL = 1;
+  ORIENTATION_HORIZONTAL_REVERSED = 2;
+  ORIENTATION_VERTICAL = 11;
+  ORIENTATION_VERTICAL_REVERSED = 12;
+}
+
 enum PathSegmentType {
   PATH_SEGMENT_TYPE_UNSPECIFIED = 0;
   PATH_SEGMENT_TYPE_BENCH = 1;
@@ -672,6 +692,8 @@ enum StructType {
   STRUCT_TYPE_TEXT_SPAN = 662;
   STRUCT_TYPE_COLOR = 700;
   STRUCT_TYPE_FONT = 701;
+  STRUCT_TYPE_BOX = 702;
+  STRUCT_TYPE_OFFSET = 703;
 }
 
 // How a Resource is shared (if at all).
@@ -791,7 +813,6 @@ enum ViewVariant {
   VIEW_VARIANT_PRIMARY = 1;
   VIEW_VARIANT_SECONDARY = 2;
   VIEW_VARIANT_TERTIARY = 3;
-  VIEW_VARIANT_QUATERNARY = 4;
 }
 
 // An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -867,6 +888,16 @@ message AggregationBucketData {
   optional int32 id = 2;
   google.protobuf.Struct key = 30;
   int32 count = 31;
+}
+
+// A box value. Units are in pixels, ideally in Spacing scale.
+message BoxData {
+  BenchType metatype = 1;
+  optional int32 id = 2;
+  optional int32 width = 50;
+  optional float width_relative = 51;
+  optional int32 height = 52;
+  optional float height_relative = 53;
 }
 
 // Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
@@ -980,6 +1011,16 @@ message NodeReferenceData {
   optional string bench_id = 33;
   optional string base_ck = 34;
   optional string base_bench_id = 35;
+}
+
+// A position value. Units are in pixels, ideally in Spacing scale.
+message OffsetData {
+  BenchType metatype = 1;
+  optional int32 id = 2;
+  optional int32 top = 40;
+  optional int32 right = 41;
+  optional int32 bottom = 42;
+  optional int32 left = 43;
 }
 
 // A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -2228,11 +2269,18 @@ message ViewData {
   optional google.protobuf.Struct value_packed = 40;
   optional NodeReferenceData node_ptr = 41;
   optional ViewVariant variant = 50;
-  bool is_visible = 80;
-  bool is_disabled = 81;
-  bool is_loading = 82;
-  bool is_input = 83;
-  bool is_secret = 84;
+  optional FontData font = 51;
+  optional OffsetData position = 60;
+  optional BoxData size = 61;
+  optional OffsetData margin = 62;
+  optional OffsetData padding = 63;
+  optional Orientation orientation = 64;
+  optional Alignment alignment = 65;
+  optional bool is_visible = 80;
+  optional bool is_disabled = 81;
+  optional bool is_loading = 82;
+  optional bool is_input = 83;
+  optional bool is_secret = 84;
 }
 
 message SomeNodeData {

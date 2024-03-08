@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.03.08.4"
+VERSION = "2024.03.08.6"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1064,11 +1064,18 @@ VIEW_TABLE = Table(
             is_nullable=True,
         ),
         Column("variant", PrimitiveType.INT16, is_nullable=True),
-        Column("is_visible", PrimitiveType.BOOLEAN, default="true"),
-        Column("is_disabled", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_input", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
+        Column("font", PrimitiveType.JSON, is_nullable=True),
+        Column("position", PrimitiveType.JSON, is_nullable=True),
+        Column("size", PrimitiveType.JSON, is_nullable=True),
+        Column("margin", PrimitiveType.JSON, is_nullable=True),
+        Column("padding", PrimitiveType.JSON, is_nullable=True),
+        Column("orientation", PrimitiveType.INT16, is_nullable=True),
+        Column("alignment", PrimitiveType.INT16, is_nullable=True),
+        Column("is_visible", PrimitiveType.BOOLEAN, is_nullable=True, default="true"),
+        Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_secret", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
