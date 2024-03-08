@@ -1,10 +1,9 @@
 <script lang="tsx" setup>
-import { BenchType, BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { makeNode } from "@/proto/wiring";
+import { BoxData, NodeType, Orientation } from "@/proto/wire";
+import { getChildrenRef } from "@/system/graph";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView } from "@/utils/positioning";
 import { type ViewEmits, type ViewPropsAllAnchored } from "@/views/common";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
-import { v4 } from "uuid";
 import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
@@ -14,25 +13,7 @@ const props = defineProps<
 >();
 const emits = defineEmits<ViewEmits>();
 
-// const { children: windows } = getChildrenRef(toRef(props, "self"), NodeType.VIEW);
-const windows /* nocheckin get windows from space */ = ref<ViewData[]>([
-  makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: props.self,
-    type: ViewType.TABBED,
-    size: { metatype: BenchType.BOX, width: 200 },
-  }),
-  makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: props.self,
-    type: ViewType.SIGN_IN,
-  }),
-  makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: props.self,
-    type: ViewType.WINDOWED,
-  }),
-]);
+const { children: windows } = getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 
 // positioning
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
@@ -101,7 +82,7 @@ defineExpose({ self: toRef(props, "self") });
         class="absolute transition-colors duration-500"
         :class="[
           orientation == Orientation.HORIZONTAL ? 'w-1 cursor-ew-resize' : 'h-1 cursor-ns-resize',
-          draggingSepIdx == viewIdx - 1 ? 'bg-primary-500' : 'bg-transparent hover:bg-primary-400',
+          draggingSepIdx == viewIdx - 1 ? 'bg-primary-400' : 'bg-transparent hover:bg-primary-300',
         ]"
         :style="
           orientation == Orientation.HORIZONTAL
