@@ -7,7 +7,7 @@ const props = defineProps<
   Pick<ViewProps, "self" | "name" | "title" | "text" | "icon" | "isInput" | "isDisabled" | "isSecret"> & {}
 >();
 const emits = defineEmits<ViewEmits & {}>();
-const modelValue = defineModel<TextData>();
+const modelValue = defineModel<string>();
 
 defineExpose({ self: toRef(props, "self") });
 </script>

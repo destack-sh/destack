@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.03.05. Edit as needed.
+# This migration was automatically generated on 2024.03.08. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.03.05.0"
+VERSION = "2024.03.08.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -174,8 +174,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         name varchar NOT NULL,
         text jsonb,
         order_key varchar NOT NULL,
-        policies jsonb[],
-        dock jsonb NOT NULL
+        policies jsonb[]
     )
     """
     )
@@ -372,6 +371,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         text jsonb,
         icon jsonb,
         value_packed jsonb,
+        node_ck uuid,
+        node_type smallint,
+        node_base_ck uuid,
+        variant smallint,
         is_visible boolean NOT NULL DEFAULT true,
         is_disabled boolean NOT NULL DEFAULT false,
         is_loading boolean NOT NULL DEFAULT false,
@@ -1042,7 +1045,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
         ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
         ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
+        ADD COLUMN node_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL,
+        ADD COLUMN node_base_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
     """
     )
     await cur.execute(

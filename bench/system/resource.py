@@ -56,7 +56,7 @@ def generate_random_password(length: int = 48) -> str:
     password += random.choice(string.ascii_lowercase)
     password += random.choice(string.ascii_uppercase)
     password += random.choice(string.digits)
-    password += random.choice("!@$^&*()_+-=")
+    password += random.choice("!$^&*()_+-=")
     return password
 
 

@@ -126,8 +126,7 @@ enum BenchType {
   BENCH_TYPE_TEXT_LINE = 661;
   BENCH_TYPE_TEXT_SPAN = 662;
   BENCH_TYPE_COLOR = 700;
-  BENCH_TYPE_SPACE_DOCK = 800;
-  BENCH_TYPE_SPACE_DOCK_ITEM = 801;
+  BENCH_TYPE_FONT = 701;
 }
 
 enum BlockType {
@@ -175,32 +174,29 @@ enum ColorType {
   COLOR_TYPE_PRIMARY = 1;
   COLOR_TYPE_SECONDARY = 2;
   COLOR_TYPE_ACCENT = 3;
+  COLOR_TYPE_BACKGROUND = 4;
   COLOR_TYPE_SUCCESS = 10;
   COLOR_TYPE_HINT = 11;
   COLOR_TYPE_WARNING = 12;
   COLOR_TYPE_DANGER = 13;
-  COLOR_TYPE_SLATE = 20;
-  COLOR_TYPE_GRAY = 21;
-  COLOR_TYPE_ZINC = 22;
-  COLOR_TYPE_NEUTRAL = 23;
-  COLOR_TYPE_STONE = 24;
-  COLOR_TYPE_RED = 30;
-  COLOR_TYPE_ORANGE = 31;
-  COLOR_TYPE_AMBER = 32;
-  COLOR_TYPE_YELLOW = 33;
-  COLOR_TYPE_LIME = 34;
-  COLOR_TYPE_GREEN = 35;
-  COLOR_TYPE_EMERALD = 36;
-  COLOR_TYPE_TEAL = 37;
-  COLOR_TYPE_CYAN = 38;
-  COLOR_TYPE_SKY = 39;
-  COLOR_TYPE_BLUE = 40;
-  COLOR_TYPE_INDIGO = 41;
-  COLOR_TYPE_VIOLET = 42;
-  COLOR_TYPE_PURPLE = 43;
-  COLOR_TYPE_FUCHSIA = 44;
-  COLOR_TYPE_PINK = 45;
-  COLOR_TYPE_ROSE = 46;
+  COLOR_TYPE_GRAY = 30;
+  COLOR_TYPE_RED = 31;
+  COLOR_TYPE_ORANGE = 32;
+  COLOR_TYPE_AMBER = 33;
+  COLOR_TYPE_YELLOW = 34;
+  COLOR_TYPE_LIME = 35;
+  COLOR_TYPE_GREEN = 36;
+  COLOR_TYPE_EMERALD = 37;
+  COLOR_TYPE_TEAL = 38;
+  COLOR_TYPE_CYAN = 39;
+  COLOR_TYPE_SKY = 40;
+  COLOR_TYPE_BLUE = 41;
+  COLOR_TYPE_INDIGO = 42;
+  COLOR_TYPE_VIOLET = 43;
+  COLOR_TYPE_PURPLE = 44;
+  COLOR_TYPE_FUCHSIA = 45;
+  COLOR_TYPE_PINK = 46;
+  COLOR_TYPE_ROSE = 47;
 }
 
 enum ConditionalOp {
@@ -299,6 +295,41 @@ enum FileStatus {
   FILE_STATUS_AVAILABLE = 3;
 }
 
+enum FontSize {
+  FONT_SIZE_UNSPECIFIED = 0;
+  FONT_SIZE_XS = 12;
+  FONT_SIZE_SM = 14;
+  FONT_SIZE_BASE = 16;
+  FONT_SIZE_LG = 18;
+  FONT_SIZE_XL = 20;
+  FONT_SIZE_XL2 = 24;
+  FONT_SIZE_XL3 = 30;
+  FONT_SIZE_XL4 = 36;
+  FONT_SIZE_XL5 = 48;
+  FONT_SIZE_XL6 = 60;
+  FONT_SIZE_XL7 = 72;
+}
+
+enum FontType {
+  FONT_TYPE_UNSPECIFIED = 0;
+  FONT_TYPE_SERIF = 1;
+  FONT_TYPE_SANS_SERIF = 2;
+  FONT_TYPE_MONOSPACE = 3;
+}
+
+enum FontWeight {
+  FONT_WEIGHT_UNSPECIFIED = 0;
+  FONT_WEIGHT_THIN = 100;
+  FONT_WEIGHT_EXTRA_LIGHT = 200;
+  FONT_WEIGHT_LIGHT = 300;
+  FONT_WEIGHT_NORMAL = 400;
+  FONT_WEIGHT_MEDIUM = 500;
+  FONT_WEIGHT_SEMI_BOLD = 600;
+  FONT_WEIGHT_BOLD = 700;
+  FONT_WEIGHT_EXTRA_BOLD = 800;
+  FONT_WEIGHT_BLACK = 900;
+}
+
 // Extra semantic hint for types.
 enum FormatHint {
   FORMAT_HINT_UNSPECIFIED = 0;
@@ -318,13 +349,9 @@ enum FormatHint {
 
 enum IconKind {
   ICON_KIND_UNSPECIFIED = 0;
-  ICON_KIND_INTRINSIC = 1;
-  ICON_KIND_EMOJI = 2;
-  ICON_KIND_CUSTOM = 3;
-}
-
-enum IconType {
-  ICON_TYPE_UNSPECIFIED = 0;
+  ICON_KIND_EMOJI = 1;
+  ICON_KIND_FILE = 2;
+  ICON_KIND_FONT_AWESOME = 3;
 }
 
 enum IdEnum {
@@ -644,8 +671,7 @@ enum StructType {
   STRUCT_TYPE_TEXT_LINE = 661;
   STRUCT_TYPE_TEXT_SPAN = 662;
   STRUCT_TYPE_COLOR = 700;
-  STRUCT_TYPE_SPACE_DOCK = 800;
-  STRUCT_TYPE_SPACE_DOCK_ITEM = 801;
+  STRUCT_TYPE_FONT = 701;
 }
 
 // How a Resource is shared (if at all).
@@ -696,63 +722,76 @@ enum UserStatus {
 
 enum ViewType {
   VIEW_TYPE_UNSPECIFIED = 0;
-  VIEW_TYPE_PAGE = 1;
-  VIEW_TYPE_BLOCK = 2;
-  VIEW_TYPE_EXPLORER = 20;
-  VIEW_TYPE_HISTORY = 21;
-  VIEW_TYPE_RESOURCE = 22;
-  VIEW_TYPE_INSPECTOR = 23;
-  VIEW_TYPE_LIBRARY = 24;
-  VIEW_TYPE_LOG = 25;
-  VIEW_TYPE_ACCESS = 26;
-  VIEW_TYPE_SCREEN = 49;
-  VIEW_TYPE_WINDOWED = 50;
-  VIEW_TYPE_TABBED = 52;
-  VIEW_TYPE_STEPPED = 55;
-  VIEW_TYPE_SPLIT = 57;
-  VIEW_TYPE_STACK = 60;
-  VIEW_TYPE_DISCLOSURE = 61;
-  VIEW_TYPE_GRID = 62;
-  VIEW_TYPE_ROW = 63;
-  VIEW_TYPE_COLUMN = 64;
-  VIEW_TYPE_LIST = 70;
-  VIEW_TYPE_TABLE = 71;
-  VIEW_TYPE_FEED = 72;
-  VIEW_TYPE_GROUP = 75;
-  VIEW_TYPE_FORM = 76;
-  VIEW_TYPE_MENU = 77;
-  VIEW_TYPE_SECTION = 78;
-  VIEW_TYPE_SPACER = 80;
-  VIEW_TYPE_DIVIDER = 81;
-  VIEW_TYPE_SHAPE = 83;
-  VIEW_TYPE_CHART = 84;
-  VIEW_TYPE_PROGRESS = 85;
-  VIEW_TYPE_AVATAR = 86;
-  VIEW_TYPE_BADGE = 87;
-  VIEW_TYPE_BUTTON = 100;
-  VIEW_TYPE_LINK = 101;
-  VIEW_TYPE_VALUE = 120;
-  VIEW_TYPE_SLIDER = 133;
-  VIEW_TYPE_NUMBER = 134;
-  VIEW_TYPE_PHONE = 135;
-  VIEW_TYPE_STRING = 140;
-  VIEW_TYPE_TEXT = 141;
-  VIEW_TYPE_CODE = 142;
-  VIEW_TYPE_JSON = 143;
-  VIEW_TYPE_TOGGLE = 150;
-  VIEW_TYPE_CHECKBOX = 151;
-  VIEW_TYPE_CHECKBOX_GROUP = 152;
-  VIEW_TYPE_PICKER = 153;
-  VIEW_TYPE_DATE = 154;
-  VIEW_TYPE_TIME = 155;
-  VIEW_TYPE_CALENDAR = 156;
-  VIEW_TYPE_COLOR = 157;
-  VIEW_TYPE_FILE = 160;
-  VIEW_TYPE_DOCUMENT = 161;
-  VIEW_TYPE_ICON = 162;
-  VIEW_TYPE_IMAGE = 163;
-  VIEW_TYPE_VIDEO = 164;
-  VIEW_TYPE_AUDIO = 165;
+  VIEW_TYPE_SIGN_IN = 1;
+  VIEW_TYPE_KEYMAP = 40;
+  VIEW_TYPE_PAGE = 101;
+  VIEW_TYPE_BLOCK = 102;
+  VIEW_TYPE_EXPLORER = 120;
+  VIEW_TYPE_HISTORY = 121;
+  VIEW_TYPE_RESOURCE = 122;
+  VIEW_TYPE_INSPECTOR = 123;
+  VIEW_TYPE_LIBRARY = 124;
+  VIEW_TYPE_LOG = 125;
+  VIEW_TYPE_ACCESS = 126;
+  VIEW_TYPE_CLIENT = 127;
+  VIEW_TYPE_WINDOWED = 500;
+  VIEW_TYPE_WINDOW = 501;
+  VIEW_TYPE_TABBED = 502;
+  VIEW_TYPE_STEPPED = 505;
+  VIEW_TYPE_SPLIT = 507;
+  VIEW_TYPE_STACK = 510;
+  VIEW_TYPE_DISCLOSURE = 511;
+  VIEW_TYPE_GRID = 512;
+  VIEW_TYPE_ROW = 513;
+  VIEW_TYPE_COLUMN = 514;
+  VIEW_TYPE_LIST = 520;
+  VIEW_TYPE_TABLE = 521;
+  VIEW_TYPE_FEED = 522;
+  VIEW_TYPE_GROUP = 535;
+  VIEW_TYPE_FORM = 536;
+  VIEW_TYPE_MENU = 537;
+  VIEW_TYPE_SECTION = 538;
+  VIEW_TYPE_SPACER = 540;
+  VIEW_TYPE_DIVIDER = 541;
+  VIEW_TYPE_SHAPE = 543;
+  VIEW_TYPE_PROGRESS = 544;
+  VIEW_TYPE_AVATAR = 545;
+  VIEW_TYPE_BADGE = 546;
+  VIEW_TYPE_CHART = 547;
+  VIEW_TYPE_BUTTON = 600;
+  VIEW_TYPE_MULTI_BUTTON = 601;
+  VIEW_TYPE_LINK = 610;
+  VIEW_TYPE_VALUE = 620;
+  VIEW_TYPE_SLIDER = 633;
+  VIEW_TYPE_NUMBER = 634;
+  VIEW_TYPE_PHONE = 635;
+  VIEW_TYPE_STRING = 640;
+  VIEW_TYPE_TEXT = 641;
+  VIEW_TYPE_CODE = 642;
+  VIEW_TYPE_JSON = 643;
+  VIEW_TYPE_TOGGLE = 650;
+  VIEW_TYPE_CHECKBOX = 651;
+  VIEW_TYPE_CHECKBOX_GROUP = 652;
+  VIEW_TYPE_PICKER = 653;
+  VIEW_TYPE_DATE = 654;
+  VIEW_TYPE_TIME = 655;
+  VIEW_TYPE_CALENDAR = 656;
+  VIEW_TYPE_COLOR = 657;
+  VIEW_TYPE_FILE = 660;
+  VIEW_TYPE_DOCUMENT = 661;
+  VIEW_TYPE_ICON = 662;
+  VIEW_TYPE_IMAGE = 663;
+  VIEW_TYPE_VIDEO = 664;
+  VIEW_TYPE_AUDIO = 665;
+}
+
+// The style variant of a view.
+enum ViewVariant {
+  VIEW_VARIANT_UNSPECIFIED = 0;
+  VIEW_VARIANT_PRIMARY = 1;
+  VIEW_VARIANT_SECONDARY = 2;
+  VIEW_VARIANT_TERTIARY = 3;
+  VIEW_VARIANT_QUATERNARY = 4;
 }
 
 // An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -856,10 +895,6 @@ message CodeLineData {
 message ColorData {
   BenchType metatype = 1;
   optional int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
   optional ColorType type = 31;
   optional ColorShade shade = 32;
   optional string hex = 33;
@@ -901,10 +936,6 @@ message ExpressionData {
 message FileData {
   BenchType metatype = 1;
   optional int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
   optional string type = 31;
   optional string name = 33;
   optional int32 size = 34;
@@ -913,7 +944,16 @@ message FileData {
   optional string external_url = 37;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, type: Optional[bench.language.file.IconType] = <factory>, image: Optional[ForwardRef('File')] = None, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// A font value.
+message FontData {
+  BenchType metatype = 1;
+  optional int32 id = 2;
+  optional FontType type = 31;
+  optional FontWeight weight = 32;
+  optional FontSize size = 33;
+}
+
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message IconData {
   BenchType metatype = 1;
   optional int32 id = 2;
@@ -923,9 +963,9 @@ message IconData {
   repeated int32 set_properties = 22;
   IconKind kind = 30;
   optional string emoji = 31;
-  optional IconType type = 32;
-  optional FileData image = 33;
-  optional ColorData color = 34;
+  optional FileData file = 32;
+  optional string name = 33;
+  optional ColorData color = 40;
 }
 
 // A reference to a Node.
@@ -1180,28 +1220,6 @@ message ScheduleData {
   optional string timezone = 31;
   optional int32 interval = 32;
   optional string cron = 33;
-}
-
-// SpaceDock(items: list[bench.language.view.SpaceDockItem] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message SpaceDockData {
-  BenchType metatype = 1;
-  optional int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
-  repeated SpaceDockItemData items = 30;
-}
-
-// SpaceDockItem(hidden: bool = False, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message SpaceDockItemData {
-  BenchType metatype = 1;
-  optional int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
-  bool hidden = 31;
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -2080,7 +2098,6 @@ message SpaceData {
   optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
-  SpaceDockData dock = 35;
 }
 
 // A store for database-like storage in a Bench.
@@ -2205,8 +2222,10 @@ message ViewData {
   optional string title = 32;
   optional TextData text = 33;
   optional IconData icon = 35;
-  optional NodeReferenceData node_ptr = 36;
   optional google.protobuf.Struct value_packed = 40;
+  optional NodeReferenceData node_ptr = 41;
+  optional ViewVariant variant = 50;
+  optional FontData font = 51;
   bool is_visible = 80;
   bool is_disabled = 81;
   bool is_loading = 82;

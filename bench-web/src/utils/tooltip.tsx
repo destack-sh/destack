@@ -2,7 +2,7 @@ import { type FunctionalComponent } from "vue";
 
 export function shortcut(shorcut: string) {
   return (
-    <span class="rounded-md border border-gray-400 bg-primary-300 px-1 text-xs font-semibold uppercase text-gray-600 shadow-sm shadow-gray-200">
+    <span class="rounded-md font-mono border border-gray-500 bg-primary-300 px-1 text-xs font-semibold uppercase text-gray-700 shadow-sm shadow-gray-200">
       {shorcut}
     </span>
   );

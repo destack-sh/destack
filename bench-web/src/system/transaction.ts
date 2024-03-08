@@ -21,7 +21,7 @@ export type TransactionBase = {
   create(node: AnyNodeData): void;
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
-    /**
+  /**
    * Update regular properties in this node. If we already have an update for this node, extend that
    * TODO :Broken: handle debounced updates
    */
@@ -81,7 +81,6 @@ export class Transaction implements TransactionBase {
   upsert(node: AnyNodeData) {
     this._addEdit(EditType.UPSERT, node);
   }
-
 
   update<T extends NodeType>(
     update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
@@ -180,10 +179,12 @@ export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & W
 export class TransactionBuffer {
   public scope: GraphScope;
   public currentTx: Transaction | null;
+  public pendingTx: Transaction | null;
 
   constructor(scope: GraphScope) {
     this.scope = scope;
     this.currentTx = new Transaction();
+    this.pendingTx = null;
   }
 
   public get tx(): Transaction {
@@ -227,6 +228,12 @@ export class TransactionBuffer {
 
   delete(node: AnyNodeData) {
     this.tx.delete(node);
+  }
+
+  commit() {
+    if (this.currentTx == null) throw new Error("no current transaction");
+    this.pendingTx = this.currentTx;
+    this.currentTx = new Transaction();
   }
 }
 

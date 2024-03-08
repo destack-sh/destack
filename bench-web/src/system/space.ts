@@ -1,10 +1,17 @@
-import { NodeType } from "@/proto/wire";
+import { BenchType, NodeType, SpaceData } from "@/proto/wire";
 import auth from "@/system/auth";
-import { benchPtr, packagePtr, spacePtr } from "@/system/global";
-import { getNodesRef, nodeReference, toNodeReferenceRef, type GraphConnection } from "@/system/graph";
+import { LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
+import {
+  NodeGraph,
+  ProxyNodeGraph,
+  getNodesRef,
+  nodeReference,
+  toNodeReference,
+  toNodeReferenceRef,
+} from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
-import { computed, type Ref } from "vue";
-
+import { log } from "@/utils/log";
+import { computed, watch } from "vue";
 
 // user
 export const { graph: userGraph, connection: userConnection } = getNodesRef(
@@ -35,17 +42,42 @@ export const { graph: benchGraph, connection: benchConnection } = getNodesRef(
   })),
 );
 export const bench = benchGraph.getRef(benchPtr);
-export const space = benchGraph.getRef(spacePtr);
-export const { graph: packageGraph, connection: packageConnection } = getNodesRef(
+export const { graph: pkgGraph, connection: pkgConnection } = getNodesRef(
   computed(() => ({
     roots: [packagePtr.value!],
     options: { descendantTypes: LOADED_SOURCE_NODE_TYPES },
-    enabled: spacePtr.value != null,
+    enabled: packagePtr.value != null,
     watch: true,
   })),
 );
-export const pkg = packageGraph.getRef(packagePtr);
-export const allGraphs: Ref<GraphConnection[]> = computed(() => {
-  const graphs = [userConnection, benchConnection, packageConnection];
-  return graphs.filter((g) => g.active.value);
-});
+export const pkg = pkgGraph.getRef(packagePtr);
+
+// space (local if we don't have a bench or a space in that bench, otherwise in the package)
+export const spaceGraphLocal = new NodeGraph();
+export const spaceRemote = pkgGraph.getRef(spacePtr);
+export const spaceGraph = new ProxyNodeGraph(null);
+export const space = spaceGraph.getRef(spacePtr);
+
+watch(
+  spaceRemote,
+  () => {
+    if (spaceRemote.value == null) {
+      spaceGraph.graph.value = spaceGraphLocal;
+      if (spaceGraphLocal.size == 0) {
+        const { space } = initLocalSpace(spaceGraphLocal);
+        spacePtr.value = toNodeReference(space);
+      }
+    } else {
+      // spaceGraph.graph.value = pkgGraph;
+      throw new Error("not implemented");
+    }
+  },
+  { immediate: true },
+);
+
+function initLocalSpace(graph: NodeGraph): { space: SpaceData } {
+  log.info("initLocalSpace");
+  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID } as SpaceData;
+  graph.add(space);
+  return { space };
+}

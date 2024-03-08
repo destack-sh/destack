@@ -1,10 +1,16 @@
 import type { NodeReferenceData, ViewData } from "@/proto/wire";
 
-export type ViewFlags = "isVisible" | "isDisabled" | "isLoading" | "isInput" | "isSecret";
+export type ViewPropsFlags = Partial<Pick<ViewData, "isVisible" | "isDisabled" | "isLoading" | "isInput" | "isSecret">>;
 
-export type ViewProps = Pick<ViewData, "type" | "name" | "title" | "text" | "icon" | "nodePtr" | "valuePacked" | ViewFlags> & {
-  self: NodeReferenceData | undefined | null;
-};
+export type ViewPropsCommon = Pick<
+  ViewData,
+  "type" | "name" | "title" | "text" | "icon" | "valuePacked" | "nodePtr" | "variant"
+>;
+
+export type ViewProps = ViewPropsCommon &
+  ViewPropsFlags & {
+    self?: NodeReferenceData | undefined | null;
+  };
 
 export type ViewPropsAnchored = ViewProps & {
   self: NodeReferenceData;

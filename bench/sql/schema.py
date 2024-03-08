@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.03.07.0"
+VERSION = "2024.03.08.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -514,7 +514,6 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("dock", PrimitiveType.JSON),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -1046,6 +1045,7 @@ VIEW_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
         Column(
@@ -1063,7 +1063,7 @@ VIEW_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("variant", PrimitiveType.INT16, is_nullable=True),
         Column("is_visible", PrimitiveType.BOOLEAN, default="true"),
         Column("is_disabled", PrimitiveType.BOOLEAN, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, default="false"),

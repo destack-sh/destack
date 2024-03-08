@@ -12,5 +12,7 @@ const { children: windows } = getChildrenRef(toRef(props, "self"), NodeType.VIEW
 defineExpose({ self: toRef(props, "self") });
 </script>
 <template>
-  <div class="bg-secondary-100 font-bold">{{ windows.length }} windows</div>
+  <div class="bg-secondary-100 font-bold">
+    {{ windows.length }} windows
+  </div>
 </template>

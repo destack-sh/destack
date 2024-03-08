@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.03.07.0"
+VERSION = "2024.03.08.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -163,11 +163,10 @@ class StructType(IdEnum):
 
     # views
     COLOR = 700
+    FONT = 701
     ...
 
     # space
-    SPACE_DOCK = 800
-    SPACE_DOCK_ITEM = 801
     ...
 
     # shapes
