@@ -1,22 +1,27 @@
 import {
+  BenchType,
   EditType,
+  GraphScope,
+  MESSAGE_TYPE_BY_BENCH_TYPE,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
   type AnyNodeData,
-  type EditData,
-  NODE_PROPERTY_ENUM_BY_TYPE,
-  BenchType,
-  type NodeTypeMapping,
-  MESSAGE_TYPE_BY_BENCH_TYPE,
   type AnyPropertyType,
-  GraphScope,
+  type EditData,
+  type NodeTypeMapping,
+  GraphIOClient,
 } from "@/proto/wire";
 import { newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
-import { packageIdByBenchId } from "@/system/global";
-import { type ObservableNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
-import { computed, getCurrentInstance, inject, ref, type Ref } from "vue";
+import { getCurrentInstance, inject, ref, type Ref } from "vue";
 
-export type TransactionBase = {
+/** A transaction on the Bench state graph. */
+export type Transaction = {
+  readonly scope: GraphScope;
+  readonly id: string;
+  readonly edits: EditData[];
+
   /** Create a new node */
   create(node: AnyNodeData): void;
   /** Create or update all properties in the node */
@@ -44,13 +49,23 @@ export type TransactionBase = {
   delete(node: AnyNodeData): void;
 };
 
-/** A transaction on the Bench state graph. */
-export class Transaction implements TransactionBase {
+export class TransactionBuilder implements Transaction {
+  scope: GraphScope;
   id: string;
   edits: EditData[] = [];
+  subs: Array<(edit: EditData, debounced: boolean) => void> = [];
 
-  constructor(id: string | undefined = undefined) {
-    this.id = id ?? v4();
+  constructor(scope: GraphScope, id: string) {
+    this.scope = scope;
+    this.id = id;
+  }
+
+  subscribe(sub: (edit: EditData, debounced: boolean) => void): () => void {
+    this.subs.push(sub);
+    return () => {
+      const idx = this.subs.indexOf(sub);
+      if (idx >= 0) this.subs.splice(idx, 1);
+    };
   }
 
   _makeEdit(type: EditType, node: AnyNodeData, properties?: number[]): EditData {
@@ -69,9 +84,12 @@ export class Transaction implements TransactionBase {
     return edit;
   }
 
-  _addEdit(type: EditType, node: AnyNodeData, properties?: number[]) {
+  _addEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced?: boolean) {
     const edit = this._makeEdit(type, node, properties);
     this.edits.push(edit);
+    for (const sub of this.subs) {
+      sub(edit, debounced ?? false);
+    }
   }
 
   create(node: AnyNodeData) {
@@ -105,7 +123,7 @@ export class Transaction implements TransactionBase {
       }
       ord += 1;
     }
-    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties);
+    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties, update.debounce ?? false);
   }
 
   move(node: AnyNodeData) {
@@ -174,92 +192,52 @@ export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & W
 }
 
 /**
- * Buffer edits for a Transaction in some scope.
+ * A transaction buffer provides Transactions and applies them to the graph.
  */
-export class TransactionBuffer {
-  public scope: GraphScope;
-  public currentTx: Transaction | null;
-  public pendingTx: Transaction | null;
+export interface TransactionBuffer {
+  tx: Transaction;
+}
 
-  constructor(scope: GraphScope) {
+/**
+ * Applies transactions immediately to the graph.
+ */
+export class ImmediateTransactionBuffer implements TransactionBuffer {
+  public readonly scope: GraphScope;
+  public readonly graph: ReadNodeGraph & WriteNodeGraph;
+  public readonly tx: TransactionBuilder; // always keep a single transaction
+
+  constructor(scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
     this.scope = scope;
-    this.currentTx = new Transaction();
-    this.pendingTx = null;
-  }
+    this.graph = graph;
+    this.tx = new TransactionBuilder(scope, v4());
 
-  public get tx(): Transaction {
-    if (this.currentTx == null) throw new Error("no current transaction");
-    return this.currentTx;
-  }
-
-  create(node: AnyNodeData) {
-    this.tx.create(node);
-  }
-
-  upsert(node: AnyNodeData) {
-    this.tx.upsert(node);
-  }
-
-  update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
-  ) {
-    this.tx.update(update);
-  }
-
-  move(node: AnyNodeData) {
-    this.tx.move(node);
-  }
-
-  archive(node: AnyNodeData) {
-    this.tx.archive(node);
-  }
-
-  unarchive(node: AnyNodeData) {
-    this.tx.unarchive(node);
-  }
-
-  softDelete(node: AnyNodeData) {
-    this.tx.softDelete(node);
-  }
-
-  restore(node: AnyNodeData) {
-    this.tx.restore(node);
-  }
-
-  delete(node: AnyNodeData) {
-    this.tx.delete(node);
-  }
-
-  commit() {
-    if (this.currentTx == null) throw new Error("no current transaction");
-    this.pendingTx = this.currentTx;
-    this.currentTx = new Transaction();
+    // immediately apply and reset the transaction
+    this.tx.subscribe((edit) => {
+      editGraph(this.graph, [edit]);
+      this.tx.edits.length = 0;
+    });
   }
 }
 
 /**
- * The component-level context for graph operations (read & write).
+ * A buffer with a single active transaction that can be committed to a remote client.
  */
-export type TransactionContext = {
-  optimisticGraphs: Ref<ObservableNodeGraph[]>;
-};
+export class SwapTransactionBuffer implements TransactionBuffer {
+  public readonly scope: GraphScope;
+  public readonly client: GraphIOClient;
+  public currentTx: Transaction;
+  public pendingTx: Transaction | null;
 
-export const GLOBAL_TRANSACTION_CONTEXT: TransactionContext = {
-  optimisticGraphs: ref([]),
-};
-
-const GRAPH_TRANSACTION_CONTEXT_KEY = Symbol();
-
-export function useGraphContext(): TransactionContext {
-  const component = getCurrentInstance();
-  if (component == null) {
-    return GLOBAL_TRANSACTION_CONTEXT;
-  } else {
-    const localContext = inject(GRAPH_TRANSACTION_CONTEXT_KEY, null);
-    if (localContext != null) {
-      return localContext;
-    } else {
-      return GLOBAL_TRANSACTION_CONTEXT;
-    }
+  constructor(scope: GraphScope, client: GraphIOClient) {
+    this.scope = scope;
+    this.currentTx = new TransactionBuilder(scope, v4());
+    this.pendingTx = null;
+    this.client = client;
   }
+
+  get tx(): Transaction {
+    return this.currentTx;
+  }
+
+  // nocheckin: commit/swap remote transaction buffer
 }

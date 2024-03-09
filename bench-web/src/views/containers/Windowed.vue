@@ -40,15 +40,17 @@ watch([pressed, mouseRelativeX, mouseRelativeY], () => {
   }
   const draggedToPx = orientation.value == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
   const [aUpdate, bUpdate] = updateSeparator(draggingSepIdx.value, draggedToPx);
-  spaceConnection.tx.update({
+  spaceConnection.sideTx.update({
     metatype: NodeType.VIEW,
     id: windows.value[draggingSepIdx.value].id,
     size: aUpdate.size,
+    debounce: true,
   });
-  spaceConnection.tx.update({
+  spaceConnection.sideTx.update({
     metatype: NodeType.VIEW,
     id: windows.value[draggingSepIdx.value + 1].id,
     size: bUpdate.size,
+    debounce: true,
   });
 });
 
