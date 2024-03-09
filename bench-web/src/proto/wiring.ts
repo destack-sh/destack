@@ -11,6 +11,7 @@ import {
   NodeReferenceData,
   type AnyPropertyType,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  STRUCT_PROPERTY_ENUM_BY_TYPE,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
@@ -22,6 +23,8 @@ export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
 export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(StructType);
 export const BENCH_TYPE_NAME: Record<BenchType, string> = reverseRecord(BenchType);
 
+export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
+
 export function newStructId(): number {
   /** Generates a positive 32-bit random integer */
   return Math.floor(Math.random() * 0x7fffffff);
@@ -30,10 +33,16 @@ export function newStructId(): number {
 export function makeStruct<T extends StructType>(
   data: Omit<StructTypeMapping[T], "metatype" | "id"> & { metatype: T },
 ): StructTypeMapping[T] {
-  const struct = {
-    id: newStructId(),
-    ...data,
-  };
+  const properties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+  let struct;
+  if ("id" in properties) {
+    struct = {
+      id: newStructId(),
+      ...data,
+    };
+  } else {
+    struct = { ...data };
+  }
   return struct as unknown as StructTypeMapping[T];
 }
 
@@ -64,19 +73,18 @@ export function isStruct(value: AnyNodeData | AnyStructData): value is AnyStruct
   return value.metatype >= 500;
 }
 
-export function nodeReference<T extends NodeType>(nodeType: T, id: string): NodeReferenceData {
+export function nodeReference<T extends NodeType>(nodeType: T, id: string): TypedNodeReferenceData<T> {
   return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id };
 }
 
-
 export function toNodeReference(node: null): null;
-export function toNodeReference(node: AnyNodeData): NodeReferenceData;
-export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | null {
+export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
+export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
   const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
-  const reference: NodeReferenceData = {
+  const reference: TypedNodeReferenceData<T> = {
     metatype: BenchType.NODE_REFERENCE,
-    type: node.metatype as unknown as NodeType,
+    type: node.metatype as unknown as T,
     id: node.id,
   };
   if ("bench" in allProperties && node.parentPtr) {
@@ -95,8 +103,10 @@ export function toNodeReference(node: AnyNodeData | null): NodeReferenceData | n
   return reference;
 }
 
-export function toNodeReferenceRef(node: MaybeRef<AnyNodeData | null>): Ref<NodeReferenceData | null> {
-  const nodeRef = toRef(node) as Ref<AnyNodeData | null>;
+export function toNodeReferenceRef<T extends NodeType>(
+  node: MaybeRef<NodeTypeMapping[T] | null>,
+): Ref<TypedNodeReferenceData<T> | null> {
+  const nodeRef = toRef(node) as Ref<NodeTypeMapping[T] | null>;
   return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
 }
 

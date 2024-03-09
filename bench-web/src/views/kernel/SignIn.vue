@@ -1,12 +1,12 @@
 <script lang="tsx" setup>
-import type { NodeReferenceData, ViewData } from "@/proto/wire";
+import { ViewVariant, type NodeReferenceData, type ViewData } from "@/proto/wire";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: NodeReferenceData | null } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr"> & {}
+  { self: NodeReferenceData } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr"> & {}
 >();
 const emit = defineEmits(viewEmits());
 
@@ -25,6 +25,9 @@ defineExpose({ self: toRef(props, "self") });
     <String name="username" title="Username" is-input v-model="username" />
     <String name="email" title="Email" is-input v-model="email" />
     <String name="password" title="Password" is-input is-secret v-model="password" />
-    <Button name="confirm" title="Sign in" />
+    <div class="flex flex-row justify-between">
+      <Button name="cancel" title="Cancel" :variant="ViewVariant.SECONDARY" />
+      <Button name="confirm" title="Sign in" />
+    </div>
   </div>
 </template>

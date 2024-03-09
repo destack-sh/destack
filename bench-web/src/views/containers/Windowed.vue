@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
-import { getChildrenRef } from "@/system/graph";
+import { useLoadedGraph } from "@/system/connection";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView } from "@/utils/positioning";
 import { viewEmits } from "@/views/common";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
@@ -8,13 +8,14 @@ import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   {
-    self?: NodeReferenceData | null;
+    self: NodeReferenceData;
     size: Required<Pick<BoxData, "width" | "height">>;
   } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation">
 >();
 const emit = defineEmits(viewEmits());
 
-const { children: windows } = getChildrenRef(toRef(props, "self"), NodeType.VIEW);
+const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
+const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 
 // positioning
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
@@ -26,6 +27,7 @@ const splitLayout = computed(() => ({
 const { sizedViews, updateSeparator } = splitView(windows, toRef(props, "size"), splitLayout);
 
 // dragging
+// could probably reuse Windowed component for Split view?
 const containerRef = ref<HTMLElement | null>(null);
 const { pressed } = useMousePressed();
 const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
@@ -38,10 +40,16 @@ watch([pressed, mouseRelativeX, mouseRelativeY], () => {
   }
   const draggedToPx = orientation.value == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
   const [aUpdate, bUpdate] = updateSeparator(draggingSepIdx.value, draggedToPx);
-
-  // nocheckin: apply through tx
-  windows.value[draggingSepIdx.value].size = aUpdate.size;
-  windows.value[draggingSepIdx.value + 1].size = bUpdate.size;
+  spaceConnection.tx.update({
+    metatype: NodeType.VIEW,
+    id: windows.value[draggingSepIdx.value].id,
+    size: aUpdate.size,
+  });
+  spaceConnection.tx.update({
+    metatype: NodeType.VIEW,
+    id: windows.value[draggingSepIdx.value + 1].id,
+    size: bUpdate.size,
+  });
 });
 
 defineExpose({ self: toRef(props, "self") });
@@ -60,7 +68,7 @@ defineExpose({ self: toRef(props, "self") });
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Window -->
       <div
-        class="absolute border-gray-300 bg-gray-100"
+        class="absolute border-gray-300 bg-red-100"
         :class="[
           orientation == Orientation.HORIZONTAL
             ? viewIdx == 0
@@ -73,9 +81,7 @@ defineExpose({ self: toRef(props, "self") });
         :style="{ left: left + 'px', top: top + 'px', width: width + 'px', height: height + 'px' }"
       >
         <!-- Content -->
-        <!-- <div class="flex w-fit flex-col bg-red-700 font-mono text-xs text-white">
-          <div>{{ ViewType[view.type] }} left:{{ left }} top:{{ top }} width:{{ width }} height:{{ height }}</div>
-        </div> -->
+        <!-- nocheckin: render actual content -->
       </div>
       <!-- Draggable separator -->
       <div

@@ -34,6 +34,8 @@ class ViewType(IdEnum):
     # 'system'
     PAGE = 101
     BLOCK = 102
+    FIELD = 103
+    DATABASE = 104
     EXPLORER = 120
     HISTORY = 121
     RESOURCE = 122
