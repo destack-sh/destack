@@ -1,8 +1,9 @@
 import { BenchType, NodeType, SpaceData, StructType, ViewType } from "@/proto/wire";
 import { makeNode, makeStruct, nodeReference, toNodeReference, toNodeReferenceRef } from "@/proto/wiring";
+import { READ_TYPES } from "@/system/access";
 import auth from "@/system/auth";
-import { useGetNodes } from "@/system/connection";
-import { LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
+import { LocalGraphConnection, addGraphConnection, useGetNodes } from "@/system/connection";
+import { LOCAL_BENCH_ID, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { log } from "@/utils/log";
@@ -53,19 +54,21 @@ export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
 
-// setup local space if needed
+addGraphConnection(new LocalGraphConnection(READ_TYPES, { benchId: LOCAL_BENCH_ID }, spaceGraphLocal));
+
+// setup/connect local space as needed
 watch(
   spaceRemote,
   () => {
     if (spaceRemote.value == null) {
+      // local
       spaceGraph.graph.value = spaceGraphLocal;
       if (spaceGraphLocal.size == 0) {
         const { space } = setupLocalSpace(spaceGraphLocal);
         spacePtr.value = toNodeReference(space);
       }
     } else {
-      // spaceGraph.graph.value = pkgGraph;
-      throw new Error("not implemented");
+      spaceGraph.graph.value = pkgGraph;
     }
   },
   { immediate: true },
@@ -78,18 +81,24 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
     type: ViewType.TABBED,
-    size: makeStruct({ metatype: StructType.BOX, width: 250 }),
+    name: "side",
+    title: "Side Window",
+    size: makeStruct({ metatype: StructType.BOX, width: 350 }),
   });
   const primary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
     type: ViewType.TABBED,
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
+    name: "primary",
+    title: "Primary Window",
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.4 }),
   });
   const secondary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
     type: ViewType.TABBED,
+    name: "secondary",
+    title: "Secondary Window",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
   graph.extend(space, side, primary, secondary);

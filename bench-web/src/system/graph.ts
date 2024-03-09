@@ -1,42 +1,21 @@
-import { getHostClient, supervisor } from "@/proto/services";
 import {
-  AggregationData,
-  ExpressionData,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
-  ReadOptionsData,
-  StructType,
   type AnyNodeData,
   type AnyPropertyType,
-  type IGraphIOClient,
   type NodeType,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { makeDefaultStruct } from "@/proto/wiring";
-import type { AccessQuery } from "@/system/access";
 import { defaultSort } from "@/system/lang";
-import { TransactionBuffer, useGraphContext } from "@/system/transaction";
-import { computedSubRef, manualSubRef, onUnmountedIfComponent, type SubRef } from "@/utils/ref";
-import type { Transaction } from "@sentry/vue";
-import { computed, isRef, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { manualSubRef, onUnmountedIfComponent, type SubRef } from "@/utils/ref";
+import { isRef, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type?: T };
 
-/** A node graph with change subscriptions */
-export type ObservableNodeGraph = {
-  /** Subs */
-  subscribe(key: { id?: string; ck?: string }, callback: () => void): () => void;
-  subscribeChildren<T extends NodeType>(
-    parent: { id?: string; ck?: string },
-    metatype: T,
-    callback: () => void,
-  ): () => void;
-};
-
 /** A node graph with read methods */
-export type ReadNodeGraph = {
+export interface ReadNodeGraph {
   /** The scope contained in this graph */
   get scope(): GraphScope;
   /** Whether this graph is partial */
@@ -49,19 +28,32 @@ export type ReadNodeGraph = {
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   /** Gets the children of the given parent with the given metatype (not reactive) */
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
+  /** Subscribe to any change in the given key */
+  subscribe(key: { id?: string; ck?: string }, callback: () => void): () => void;
+  /** Subscribe to any change in the given children */
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string; ck?: string },
+    metatype: T,
+    callback: () => void,
+  ): () => void;
+
+  //
+  // Observable helpers (generally provided by ObservableNodeGraphMixin)
+  //
+
   /** Gets a reactive reference to the current node with that key */
   getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | undefined | null>): SubRef<NodeTypeMapping[T] | null>;
+  /** Gets a reactive reference to many nodes with the given keys (missing nodes excluded) */
+  getManyRef<T extends NodeType>(keys: MaybeRef<NodeKey<T>[] | undefined | null>): SubRef<NodeTypeMapping[T][]>;
   /** Gets a reactive reference to the children of the given parent with the given metatype */
   getChildrenRef<T extends NodeType>(
     parent: MaybeRef<NodeKey<any> | undefined | null>,
     metatype: T,
   ): SubRef<NodeTypeMapping[T][]>;
-};
-
-export type ObservableReadNodeGraph = ReadNodeGraph & ObservableNodeGraph;
+}
 
 /** A node graph with write methods */
-export type WriteNodeGraph = {
+export interface WriteNodeGraph {
   /** The scope contained in this graph */
   get scope(): GraphScope;
   /** Adds a node to the graph (error if exists) */
@@ -72,70 +64,88 @@ export type WriteNodeGraph = {
   update(node: AnyNodeData): void;
   /** Removes a node from the graph (error if does not exist) */
   remove(node: AnyNodeData): void;
-};
+}
 
 /**
  * Helper mixin for managing reactivity in a graph.
  */
-class ObservableNodeGraphMixin implements ObservableNodeGraph {
-  private subsById: { [id: string]: Array<() => void> } = {};
-  private subsByCk: { [ck: string]: Array<() => void> } = {};
-  private subsByParentIdAndType: { [parentId: string]: { [type: string]: Array<() => void> } } = {};
-
-  subscribe(key: { id?: string; ck?: string }, callback: () => void): () => void {
-    if (key.id) {
-      if (!this.subsById[key.id]) this.subsById[key.id] = [];
-      this.subsById[key.id].push(callback);
-    }
-    if (key.ck) {
-      if (!this.subsByCk[key.ck]) this.subsByCk[key.ck] = [];
-      this.subsByCk[key.ck].push(callback);
-    }
-    return () => this.unsubscribe(key, callback);
-  }
-
-  unsubscribe(key: { id?: string; ck?: string }, callback: () => void) {
-    if (key.id) {
-      if (this.subsById[key.id]) this.subsById[key.id].splice(this.subsById[key.id].indexOf(callback), 1);
-    }
-    if (key.ck) {
-      if (this.subsByCk[key.ck]) this.subsByCk[key.ck].splice(this.subsByCk[key.ck].indexOf(callback), 1);
-    }
-  }
-
-  subscribeChildren<T extends NodeType>(
-    parent: { id?: string; ck?: string },
+abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPartial" | "nodes" | "size"> {
+  abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
+  abstract getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
+  abstract subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void;
+  abstract subscribeChildren<T extends NodeType>(
+    parent: { id?: string | undefined; ck?: string | undefined },
     metatype: T,
     callback: () => void,
-  ): () => void {
-    if (!parent.id) throw new Error("parent must have an id");
-    if (!this.subsByParentIdAndType[parent.id]) this.subsByParentIdAndType[parent.id] = {};
-    if (!this.subsByParentIdAndType[parent.id][metatype]) this.subsByParentIdAndType[parent.id][metatype] = [];
-    this.subsByParentIdAndType[parent.id][metatype].push(callback);
-    return () => this.unsubscribeChildren(parent, metatype, callback);
+  ): () => void;
+
+  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
+    const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
+    let sub: (() => void) | null = null;
+    const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
+    const get = () => (keyRef.value != null ? this.get(keyRef.value as NodeKey<T>) : null);
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watch(
+      keyRef,
+      (newKey, oldKey) => {
+        if (newKey != oldKey) {
+          if (oldKey) unsub();
+          if (newKey) sub = this.subscribe(newKey, trigger);
+        }
+        trigger();
+      },
+      { immediate: true },
+    );
+    onUnmountedIfComponent(unsub);
+    return ref;
   }
 
-  unsubscribeChildren<T extends NodeType>(parent: { id?: string; ck?: string }, metatype: T, callback: () => void) {
-    if (!parent.id) throw new Error("parent must have an id");
-    if (this.subsByParentIdAndType[parent.id] && this.subsByParentIdAndType[parent.id][metatype]) {
-      this.subsByParentIdAndType[parent.id][metatype].splice(
-        this.subsByParentIdAndType[parent.id][metatype].indexOf(callback),
-        1,
-      );
-    }
+  getManyRef<T extends NodeType>(keys: MaybeRef<NodeKey<T>[] | null | undefined>): SubRef<NodeTypeMapping[T][]> {
+    const keysRef = toRef(keys) as Ref<NodeKey<T>[] | null | undefined>;
+    const subs: (() => void)[] = [];
+    const unsub: () => void = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
+    const get = () =>
+      keysRef.value != null
+        ? (keysRef.value.map((key) => this.get(key)).filter((n) => n != null) as NodeTypeMapping[T][])
+        : [];
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watch(
+      keysRef,
+      (newKeys, oldKeys) => {
+        if (newKeys != oldKeys) {
+          if (oldKeys) unsub();
+          if (newKeys) newKeys.forEach((key) => subs.push(this.subscribe(key, trigger)));
+        }
+        trigger();
+      },
+      { immediate: true },
+    );
+    onUnmountedIfComponent(unsub);
+    return ref;
   }
 
-  notify(node: AnyNodeData) {
-    const subscribers = this.subsById[node.id] ?? [];
-    for (const sub of subscribers) {
-      sub();
-    }
-    if (node.parentPtr?.id) {
-      const subscribers = this.subsByParentIdAndType[node.parentPtr.id]?.[node.metatype] ?? [];
-      for (const sub of subscribers) {
-        sub();
-      }
-    }
+  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
+    // TODO :Performance: trigger getChildrenRef more selectively
+    // (discriminate parent update, individual node updates, ...)
+    const parentRef = toRef(parent);
+    let sub: (() => void) | null = null;
+    const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
+    const get: () => NodeTypeMapping[T][] = () =>
+      parentRef.value != null ? this.getChildren(parentRef.value, metatype) : [];
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watch(
+      parentRef,
+      (newParent, oldParent) => {
+        if (newParent != oldParent) {
+          if (oldParent) unsub();
+          if (newParent) sub = this.subscribeChildren(newParent, metatype, trigger);
+        }
+        trigger();
+      },
+      { immediate: true },
+    );
+    onUnmountedIfComponent(unsub);
+    return ref;
   }
 }
 
@@ -150,6 +160,9 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
   private nodesByCk: { [ck: string]: string } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
   private rootsIds: string[] = [];
+  private subsById: { [id: string]: Array<() => void> } = {};
+  private subsByCk: { [ck: string]: Array<() => void> } = {};
+  private subsByParentIdAndType: { [parentId: string]: { [type: string]: Array<() => void> } } = {};
 
   constructor(options: { scope?: GraphScope; isPartial?: boolean } = { scope: {}, isPartial: false }) {
     super();
@@ -255,46 +268,56 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     return children;
   }
 
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
-    const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
-    let sub: (() => void) | null = null;
-    const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
-    const get = () => (keyRef.value != null ? this.get(keyRef.value as NodeKey<T>) : null);
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch(
-      keyRef,
-      (newKey, oldKey) => {
-        if (newKey != oldKey) {
-          // update subscription
-          if (oldKey) unsub();
-          if (newKey) sub = this.subscribe(newKey, trigger);
-        }
-        trigger();
-      },
-      { immediate: true },
-    );
-    onUnmountedIfComponent(unsub);
-    return ref;
+  subscribe(key: { id?: string; ck?: string }, callback: () => void): () => void {
+    if (key.id) {
+      if (!this.subsById[key.id]) this.subsById[key.id] = [];
+      this.subsById[key.id].push(callback);
+    }
+    if (key.ck) {
+      if (!this.subsByCk[key.ck]) this.subsByCk[key.ck] = [];
+      this.subsByCk[key.ck].push(callback);
+    }
+    return () => {
+      if (key.id) {
+        if (this.subsById[key.id]) this.subsById[key.id].splice(this.subsById[key.id].indexOf(callback), 1);
+      }
+      if (key.ck) {
+        if (this.subsByCk[key.ck]) this.subsByCk[key.ck].splice(this.subsByCk[key.ck].indexOf(callback), 1);
+      }
+    };
   }
 
-  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
-    // TODO :Performance: trigger getChildrenRef more selectively
-    // (discriminate parent update, individual node updates, ...)
-    const parentRef = toRef(parent);
-    const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    const get: () => NodeTypeMapping[T][] = () => {
-      unsub();
-      if (!parentRef.value) return [];
-      const children = this.getChildren(parentRef.value, metatype);
-      children.forEach((child) => this.subscribe(child, trigger));
-      subs.push(this.subscribeChildren(parentRef.value, metatype, trigger));
-      return children;
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string; ck?: string },
+    metatype: T,
+    callback: () => void,
+  ): () => void {
+    if (!parent.id) throw new Error("parent must have an id");
+    if (!this.subsByParentIdAndType[parent.id]) this.subsByParentIdAndType[parent.id] = {};
+    if (!this.subsByParentIdAndType[parent.id][metatype]) this.subsByParentIdAndType[parent.id][metatype] = [];
+    this.subsByParentIdAndType[parent.id][metatype].push(callback);
+    return () => {
+      if (parent.id == null) throw new Error("parent must have an id");
+      if (this.subsByParentIdAndType[parent.id] && this.subsByParentIdAndType[parent.id][metatype]) {
+        this.subsByParentIdAndType[parent.id][metatype].splice(
+          this.subsByParentIdAndType[parent.id][metatype].indexOf(callback),
+          1,
+        );
+      }
     };
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch(parentRef, trigger, { immediate: true });
-    onUnmountedIfComponent(unsub);
-    return ref;
+  }
+
+  notify(node: AnyNodeData) {
+    if (this.subsById[node.id]) {
+      this.subsById[node.id].forEach((sub) => sub());
+    }
+    if ("ck" in node && this.subsByCk[node.ck]) {
+      this.subsByCk[node.ck].forEach((sub) => sub());
+    }
+    if (node.parentPtr?.id && this.subsByParentIdAndType[node.parentPtr.id]) {
+      const subs = this.subsByParentIdAndType[node.parentPtr.id][node.metatype];
+      if (subs) subs.forEach((sub) => sub());
+    }
   }
 }
 
@@ -302,12 +325,13 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
  * A graph composed of multiple (potentially overlapping subgraphs).
  * Nodes are merged from the layers in order, with later layers taking precedence.
  */
-export class LayerNodeGraph implements ReadNodeGraph {
+export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
   // TODO :Performance: LayerNodeGraph.layers should be scoped
   //  (so we only need to acquire refs from layers with the requested scope)
-  public readonly layers: ShallowRef<ObservableReadNodeGraph[]>;
+  public readonly layers: ShallowRef<ReadNodeGraph[]>;
 
-  constructor(layers: MaybeRef<ObservableReadNodeGraph[]>) {
+  constructor(layers: MaybeRef<ReadNodeGraph[]>) {
+    super();
     this.layers = !isRef(layers) ? shallowRef(layers) : layers;
   }
 
@@ -334,7 +358,7 @@ export class LayerNodeGraph implements ReadNodeGraph {
     this.layers.value = [];
   }
 
-  addLayer(layer: ObservableReadNodeGraph) {
+  addLayer(layer: ReadNodeGraph) {
     this.layers.value = [...this.layers.value, layer];
   }
 
@@ -376,68 +400,43 @@ export class LayerNodeGraph implements ReadNodeGraph {
     return children;
   }
 
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
-    const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
+  subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {
     const subs: Array<() => void> = [];
     const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    const get: () => NodeTypeMapping[T] | null = () => {
-      unsub();
-      if (!keyRef.value) return null;
-      let mergedNode: NodeTypeMapping[T] | null = null;
-      for (const layer of this.layers.value) {
-        const node = layer.get<T>(keyRef.value);
-        subs.push(layer.subscribe(keyRef.value, trigger));
-        if (node) {
-          if (!mergedNode) mergedNode = node;
-          else mergedNode = mergeNode(mergedNode, node);
-        }
-      }
-      return mergedNode;
-    };
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch([keyRef, this.layers], trigger);
-    onUnmountedIfComponent(unsub);
-    return ref;
+    watch(
+      this.layers,
+      () => (unsub(), this.layers.value.forEach((layer) => subs.push(layer.subscribe(key, callback)))),
+      { immediate: true },
+    );
+    return () => subs.forEach((sub) => sub());
   }
 
-  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
-    const parentRef = toRef(parent);
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string | undefined; ck?: string | undefined },
+    metatype: T,
+    callback: () => void,
+  ): () => void {
     const subs: Array<() => void> = [];
     const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    const get: () => NodeTypeMapping[T][] = () => {
-      unsub();
-      if (!parentRef.value) return [];
-      const mergedChildrenById: { [id: string]: NodeTypeMapping[T] } = {};
-      for (const layer of this.layers.value) {
-        subs.push(layer.subscribeChildren(parentRef.value, metatype, trigger));
-        const children = layer.getChildren(parentRef.value, metatype);
-        children.forEach((child) => {
-          if (!mergedChildrenById[child.id]) {
-            mergedChildrenById[child.id] = child;
-          } else {
-            mergedChildrenById[child.id] = mergeNode(mergedChildrenById[child.id], child);
-          }
-          subs.push(layer.subscribe(child, trigger));
-        });
-      }
-      const children = Object.values(mergedChildrenById);
-      defaultSort(metatype, children);
-      return children;
-    };
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch([parentRef, this.layers], trigger);
-    onUnmountedIfComponent(unsub);
-    return ref;
+    watch(
+      this.layers,
+      () => (
+        unsub(), this.layers.value.forEach((layer) => subs.push(layer.subscribeChildren(parent, metatype, callback)))
+      ),
+      { immediate: true },
+    );
+    return () => subs.forEach((sub) => sub());
   }
 }
 
 /**
  * A proxy to a single graph (like a LayerNodeGraph with a single layer).
  */
-export class ProxyNodeGraph implements ReadNodeGraph {
-  public readonly graph: ShallowRef<ObservableReadNodeGraph | null>;
+export class ProxyNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
+  public readonly graph: ShallowRef<ReadNodeGraph | null>;
 
-  constructor(graph: ObservableReadNodeGraph | null) {
+  constructor(graph: ReadNodeGraph | null) {
+    super();
     this.graph = shallowRef(graph);
   }
 
@@ -465,57 +464,38 @@ export class ProxyNodeGraph implements ReadNodeGraph {
     return this.graph.value?.getChildren(parent, metatype) ?? [];
   }
 
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
-    const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
-    let sub: (() => void) | null = null;
-    const unsub = () => sub != null && sub();
-    const get = () => {
-      unsub();
-      if (keyRef.value && this.graph.value) {
-        sub = this.graph.value.subscribe(keyRef.value, trigger);
-        return this.graph.value.get(keyRef.value);
-      } else {
-        return null;
-      }
-    };
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch(keyRef, trigger);
-    onUnmountedIfComponent(unsub);
-    return ref;
+  subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {
+    let sub: (() => void) | null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    watch(this.graph, () => (unsub(), (sub = this.graph.value?.subscribe(key, callback) ?? null)), { immediate: true });
+    return unsub;
   }
 
-  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
-    const parentRef = toRef(parent);
-    const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    const get: () => NodeTypeMapping[T][] = () => {
-      unsub();
-      if (parentRef.value && this.graph.value) {
-        subs.push(this.graph.value.subscribeChildren(parentRef.value, metatype, trigger));
-        const children = this.graph.value.getChildren(parentRef.value, metatype);
-        children.forEach((child) => {
-          subs.push(this.graph.value!.subscribe(child, trigger));
-        });
-        return children;
-      } else {
-        return [];
-      }
-    };
-    const { ref, trigger } = manualSubRef(get, unsub);
-    watch(parentRef, trigger);
-    onUnmountedIfComponent(unsub);
-    return ref;
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string | undefined; ck?: string | undefined },
+    metatype: T,
+    callback: () => void,
+  ): () => void {
+    let sub: (() => void) | null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    watch(
+      this.graph,
+      () => (unsub(), (sub = this.graph.value?.subscribeChildren(parent, metatype, callback) ?? null)),
+      { immediate: true },
+    );
+    return unsub;
   }
 }
 
 /**
  * A 'view' of a graph with some nodes filtered out.
  */
-export class FilterNodeGraph implements ReadNodeGraph {
+export class FilterNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
   public readonly graph: ReadNodeGraph;
   public readonly includeHidden: Ref<boolean>;
 
   constructor(graph: ReadNodeGraph, includeHidden: boolean) {
+    super();
     this.graph = graph;
     this.includeHidden = ref(includeHidden);
   }
@@ -549,20 +529,24 @@ export class FilterNodeGraph implements ReadNodeGraph {
     else return children;
   }
 
-  getRef<T extends NodeType>(node: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
-    const ref = this.graph.getRef(node);
-    return computedSubRef(
-      () => (ref.value && (this.includeHidden || (!ref.value.deletedAt && !ref.value.archivedAt)) ? ref.value : null),
-      ref.stop,
-    );
+  subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {
+    let sub: (() => void) | null = null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    watch(this.includeHidden, () => (unsub(), (sub = this.graph.subscribe(key, callback))), { immediate: true });
+    return unsub;
   }
 
-  getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
-    const ref = this.graph.getChildrenRef(parent, metatype);
-    return computedSubRef(() => {
-      if (this.includeHidden) return ref.value;
-      else return ref.value.filter((n) => !n.deletedAt && !n.archivedAt);
-    }, ref.stop);
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string | undefined; ck?: string | undefined },
+    metatype: T,
+    callback: () => void,
+  ): () => void {
+    let sub: (() => void) | null = null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    watch(this.includeHidden, () => (unsub(), (sub = this.graph.subscribeChildren(parent, metatype, callback))), {
+      immediate: true,
+    });
+    return unsub;
   }
 }
 

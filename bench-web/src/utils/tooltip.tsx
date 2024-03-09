@@ -9,6 +9,7 @@ export function shortcut(shorcut: string) {
 }
 
 // TODO :UI: position & animate tooltips better
+// TODO :UI :Performance: create (and destroy) tooltip element on the fly 
 export const Tooltip: FunctionalComponent<{
   icon?: string;
   title?: string;
