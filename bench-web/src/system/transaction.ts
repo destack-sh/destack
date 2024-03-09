@@ -23,10 +23,10 @@ export type TransactionBase = {
   upsert(node: AnyNodeData): void;
   /**
    * Update regular properties in this node. If we already have an update for this node, extend that
-   * TODO :Broken: handle debounced updates
+   * TODO :Broken: handle debounce updates
    */
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
   ): void;
   /** Move node between parents */
   move(node: AnyNodeData): void;
@@ -83,7 +83,7 @@ export class Transaction implements TransactionBase {
   }
 
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
@@ -201,7 +201,7 @@ export class TransactionBuffer {
   }
 
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounced?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
   ) {
     this.tx.update(update);
   }
@@ -240,38 +240,26 @@ export class TransactionBuffer {
 /**
  * The component-level context for graph operations (read & write).
  */
-export type GraphContext = {
-  scopeByBenchId: Ref<{ [benchId: string]: GraphScope }>;
-  packageIdByBenchId: Ref<{ [benchId: string]: string }>;
+export type TransactionContext = {
   optimisticGraphs: Ref<ObservableNodeGraph[]>;
 };
 
-export const GLOBAL_GRAPH_CONTEXT: GraphContext = {
-  packageIdByBenchId: computed(() => packageIdByBenchId.value),
-  scopeByBenchId: computed(() => {
-    const scopeByBenchId: { [benchId: string]: GraphScope } = {};
-    for (const benchId of Object.keys(packageIdByBenchId.value)) {
-      scopeByBenchId[benchId] = { benchId, packageId: packageIdByBenchId.value[benchId] };
-    }
-    return scopeByBenchId;
-  }),
+export const GLOBAL_TRANSACTION_CONTEXT: TransactionContext = {
   optimisticGraphs: ref([]),
 };
 
-export const GRAPH_CONTEXT_KEY = Symbol("graphContext");
+const GRAPH_TRANSACTION_CONTEXT_KEY = Symbol();
 
-export function useGraphContext(): GraphContext {
+export function useGraphContext(): TransactionContext {
   const component = getCurrentInstance();
   if (component == null) {
-    return GLOBAL_GRAPH_CONTEXT;
+    return GLOBAL_TRANSACTION_CONTEXT;
   } else {
-    const localContext = inject(GRAPH_CONTEXT_KEY, null);
+    const localContext = inject(GRAPH_TRANSACTION_CONTEXT_KEY, null);
     if (localContext != null) {
       return localContext;
     } else {
-      return GLOBAL_GRAPH_CONTEXT;
+      return GLOBAL_TRANSACTION_CONTEXT;
     }
   }
 }
-
-export const txBuffersByBench: Ref<{ [benchId: string]: TransactionBuffer[] }> = ref({});

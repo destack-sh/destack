@@ -81,6 +81,7 @@ async def restart_on_file_changes(on_restart: callable = None):
                 return
             if event.src_path.endswith(".py"):
                 logger.debug("watcher.reload", path=event.src_path)
+                print("-" * 95 + " RESTART " + "-" * 95)  # simple separator
                 if on_restart:
                     on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)

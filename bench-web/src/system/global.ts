@@ -1,5 +1,5 @@
-import { NodeType, type NodeReferenceData } from "@/proto/wire";
-import { nodeReference } from "@/proto/wiring";
+import { NodeType } from "@/proto/wire";
+import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useStorage } from "@vueuse/core";
 import { computed, type Ref } from "vue";
 
@@ -12,13 +12,13 @@ export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_I
 export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID);
 
 // client-local 'space' state
-export const spacePtr = useStorage<NodeReferenceData | null>("spacePtr", null);
+export const spacePtr = useStorage<TypedNodeReferenceData<NodeType.SPACE> | null>("spacePtr", null);
 export const packageIdByBenchId = useStorage<{ [benchId: string]: string }>("packageIdByBenchId", {});
-export const benchPtr: Ref<NodeReferenceData | null> = computed(() => {
+export const benchPtr: Ref<TypedNodeReferenceData<NodeType.BENCH> | null> = computed(() => {
   if (spacePtr.value == null) return null;
   else return nodeReference(NodeType.BENCH, spacePtr.value.benchId!);
 });
-export const packagePtr: Ref<NodeReferenceData | null> = computed(() => {
+export const packagePtr: Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null> = computed(() => {
   if (spacePtr.value == null) return null;
   else return nodeReference(NodeType.PACKAGE, packageIdByBenchId.value[spacePtr.value.benchId!]);
 });
