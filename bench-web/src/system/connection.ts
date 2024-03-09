@@ -1,25 +1,32 @@
 import {
+  AggregationData,
+  ExpressionData,
+  GraphIOClient,
   StructType,
   type GraphScope,
-  type IGraphIOClient,
   type NodeReferenceData,
-  type NodeType,
-  type ReadOptionsData,
+  NodeType,
   type NodeTypeMapping,
-  ReadType,
-  AggregationData,
+  type ReadOptionsData,
+  BenchType,
 } from "@/proto/wire";
-import { makeDefaultStruct } from "@/proto/wiring";
-import { accessAsOwner, type AccessArbiter, READ_TYPES } from "@/system/access";
-import { LOCAL_BENCH_ID } from "@/system/global";
-import { ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
-import type { TransactionBuffer } from "@/system/transaction";
+import { makeDefaultProto } from "@/proto/wiring";
+import { accessAsOwner, type AccessArbiter } from "@/system/access";
+import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/global";
+import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import {
+  ImmediateTransactionBuffer,
+  SwapTransactionBuffer,
+  type Transaction,
+  type TransactionBuffer,
+} from "@/system/transaction";
+import { log } from "@/utils/log";
 import type { SubRef } from "@/utils/ref";
-import { toRef, type MaybeRef, type Ref, shallowRef, type ShallowRef, isRef } from "vue";
+import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
-function patchReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
+export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
-    ...makeDefaultStruct(StructType.READ_OPTIONS),
+    ...makeDefaultProto(BenchType.READ_OPTIONS),
     ...options,
   };
 }
@@ -28,47 +35,126 @@ export function getScopeKey(scope: GraphScope): string {
   return JSON.stringify(scope);
 }
 
+export type GraphConnectionKind = "get" | "search" | "aggregate";
+
+type GraphConnection = {
+  kind: GraphConnectionKind;
+  scope: GraphScope;
+  graph: ReadNodeGraph;
+  access: AccessArbiter;
+  options: ReadOptionsData;
+  mainTx: Transaction;
+  sideTx: Transaction;
+  isLive: boolean;
+  isUsed: boolean;
+  referenceCount: number;
+};
+
 /**
  * A connection to a subgraph for an overlapping set of read operations.
  */
-export interface GraphConnection {
-  readonly readTypes: ReadType[];
+export abstract class GraphConnectionBase implements GraphConnection {
+  readonly kind: GraphConnectionKind;
   readonly scope: GraphScope;
   readonly graph: ReadNodeGraph;
   readonly access: AccessArbiter;
-  readonly tx: TransactionBuffer; // may be shared across connections
   readonly options: ReadOptionsData;
-  readonly isLive: boolean; // whether this connection is watched
-  readonly isActive: boolean;
-}
+  referenceCount: number;
 
-export class LocalGraphConnection implements GraphConnection {
-  readonly readTypes: ReadType[];
-  readonly scope: GraphScope;
-  readonly graph: ReadNodeGraph;
-  readonly access: AccessArbiter;
-  readonly tx: TransactionBuffer;
-  readonly options: ReadOptionsData;
+  abstract readonly mainTx: Transaction;
+  abstract readonly sideTx: Transaction;
+  abstract readonly isLive: boolean;
 
   constructor(
-    readTypes: ReadType[],
+    kind: GraphConnectionKind,
     scope: GraphScope,
     graph: ReadNodeGraph,
-    tx: TransactionBuffer,
+    access: AccessArbiter,
     options: ReadOptionsData,
   ) {
-    this.readTypes = readTypes;
+    this.kind = kind;
     this.scope = scope;
     this.graph = graph;
-    this.access = accessAsOwner();
-    this.tx = tx;
+    this.access = access;
     this.options = options;
+    this.referenceCount = 0;
+  }
+
+  get isUsed(): boolean {
+    return this.referenceCount > 0;
+  }
+}
+
+/**
+ * A connection to a graph we have in memory on the client.
+ */
+export class LocalGraphConnection extends GraphConnectionBase {
+  readonly mainTxBuffer: TransactionBuffer;
+  readonly sideTxBuffer: TransactionBuffer;
+
+  constructor(
+    kind: GraphConnectionKind,
+    scope: GraphScope,
+    graph: ReadNodeGraph & WriteNodeGraph,
+    options: ReadOptionsData,
+  ) {
+    super(kind, scope, graph, accessAsOwner(), options);
+    this.mainTxBuffer = new ImmediateTransactionBuffer(graph.scope, graph);
+    this.sideTxBuffer = new ImmediateTransactionBuffer(graph.scope, graph);
+  }
+
+  get mainTx(): Transaction {
+    return this.mainTxBuffer.tx;
+  }
+
+  get sideTx(): Transaction {
+    return this.sideTxBuffer.tx;
   }
 
   isLive = true; // always considered live
-  isActive = true; // always considered active
+
+  get isUsed(): boolean {
+    return true; // always active
+  }
 }
 
+/**
+ * A remote connection to a graph.
+ */
+export class RemoteGraphConnection extends GraphConnectionBase {
+  readonly client: GraphIOClient;
+  readonly isLive: boolean;
+  readonly mainTxBuffer: TransactionBuffer;
+  readonly sideTxBuffer: TransactionBuffer;
+
+  constructor(
+    kind: GraphConnectionKind,
+    scope: GraphScope,
+    graph: ReadNodeGraph & WriteNodeGraph,
+    access: AccessArbiter,
+    client: GraphIOClient,
+    options: ReadOptionsData,
+    isLive: boolean,
+  ) {
+    super(kind, scope, graph, access, options);
+    this.client = client;
+    this.isLive = isLive;
+    this.mainTxBuffer = new SwapTransactionBuffer(graph.scope, client);
+    this.sideTxBuffer = new SwapTransactionBuffer(graph.scope, client);
+  }
+
+  get mainTx(): Transaction {
+    return this.mainTxBuffer.tx;
+  }
+
+  get sideTx(): Transaction {
+    return this.sideTxBuffer.tx;
+  }
+}
+
+/**
+ * A proxy to an underlying connection so we can swap it out with a stable reference.
+ */
 export class ProxyGraphConnection implements GraphConnection {
   readonly connection: ShallowRef<GraphConnection | null>;
 
@@ -81,8 +167,8 @@ export class ProxyGraphConnection implements GraphConnection {
     return this.connection.value;
   }
 
-  get readTypes(): ReadType[] {
-    return this.activeConnection.readTypes;
+  get kind(): GraphConnectionKind {
+    return this.activeConnection.kind;
   }
 
   get scope(): GraphScope {
@@ -97,39 +183,118 @@ export class ProxyGraphConnection implements GraphConnection {
     return this.activeConnection.access;
   }
 
-  get tx(): TransactionBuffer {
-    return this.activeConnection.tx;
+  get mainTx(): Transaction {
+    return this.activeConnection.mainTx;
+  }
+
+  get sideTx(): Transaction {
+    return this.activeConnection.sideTx;
   }
 
   get options(): ReadOptionsData {
     return this.activeConnection.options;
   }
 
+  get referenceCount(): number {
+    return this.activeConnection.referenceCount;
+  }
+
+  set referenceCount(value: number) {
+    this.activeConnection.referenceCount = value;
+  }
+
   get isLive(): boolean {
     return this.activeConnection.isLive;
   }
 
-  get isActive(): boolean {
-    return this.activeConnection.isActive;
+  get isUsed(): boolean {
+    return this.activeConnection.isUsed;
   }
 }
 
-const graphConnections: Ref<GraphConnection[]> = shallowRef([]);
+// define local space graph here because we use it immediately
+export const spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
+
+const graphConnections: Ref<GraphConnection[]> = shallowRef([
+  // add local graph
+  new LocalGraphConnection(
+    "get",
+    spaceGraphLocal.scope,
+    spaceGraphLocal,
+    makeReadOptions({ descendantTypes: [NodeType.VIEW] }),
+  ),
+]);
 
 export function addGraphConnection(connection: GraphConnection): void {
   graphConnections.value = [...graphConnections.value, connection];
 }
 
-/**
- * Gets the currently loaded graph for the given scope.
- */
-export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
-  graph: ReadNodeGraph;
-  connection: GraphConnection;
-} {
-  const nodeRef = toRef(node) as Ref<NodeReferenceData>;
+export type PageInfo = { cursors: string[]; startCursor: string; size: number; total?: number };
 
-  throw new Error("not yet implemented");
+type GetNodesParams<T extends NodeType> = {
+  roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
+  options?: Partial<ReadOptionsData>;
+  live?: boolean;
+  enabled?: boolean;
+};
+
+type SearchNodesParams<T extends NodeType> = {
+  nodeType: T;
+  bases?: NodeReferenceData[];
+  filter?: ExpressionData;
+  sort?: ExpressionData[];
+  first?: number;
+  skip?: number;
+  after?: string | null;
+  options?: Partial<ReadOptionsData>;
+  count?: boolean;
+  live?: boolean;
+  enabled?: boolean;
+};
+
+type AggregateNodesParams = {
+  nodeType: NodeType;
+  bases?: NodeReferenceData[];
+  filter?: ExpressionData;
+  sort?: ExpressionData[];
+  aggregation: ExpressionData;
+  enabled?: boolean;
+  live?: boolean;
+};
+
+/**
+ * Finds an existing connection to the relevant subgraph.
+ */
+export function findGetConnection<T extends NodeType>(params: GetNodesParams<T>): GraphConnection | null {
+  const connection = graphConnections.value.find((c) => {
+    if (c.kind != "get") return false;
+    if (params?.live && !c.isLive) return false;
+    // scope included?
+    if (params.roots.some((r) => r.benchId != c.scope.benchId)) return false;
+    // options included?
+    if (params.options?.ancestorTypes?.some((t) => !c.options.ancestorTypes?.includes(t))) return false;
+    if (params.options?.descendantTypes?.some((t) => !c.options.descendantTypes?.includes(t))) return false;
+    return true;
+  });
+  if (connection != null) log.debug("findGetConnection.hit", params, connection);
+  else log.debug("findGetConnection.miss", params);
+  return connection ?? null;
+}
+
+/**
+ * Acquires an existing or new connection to the relevant subgraph.
+ */
+export async function acquireGetConnection<T extends NodeType>(
+  params: Omit<GetNodesParams<T>, "enabled">,
+): Promise<{ connection: GraphConnection }> {
+  const existingConnection = findGetConnection(params);
+  if (existingConnection != null) {
+    existingConnection.referenceCount += 1;
+    return { connection: existingConnection };
+  } else {
+    log.info("acquireGetConnection", params);
+    throw new Error("nocheckin: acquireGetConnection");
+  }
 }
 
 /**
@@ -137,49 +302,50 @@ export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
  * If live, will also ensure that edits for the given nodes are watched.
  */
 export function useGetNodes<T extends NodeType>(
-  request: MaybeRef<{
-    roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
-    options?: Partial<ReadOptionsData>;
-    live?: boolean;
-    enabled?: boolean;
-  }>,
+  params: MaybeRef<GetNodesParams<T>>,
 ): {
   graph: ReadNodeGraph;
   connection: GraphConnection;
   roots: SubRef<NodeTypeMapping[T][]>;
 } {
+  const paramsRef = toRef(params) as Ref<GetNodesParams<T>>;
   const graphProxy = new ProxyNodeGraph(null);
   const connectionProxy = new ProxyGraphConnection(null);
 
-  throw new Error("not yet implemented");
-}
+  // route to the relevant graph connection
+  watch(
+    paramsRef,
+    async () => {
+      if (!paramsRef.value.enabled) return;
+      const { connection } = await acquireGetConnection(paramsRef.value);
+      if (connectionProxy.connection.value != null) {
+        connectionProxy.connection.value.referenceCount -= 1;
+      }
+      connectionProxy.connection.value = connection;
+      graphProxy.graph.value = connection.graph;
+    },
+    { immediate: true },
+  );
 
-export type PageInfo = { cursors: string[]; startCursor: string; size: number; total?: number };
+  const roots = graphProxy.getManyRef(computed(() => paramsRef.value.roots));
+  return { graph: graphProxy, connection: connectionProxy, roots };
+}
 
 /**
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
  */
 export function useSearchNodes<T extends NodeType>(
-  request: MaybeRef<{
-    nodeType: T;
-    bases?: NodeReferenceData[];
-    filter?: ExpressionData;
-    sort?: ExpressionData[];
-    first?: number;
-    skip?: number;
-    after?: string | null;
-    options?: Partial<ReadOptionsData>;
-    count?: boolean;
-    live?: boolean;
-    enabled?: boolean;
-  }>,
+  params: MaybeRef<SearchNodesParams<T>>,
 ): {
   graph: ReadNodeGraph;
   connection: GraphConnection;
   roots: SubRef<NodeTypeMapping[T][]>;
   page: Ref<PageInfo>;
 } {
+  const paramsRef = toRef(params) as Ref<SearchNodesParams<T>>;
+  const graphProxy = new ProxyNodeGraph(null);
+  const connectionProxy = new ProxyGraphConnection(null);
   throw new Error("not yet implemented");
 }
 
@@ -187,16 +353,41 @@ export function useSearchNodes<T extends NodeType>(
  * Aggregates nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * TODO :Feature: live aggregation
  */
-export function useAggregateNodes(
-  aggregate: MaybeRef<{
-    nodeType: NodeType;
-    bases?: NodeReferenceData[];
-    filter?: ExpressionData;
-    sort?: ExpressionData[];
-    aggregation: ExpressionData;
-    enabled?: boolean;
-    live?: boolean;
-  }>,
-): { aggregation: SubRef<AggregationData> } {
+export function useAggregateNodes(params: MaybeRef<AggregateNodesParams>): {
+  aggregation: SubRef<AggregationData>;
+} {
+  const paramsRef = toRef(params) as Ref<AggregateNodesParams>;
   throw new Error("not yet implemented");
+}
+
+/**
+ * Gets the currently loaded graph for the given scope. Does not acquire any new connections.
+ */
+export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
+  graph: ReadNodeGraph;
+  connection: GraphConnection;
+} {
+  const nodeRef = toRef(node) as Ref<NodeReferenceData>;
+  const graphProxy = new ProxyNodeGraph(null);
+  const connectionProxy = new ProxyGraphConnection(null);
+
+  // route to the relevant graph connection
+  watch(
+    nodeRef,
+    async () => {
+      const connection = findGetConnection({
+        roots: [nodeRef.value],
+      });
+      if (connection != null) {
+        connectionProxy.connection.value = connection;
+        graphProxy.graph.value = connection.graph;
+      } else {
+        connectionProxy.connection.value = null;
+        graphProxy.graph.value = null;
+      }
+    },
+    { immediate: true },
+  );
+
+  return { graph: graphProxy, connection: connectionProxy };
 }

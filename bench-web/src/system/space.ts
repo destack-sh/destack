@@ -1,9 +1,8 @@
 import { BenchType, NodeType, SpaceData, StructType, ViewType } from "@/proto/wire";
 import { makeNode, makeStruct, nodeReference, toNodeReference, toNodeReferenceRef } from "@/proto/wiring";
-import { READ_TYPES } from "@/system/access";
 import auth from "@/system/auth";
-import { LocalGraphConnection, addGraphConnection, useGetNodes } from "@/system/connection";
-import { LOCAL_BENCH_ID, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
+import { spaceGraphLocal, useGetNodes } from "@/system/connection";
+import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/global";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { log } from "@/utils/log";
@@ -33,7 +32,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
   computed(() => ({
     roots: [benchPtr.value!],
     options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
-    enabled: spacePtr.value != null,
+    enabled: benchPtr.value != null,
     watch: true,
   })),
 );
@@ -49,12 +48,9 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 export const pkg = pkgGraph.getRef(packagePtr);
 
 // space (local if we don't have a bench or a space in that bench, otherwise in the package)
-export const spaceGraphLocal = new NodeGraph();
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
-
-addGraphConnection(new LocalGraphConnection(READ_TYPES, { benchId: LOCAL_BENCH_ID }, spaceGraphLocal));
 
 // setup/connect local space as needed
 watch(
@@ -76,10 +72,12 @@ watch(
 
 function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   log.info("setupLocalSpace");
-  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID } as SpaceData;
+  const packagePtr = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, LOCAL_BENCH_ID);
+  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr } as SpaceData;
   const side = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
+    packagePtr,
     type: ViewType.TABBED,
     name: "side",
     title: "Side Window",
@@ -88,6 +86,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   const primary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
+    packagePtr,
     type: ViewType.TABBED,
     name: "primary",
     title: "Primary Window",
@@ -96,6 +95,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   const secondary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
+    packagePtr,
     type: ViewType.TABBED,
     name: "secondary",
     title: "Secondary Window",
