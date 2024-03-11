@@ -116,12 +116,14 @@ class ViewType(IdEnum):
 
 
 @_well_known_enum
-class ViewVariant(IdEnum):
+class Variant(IdEnum):
     """The style variant of a view."""
 
-    PRIMARY = 1
-    SECONDARY = 2
-    TERTIARY = 3
+    V1 = 1
+    V2 = 2
+    V3 = 3
+    V4 = 4
+    V5 = 5
 
 
 @_well_known_enum
@@ -348,7 +350,7 @@ class View(HasViews, HasValues):
     ...  # value/value source/file/node...
 
     # style
-    variant: Optional[ViewVariant] = p_regular(50, default=None, require=False)
+    variant: Optional[Variant] = p_regular(50, default=None, require=False)
     font: Optional[Font] = p_regular(
         51, default=None, require=False, array=False, struct=StructType.FONT
     )

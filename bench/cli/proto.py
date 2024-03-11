@@ -40,6 +40,8 @@ def _generate_proto_schema() -> str:
         name="symbolx.bench",
         bench_classes=[*FINAL_BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
+        # TODO :Performance: improve hetero node wrapping
+        #  (SomeNodeData union seems inefficient)
         unions={"SomeNode": ("node", node_classes)},
         extras=[],
         message_postfix="Data",

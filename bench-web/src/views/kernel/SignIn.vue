@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { ViewVariant, type NodeReferenceData, type ViewData } from "@/proto/wire";
+import { Variant, type NodeReferenceData, type ViewData } from "@/proto/wire";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
@@ -26,7 +26,7 @@ defineExpose({ self: toRef(props, "self") });
     <String name="email" title="Email" is-input v-model="email" />
     <String name="password" title="Password" is-input is-secret v-model="password" />
     <div class="flex flex-row justify-between">
-      <Button name="cancel" title="Cancel" :variant="ViewVariant.SECONDARY" />
+      <Button name="cancel" title="Cancel" :variant="Variant.SECONDARY" />
       <Button name="confirm" title="Sign in" />
     </div>
   </div>

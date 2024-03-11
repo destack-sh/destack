@@ -17,6 +17,7 @@ from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_ra
 from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import PrimitiveType
@@ -193,6 +194,7 @@ def unpack_struct_interp(
 ) -> StructT:
     struct = unpack_struct(struct_data)
     struct._interp_rec(scope=scope, on_notice=on_notice)
+    struct._validate_rec(properties=(), on_invalid=on_invalid_raise)
     return struct
 
 

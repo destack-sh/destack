@@ -72,9 +72,10 @@ export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMappi
   const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
   const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype as unknown as BenchType]!;
   let ord = 0;
-  const proto = {} as AnyTypeMapping[T];
+  const proto = { metatype } as AnyTypeMapping[T];
   for (const propName of Object.keys(allProperties)) {
     if (!isNaN(Number(propName))) continue; // skip numeric keys
+    if (propName == "metatype") continue; // already set
     const field = messageType.fields[ord];
     (proto as any)[propName] = getDefaultProtoValue(field);
     ord += 1;
@@ -136,7 +137,11 @@ export function isStruct(value: AnyNodeData | AnyStructData): value is AnyStruct
   return value.metatype >= 500;
 }
 
-export function nodeReference<T extends NodeType>(nodeType: T, id: string, benchId?: string): TypedNodeReferenceData<T> {
+export function nodeReference<T extends NodeType>(
+  nodeType: T,
+  id: string,
+  benchId?: string,
+): TypedNodeReferenceData<T> {
   return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id, benchId };
 }
 
@@ -150,7 +155,7 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     type: node.metatype as unknown as T,
     id: node.id,
   };
-  if ("packagePtr" in allProperties && 'packagePtr' in node) {
+  if ("packagePtr" in allProperties && "packagePtr" in node) {
     reference.benchId = node.packagePtr?.benchId;
   } else {
     reference.benchId = node.parentPtr?.benchId;

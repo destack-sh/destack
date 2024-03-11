@@ -1243,6 +1243,7 @@ class Struct(abc.ABC):
 
     _clear_rec = _make_rec_method(_ComponentMethod.clear, _clear_self)
     _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
+    _validate_rec = _make_rec_method(_ComponentMethod.validate, _validate_self)
     _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
 
     def _to_data(self) -> AnyNodeData | AnyStructData:
