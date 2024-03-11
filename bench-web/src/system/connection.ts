@@ -1,22 +1,20 @@
 import { getHostClient, supervisor } from "@/proto/services";
 import {
   AggregationData,
+  BenchType,
   ExpressionData,
-  GraphIOClient,
-  StructType,
-  type GraphScope,
-  type NodeReferenceData,
+  GetNodesRequest,
   NodeType,
+  type GraphScope,
+  type IGraphIOClient,
+  type NodeReferenceData,
   type NodeTypeMapping,
   type ReadOptionsData,
-  BenchType,
-  type IGraphIOClient,
-  GetNodesRequest,
 } from "@/proto/wire";
 import { makeDefaultProto, unwrapSomeNode } from "@/proto/wiring";
 import { accessAsOwner, type AccessArbiter } from "@/system/access";
-import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/global";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/local";
 import {
   ImmediateTransactionBuffer,
   SwapTransactionBuffer,
@@ -25,7 +23,7 @@ import {
   type TransactionBuffer,
 } from "@/system/transaction";
 import { log } from "@/utils/log";
-import type { SubRef } from "@/utils/ref";
+import { onUnmountedIfComponent, type SubRef } from "@/utils/ref";
 import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
@@ -286,7 +284,7 @@ export function findGetConnection<T extends NodeType>(params: GetNodesParams<T>)
 }
 
 /**
- * Acquires an existing or new connection to the relevant subgraph.
+ * Gets an existing or creates a new connection to the relevant subgraph.
  */
 export async function acquireGetConnection<T extends NodeType>(
   params: Omit<GetNodesParams<T>, "enabled">,
@@ -333,6 +331,7 @@ export async function acquireGetConnection<T extends NodeType>(
     });
   }
 
+  onUnmountedIfComponent(() => connection.referenceCount--);
   return { connection };
 }
 

@@ -8,14 +8,12 @@ import {
   type AnyNodeData,
   type AnyPropertyType,
   type EditData,
-  type NodeTypeMapping,
-  GraphIOClient,
+  type IGraphIOClient,
+  type NodeTypeMapping
 } from "@/proto/wire";
-import { getDefaultProtoValue, makeDefaultProto, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
+import { getDefaultProtoValue, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
-import { log } from "@/utils/log";
 import { v4 } from "uuid";
-import { getCurrentInstance, inject, ref, type Ref } from "vue";
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -187,7 +185,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
 }
 
 export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
-  /** Apply the given edits to an 'optimistic' overlay of a graph (using setProperties for updates). */
+  /** Apply the given edits to an 'optimistic' overlay of a graph (using setProperties for partial updates). */
 
   throw new Error("not yet implemented");
 }
@@ -225,11 +223,11 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
  */
 export class SwapTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScope;
-  public readonly client: GraphIOClient;
+  public readonly client: IGraphIOClient;
   public currentTx: Transaction;
   public pendingTx: Transaction | null;
 
-  constructor(scope: GraphScope, client: GraphIOClient) {
+  constructor(scope: GraphScope, client: IGraphIOClient) {
     this.scope = scope;
     this.currentTx = new TransactionBuilder(scope, v4());
     this.pendingTx = null;

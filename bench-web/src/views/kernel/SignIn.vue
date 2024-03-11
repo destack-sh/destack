@@ -26,7 +26,7 @@ defineExpose({ self: toRef(props, "self") });
     <String name="email" title="Email" is-input v-model="email" />
     <String name="password" title="Password" is-input is-secret v-model="password" />
     <div class="flex flex-row justify-between">
-      <Button name="cancel" title="Cancel" :variant="Variant.SECONDARY" />
+      <Button name="cancel" title="Cancel" :variant="Variant.V1" />
       <Button name="confirm" title="Sign in" />
     </div>
   </div>

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { spacePtr } from "@/system/global";
+import { spacePtr } from "@/system/local";
 import { space } from "@/system/space";
 import Windowed from "@/views/containers/Windowed.vue";
 import Bar from "@/views/system/Bar.vue";

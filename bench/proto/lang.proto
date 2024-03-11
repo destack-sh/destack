@@ -1187,10 +1187,6 @@ message PropertyReferenceData {
 message ReadOptionsData {
   BenchType metatype = 1;
   optional int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
   repeated NodeType ancestor_types = 31;
   repeated NodeType descendant_types = 32;
   repeated PropertyReferenceData related_properties_ptr = 33;

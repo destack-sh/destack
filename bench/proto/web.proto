@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package symbolx.bench;
+
+import "bench/proto/common.proto";
+import "bench/proto/lang.proto";
+
+// Web-local information about the active User.
+message UserInfo {
+  string id = 1;
+  string slug = 2;
+  string email = 3;
+  string name = 4;
+  IconData icon = 5;
+}
+
+// Web-local information about the active Client.
+message ClientInfo {
+  string id = 1;
+  string access_token = 2;
+}
+
+// Web-local information about an active Badge.
+message BadgeInfo {
+  string id = 1;
+  NodeReferenceData package_ptr = 2;
+  string key = 3;
+  optional string password = 4;
+}
+
+// All the locally stored data.
+// All fields must be messages (may be repeated). :LocalStorageEncoding
+message LocalStorage {
+  optional UserInfo user_info = 1;
+  optional ClientInfo client_info = 2;
+  repeated BadgeInfo badges = 3;
+  optional NodeReferenceData space_ptr = 4;
+  repeated NodeReferenceData package_ptrs = 5;
+}
