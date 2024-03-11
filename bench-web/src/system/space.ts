@@ -1,9 +1,18 @@
-import { BenchType, NodeType, SpaceData, StructType, ViewType } from "@/proto/wire";
+import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
 import { makeNode, makeStruct, nodeReference, toNodeReference } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
-import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
-import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
+import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES } from "@/system/lang";
+import {
+  LOCAL_BENCH_ID,
+  LOCAL_PACKAGE_ID,
+  LOCAL_PACKAGE_PTR,
+  LOCAL_SPACE_ID,
+  benchPtr,
+  packagePtr,
+  spacePtr,
+} from "@/system/local";
+import type { Transaction } from "@/system/transaction";
 import { log } from "@/utils/log";
 import { computed, watch } from "vue";
 
@@ -52,21 +61,33 @@ watch(
 
 function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   log.info("setupLocalSpace");
-  const packagePtr = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, LOCAL_BENCH_ID);
-  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr } as SpaceData;
+  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
   const side = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
-    packagePtr,
-    type: ViewType.TABBED,
+    packagePtr: LOCAL_PACKAGE_PTR,
+    type: ViewType.WINDOWED,
     name: "side",
     title: "Side Window",
-    size: makeStruct({ metatype: StructType.BOX, width: 240 }),
+    orientation: Orientation.VERTICAL,
+    size: makeStruct({ metatype: StructType.BOX, width: 280 }),
+  });
+  const sideTabsTop = makeNode({
+    metatype: NodeType.VIEW,
+    parentPtr: toNodeReference(side),
+    packagePtr: LOCAL_PACKAGE_PTR,
+    type: ViewType.TABBED,
+  });
+  const sideTabsBottom = makeNode({
+    metatype: NodeType.VIEW,
+    parentPtr: toNodeReference(side),
+    packagePtr: LOCAL_PACKAGE_PTR,
+    type: ViewType.TABBED,
   });
   const primary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
-    packagePtr,
+    packagePtr: LOCAL_PACKAGE_PTR,
     type: ViewType.TABBED,
     name: "primary",
     title: "Primary Window",
@@ -75,12 +96,26 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   const secondary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
-    packagePtr,
+    packagePtr: LOCAL_PACKAGE_PTR,
     type: ViewType.TABBED,
     name: "secondary",
     title: "Secondary Window",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
-  graph.extend(space, side, primary, secondary);
+  graph.extend(space, side, primary, secondary, sideTabsTop, sideTabsBottom);
   return { space };
+}
+
+export function addViewToCurrentRoot(
+  view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
+  tx: Transaction,
+) {
+  // nocheckin: handle & assign current root view etc.
+  const root = spaceGraph.nodes.find(
+    (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
+  );
+  if (root == null) throw new Error("no root view");
+  tx.create(
+    makeNode({ metatype: NodeType.VIEW, ...view, packagePtr: space.value?.packagePtr, parentPtr: toNodeReference(root) }),
+  );
 }

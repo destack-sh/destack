@@ -7718,9 +7718,9 @@ export enum ViewType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SIGN_IN = 1;
+     * @generated from protobuf enum value: VIEW_TYPE_REGISTRATION = 1;
      */
-    SIGN_IN = 1,
+    REGISTRATION = 1,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_KEYMAP = 40;
      */

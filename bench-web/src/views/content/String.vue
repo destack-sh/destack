@@ -15,5 +15,7 @@ const modelValue = defineModel<string>();
 defineExpose({ self: toRef(props, "self") });
 </script>
 <template>
-  <div></div>
+  <div>
+    this is a string input
+  </div>
 </template>

@@ -13,6 +13,13 @@ export type SizedView = {
   height: number;
 };
 
+export type SplitLayout = {
+  orientation: Orientation;
+  defaultRelativeUnits: number;
+  minPx: number;
+  dividerSize: number; // should this even affect the layout?
+};
+
 /**
  * Calculates positions and sizes for views in a split view container.
  * Sizes are distributed alongside the given orientation (the relative views subdividing the space not taken up by absolute views).
@@ -21,7 +28,7 @@ export type SizedView = {
 export function splitView(
   viewsRef: Ref<ViewData[]>,
   containerRef: Ref<{ width: number; height: number }>,
-  layoutRef: Ref<{ orientation: Orientation; defaultRelativeUnits: number; minPx: number }>,
+  layoutRef: Ref<SplitLayout>,
 ): {
   sizedViews: Ref<SizedView[]>;
   updateSeparator: (sepIdx: number, toPx: number) => [Partial<ViewData>, Partial<ViewData>];
@@ -37,11 +44,13 @@ export function splitView(
     // figure out assigned space
     const totalPx =
       layoutRef.value.orientation === Orientation.HORIZONTAL ? containerRef.value.width : containerRef.value.height;
-    const totalAbsolutePx = viewsRef.value.reduce((acc, view) => (getAbsolutePx(view) ?? 0) + acc, 0);
+    const totalAbsolutePx =
+      viewsRef.value.reduce((acc, view) => (getAbsolutePx(view) ?? 0) + acc, 0) -
+      layoutRef.value.dividerSize * (viewsRef.value.length - 1);
     const totalRelativePx = totalPx - totalAbsolutePx;
     const totalRelativeUnits = viewsRef.value
       .filter((view) => getAbsolutePx(view) == null)
-      .reduce((acc, view) =>  (getRelativeUnits(view) ?? layoutRef.value.defaultRelativeUnits) + acc, 0);
+      .reduce((acc, view) => (getRelativeUnits(view) ?? layoutRef.value.defaultRelativeUnits) + acc, 0);
     return { totalPx, totalAbsolutePx, totalRelativePx, totalRelativeUnits };
   }
 

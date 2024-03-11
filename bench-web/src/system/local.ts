@@ -12,8 +12,8 @@ export const LOCAL_PACKAGE_ID = "00000000-0000-0000-0000-000000000001";
 export const LOCAL_SPACE_ID = "00000000-0000-0000-0000-000000000002";
 
 export const LOCAL_BENCH_PTR = nodeReference(NodeType.BENCH, LOCAL_BENCH_ID);
-export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID);
-export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID);
+export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, LOCAL_BENCH_ID);
+export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
 
 /**
  * Uses a value in our web-local storage.

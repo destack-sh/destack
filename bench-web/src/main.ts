@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { createHead } from '@unhead/vue'
+import { registerViewComponents } from "@/views";
 
 async function init() {
   const app = createApp(Space);
@@ -44,6 +45,8 @@ async function init() {
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
+
+  await registerViewComponents();
 
   if (IS_DEBUG) {
     app.config.performance = true;
