@@ -70,7 +70,7 @@ defineExpose({ self: toRef(props, "self") });
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Window -->
       <div
-        class="absolute border-gray-300 bg-red-100"
+        class="absolute border-gray-300"
         :class="[
           orientation == Orientation.HORIZONTAL
             ? viewIdx == 0

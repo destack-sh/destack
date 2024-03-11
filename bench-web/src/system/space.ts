@@ -81,7 +81,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     type: ViewType.TABBED,
     name: "side",
     title: "Side Window",
-    size: makeStruct({ metatype: StructType.BOX, width: 350 }),
+    size: makeStruct({ metatype: StructType.BOX, width: 240 }),
   });
   const primary = makeNode({
     metatype: NodeType.VIEW,
@@ -90,7 +90,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     type: ViewType.TABBED,
     name: "primary",
     title: "Primary Window",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.4 }),
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
   });
   const secondary = makeNode({
     metatype: NodeType.VIEW,

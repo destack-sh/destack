@@ -11,8 +11,9 @@ import {
   type NodeTypeMapping,
   GraphIOClient,
 } from "@/proto/wire";
-import { newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
+import { getDefaultProtoValue, makeDefaultProto, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { log } from "@/utils/log";
 import { v4 } from "uuid";
 import { getCurrentInstance, inject, ref, type Ref } from "vue";
 
@@ -108,8 +109,9 @@ export class TransactionBuilder implements Transaction {
     const properties: number[] = [];
     const patchedNode = { ...update };
     let ord = 0;
-    for (const propName in Object.keys(allProperties)) {
+    for (const propName of Object.keys(allProperties)) {
       if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
+      if (propName == "debounce") continue; // ignore special field
       if (propName === "id" || propName === "metatype") {
         // keep as is (but not part of the 'update')
       } else if ((update as any)[propName] !== undefined) {
@@ -118,8 +120,7 @@ export class TransactionBuilder implements Transaction {
       } else {
         // init unset fields with an allowed default value
         //  (will be ignored anyway since its not in 'properties', but required for protobuf validation)
-        const field = messageType.fields[ord];
-        (patchedNode as any)[propName] = field.repeat ? [] : undefined;
+        (patchedNode as any)[propName] = getDefaultProtoValue(messageType.fields[ord]);
       }
       ord += 1;
     }
