@@ -6,7 +6,7 @@ import { LogLevel } from "@/proto/wire";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.UNSPECIFIED]: "log",
-  [LogLevel.TRACE]: "trace",
+  [LogLevel.TRACE]: "debug",
   [LogLevel.DEBUG]: "debug",
   [LogLevel.INFO]: "info",
   [LogLevel.WARNING]: "warn",

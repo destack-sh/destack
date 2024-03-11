@@ -73,7 +73,7 @@ export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMappi
   const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype as unknown as BenchType]!;
   let ord = 0;
   const proto = {} as AnyTypeMapping[T];
-  for (const propName in Object.keys(allProperties)) {
+  for (const propName of Object.keys(allProperties)) {
     if (!isNaN(Number(propName))) continue; // skip numeric keys
     const field = messageType.fields[ord];
     (proto as any)[propName] = getDefaultProtoValue(field);
@@ -152,6 +152,8 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
   };
   if ("packagePtr" in allProperties && 'packagePtr' in node) {
     reference.benchId = node.packagePtr?.benchId;
+  } else {
+    reference.benchId = node.parentPtr?.benchId;
   }
   if ("ck" in allProperties) {
     reference.ck = (node as { ck: string }).ck;
