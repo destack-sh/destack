@@ -1,6 +1,7 @@
-import auth from "@/system/auth";
-import { GraphIOClient, GraphScope, HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
+import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
+import { clientInfo, clientMeta } from "@/system/local";
 import { SUPERVISOR_URL } from "@/utils/globals";
+import { log } from "@/utils/log";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
   RpcError,
@@ -9,9 +10,9 @@ import {
   type ServerStreamingCall,
   type UnaryCall,
 } from "@protobuf-ts/runtime-rpc";
-import { DateTime } from "luxon";
-import { computed, isRef, shallowRef, watch, type Ref } from "vue";
 import { toRef } from "@vueuse/core";
+import { DateTime } from "luxon";
+import { computed, shallowRef, watch, type Ref } from "vue";
 
 /** An operation is an RPC call which may be retried. */
 export type Operation<I extends object, O extends object> = {
@@ -64,7 +65,7 @@ const operationsTracker = {
     if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    console.debug(op.name, op.request);
+    log.debug(op.name, op.request);
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
@@ -77,12 +78,12 @@ const operationsTracker = {
       op.call.responses.onNext(() => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses || 0) + 1;
-        console.debug(op.name, "update", op.numResponses);
+        log.debug(op.name, "update", op.numResponses);
       });
       op.call.responses.onComplete(() => {
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        console.debug(op.name, "completed");
+        log.debug(op.name, "completed");
         remove();
       });
       op.call.responses.onError((error) => {
@@ -90,7 +91,7 @@ const operationsTracker = {
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
         const code = (error as RpcError).code;
-        console.error(op.name, code, error);
+        log.error(op.name, code, error);
         remove();
       });
     } else {
@@ -98,12 +99,12 @@ const operationsTracker = {
       op.call.response
         .then((output) => {
           op.response = output;
-          console.debug(op.name, "completed", output);
+          log.debug(op.name, "completed", output);
         })
         .catch((error) => {
           op.error = error;
           const code = (error as RpcError).code;
-          console.error(op.name, code ?? "UNKNOWN", error);
+          log.error(op.name, code ?? "UNKNOWN", error);
         })
         .finally(() => {
           op.terminatedAt = DateTime.now();
@@ -231,12 +232,13 @@ export function reactiveUnaryCall<I extends object, O extends object>(
 //
 // Authentication
 //
+
 const currentMetadata: Ref<RpcMetadata> = computed(() => {
   return {
-    clientId: auth.clientAccess.value.id ?? undefined,
-    clientNonce: auth.clientInfo.nonce ?? undefined,
-    clientAccessToken: auth.clientAccess.value.token ?? undefined,
-    badges: auth.badges,
+    clientId: clientInfo.value?.id ?? undefined,
+    clientNonce: clientMeta.value?.nonce ?? undefined,
+    clientAccessToken: clientInfo.value?.accessToken ?? undefined,
+    badges: [],
   };
 });
 const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {

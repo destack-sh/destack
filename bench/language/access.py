@@ -151,7 +151,7 @@ class Identity(Node):
     roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
 
 
-@struct(StructType.READ_OPTIONS)
+@struct(StructType.READ_OPTIONS, inline=True)
 class ReadOptions(Struct):
     """
     Fine-grained options to a read request.

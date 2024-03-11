@@ -1034,22 +1034,6 @@ export interface ReadOptionsData {
      */
     id?: number;
     /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
      * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 31;
      */
     ancestorTypes: NodeType[];
@@ -10456,10 +10440,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         super("symbolx.bench.ReadOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 33, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
@@ -10473,7 +10453,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.setProperties = [];
         message.ancestorTypes = [];
         message.descendantTypes = [];
         message.relatedPropertiesPtr = [];
@@ -10496,22 +10475,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                     break;
                 case /* optional int32 id */ 2:
                     message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
                     break;
                 case /* repeated symbolx.bench.NodeType ancestor_types */ 31:
                     if (wireType === WireType.LengthDelimited)
@@ -10563,22 +10526,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* optional int32 id = 2; */
         if (message.id !== undefined)
             writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
         /* repeated symbolx.bench.NodeType ancestor_types = 31; */
         if (message.ancestorTypes.length) {
             writer.tag(31, WireType.LengthDelimited).fork();
@@ -21139,10 +21086,6 @@ export enum RequestProperty {
 export enum ReadOptionsProperty {
   metatype = 1,
   id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
   ancestorTypes = 31,
   descendantTypes = 32,
   relatedPropertiesPtr = 33,

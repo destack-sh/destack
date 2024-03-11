@@ -45,6 +45,9 @@ async function init() {
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
+  if (IS_DEBUG) {
+    app.config.performance = true;
+  }
   app.mount("#app");
 }
 

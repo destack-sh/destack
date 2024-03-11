@@ -2,8 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "bun",
-      
+      "type": "bun"
     },
     {
       "type": "bun",
@@ -12,6 +11,12 @@
       "name": "Attach Bun",
       "url": "ws://localhost:6499/",
       "stopOnEntry": false
+    },
+    {
+      "type": "chrome",
+      "name": "http://localhost:5173",
+      "request": "launch",
+      "url": "http://localhost:5173"
     }
   ]
 }

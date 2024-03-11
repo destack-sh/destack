@@ -1,6 +1,7 @@
 <script lang="tsx" setup>
 import { makeIcon } from "@/system/icon";
-import { bench, user } from "@/system/space";
+import { bench } from "@/system/space";
+import { user } from "@/system/user";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/system/Dock.vue";
 </script>

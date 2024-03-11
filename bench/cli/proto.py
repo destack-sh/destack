@@ -26,7 +26,8 @@ TEMP_PY_DIR = "bench/proto/wire.tmp"
 TEMP_PY_FILE = "bench/proto/wire.py.tmp"
 WIRE_PY_FILE = "bench/proto/wire.py"
 WIRE_TS_DIR = "bench-web/src/proto/wire"
-EXTRA_PROTO_FILES = "bench/proto/common.proto bench/proto/services.proto"
+EXTRA_PROTO_PY_FILES = "bench/proto/common.proto bench/proto/services.proto"
+EXTRA_PROTO_TS_FILES = "bench/proto/common.proto bench/proto/services.proto bench/proto/web.proto"
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
@@ -62,7 +63,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     Path(TEMP_PY_FILE).unlink(missing_ok=True)
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_FILES}",
+        f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
     )
     _shell(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
 
@@ -110,7 +111,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     shutil.rmtree(WIRE_TS_DIR, ignore_errors=True)
     Path(WIRE_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_FILES}",
+        f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
     )
     # message type mappings
     message_type_map_parts = []
@@ -224,6 +225,7 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 // re-export generated wire files
 export * from './bench/proto/common';
 export * from './bench/proto/lang';
+export * from './bench/proto/web';
 export * from './bench/proto/services';
 export * from './bench/proto/services.client';
 export * from './google/protobuf/descriptor';
