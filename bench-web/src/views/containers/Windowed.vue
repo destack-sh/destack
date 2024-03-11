@@ -4,6 +4,7 @@ import { useLoadedGraph } from "@/system/connection";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView, type SplitLayout } from "@/utils/positioning";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
+import Registration from "@/views/kernel/Registration.vue";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 

@@ -17,7 +17,7 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(comput
 </script>
 
 <template>
-  <div ref="spaceRef" class="max-h-screen w-full overflow-hidden bg-gray-100">
+  <div ref="spaceRef" class="max-h-screen w-full text-sm overflow-hidden bg-gray-100">
     <Bar
       ref="barRef"
       class="w-full border-b border-gray-400 shadow-sm shadow-gray-400"

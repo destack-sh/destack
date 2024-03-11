@@ -41,11 +41,11 @@ const props = defineProps<{
       </div>
       <div v-else class="flex flex-row gap-x-3">
         <Button
-          title="Sign in"
+          title="Log in"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
           @click="
             () => {
-              addViewToCurrentRoot({ type: ViewType.REGISTRATION, name: 'Registration', title: 'Sign In' }, spaceConnection.sideTx);
+              addViewToCurrentRoot({ type: ViewType.REGISTRATION, name: 'Registration', title: 'Log In' }, spaceConnection.sideTx);
             }
           "
         />
