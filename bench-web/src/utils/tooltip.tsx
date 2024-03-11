@@ -2,14 +2,14 @@ import { type FunctionalComponent } from "vue";
 
 export function shortcut(shorcut: string) {
   return (
-    <span class="rounded-md font-mono border border-gray-500 bg-primary-300 px-1 text-xs font-semibold uppercase text-gray-700 shadow-sm shadow-gray-200">
+    <kbd class="items-center rounded-md border border-gray-500 bg-primary-300 px-1 font-sans text-xs font-semibold uppercase text-gray-700 shadow-sm shadow-gray-200">
       {shorcut}
-    </span>
+    </kbd>
   );
 }
 
 // TODO :UI: position & animate tooltips better
-// TODO :UI :Performance: create (and destroy) tooltip element on the fly 
+// TODO :UI :Performance: create (and destroy) tooltip element on the fly
 export const Tooltip: FunctionalComponent<{
   icon?: string;
   title?: string;
@@ -20,7 +20,8 @@ export const Tooltip: FunctionalComponent<{
   const element = (
     <div
       class={
-        props.position + " pointer-events-none absolute z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-gray-100 px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-sm shadow-gray-300 transition-opacity group-hover:opacity-100"
+        props.position +
+        " pointer-events-none absolute z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-gray-100 px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-sm shadow-gray-300 transition-opacity group-hover:opacity-100"
       }
     >
       {props.icon || props.title ? (

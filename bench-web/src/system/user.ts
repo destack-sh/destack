@@ -1,3 +1,4 @@
+import { supervisor } from "@/proto/services";
 import { NodeType } from "@/proto/wire";
 import { nodeReference, toNodeReferenceRef } from "@/proto/wiring";
 import { useGetNodes } from "@/system/connection";
@@ -24,3 +25,8 @@ export const client = userGraph.getRef(
   computed(() => (clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: clientInfo.value.id })),
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
+
+export async function logIn(key: { username: string } | { email: string }, password: string) {
+  // const { response: { user, client, accessToken } } = await supervisor.loginUser({ user: key, password });
+  throw new Error("not implemented");
+}
