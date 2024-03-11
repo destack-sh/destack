@@ -11,6 +11,31 @@ import {
   computed,
 } from "vue";
 
+/**
+ * Checks whether two arbitrary JavaScript values are deeply equal.
+ * Traverses objects and arrays recursively.
+ */
+export function deepValueEquals(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (typeof a != "object" || typeof b != "object") return false;
+  if (Array.isArray(a) != Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    if (a.length != b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepValueEquals(a[i], b[i])) return false;
+    }
+  } else {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length != bKeys.length) return false;
+    for (const key of aKeys) {
+      if (!deepValueEquals(a[key], b[key])) return false;
+    }
+  }
+  return true;
+}
+
 export function valueRef<T>(value: T) {
   return customRef<T>((track, trigger) => {
     return {
@@ -19,23 +44,10 @@ export function valueRef<T>(value: T) {
         return value;
       },
       set(newValue: T) {
-        // TODO @Performance: find better ways to implement value ref semantics
-        const newValueType = typeof newValue;
-        const valueType = typeof value;
-        if (newValueType == valueType) {
-          if (
-            newValueType == "number" &&
-            (newValue == value || (isNaN(newValue as unknown as number) && isNaN(value as unknown as number)))
-          ) {
-            return;
-          } else if ((newValueType == "string" || newValueType == "boolean") && newValue == value) {
-            return;
-          } else if (JSON.stringify(value) == JSON.stringify(newValue)) {
-            return;
-          }
+        if (!deepValueEquals(value, newValue)) {
+          value = newValue;
+          trigger();
         }
-        value = newValue;
-        trigger();
       },
     };
   });

@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { ViewData, NodeReferenceData, NodeType } from "@/proto/wire/";
-import { useGetNodes, useLoadedGraph } from "@/system/graph";
+import { useGetNodes, useLoadedGraph } from "@/system/connection";
 import { viewEmits } from "@/views/common";
 import { computed, toRef } from "vue";
 
@@ -9,7 +9,8 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
+const self = toRef(props, "self");
+const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);
 const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
   computed(() => ({
     roots: [props.nodePtr!],
@@ -17,8 +18,9 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
     enabled: props.nodePtr != null,
   })),
 );
+// const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
-defineExpose({ self: toRef(props, "self") });
+defineExpose({ self });
 </script>
 <template>
   <div></div>

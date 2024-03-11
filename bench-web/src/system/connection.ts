@@ -23,8 +23,8 @@ import {
   type TransactionBuffer,
 } from "@/system/transaction";
 import { log } from "@/utils/log";
-import { onUnmountedIfComponent, type SubRef } from "@/utils/ref";
-import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { onUnmountedIfComponent, toValueRef, type SubRef } from "@/utils/ref";
+import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, markRaw } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
@@ -39,7 +39,10 @@ export function getScopeKey(scope: GraphScope): string {
 
 export type GraphConnectionKind = "get" | "search" | "aggregate";
 
-type GraphConnection = {
+/**
+ * A connection to a subgraph for an overlapping set of read operations.
+ */
+export type GraphConnection = {
   kind: GraphConnectionKind;
   scope: GraphScope;
   graph: ReadNodeGraph;
@@ -52,9 +55,6 @@ type GraphConnection = {
   referenceCount: number;
 };
 
-/**
- * A connection to a subgraph for an overlapping set of read operations.
- */
 export abstract class GraphConnectionBase implements GraphConnection {
   readonly kind: GraphConnectionKind;
   readonly scope: GraphScope;
@@ -278,8 +278,6 @@ export function findGetConnection<T extends NodeType>(params: GetNodesParams<T>)
     if (params.options?.descendantTypes?.some((t) => !c.options.descendantTypes?.includes(t))) return false;
     return true;
   });
-  if (connection != null) log.debug("findGetConnection.hit", params, connection);
-  else log.debug("findGetConnection.miss", params);
   return connection ?? null;
 }
 
@@ -352,7 +350,7 @@ export function useGetNodes<T extends NodeType>(
 
   // route to the relevant graph connection
   watch(
-    paramsRef,
+    toValueRef(paramsRef),
     async () => {
       if (!paramsRef.value.enabled) return;
       const { connection } = await acquireGetConnection(paramsRef.value);
@@ -366,7 +364,7 @@ export function useGetNodes<T extends NodeType>(
   );
 
   const roots = graphProxy.getManyRef(computed(() => paramsRef.value.roots));
-  return { graph: graphProxy, connection: connectionProxy, roots };
+  return { graph: markRaw(graphProxy), connection: markRaw(connectionProxy), roots };
 }
 
 /**
@@ -411,11 +409,9 @@ export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
 
   // route to the relevant graph connection
   watch(
-    nodeRef,
+    toValueRef(nodeRef),
     async () => {
-      const connection = findGetConnection({
-        roots: [nodeRef.value],
-      });
+      const connection = findGetConnection({ roots: [nodeRef.value] });
       if (connection != null) {
         connectionProxy.connection.value = connection;
         graphProxy.graph.value = connection.graph;
@@ -427,5 +423,5 @@ export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
     { immediate: true },
   );
 
-  return { graph: graphProxy, connection: connectionProxy };
+  return { graph: markRaw(graphProxy), connection: markRaw(connectionProxy) };
 }

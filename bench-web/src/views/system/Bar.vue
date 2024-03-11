@@ -1,9 +1,15 @@
 <script lang="tsx" setup>
+import { ViewType } from "@/proto/wire";
+import type { GraphConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { bench } from "@/system/space";
+import { addViewToCurrentRoot, bench } from "@/system/space";
 import { user } from "@/system/user";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/system/Dock.vue";
+
+const props = defineProps<{
+  spaceConnection: GraphConnection;
+}>();
 </script>
 <template>
   <div class="flex w-full flex-row items-center justify-between gap-x-4 bg-gray-100 px-4 text-sm text-gray-900">
@@ -37,7 +43,11 @@ import Dock from "@/views/system/Dock.vue";
         <Button
           title="Sign in"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
-          @click="() => {} /* nocheckin registration flow */"
+          @click="
+            () => {
+              addViewToCurrentRoot({ type: ViewType.REGISTRATION, name: 'Registration', title: 'Sign In' }, spaceConnection.sideTx);
+            }
+          "
         />
       </div>
     </div>

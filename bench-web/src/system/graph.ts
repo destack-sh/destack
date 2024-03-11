@@ -50,6 +50,16 @@ export interface ReadNodeGraph {
     parent: MaybeRef<NodeKey<any> | undefined | null>,
     metatype: T,
   ): SubRef<NodeTypeMapping[T][]>;
+  /**
+   * Gets a reactive reference to the descendants matching a certain filter.
+   * The filter must depend on only the given node.
+   * NOTE: the search stops at any mismatch, so nodes are only included if all ancestors are.
+   */
+  getDescendantsRef<T extends NodeType>(
+    parent: MaybeRef<NodeKey<any> | undefined | null>,
+    metatype: T,
+    filter: (node: NodeTypeMapping[T]) => boolean,
+  ): SubRef<NodeTypeMapping[T][]>;
 }
 
 /** A node graph with write methods */
@@ -146,6 +156,14 @@ abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" |
     );
     onUnmountedIfComponent(unsub);
     return ref;
+  }
+
+  getDescendantsRef<T extends NodeType>(
+    parent: MaybeRef<NodeKey<any> | null | undefined>,
+    metatype: T,
+    filter: (node: NodeTypeMapping[T]) => boolean,
+  ): SubRef<NodeTypeMapping[T][]> {
+    throw new Error("Method not implemented.");
   }
 }
 
@@ -258,6 +276,10 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     const id = "id" in key ? key.id : this.nodesByCk[key.ck!];
     if (!id) return null;
     return (this.nodesById[id] ?? null) as NodeTypeMapping[T] | null;
+  }
+
+  getMany<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
+    return keys.map((key) => this.get(key)).filter((n) => n != null) as NodeTypeMapping[T][];
   }
 
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {

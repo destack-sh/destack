@@ -28,7 +28,7 @@ class ViewType(IdEnum):
 
     # 'kernel'
     # auth
-    SIGN_IN = 1
+    REGISTRATION = 1
     KEYMAP = 40
 
     # 'system'
@@ -373,7 +373,7 @@ class View(HasViews, HasValues):
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
 
     # interaction
-    ...  # behavior/effects/...
+    ...  # selection/focus/behavior/effects/...
 
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)

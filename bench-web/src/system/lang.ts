@@ -13,6 +13,7 @@ import {
   NotificationData,
   type NodeTypeMapping,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  ViewType,
 } from "@/proto/wire";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
@@ -40,7 +41,7 @@ export const LOADED_SOURCE_NODE_TYPES = [
   NodeType.RECORD, // nocheckin: should error because crosses store boundaries (then remove Record from loaded)
   NodeType.QUERY,
   NodeType.VIEW,
-]
+];
 
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   if (node.metatype == BenchType.RECORD) {
@@ -59,3 +60,5 @@ export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapp
   if ("orderKey" in properties) nodes.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
   else nodes.sort((a, b) => (b.createdAt?.nanos ?? 0) - (a.createdAt?.nanos ?? 0));
 }
+
+export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED];
