@@ -107,7 +107,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             raise AccessError(request)
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
-        roots: tuple[NodeReference, ...] = tuple(wiring.unpack_struct(r) for r in request.roots)
+        roots: tuple[NodeReference, ...] = tuple(
+            wiring.unpack_struct_interp(r) for r in request.roots
+        )
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         options: ReadOptions = (

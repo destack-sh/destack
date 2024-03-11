@@ -47,7 +47,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 );
 export const pkg = pkgGraph.getRef(packagePtr);
 
-// space (local if we don't have a bench or a space in that bench, otherwise in the package)
+// space (local if we don't have a bench or a space in that bench, otherwise from the current package)
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);

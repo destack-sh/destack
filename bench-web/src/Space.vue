@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toNodeReference } from "@/proto/wiring";
+import { spacePtr } from "@/system/global";
 import { space } from "@/system/space";
 import Windowed from "@/views/containers/Windowed.vue";
 import Bar from "@/views/system/Bar.vue";
@@ -19,8 +19,8 @@ const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space mus
     <Bar ref="barRef" class="w-full shadow-sm shadow-gray-300 border-b border-gray-300" :style="{ height: BAR_HEIGHT + 'px' }" />
     <Windowed
       ref="windowRef"
-      v-if="space"
-      :self="toNodeReference(space)"
+      v-if="spacePtr && space"
+      :self="spacePtr"
       :size="{ width: spaceWidth, height: spaceHeight - BAR_HEIGHT - BAR_OFFSET }"
       :style="{ marginTop: BAR_OFFSET + 'px'}"
     />

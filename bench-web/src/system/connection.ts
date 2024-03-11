@@ -1,3 +1,4 @@
+import { getHostClient, supervisor } from "@/proto/services";
 import {
   AggregationData,
   ExpressionData,
@@ -9,14 +10,17 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
   BenchType,
+  type IGraphIOClient,
+  GetNodesRequest,
 } from "@/proto/wire";
-import { makeDefaultProto } from "@/proto/wiring";
+import { makeDefaultProto, unwrapSomeNode } from "@/proto/wiring";
 import { accessAsOwner, type AccessArbiter } from "@/system/access";
 import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/global";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import {
   ImmediateTransactionBuffer,
   SwapTransactionBuffer,
+  editGraph,
   type Transaction,
   type TransactionBuffer,
 } from "@/system/transaction";
@@ -122,7 +126,7 @@ export class LocalGraphConnection extends GraphConnectionBase {
  * A remote connection to a graph.
  */
 export class RemoteGraphConnection extends GraphConnectionBase {
-  readonly client: GraphIOClient;
+  readonly client: IGraphIOClient;
   readonly isLive: boolean;
   readonly mainTxBuffer: TransactionBuffer;
   readonly sideTxBuffer: TransactionBuffer;
@@ -130,9 +134,9 @@ export class RemoteGraphConnection extends GraphConnectionBase {
   constructor(
     kind: GraphConnectionKind,
     scope: GraphScope,
-    graph: ReadNodeGraph & WriteNodeGraph,
+    graph: ReadNodeGraph,
     access: AccessArbiter,
-    client: GraphIOClient,
+    client: IGraphIOClient,
     options: ReadOptionsData,
     isLive: boolean,
   ) {
@@ -291,10 +295,45 @@ export async function acquireGetConnection<T extends NodeType>(
   if (existingConnection != null) {
     existingConnection.referenceCount += 1;
     return { connection: existingConnection };
-  } else {
-    log.info("acquireGetConnection", params);
-    throw new Error("nocheckin: acquireGetConnection");
   }
+
+  log.info("acquireGetConnection", params);
+  const benchId = params.roots[0]!.benchId;
+  const client = benchId == null ? supervisor : await getHostClient({ id: benchId });
+  const graph = new NodeGraph({ scope: { benchId } });
+  const access = accessAsOwner(); // TODO :Broken: access control
+  const options = makeReadOptions(params.options ?? {});
+  const connection = new RemoteGraphConnection(
+    "get",
+    graph.scope,
+    graph,
+    access,
+    client,
+    options,
+    params.live ?? false,
+  );
+  addGraphConnection(connection);
+  const {
+    response: { epoch, nodes },
+  } = await client.getNodes({ scope: graph.scope, roots: params.roots, options } as GetNodesRequest);
+  graph.extend(...nodes.map(unwrapSomeNode));
+
+  if (params.live) {
+    const allNodeTypes = [...params.roots.map((r) => r.type), ...options.ancestorTypes, ...options.descendantTypes];
+    const editStream = client.watchEdits({
+      scope: graph.scope,
+      sinceEpoch: epoch,
+      nodeTypes: allNodeTypes,
+      filters: [],
+    });
+    editStream.responses.onNext((tx) => {
+      if (tx) {
+        editGraph(graph, tx.edits);
+      }
+    });
+  }
+
+  return { connection };
 }
 
 /**

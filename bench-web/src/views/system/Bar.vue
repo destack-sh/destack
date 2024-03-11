@@ -12,7 +12,7 @@ import Dock from "@/views/system/Dock.vue";
       <button class="rounded-md border border-gray-300 bg-white px-2 py-1" v-if="bench">Bench</button>
       <button v-else class="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300">
         <span class="font-semibold">Bench</span>
-        <span class="skew-y-4 inset-thick-underline ml-1 pl-0.5 font-semibold">Beta</span>
+        <span class="ml-1 pl-0.5 font-semibold underline decoration-primary-400 decoration-2">Beta</span>
       </button>
       <!-- Status -->
       <!-- ... -->
@@ -32,30 +32,13 @@ import Dock from "@/views/system/Dock.vue";
           {{ user.slug }}
         </button>
       </div>
-      <div v-else class="">
-        <Button title="Sign in" :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })" @click="() => {}" />
+      <div v-else class="flex flex-row gap-x-3">
+        <Button
+          title="Sign in"
+          :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
+          @click="() => {} /* nocheckin registration flow */"
+        />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.inset-thick-underline {
-  position: relative;
-  z-index: 2;
-  display: inline-block;
-}
-
-.inset-thick-underline:after {
-  content: "";
-  z-index: -1;
-  position: absolute;
-  width: 100%;
-  border-radius: 1px;
-  height: 4px;
-  background-color: #fcd34d;
-  bottom: 2px;
-  transform: skewY(-3deg);
-  left: 1px;
-}
-</style>

@@ -4882,9 +4882,9 @@ export interface ViewData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ViewVariant variant = 50;
+     * @generated from protobuf field: optional symbolx.bench.Variant variant = 50;
      */
-    variant?: ViewVariant;
+    variant?: Variant;
     /**
      * @generated from protobuf field: optional symbolx.bench.FontData font = 51;
      */
@@ -7695,6 +7695,37 @@ export enum UserStatus {
     ACTIVATED = 10
 }
 /**
+ * The style variant of a view.
+ *
+ * @generated from protobuf enum symbolx.bench.Variant
+ */
+export enum Variant {
+    /**
+     * @generated from protobuf enum value: VARIANT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: VARIANT_V1 = 1;
+     */
+    V1 = 1,
+    /**
+     * @generated from protobuf enum value: VARIANT_V2 = 2;
+     */
+    V2 = 2,
+    /**
+     * @generated from protobuf enum value: VARIANT_V3 = 3;
+     */
+    V3 = 3,
+    /**
+     * @generated from protobuf enum value: VARIANT_V4 = 4;
+     */
+    V4 = 4,
+    /**
+     * @generated from protobuf enum value: VARIANT_V5 = 5;
+     */
+    V5 = 5
+}
+/**
  * @generated from protobuf enum symbolx.bench.ViewType
  */
 export enum ViewType {
@@ -7718,6 +7749,14 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_BLOCK = 102;
      */
     BLOCK = 102,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_FIELD = 103;
+     */
+    FIELD = 103,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DATABASE = 104;
+     */
+    DATABASE = 104,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORER = 120;
      */
@@ -7946,29 +7985,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 665;
      */
     AUDIO = 665
-}
-/**
- * The style variant of a view.
- *
- * @generated from protobuf enum symbolx.bench.ViewVariant
- */
-export enum ViewVariant {
-    /**
-     * @generated from protobuf enum value: VIEW_VARIANT_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: VIEW_VARIANT_PRIMARY = 1;
-     */
-    PRIMARY = 1,
-    /**
-     * @generated from protobuf enum value: VIEW_VARIANT_SECONDARY = 2;
-     */
-    SECONDARY = 2,
-    /**
-     * @generated from protobuf enum value: VIEW_VARIANT_TERTIARY = 3;
-     */
-    TERTIARY = 3
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -19034,7 +19050,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.ViewVariant", ViewVariant, "VIEW_VARIANT_"] },
+            { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.Variant", Variant, "VARIANT_"] },
             { no: 51, name: "font", kind: "message", T: () => FontData },
             { no: 60, name: "position", kind: "message", T: () => OffsetData },
             { no: 61, name: "size", kind: "message", T: () => BoxData },
@@ -19134,7 +19150,7 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 41:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional symbolx.bench.ViewVariant variant */ 50:
+                case /* optional symbolx.bench.Variant variant */ 50:
                     message.variant = reader.int32();
                     break;
                 case /* optional symbolx.bench.FontData font */ 51:
@@ -19252,7 +19268,7 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.NodeReferenceData node_ptr = 41; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ViewVariant variant = 50; */
+        /* optional symbolx.bench.Variant variant = 50; */
         if (message.variant !== undefined)
             writer.tag(50, WireType.Varint).int32(message.variant);
         /* optional symbolx.bench.FontData font = 51; */
