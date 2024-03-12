@@ -61,4 +61,4 @@ export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapp
   else nodes.sort((a, b) => (b.createdAt?.nanos ?? 0) - (a.createdAt?.nanos ?? 0));
 }
 
-export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED];
+export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];

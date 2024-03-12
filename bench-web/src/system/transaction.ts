@@ -9,7 +9,8 @@ import {
   type AnyPropertyType,
   type EditData,
   type IGraphIOClient,
-  type NodeTypeMapping
+  type NodeTypeMapping,
+  Timestamp,
 } from "@/proto/wire";
 import { getDefaultProtoValue, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
@@ -150,9 +151,34 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
-  /** Applies the edits to the graph (in place!). Ignores soft deletion & archivation. */
+/** 'Canonicalizes' edits by imputing tracking info (just like in host). */
+export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
+  for (const edit of edits) {
+    const node = unwrapSomeNode(edit.node!);
+    if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
+      node.createdAt = now;
+      node.createdByPtr = edit.subject;
+      node.updatedAt = now;
+      node.updatedByPtr = edit.subject;
+    } else if (edit.type == EditType.MOVE || edit.type == EditType.UPDATE) {
+      node.updatedAt = now;
+      node.updatedByPtr = edit.subject;
+    } else if (edit.type == EditType.ARCHIVE) {
+      node.archivedAt = now;
+    } else if (edit.type == EditType.UNARCHIVE) {
+      node.archivedAt = undefined;
+    } else if (edit.type == EditType.SOFT_DELETE) {
+      node.deletedAt = now;
+    } else if (edit.type == EditType.RESTORE) {
+      node.deletedAt = undefined;
+    } else if (edit.type == EditType.DELETE) {
+      node.deletedAt = now;
+    }
+  }
+}
 
+/** Applies the edits to the graph (in place!). Ignores soft deletion & archivation. */
+export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
   for (const edit of edits) {
     if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
     const nodeData = unwrapSomeNode(edit.node);
@@ -184,9 +210,8 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
   }
 }
 
+/** Apply the given edits to an 'optimistic' overlay of a graph (using setProperties for partial updates). */
 export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & WriteNodeGraph, edits: EditData[]) {
-  /** Apply the given edits to an 'optimistic' overlay of a graph (using setProperties for partial updates). */
-
   throw new Error("not yet implemented");
 }
 
@@ -212,6 +237,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
 
     // immediately apply and reset the transaction
     this.tx.subscribe((edit) => {
+      canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.graph, [edit]);
       this.tx.edits.length = 0;
     });

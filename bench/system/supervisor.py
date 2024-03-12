@@ -111,7 +111,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
-            user=user._to_data(), client=client, access_token=client.access_token
+            user=user._to_data(), client=client._to_data(), access_token=client.access_token
         )
 
     async def change_user_password(
@@ -128,7 +128,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             # set new password
-            session.track(user)  # user is in other session
+            session.track(user)  # user is from another session
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
             await session.commit()
@@ -154,6 +154,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             client = self._make_new_client(user, request.client)
+            client.access_token = generate_access_token()
             user.last_logged_in_at = utcnow_with_tz()
             session.upsert(client)
             await session.commit()

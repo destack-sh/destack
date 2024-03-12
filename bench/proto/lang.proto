@@ -126,6 +126,7 @@ enum BenchType {
   BENCH_TYPE_EXPRESSION = 560;
   BENCH_TYPE_AGGREGATION = 561;
   BENCH_TYPE_AGGREGATION_BUCKET = 562;
+  BENCH_TYPE_SELECTION = 563;
   BENCH_TYPE_CODE = 590;
   BENCH_TYPE_CODE_LINE = 591;
   BENCH_TYPE_RUN_CODE_FRAME = 600;
@@ -615,6 +616,12 @@ enum ScheduleType {
   SCHEDULE_TYPE_CRON = 2;
 }
 
+enum SelectionKind {
+  SELECTION_KIND_UNSPECIFIED = 0;
+  SELECTION_KIND_RANGE = 1;
+  SELECTION_KIND_LIST = 2;
+}
+
 enum ServerProfile {
   SERVER_PROFILE_UNSPECIFIED = 0;
   SERVER_PROFILE_TINY = 3;
@@ -680,6 +687,7 @@ enum StructType {
   STRUCT_TYPE_EXPRESSION = 560;
   STRUCT_TYPE_AGGREGATION = 561;
   STRUCT_TYPE_AGGREGATION_BUCKET = 562;
+  STRUCT_TYPE_SELECTION = 563;
   STRUCT_TYPE_CODE = 590;
   STRUCT_TYPE_CODE_LINE = 591;
   STRUCT_TYPE_RUN_CODE_FRAME = 600;
@@ -769,8 +777,8 @@ enum ViewType {
   VIEW_TYPE_WINDOWED = 500;
   VIEW_TYPE_WINDOW = 501;
   VIEW_TYPE_TABBED = 502;
+  VIEW_TYPE_SPLIT = 503;
   VIEW_TYPE_STEPPED = 505;
-  VIEW_TYPE_SPLIT = 507;
   VIEW_TYPE_STACK = 510;
   VIEW_TYPE_DISCLOSURE = 511;
   VIEW_TYPE_GRID = 512;
@@ -1261,6 +1269,16 @@ message ScheduleData {
   optional string cron = 33;
 }
 
+// A selection of nodes/values.
+message SelectionData {
+  BenchType metatype = 1;
+  optional int32 id = 2;
+  SelectionKind kind = 30;
+  repeated NodeReferenceData nodes_ptr = 31;
+  optional NodeReferenceData from_node_ptr = 32;
+  optional NodeReferenceData to_node_ptr = 33;
+}
+
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
 // (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
 message SubjectData {
@@ -1357,8 +1375,6 @@ message ValueReferenceData {
   optional string order_key = 5;
   repeated int32 set_properties = 22;
   PathData path = 31;
-  optional int32 subvalue_from = 32;
-  optional int32 subvalue_to = 33;
 }
 
 // Attach a badge to a node with an inline definition.
@@ -2274,6 +2290,7 @@ message ViewData {
   optional OffsetData padding = 63;
   optional Orientation orientation = 64;
   optional Alignment alignment = 65;
+  optional SelectionData selection = 70;
   optional bool is_visible = 80;
   optional bool is_disabled = 81;
   optional bool is_loading = 82;

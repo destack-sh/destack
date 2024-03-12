@@ -1,9 +1,10 @@
 import { supervisor } from "@/proto/services";
-import { UserData, ClientData, NodeType } from "@/proto/wire";
+import { ClientData, NodeType, UserData } from "@/proto/wire";
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { useGetNodes } from "@/system/connection";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
 import { log } from "@/utils/log";
+import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { v4 } from "uuid";
 import { computed } from "vue";
 
@@ -62,7 +63,7 @@ export async function signUp(userIn: { name?: string; slug: string; email: strin
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
 }
- 
+
 /**
  * Log in a user as the current client.
  */
@@ -88,4 +89,15 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
     userInfo.value = null;
     clientInfo.value = null;
   }
+}
+
+export function onAuthenticationError(error: RpcError) {
+  log.error("user.unauthenticated");
+  userInfo.value = null;
+  clientInfo.value = null;
+}
+
+export async function createBench() {
+  if (clientInfo.value == null) throw new Error("not logged in");
+  throw new Error("not implemented");
 }

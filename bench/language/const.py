@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.03.11.0"
+VERSION = "2024.03.12.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -146,6 +146,7 @@ class StructType(IdEnum):
     EXPRESSION = 560
     AGGREGATION = 561
     AGGREGATION_BUCKET = 562
+    SELECTION = 563
 
     # code
     CODE = 590

@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.03.08. Edit as needed.
+# This migration was automatically generated on 2024.03.12. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.03.08.1"
+VERSION = "2024.03.12.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -375,11 +375,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         node_type smallint,
         node_base_ck uuid,
         variant smallint,
-        is_visible boolean NOT NULL DEFAULT true,
-        is_disabled boolean NOT NULL DEFAULT false,
-        is_loading boolean NOT NULL DEFAULT false,
-        is_input boolean NOT NULL DEFAULT false,
-        is_secret boolean NOT NULL DEFAULT false
+        font jsonb,
+        position jsonb,
+        size jsonb,
+        margin jsonb,
+        padding jsonb,
+        orientation smallint,
+        alignment smallint,
+        selection jsonb,
+        is_visible boolean DEFAULT true,
+        is_disabled boolean DEFAULT false,
+        is_loading boolean DEFAULT false,
+        is_input boolean DEFAULT false,
+        is_secret boolean DEFAULT false
     )
     """
     )
@@ -693,11 +701,14 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
-        device_name varchar NOT NULL,
+        device_name varchar,
+        device_type varchar,
+        operating_system varchar,
         browser_name varchar,
+        browser_version varchar,
+        access_token varchar,
         last_seen_at timestamp NOT NULL,
         logged_in_at timestamp,
-        access_token varchar,
         main_space_ck uuid
     )
     """

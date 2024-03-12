@@ -117,9 +117,12 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
     async with global_session():
         try:
             client = await _get_client_from_metadata(metadata)
+        except NodeNotFoundError as e:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client") from e
+        try:
             badges = await _get_badges_from_metadata(metadata)
         except NodeNotFoundError as e:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client or badge") from e
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge") from e
         if client is None:
             return Subject(is_authenticated=False, badges=badges)
         elif client.parent_type == NodeType.USER:
