@@ -1,6 +1,8 @@
-import { BenchType, Orientation, type ViewData } from "@/proto/wire";
+import { BenchType, NodeType, Orientation, type ViewData } from "@/proto/wire";
+import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
-import { computed, type Ref } from "vue";
+import { useMouseInElement, useMousePressed } from "@vueuse/core";
+import { computed, watch, type Ref, toRef, ref } from "vue";
 
 export const MIN_WINDOW_SIZE = 200;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
@@ -131,4 +133,45 @@ export function splitView(
   }
 
   return { sizedViews, updateSeparator };
+}
+
+/**
+ * Split a view in a container with draggable separators.
+ * Set 'draggingIdx' to track which separator is being dragged (=index of lower view).
+ */
+export function useSplitView(
+  viewsRef: Ref<ViewData[]>,
+  sizeRef: Ref<{ width: number; height: number }>,
+  containerRef: Ref<HTMLElement | null>,
+  layoutRef: Ref<SplitLayout>,
+  graphConnection: GraphConnection,
+) {
+  const { sizedViews, updateSeparator } = splitView(viewsRef, sizeRef, layoutRef);
+  const { pressed } = useMousePressed();
+  const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
+  const draggingIdx = ref<number | null>(null);
+  watch([pressed, mouseRelativeX, mouseRelativeY], () => {
+    if (draggingIdx.value == null) return;
+    if (!pressed.value) {
+      draggingIdx.value = null;
+      return;
+    }
+    const draggedToPx =
+      layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
+    const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
+    graphConnection.sideTx.update({
+      metatype: NodeType.VIEW,
+      id: viewsRef.value[draggingIdx.value].id,
+      size: aUpdate.size,
+      debounce: true,
+    });
+    graphConnection.sideTx.update({
+      metatype: NodeType.VIEW,
+      id: viewsRef.value[draggingIdx.value + 1].id,
+      size: bUpdate.size,
+      debounce: true,
+    });
+  });
+
+  return { sizedViews, draggingIdx };
 }

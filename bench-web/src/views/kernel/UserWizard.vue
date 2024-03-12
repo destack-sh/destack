@@ -1,18 +1,17 @@
 <script lang="tsx" setup>
-import type { OperationError } from "@/proto/services";
-import { Region, UserStatus, Variant, type NodeReferenceData } from "@/proto/wire";
+import { Region, Variant, type NodeReferenceData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { logIn, signUp, user } from "@/system/user";
+import { logIn, signUp } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { ref, toRef, watch, type Ref } from "vue";
+import { ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & {}>();
 const emit = defineEmits(viewEmits());
 
-const state: Ref<"sign-up" | "log-in" | "create-bench" | "all-set"> = ref("log-in");
+const state: Ref<"sign-up" | "log-in"> = ref("log-in");
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
@@ -20,19 +19,6 @@ const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
 const lastError = ref<RpcError | null>(null);
-
-// sync state with user status
-watch(user, () => {
-  if (user.value != null) {
-    if (user.value.status == UserStatus.REGISTERED) {
-      state.value = "create-bench";
-    } else {
-      state.value = "all-set";
-    }
-  } else {
-    state.value = "log-in";
-  }
-});
 
 async function submit() {
   isActive.value = true;
@@ -57,15 +43,12 @@ defineExpose({ self: toRef(props, "self") });
   <div
     class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-10 py-8 text-gray-900 shadow-md shadow-gray-300"
   >
-    <h2 class="text-2xl font-semibold">
-      {{
-        {
-          "sign-up": "Sign up",
-          "log-in": "Log in",
-          "create-bench": "Create your Bench",
-        }[state]
-      }}
-    </h2>
+    <!-- Header -->
+    <div>
+      <h2 class="text-2xl font-semibold">
+        {{ state === "log-in" ? "Log in" : "Sign up" }}
+      </h2>
+    </div>
     <!-- Data -->
     <div class="mt-5 flex w-full flex-col gap-y-3">
       <String

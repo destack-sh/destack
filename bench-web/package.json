@@ -22,6 +22,7 @@
     "@protobuf-ts/runtime": "^2.9.3",
     "@protobuf-ts/runtime-rpc": "^2.9.3",
     "@sentry/vue": "^7.103.0",
+    "@tailwindcss/container-queries": "^0.1.1",
     "@unhead/vue": "^1.8.10",
     "@vueuse/core": "^10.8.0",
     "codemirror": "^6.0.1",

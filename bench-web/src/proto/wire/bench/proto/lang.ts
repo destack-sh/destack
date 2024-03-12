@@ -7762,9 +7762,17 @@ export enum ViewType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_REGISTRATION = 1;
+     * @generated from protobuf enum value: VIEW_TYPE_USER_WIZARD = 1;
      */
-    REGISTRATION = 1,
+    USER_WIZARD = 1,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_BENCH_WIZARD = 2;
+     */
+    BENCH_WIZARD = 2,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CHALLENGE_WIZARD = 3;
+     */
+    CHALLENGE_WIZARD = 3,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_KEYMAP = 40;
      */

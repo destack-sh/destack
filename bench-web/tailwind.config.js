@@ -31,6 +31,18 @@ export default {
         "-lg": { max: "1023px" },
         "-md": { max: "767px" },
         "-sm": { max: "639px" },
+        "-xs": { max: "479px" },
+      },
+      containers: {
+        "-2xl": { max: "1535px" },
+        "-xl": { max: "1279px" },
+        "-lg": { max: "1023px" },
+        "-md": { max: "767px" },
+        "-sm": { max: "639px" },
+        "-xs": { max: "479px" },
+        "-2xs": { max: "399px" },
+        "-3xs": { max: "319px" },
+        "-4xs": { max: "239px" },
       },
       colors: {
         primary: colors.amber,

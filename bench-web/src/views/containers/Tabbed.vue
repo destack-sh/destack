@@ -49,7 +49,7 @@ function select(tab: ViewData) {
 
 function remove(tab: ViewData) {
   log.debug("tabbed.remove", tab);
-  spaceConnection.sideTx.delete(tab);
+  spaceConnection.sideTx.delete(tab); // should soft delete?
 }
 
 defineExpose({ self: toRef(props, "self") });
@@ -58,12 +58,13 @@ defineExpose({ self: toRef(props, "self") });
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tab header -->
     <div class="flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300 bg-gray-200">
+      <!-- Tab button -->
       <button
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group flex max-w-52 h-full flex-row items-center justify-center whitespace-nowrap bg-gray-100 px-2.5"
+        class="group flex h-full max-w-52 flex-row items-center justify-center whitespace-nowrap bg-gray-100 px-2.5"
         :class="[
-          i == selectedTabIdx ? 'shadow-inset-sm text-primary-900 shadow-primary-900' : 'hover:text-primary-900',
+          i == selectedTabIdx ? 'text-primary-900 shadow-inset-sm shadow-primary-900' : 'hover:text-primary-900',
           'border-r-2 border-gray-300',
         ]"
         @click="select(tab)"
@@ -86,8 +87,9 @@ defineExpose({ self: toRef(props, "self") });
         </button>
       </button>
     </div>
-    <!-- Tab content -->
-    <div class="absolute" :style="innerSize">
+    <!-- Tab body -->
+    <div class="absolute" :style="{ width: innerSize.width + 'px', height: innerSize.height + 'px' }">
+      <!-- Content -->
       <component
         v-if="selectedTabIdx != null && getViewComponent(tabs[selectedTabIdx].type) != null"
         :is="getViewComponent(tabs[selectedTabIdx].type)"

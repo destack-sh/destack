@@ -805,7 +805,9 @@ class Variant(betterproto.Enum):
 
 class ViewType(betterproto.Enum):
     UNSPECIFIED = 0
-    REGISTRATION = 1
+    USER_WIZARD = 1
+    BENCH_WIZARD = 2
+    CHALLENGE_WIZARD = 3
     KEYMAP = 40
     PAGE = 101
     BLOCK = 102

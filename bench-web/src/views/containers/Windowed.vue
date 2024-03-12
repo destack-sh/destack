@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
-import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView, type SplitLayout } from "@/utils/positioning";
+import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView, type SplitLayout, useSplitView } from "@/utils/positioning";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
@@ -17,8 +17,6 @@ const emit = defineEmits(viewEmits());
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
-
-// positioning
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: props.orientation ?? Orientation.HORIZONTAL,
@@ -26,35 +24,14 @@ const splitLayout: Ref<SplitLayout> = computed(() => ({
   minPx: MIN_WINDOW_SIZE,
   dividerSize: 2,
 }));
-const { sizedViews, updateSeparator } = splitView(windows, toRef(props, "size"), splitLayout);
-
-// dragging
-// could probably reuse Windowed component for Split view?
-const containerRef = ref<HTMLElement | null>(null);
-const { pressed } = useMousePressed();
-const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
-const draggingIdx = ref<number | null>(null);
-watch([pressed, mouseRelativeX, mouseRelativeY], () => {
-  if (draggingIdx.value == null) return;
-  if (!pressed.value) {
-    draggingIdx.value = null;
-    return;
-  }
-  const draggedToPx = orientation.value == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
-  const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-  spaceConnection.sideTx.update({
-    metatype: NodeType.VIEW,
-    id: windows.value[draggingIdx.value].id,
-    size: aUpdate.size,
-    debounce: true,
-  });
-  spaceConnection.sideTx.update({
-    metatype: NodeType.VIEW,
-    id: windows.value[draggingIdx.value + 1].id,
-    size: bUpdate.size,
-    debounce: true,
-  });
-});
+const containerRef: Ref<HTMLElement | null> = ref(null);
+const { sizedViews, draggingIdx } = useSplitView(
+  windows,
+  toRef(props, "size"),
+  containerRef,
+  splitLayout,
+  spaceConnection,
+);
 
 defineExpose({ self: toRef(props, "self") });
 </script>

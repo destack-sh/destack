@@ -104,7 +104,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           metatype: NodeType.VIEW,
           parentPtr: toNodeReference(node),
           packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.REGISTRATION,
+          type: ViewType.USER_WIZARD,
           icon: makeIcon({ name: "fas fa-right-from-bracket" }),
           title: "Registration 1",
         }),
@@ -114,8 +114,8 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           metatype: NodeType.VIEW,
           parentPtr: toNodeReference(node),
           packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.REGISTRATION,
-          title: "Registration 2 Very Long Title Yes Very Long Indeed (I mean it)",
+          type: ViewType.BENCH_WIZARD,
+          title: "Bench Wizard! 2 Very Long Title Yes Very Long Indeed (I mean it)",
         }),
       );
       graph.add(
@@ -123,7 +123,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           metatype: NodeType.VIEW,
           parentPtr: toNodeReference(node),
           packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.REGISTRATION,
+          type: ViewType.USER_WIZARD,
         }),
       );
     }
