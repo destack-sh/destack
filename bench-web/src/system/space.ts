@@ -47,13 +47,13 @@ watch(
   () => {
     if (spaceRemote.value == null) {
       // local
-      spaceGraph.graph.value = spaceGraphLocal;
+      spaceGraph.graph = spaceGraphLocal;
       if (spaceGraphLocal.size == 0) {
         const { space } = setupLocalSpace(spaceGraphLocal);
         spacePtr.value = toNodeReference(space);
       }
     } else {
-      spaceGraph.graph.value = pkgGraph;
+      spaceGraph.graph = pkgGraph;
     }
   },
   { immediate: true },
