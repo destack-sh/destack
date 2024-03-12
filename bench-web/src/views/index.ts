@@ -4,7 +4,8 @@ import { toNodeReference } from "@/proto/wiring";
 // TODO :Architecture: how to register & wrap Views & their Components?
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // kernel
-  [ViewType.REGISTRATION]: import("@/views/kernel/Registration.vue"),
+  [ViewType.USER_WIZARD]: import("@/views/kernel/UserWizard.vue"),
+  [ViewType.BENCH_WIZARD]: import("@/views/kernel/BenchWizard.vue"),
   // system
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
   // containers
