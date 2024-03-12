@@ -34,22 +34,25 @@ const props = defineProps<{
     <!-- Right -->
     <div class="flex flex-shrink-0 flex-row">
       <!-- User -->
-      <div v-if="user" class="">
-        <button>
+      <template v-if="user">
+        <button class="border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300">
           {{ user.slug }}
         </button>
-      </div>
-      <div v-else class="flex flex-row gap-x-3">
+      </template>
+      <template v-else>
         <Button
           title="Log in"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
           @click="
             () => {
-              addViewToCurrentRoot({ type: ViewType.REGISTRATION, name: 'Registration', title: 'Log In' }, spaceConnection.sideTx);
+              addViewToCurrentRoot(
+                { type: ViewType.REGISTRATION, name: 'Registration', title: 'Log In' },
+                spaceConnection.sideTx,
+              );
             }
           "
         />
-      </div>
+      </template>
     </div>
   </div>
 </template>

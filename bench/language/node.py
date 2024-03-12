@@ -1566,7 +1566,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
 
     def __eq__(self, other: Optional["Node"]):
         return (
-            other is not None
+            isinstance(other, Node)
             and self.metatype == other.metatype
             and (self.id is not None and self.id == other.id or self is other)
         )

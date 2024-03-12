@@ -1,6 +1,6 @@
 import { LocalStorage, NodeType } from "@/proto/wire";
 import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/client";
+import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 import { computed, shallowRef, type Ref } from "vue";

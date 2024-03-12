@@ -6831,17 +6831,9 @@ export enum Orientation {
      */
     HORIZONTAL = 1,
     /**
-     * @generated from protobuf enum value: ORIENTATION_HORIZONTAL_REVERSED = 2;
-     */
-    HORIZONTAL_REVERSED = 2,
-    /**
      * @generated from protobuf enum value: ORIENTATION_VERTICAL = 11;
      */
-    VERTICAL = 11,
-    /**
-     * @generated from protobuf enum value: ORIENTATION_VERTICAL_REVERSED = 12;
-     */
-    VERTICAL_REVERSED = 12
+    VERTICAL = 11
 }
 /**
  * @generated from protobuf enum symbolx.bench.PathSegmentType

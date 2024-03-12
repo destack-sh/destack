@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import betterproto
 import structlog
 from grpclib import GRPCError
@@ -13,6 +15,7 @@ from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
+    ClientData,
     CreateBenchRequest,
     CreateBenchResponse,
     GetHostRequest,
@@ -66,6 +69,20 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
     # User management
     #
 
+    def _make_new_client(self, parent: User, client_data: ClientData) -> Client:
+        return Client(
+            id=to_uuid(client_data.id),
+            parent=parent,
+            name=client_data.name,
+            device_name=client_data.device_name,
+            device_type=client_data.device_type,
+            operating_system=client_data.operating_system,
+            browser_name=client_data.browser_name,
+            browser_version=client_data.browser_version,
+            last_seen_at=utcnow_with_tz(),
+            _is_new=True,
+        )
+
     async def signup_user(
         self, subject: Subject, request: "SignupUserRequest"
     ) -> "SignupUserResponse":
@@ -74,7 +91,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         async with global_session() as session:
             user = User(
-                id=to_uuid(request.id),
+                id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
                 name=request.name,
                 email=request.email,
@@ -84,15 +101,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            client = Client(
-                id=to_uuid(request.client.id),
-                parent=user,
-                name=request.client.name,
-                device_name=request.client.device_name,
-                browser_name=request.client.browser_name,
-                last_seen_at=utcnow_with_tz(),
-                _is_new=True,  # also force create
-            )
+            client = self._make_new_client(user, request.client)
             client.access_token = generate_access_token()
             session.create(user, client)
             await session.flush()
@@ -102,7 +111,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
-            user=user._to_data(), access_token=client.access_token, epoch=self.epoch
+            user=user._to_data(), client=client, access_token=client.access_token
         )
 
     async def change_user_password(
@@ -126,7 +135,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         logger.info("supervisor.change_user_password", user=user)
-        return ChangeUserPasswordResponse(user=user._to_data(), epoch=self.epoch)
+        return ChangeUserPasswordResponse(user=user._to_data())
 
     async def login_user(
         self, subject: Subject, request: "LoginUserRequest"
@@ -144,18 +153,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            now = utcnow_with_tz()
-            client = Client(
-                id=to_uuid(request.client.id),
-                parent=user,
-                name=request.client.name,
-                device_name=request.client.device_name,
-                browser_name=request.client.browser_name,
-                last_seen_at=now,
-                logged_in_at=now,
-                access_token=generate_access_token(),
-                _is_new=True,  # force create
-            )
+            client = self._make_new_client(user, request.client)
             user.last_logged_in_at = utcnow_with_tz()
             session.upsert(client)
             await session.commit()
@@ -163,10 +161,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.login_user", user=user, client=client)
         return LoginUserResponse(
-            user=user._to_data(),
-            client=client._to_data(),
-            access_token=client.access_token,
-            epoch=self.epoch,
+            user=user._to_data(), client=client._to_data(), access_token=client.access_token
         )
 
     async def logout_user(

@@ -368,9 +368,9 @@ export interface WatchEditsResponse {
  */
 export interface SignupUserRequest {
     /**
-     * @generated from protobuf field: string id = 1;
+     * @generated from protobuf field: optional string id = 1;
      */
-    id: string;
+    id?: string;
     /**
      * @generated from protobuf field: string slug = 2;
      */
@@ -401,13 +401,13 @@ export interface SignupUserResponse {
      */
     user?: UserData;
     /**
-     * @generated from protobuf field: string access_token = 2;
+     * @generated from protobuf field: symbolx.bench.ClientData client = 2;
+     */
+    client?: ClientData;
+    /**
+     * @generated from protobuf field: string access_token = 3;
      */
     accessToken: string;
-    /**
-     * @generated from protobuf field: uint64 epoch = 3;
-     */
-    epoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.ChangeUserPasswordRequest
@@ -488,10 +488,6 @@ export interface LoginUserResponse {
      * @generated from protobuf field: string access_token = 3;
      */
     accessToken: string;
-    /**
-     * @generated from protobuf field: uint64 epoch = 4;
-     */
-    epoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.LogoutUserRequest
@@ -1914,7 +1910,7 @@ export const WatchEditsResponse = new WatchEditsResponse$Type();
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
         super("symbolx.bench.SignupUserRequest", [
-            { no: 1, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 1, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
@@ -1924,7 +1920,6 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     }
     create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.id = "";
         message.slug = "";
         message.email = "";
         message.password = "";
@@ -1937,7 +1932,7 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string id */ 1:
+                case /* optional string id */ 1:
                     message.id = reader.string();
                     break;
                 case /* string slug */ 2:
@@ -1967,8 +1962,8 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         return message;
     }
     internalBinaryWrite(message: SignupUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string id = 1; */
-        if (message.id !== "")
+        /* optional string id = 1; */
+        if (message.id !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.id);
         /* string slug = 2; */
         if (message.slug !== "")
@@ -2000,14 +1995,13 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
     constructor() {
         super("symbolx.bench.SignupUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "client", kind: "message", T: () => ClientData },
+            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } }
         ]);
     }
     create(value?: PartialMessage<SignupUserResponse>): SignupUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.accessToken = "";
-        message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<SignupUserResponse>(this, message, value);
         return message;
@@ -2020,11 +2014,11 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
                 case /* symbolx.bench.UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
                     break;
-                case /* string access_token */ 2:
-                    message.accessToken = reader.string();
+                case /* symbolx.bench.ClientData client */ 2:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
-                case /* uint64 epoch */ 3:
-                    message.epoch = reader.uint64().toBigInt();
+                case /* string access_token */ 3:
+                    message.accessToken = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2041,12 +2035,12 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         /* symbolx.bench.UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string access_token = 2; */
+        /* symbolx.bench.ClientData client = 2; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 3; */
         if (message.accessToken !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
-        /* uint64 epoch = 3; */
-        if (message.epoch !== 0n)
-            writer.tag(3, WireType.Varint).uint64(message.epoch);
+            writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2257,14 +2251,12 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         super("symbolx.bench.LoginUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
             { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 4, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } }
         ]);
     }
     create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.accessToken = "";
-        message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<LoginUserResponse>(this, message, value);
         return message;
@@ -2282,9 +2274,6 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
                     break;
                 case /* string access_token */ 3:
                     message.accessToken = reader.string();
-                    break;
-                case /* uint64 epoch */ 4:
-                    message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2307,9 +2296,6 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         /* string access_token = 3; */
         if (message.accessToken !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
-        /* uint64 epoch = 4; */
-        if (message.epoch !== 0n)
-            writer.tag(4, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

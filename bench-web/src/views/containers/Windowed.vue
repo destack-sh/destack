@@ -4,7 +4,6 @@ import { useLoadedGraph } from "@/system/connection";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView, type SplitLayout } from "@/utils/positioning";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
-import Registration from "@/views/kernel/Registration.vue";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -74,7 +73,7 @@ defineExpose({ self: toRef(props, "self") });
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Window -->
       <div
-        class="absolute border-gray-400"
+        class="absolute bg-gray-100 border-gray-300"
         :class="[
           viewIdx > 0 ? (orientation == Orientation.HORIZONTAL ? 'border-l' : 'border-t') : '',
         ]"
