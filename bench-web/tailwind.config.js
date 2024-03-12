@@ -5,13 +5,19 @@ export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
     boxShadow: {
-      // flat, hard shadows
-      sm: '0 1px 0 0 rgba(0, 0, 0, 0.05)',
-      DEFAULT: '0 1px 0 0 rgba(0, 0, 0, 0.1)',
-      md: '0 2px 0 0 rgba(0, 0, 0, 0.1)',
-      lg: '0 4px 0 0 rgba(0, 0, 0, 0.1)',
-      xl: '0 8px 0 0 rgba(0, 0, 0, 0.1)',
-      '2xl': '0 12px 0 0 rgba(0, 0, 0, 0.1)',
+      // flat, hard outer shadows
+      sm: "0 1px 0 0 rgba(0, 0, 0, 0.05)",
+      DEFAULT: "0 1px 0 0 rgba(0, 0, 0, 0.1)",
+      md: "0 2px 0 0 rgba(0, 0, 0, 0.1)",
+      lg: "0 4px 0 0 rgba(0, 0, 0, 0.1)",
+      xl: "0 8px 0 0 rgba(0, 0, 0, 0.1)",
+      "2xl": "0 12px 0 0 rgba(0, 0, 0, 0.1)",
+      // flat, hard inner shadows
+      "inset-sm": "inset 0 1px 0 0 rgba(0, 0, 9, 0.05)",
+      inset: "inset 0 1px 0 0 rgba(0, 0, 0, 0.1)",
+      "inset-md": "inset 0 2px 0 0 rgba(0, 0, 0, 0.1)",
+      "inset-lg": "inset 0 4px 0 0 rgba(0, 0, 0, 0.1)",
+      "inset-xl": "inset 0 8px 0 0 rgba(0, 0, 0, 0.1)",
     },
     fontFamily: {
       sans: ["ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Helvetica", "Arial", "sans-serif"],
@@ -20,11 +26,11 @@ export default {
     },
     extend: {
       screens: {
-        '-2xl': {'max': '1535px'},
-        '-xl': {'max': '1279px'},
-        '-lg': {'max': '1023px'},
-        '-md': {'max': '767px'},
-        '-sm': {'max': '639px'},
+        "-2xl": { max: "1535px" },
+        "-xl": { max: "1279px" },
+        "-lg": { max: "1023px" },
+        "-md": { max: "767px" },
+        "-sm": { max: "639px" },
       },
       colors: {
         primary: colors.amber,

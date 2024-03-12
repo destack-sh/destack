@@ -21,9 +21,9 @@ defineExpose({ self: toRef(props, "self") });
     <span>{{ modelValue }}</span>
   </div>
   <div v-else>
-    <label v-if="title" class="block text-gray-900">{{ title }}</label>
+    <label v-if="title" class="block font-medium text-gray-900">{{ title }}</label>
     <div
-      class="group mt-0.5 flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-0.5 text-gray-900 focus-within:border-primary-400 focus-within:ring-primary-400 focus-within:ring-1"
+      class="group mt-0.5 flex flex-row items-center shadow-sm shadow-gray-300 rounded-md border border-gray-300 bg-white px-2 py-0.5 text-gray-900 focus-within:border-primary-400 focus-within:ring-primary-400 focus-within:ring-1"
     >
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />
       <input

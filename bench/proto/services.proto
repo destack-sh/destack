@@ -143,7 +143,7 @@ service GraphIO {
 //
 
 message SignupUserRequest {
-  string id = 1;
+  optional string id = 1;
   string slug = 2;
   optional string name = 3;
   string email = 4 [(sensitive) = true];
@@ -152,8 +152,8 @@ message SignupUserRequest {
 }
 message SignupUserResponse {
   UserData user = 1;
-  string access_token = 2 [(sensitive) = true];
-  uint64 epoch = 3;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
 }
 
 message ChangeUserPasswordRequest {
@@ -178,7 +178,6 @@ message LoginUserResponse {
   UserData user = 1;
   ClientData client = 2;
   string access_token = 3 [(sensitive) = true];
-  uint64 epoch = 4;
 }
 
 message LogoutUserRequest {

@@ -1,8 +1,9 @@
 import { supervisor } from "@/proto/services";
-import { NodeType } from "@/proto/wire";
-import { nodeReference, toNodeReferenceRef } from "@/proto/wiring";
+import { UserData, ClientData, NodeType } from "@/proto/wire";
+import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { useGetNodes } from "@/system/connection";
-import { clientInfo, userInfo } from "@/system/local";
+import { clientInfo, clientMeta, userInfo } from "@/system/local";
+import { log } from "@/utils/log";
 import { v4 } from "uuid";
 import { computed } from "vue";
 
@@ -26,7 +27,65 @@ export const client = userGraph.getRef(
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
 
-export async function logIn(key: { username: string } | { email: string }, password: string) {
-  // const { response: { user, client, accessToken } } = await supervisor.loginUser({ user: key, password });
-  throw new Error("not implemented");
+function makeCurrentClient(): ClientData {
+  return makeNode({
+    metatype: NodeType.CLIENT,
+    ...clientMeta.value,
+  });
+}
+
+function onLogIn(info: { user: UserData; client: ClientData; accessToken: string }) {
+  userInfo.value = {
+    id: info.user.id,
+    email: info.user.email!,
+    name: info.user.name!,
+    slug: info.user.slug!,
+  };
+  clientInfo.value = {
+    id: info.client.id,
+    accessToken: info.accessToken,
+  };
+}
+
+/**
+ * Sign up a new user and simultaneously log in as the current client.
+ */
+export async function signUp(userIn: { name?: string; slug: string; email: string }, password: string) {
+  if (isAuthenticated.value) throw new Error("already logged in");
+  const {
+    response: { user, client, accessToken },
+  } = await supervisor.signupUser({
+    ...userIn,
+    password,
+    client: makeCurrentClient(),
+  });
+  if (user == null || client == null) throw new Error("unexpected null user or client");
+  onLogIn({ user, client, accessToken });
+}
+ 
+/**
+ * Log in a user as the current client.
+ */
+export async function logIn(userIn: { slug: string } | { email: string }, password: string) {
+  if (clientInfo.value != null) throw new Error("already logged in");
+  const {
+    response: { user, client, accessToken },
+  } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() });
+  if (user == null || client == null) throw new Error("unexpected null user or client");
+  onLogIn({ user, client, accessToken });
+}
+
+/**
+ * Logs out clients (may include current).
+ */
+export async function logOut(options?: { all?: boolean; clients?: { id: string }[] }) {
+  if (clientInfo.value == null) throw new Error("not logged in");
+  const clients = (options?.clients ?? [clientInfo.value]).map((c) => nodeReference(NodeType.CLIENT, c.id!));
+  await supervisor.logoutUser({ clients, logoutAll: options?.all });
+  if (options?.all || clients.some((c) => c.id == clientInfo.value?.id)) {
+    // logged out current client
+    log.info("user.logout", options);
+    userInfo.value = null;
+    clientInfo.value = null;
+  }
 }

@@ -114,6 +114,7 @@ export function makeNode<T extends NodeType>(
   const node = {
     ...data,
     source: NodeSource.STORE,
+    revision: 0,
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;

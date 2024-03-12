@@ -110,7 +110,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         self._validate_request_self(subject, request)
 
     @final
-    def _validate_message(self, message: betterproto.Message) -> None:
+    def _validate_message(self, message: betterproto.Message, path: tuple[str, ...] = ()) -> None:
         # ensure every Bench struct has its metatype set
         struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(message.__class__)
         if struct_cls is not None:
@@ -128,11 +128,12 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             if field.proto_type == betterproto.TYPE_MESSAGE:
                 value = getattr(message, field_name)
                 if isinstance(value, betterproto.Message):
+                    inner_path = path + (field_name,)
                     if field_is_repeated:
                         for sub_message in value:
-                            self._validate_message(sub_message)
+                            self._validate_message(sub_message, inner_path)
                     elif value is not None:
-                        self._validate_message(value)
+                        self._validate_message(value, inner_path)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
