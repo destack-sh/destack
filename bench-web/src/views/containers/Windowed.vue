@@ -69,14 +69,12 @@ defineExpose({ self: toRef(props, "self") });
       draggingIdx != null ? 'pointer-events-none select-none' : 'pointer-events-auto select-auto',
     ]"
   >
-    <!-- Windowed -->
+    <!-- Frames -->
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
-      <!-- Window -->
+      <!-- Frame -->
       <div
-        class="absolute bg-gray-100 border-gray-300"
-        :class="[
-          viewIdx > 0 ? (orientation == Orientation.HORIZONTAL ? 'border-l' : 'border-t') : '',
-        ]"
+        class="absolute border-gray-300 bg-gray-100"
+        :class="[viewIdx > 0 ? (orientation == Orientation.HORIZONTAL ? 'border-l-2' : 'border-t-2') : '']"
         :style="{ left: left + 'px', top: top + 'px', width: width + 'px', height: height + 'px' }"
       >
         <!-- Content -->
@@ -103,5 +101,9 @@ defineExpose({ self: toRef(props, "self") });
         @mousedown="draggingIdx = viewIdx - 1"
       />
     </template>
+    <!-- No frames -->
+    <div v-if="sizedViews.length === 0" class="h-full w-full">
+      <!-- empty state -->
+    </div>
   </div>
 </template>

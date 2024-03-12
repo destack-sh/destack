@@ -15,14 +15,16 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
+    SUB_BENCH_NODE_TYPES,
 )
 from bench.language.node import HasBase, Node, Property, Struct, struct
 from bench.language.property import p_regular
-from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.setup import BENCH_CLASS_BY_TYPE, _well_known_enum
 from bench.language.validation import ValidationHandler
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Block, Field, Path, TypeInfo
@@ -97,7 +99,7 @@ class NodeReference(Struct):
     ) -> None:
         if self.id is None:
             on_invalid(self, "id is required", (NodeReference.id,))
-        if self.type in IN_BENCH_NODE_TYPES and self.bench_id is None:
+        if self.type in SUB_BENCH_NODE_TYPES and self.bench_id is None:
             on_invalid(self, "bench_id is required", (NodeReference.bench_id,))
         if self.type in BASED_NODE_TYPES and self.base_ck is None:
             on_invalid(self, "base_ck is required", (NodeReference.base_ck,))
@@ -161,14 +163,34 @@ class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
     path: "Path" = p_regular(31, require=True, struct=StructType.PATH)
-    subvalue_from: Optional[int] = p_regular(32, require=False, default=None)
-    subvalue_to: Optional[int] = p_regular(33, require=False, default=None)
 
     def __content_str__(self):
         if self.node is not None:
             return f"{self.node.absolute_path}.{self.path.__content_str__()}"
         else:
             return f"<detached>:{self.path.__content_str__()}"
+
+
+@_well_known_enum
+class SelectionKind(IdEnum):
+    RANGE = 1
+    LIST = 2
+
+
+@struct(StructType.SELECTION, inline=True)
+class Selection(Struct):
+    """A selection of nodes/values."""
+
+    kind: SelectionKind = p_regular(30, require=True)
+    nodes: list[Node] | None = p_regular(
+        31, require=False, array=True, references=IN_BENCH_NODE_TYPES
+    )
+    from_node: Optional[Node] = p_regular(
+        32, require=False, array=False, references=IN_BENCH_NODE_TYPES
+    )
+    to_node: Optional[Node] = p_regular(
+        33, require=False, array=False, references=IN_BENCH_NODE_TYPES
+    )
 
 
 __property__ = property

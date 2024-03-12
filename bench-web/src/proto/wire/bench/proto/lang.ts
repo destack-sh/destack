@@ -1286,6 +1286,37 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
+ * A selection of nodes/values.
+ *
+ * @generated from protobuf message symbolx.bench.SelectionData
+ */
+export interface SelectionData {
+    /**
+     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     */
+    metatype: BenchType;
+    /**
+     * @generated from protobuf field: optional int32 id = 2;
+     */
+    id?: number;
+    /**
+     * @generated from protobuf field: symbolx.bench.SelectionKind kind = 30;
+     */
+    kind: SelectionKind;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 31;
+     */
+    nodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData from_node_ptr = 32;
+     */
+    fromNodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData to_node_ptr = 33;
+     */
+    toNodePtr?: NodeReferenceData;
+}
+/**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
  * (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
  *
@@ -1619,14 +1650,6 @@ export interface ValueReferenceData {
      * @generated from protobuf field: symbolx.bench.PathData path = 31;
      */
     path?: PathData;
-    /**
-     * @generated from protobuf field: optional int32 subvalue_from = 32;
-     */
-    subvalueFrom?: number;
-    /**
-     * @generated from protobuf field: optional int32 subvalue_to = 33;
-     */
-    subvalueTo?: number;
 }
 /**
  * Attach a badge to a node with an inline definition.
@@ -4898,6 +4921,10 @@ export interface ViewData {
      */
     alignment?: Alignment;
     /**
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 70;
+     */
+    selection?: SelectionData;
+    /**
      * @generated from protobuf field: optional bool is_visible = 80;
      */
     isVisible?: boolean;
@@ -5592,6 +5619,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_BUCKET = 562;
      */
     AGGREGATION_BUCKET = 562,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 563;
+     */
+    SELECTION = 563,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CODE = 590;
      */
@@ -7254,6 +7285,23 @@ export enum ScheduleType {
     CRON = 2
 }
 /**
+ * @generated from protobuf enum symbolx.bench.SelectionKind
+ */
+export enum SelectionKind {
+    /**
+     * @generated from protobuf enum value: SELECTION_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SELECTION_KIND_RANGE = 1;
+     */
+    RANGE = 1,
+    /**
+     * @generated from protobuf enum value: SELECTION_KIND_LIST = 2;
+     */
+    LIST = 2
+}
+/**
  * @generated from protobuf enum symbolx.bench.ServerProfile
  */
 export enum ServerProfile {
@@ -7478,6 +7526,10 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_BUCKET = 562;
      */
     AGGREGATION_BUCKET = 562,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 563;
+     */
+    SELECTION = 563,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_CODE = 590;
      */
@@ -7778,13 +7830,13 @@ export enum ViewType {
      */
     TABBED = 502,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 503;
+     */
+    SPLIT = 503,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 505;
      */
     STEPPED = 505,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 507;
-     */
-    SPLIT = 507,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_STACK = 510;
      */
@@ -11128,6 +11180,90 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
  */
 export const ScheduleData = new ScheduleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class SelectionData$Type extends MessageType<SelectionData> {
+    constructor() {
+        super("symbolx.bench.SelectionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.SelectionKind", SelectionKind, "SELECTION_KIND_"] },
+            { no: 31, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 32, name: "from_node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 33, name: "to_node_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<SelectionData>): SelectionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.kind = 0;
+        message.nodesPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<SelectionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectionData): SelectionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.BenchType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* symbolx.bench.SelectionKind kind */ 30:
+                    message.kind = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 31:
+                    message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData from_node_ptr */ 32:
+                    message.fromNodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fromNodePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData to_node_ptr */ 33:
+                    message.toNodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.toNodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SelectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 id = 2; */
+        if (message.id !== undefined)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* symbolx.bench.SelectionKind kind = 30; */
+        if (message.kind !== 0)
+            writer.tag(30, WireType.Varint).int32(message.kind);
+        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 31; */
+        for (let i = 0; i < message.nodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData from_node_ptr = 32; */
+        if (message.fromNodePtr)
+            NodeReferenceData.internalBinaryWrite(message.fromNodePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData to_node_ptr = 33; */
+        if (message.toNodePtr)
+            NodeReferenceData.internalBinaryWrite(message.toNodePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SelectionData
+ */
+export const SelectionData = new SelectionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
@@ -11856,9 +11992,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "path", kind: "message", T: () => PathData },
-            { no: 32, name: "subvalue_from", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "subvalue_to", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 31, name: "path", kind: "message", T: () => PathData }
         ]);
     }
     create(value?: PartialMessage<ValueReferenceData>): ValueReferenceData {
@@ -11899,12 +12033,6 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
                 case /* symbolx.bench.PathData path */ 31:
                     message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
                     break;
-                case /* optional int32 subvalue_from */ 32:
-                    message.subvalueFrom = reader.int32();
-                    break;
-                case /* optional int32 subvalue_to */ 33:
-                    message.subvalueTo = reader.int32();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -11942,12 +12070,6 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         /* symbolx.bench.PathData path = 31; */
         if (message.path)
             PathData.internalBinaryWrite(message.path, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 subvalue_from = 32; */
-        if (message.subvalueFrom !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.subvalueFrom);
-        /* optional int32 subvalue_to = 33; */
-        if (message.subvalueTo !== undefined)
-            writer.tag(33, WireType.Varint).int32(message.subvalueTo);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18997,6 +19119,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 63, name: "padding", kind: "message", T: () => OffsetData },
             { no: 64, name: "orientation", kind: "enum", opt: true, T: () => ["symbolx.bench.Orientation", Orientation, "ORIENTATION_"] },
             { no: 65, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
+            { no: 70, name: "selection", kind: "message", T: () => SelectionData },
             { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -19112,6 +19235,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.Alignment alignment */ 65:
                     message.alignment = reader.int32();
+                    break;
+                case /* optional symbolx.bench.SelectionData selection */ 70:
+                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
                     break;
                 case /* optional bool is_visible */ 80:
                     message.isVisible = reader.bool();
@@ -19231,6 +19357,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.Alignment alignment = 65; */
         if (message.alignment !== undefined)
             writer.tag(65, WireType.Varint).int32(message.alignment);
+        /* optional symbolx.bench.SelectionData selection = 70; */
+        if (message.selection)
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         /* optional bool is_visible = 80; */
         if (message.isVisible !== undefined)
             writer.tag(80, WireType.Varint).bool(message.isVisible);
@@ -19665,9 +19794,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | RecordData | QueryData | ViewData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | PauseData | SignalData | LogData | NotificationData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
 
 // Message types
 export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {
@@ -19731,6 +19860,7 @@ export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<a
   [BenchType.EXPRESSION]: ExpressionData,
   [BenchType.AGGREGATION]: AggregationData,
   [BenchType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [BenchType.SELECTION]: SelectionData,
   [BenchType.CODE]: CodeData,
   [BenchType.CODE_LINE]: CodeLineData,
   [BenchType.RUN_CODE_FRAME]: RunCodeFrameData,
@@ -19806,6 +19936,7 @@ export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
   ["symbolx.bench.ExpressionData"]: BenchType.EXPRESSION,
   ["symbolx.bench.AggregationData"]: BenchType.AGGREGATION,
   ["symbolx.bench.AggregationBucketData"]: BenchType.AGGREGATION_BUCKET,
+  ["symbolx.bench.SelectionData"]: BenchType.SELECTION,
   ["symbolx.bench.CodeData"]: BenchType.CODE,
   ["symbolx.bench.CodeLineData"]: BenchType.CODE_LINE,
   ["symbolx.bench.RunCodeFrameData"]: BenchType.RUN_CODE_FRAME,
@@ -19847,6 +19978,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.EXPRESSION]: ExpressionData,
   [StructType.AGGREGATION]: AggregationData,
   [StructType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [StructType.SELECTION]: SelectionData,
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
   [StructType.RUN_CODE_FRAME]: RunCodeFrameData,
@@ -19961,6 +20093,7 @@ export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNod
   [BenchType.EXPRESSION]: ExpressionData,
   [BenchType.AGGREGATION]: AggregationData,
   [BenchType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [BenchType.SELECTION]: SelectionData,
   [BenchType.CODE]: CodeData,
   [BenchType.CODE_LINE]: CodeLineData,
   [BenchType.RUN_CODE_FRAME]: RunCodeFrameData,
@@ -20365,6 +20498,7 @@ export enum ViewProperty {
   padding = 63,
   orientation = 64,
   alignment = 65,
+  selection = 70,
   isVisible = 80,
   isDisabled = 81,
   isLoading = 82,
@@ -20873,8 +21007,6 @@ export enum ValueReferenceProperty {
   orderKey = 5,
   setProperties = 22,
   path = 31,
-  subvalueFrom = 32,
-  subvalueTo = 33,
 }
 
 export enum TypeInfoProperty {
@@ -21124,6 +21256,15 @@ export enum AggregationBucketProperty {
   count = 31,
 }
 
+export enum SelectionProperty {
+  metatype = 1,
+  id = 2,
+  kind = 30,
+  nodesPtr = 31,
+  fromNodePtr = 32,
+  toNodePtr = 33,
+}
+
 export enum CodeProperty {
   metatype = 1,
   id = 2,
@@ -21254,11 +21395,11 @@ export enum OffsetProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyNodePropertyType>> = {
   [BenchType.BENCH]: BenchProperty,
   [BenchType.ENVIRONMENT]: EnvironmentProperty,
@@ -21323,6 +21464,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyStructPr
   [BenchType.EXPRESSION]: ExpressionProperty,
   [BenchType.AGGREGATION]: AggregationProperty,
   [BenchType.AGGREGATION_BUCKET]: AggregationBucketProperty,
+  [BenchType.SELECTION]: SelectionProperty,
   [BenchType.CODE]: CodeProperty,
   [BenchType.CODE_LINE]: CodeLineProperty,
   [BenchType.RUN_CODE_FRAME]: RunCodeFrameProperty,
@@ -21398,6 +21540,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> 
   [BenchType.EXPRESSION]: ExpressionProperty,
   [BenchType.AGGREGATION]: AggregationProperty,
   [BenchType.AGGREGATION_BUCKET]: AggregationBucketProperty,
+  [BenchType.SELECTION]: SelectionProperty,
   [BenchType.CODE]: CodeProperty,
   [BenchType.CODE_LINE]: CodeLineProperty,
   [BenchType.RUN_CODE_FRAME]: RunCodeFrameProperty,

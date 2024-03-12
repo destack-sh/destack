@@ -1,17 +1,10 @@
 import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
-import { makeNode, makeStruct, nodeReference, toNodeReference } from "@/proto/wiring";
+import { makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
+import { makeIcon } from "@/system/icon";
 import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES } from "@/system/lang";
-import {
-  LOCAL_BENCH_ID,
-  LOCAL_PACKAGE_ID,
-  LOCAL_PACKAGE_PTR,
-  LOCAL_SPACE_ID,
-  benchPtr,
-  packagePtr,
-  spacePtr,
-} from "@/system/local";
+import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
 import type { Transaction } from "@/system/transaction";
 import { log } from "@/utils/log";
 import { computed, watch } from "vue";
@@ -72,13 +65,13 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     orientation: Orientation.VERTICAL,
     size: makeStruct({ metatype: StructType.BOX, width: 280 }),
   });
-  const sideTabsTop = makeNode({
+  const sideTop = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(side),
     packagePtr: LOCAL_PACKAGE_PTR,
     type: ViewType.TABBED,
   });
-  const sideTabsBottom = makeNode({
+  const sideBottom = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(side),
     packagePtr: LOCAL_PACKAGE_PTR,
@@ -102,7 +95,40 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     title: "Secondary Window",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
-  graph.extend(space, side, primary, secondary, sideTabsTop, sideTabsBottom);
+  graph.extend(space, side, primary, secondary, sideTop, sideBottom);
+  // nocheckin testing
+  for (const node of graph.nodes) {
+    if ((node as ViewData).type == ViewType.TABBED) {
+      graph.add(
+        makeNode({
+          metatype: NodeType.VIEW,
+          parentPtr: toNodeReference(node),
+          packagePtr: LOCAL_PACKAGE_PTR,
+          type: ViewType.REGISTRATION,
+          icon: makeIcon({ name: "fas fa-right-from-bracket" }),
+          title: "Registration 1",
+        }),
+      );
+      graph.add(
+        makeNode({
+          metatype: NodeType.VIEW,
+          parentPtr: toNodeReference(node),
+          packagePtr: LOCAL_PACKAGE_PTR,
+          type: ViewType.REGISTRATION,
+          title: "Registration 2 Very Long Title Yes Very Long Indeed (I mean it)",
+        }),
+      );
+      graph.add(
+        makeNode({
+          metatype: NodeType.VIEW,
+          parentPtr: toNodeReference(node),
+          packagePtr: LOCAL_PACKAGE_PTR,
+          type: ViewType.REGISTRATION,
+        }),
+      );
+    }
+  }
+
   return { space };
 }
 
@@ -116,6 +142,11 @@ export function addViewToCurrentRoot(
   );
   if (root == null) throw new Error("no root view");
   tx.create(
-    makeNode({ metatype: NodeType.VIEW, ...view, packagePtr: space.value?.packagePtr, parentPtr: toNodeReference(root) }),
+    makeNode({
+      metatype: NodeType.VIEW,
+      ...view,
+      packagePtr: space.value?.packagePtr,
+      parentPtr: toNodeReference(root),
+    }),
   );
 }

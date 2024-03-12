@@ -1,12 +1,13 @@
 <script lang="tsx" setup>
 import type { OperationError } from "@/proto/services";
-import { Variant, type NodeReferenceData, Region, UserStatus } from "@/proto/wire";
+import { Region, UserStatus, Variant, type NodeReferenceData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
-import { ref, toRef, type Ref, watch } from "vue";
+import type { RpcError } from "@protobuf-ts/runtime-rpc";
+import { ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & {}>();
 const emit = defineEmits(viewEmits());
@@ -18,11 +19,11 @@ const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
-const lastError = ref<OperationError | null>(null);
+const lastError = ref<RpcError | null>(null);
 
 // sync state with user status
 watch(user, () => {
-  if (user.value) {
+  if (user.value != null) {
     if (user.value.status == UserStatus.REGISTERED) {
       state.value = "create-bench";
     } else {
@@ -44,7 +45,7 @@ async function submit() {
       throw new Error(`unexpected registration state: ${state.value}`);
     }
   } catch (e) {
-    lastError.value = e as OperationError;
+    lastError.value = e as RpcError;
   } finally {
     isActive.value = false;
   }
@@ -53,10 +54,19 @@ async function submit() {
 defineExpose({ self: toRef(props, "self") });
 </script>
 <template>
-  <form
+  <div
     class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-10 py-8 text-gray-900 shadow-md shadow-gray-300"
   >
-    <h2 class="text-2xl font-semibold">{{ state === "log-in" ? "Log in" : "Sign up" }}</h2>
+    <h2 class="text-2xl font-semibold">
+      {{
+        {
+          "sign-up": "Sign up",
+          "log-in": "Log in",
+          "create-bench": "Create your Bench",
+        }[state]
+      }}
+    </h2>
+    <!-- Data -->
     <div class="mt-5 flex w-full flex-col gap-y-3">
       <String
         v-if="state === 'sign-up'"
@@ -66,7 +76,14 @@ defineExpose({ self: toRef(props, "self") });
         is-input
         v-model="name"
       />
-      <String :icon="makeIcon({ name: 'fas fa-at' })" name="username" title="Username" is-input v-model="slug" />
+      <String
+        v-if="state == 'sign-up' || state == 'log-in'"
+        :icon="makeIcon({ name: 'fas fa-at' })"
+        name="username"
+        title="Username"
+        is-input
+        v-model="slug"
+      />
       <String
         v-if="state === 'sign-up'"
         :icon="makeIcon({ name: 'fas fa-envelope' })"
@@ -84,6 +101,7 @@ defineExpose({ self: toRef(props, "self") });
         v-model="password"
       />
     </div>
+    <!-- Actions -->
     <div class="mt-7">
       <Button
         :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
@@ -95,6 +113,7 @@ defineExpose({ self: toRef(props, "self") });
         :is-loading="isActive"
       />
       <Button
+        v-if="state === 'log-in' || state === 'sign-up'"
         :icon="makeIcon({ name: 'fas fa-shuffle' })"
         name="switch"
         :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
@@ -102,9 +121,9 @@ defineExpose({ self: toRef(props, "self") });
         :variant="Variant.V3"
         @click="() => (state = state === 'log-in' ? 'sign-up' : 'log-in')"
       />
-      <p v-if="lastError" class="mt-2 text-sm font-semibold text-red-600">
-        {{ lastError.name }}: {{ lastError.message }}
+      <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
+        {{ lastError.code }}: {{ lastError.message }}
       </p>
     </div>
-  </form>
+  </div>
 </template>

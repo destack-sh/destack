@@ -10,6 +10,7 @@ import {
   type NodeReferenceData,
   type NodeTypeMapping,
   type ReadOptionsData,
+  Timestamp,
 } from "@/proto/wire";
 import { makeDefaultProto, unwrapSomeNode } from "@/proto/wiring";
 import { accessAsOwner, type AccessArbiter } from "@/system/access";
@@ -21,6 +22,7 @@ import {
   editGraph,
   type Transaction,
   type TransactionBuffer,
+  canonicalizeEdits,
 } from "@/system/transaction";
 import { log } from "@/utils/log";
 import { onUnmountedIfComponent, toValueRef, type SubRef } from "@/utils/ref";
@@ -348,7 +350,8 @@ export async function acquireGetConnection<T extends NodeType>(
       filters: [],
     });
     editStream.responses.onNext((tx) => {
-      if (tx) {
+      if (tx != null) {
+        canonicalizeEdits(Timestamp.now(), tx.edits);
         editGraph(graph, tx.edits);
       }
     });

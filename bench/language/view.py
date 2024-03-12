@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NodeType, StructType
+from bench.language.expression import Selection
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, node_component, struct
 from bench.language.property import (
     p_internal,
@@ -53,9 +54,9 @@ class ViewType(IdEnum):
     WINDOWED = 500
     WINDOW = 501  # (force window appearance)
     TABBED = 502
+    SPLIT = 503
     # containers (layout)
     STEPPED = 505
-    SPLIT = 507
     STACK = 510
     DISCLOSURE = 511
     GRID = 512
@@ -358,22 +359,25 @@ class View(HasViews, HasValues):
 
     # layout
     position: Optional[Offset] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.BOX
+        60, default=None, require=False, array=False, struct=StructType.OFFSET
     )
     size: Optional[Box] = p_regular(
         61, default=None, require=False, array=False, struct=StructType.BOX
     )
     margin: Optional[Offset] = p_regular(
-        62, default=None, require=False, array=False, struct=StructType.BOX
+        62, default=None, require=False, array=False, struct=StructType.OFFSET
     )
     padding: Optional[Offset] = p_regular(
-        63, default=None, require=False, array=False, struct=StructType.BOX
+        63, default=None, require=False, array=False, struct=StructType.OFFSET
     )
     orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
 
     # interaction
-    ...  # selection/focus/behavior/effects/...
+    selection: Optional[Selection] = p_regular(
+        70, default=None, require=False, struct=StructType.SELECTION
+    )
+    ...  # selection/focus/placeholder/behavior/effects/...
 
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)

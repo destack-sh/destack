@@ -612,6 +612,10 @@ export class FilterNodeGraph extends ObservableNodeGraphMixin implements ReadNod
   }
 }
 
+/**
+ * Creates a new node with the explicitly set properties from the overlay superimposed on the base.
+ * NOTE: this specifically works for Node.setProperties, not a TS Partial.
+ */
 export function mergeNode<T extends NodeType>(
   base: NodeTypeMapping[T],
   partial: NodeTypeMapping[T],

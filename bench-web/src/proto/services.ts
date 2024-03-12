@@ -71,6 +71,14 @@ const operationsTracker = {
       const index = this.pendingOps.indexOf(op);
       if (index !== -1) this.pendingOps.splice(index, 1);
     };
+    const onError = async (error: RpcError) => {
+      const code = error.code;
+      log.error(op.name, code, error);
+      if (code == "UNAUTHENTICATED") {
+        const { onAuthenticationError } = await import("@/system/user"); // recursive import
+        onAuthenticationError(error);
+      }
+    };
 
     // subscribe to call events
     if ("responses" in op.call) {
@@ -90,8 +98,7 @@ const operationsTracker = {
         op.error = error;
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        const code = (error as RpcError).code;
-        log.error(op.name, code, error);
+        onError(error as RpcError);
         remove();
       });
     } else {
@@ -103,8 +110,7 @@ const operationsTracker = {
         })
         .catch((error) => {
           op.error = error;
-          const code = (error as RpcError).code;
-          log.error(op.name, code ?? "UNKNOWN", error);
+          onError(error);
         })
         .finally(() => {
           op.terminatedAt = DateTime.now();
