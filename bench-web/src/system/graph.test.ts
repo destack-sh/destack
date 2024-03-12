@@ -12,10 +12,11 @@ import {
   ClientProperty,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { NodeGraph, LayerNodeGraph } from "@/system/graph";
+import { NodeGraph, LayerNodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
+import { nextTick, watch } from "vue";
 
 const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
   [ScalarType.DOUBLE]: () => Math.random(),
@@ -99,7 +100,7 @@ export function fabricate<T extends BenchType>(
 
 test("fabricate", () => fabricate(BenchType.USER, { unset: ["parentPtr"] }));
 
-describe("memory graph", () => {
+describe("node graph", () => {
   const graph = new NodeGraph();
   let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
   let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
@@ -109,10 +110,11 @@ describe("memory graph", () => {
   const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2) } });
   const nodes = [user1, clientA, clientB, user2, clientC, clientD];
 
+  // take first refs
+  const user1Ref = graph.getRef(user1);
+  const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
   test("crud", () => {
-    // take first refs
-    const user1Ref = graph.getRef(user1);
-    const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
+    // get
     expect(user1Ref.value).toBeNull();
     expect(user1ClientsRef.value).toEqual([]);
 
@@ -160,26 +162,31 @@ describe("memory graph", () => {
   });
 });
 
-describe("layered graph", () => {
+describe("layered node graph", () => {
   const base = new NodeGraph();
   const overlay = new NodeGraph({ isPartial: true });
-  const graph = new LayerNodeGraph([base, overlay]);
+  const graph = new LayerNodeGraph([base]);
 
   let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
   let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
   const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
   const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
 
-  test("crud", () => {
-    const user1Ref = graph.getRef(user1);
-    const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
-    const clientARef = graph.getRef(clientA);
+  const user1Ref = graph.getRef(user1);
+  const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
+  const clientARef = graph.getRef(clientA);
 
-    // create
+  test("crud", async () => {
+    // create base
     base.extend(user1, clientA);
-    overlay.extend(clientB);
     expect(graph.get({ id: user1.id })).toEqual(user1);
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(user1ClientsRef.value).toEqual([clientA]);
+
+    // add overlay
+    overlay.extend(clientB);
+    graph.addLayer(overlay);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
@@ -202,7 +209,7 @@ describe("layered graph", () => {
     } as ClientData;
     // deviceName in overlay should be ignored because it's not in setProperties
     // (this is a smaller version of the 'higher level' partial update / transaction stuff)
-    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" }); 
+    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" });
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
@@ -220,5 +227,69 @@ describe("layered graph", () => {
     expect(clientCRef.value).toEqual(clientC);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB, clientC]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB, clientC]);
+  });
+});
+
+describe("proxy node graph", () => {
+  const baseA = new NodeGraph();
+  const baseB = new NodeGraph();
+  const graph = new ProxyNodeGraph(null);
+
+  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
+  const clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
+  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
+  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2) } });
+
+  const user1Ref = graph.getRef(user1);
+  const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
+  const user2Ref = graph.getRef(user2);
+  const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
+
+  test("crud", async () => {
+    expect(user1Ref.value).toBeNull();
+    expect(user1ClientsRef.value).toEqual([]);
+    expect(user2Ref.value).toBeNull();
+    expect(user2ClientsRef.value).toEqual([]);
+
+    // create
+    baseA.extend(user1, clientA);
+    baseB.extend(user2, clientB);
+    graph.graph = baseA;
+
+    // graph = baseA
+    expect(graph.get({ id: user1.id })).toEqual(user1);
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(user1Ref.value).toEqual(user1);
+    expect(user1ClientsRef.value).toEqual([clientA]);
+    expect(user2Ref.value).toBeNull();
+    expect(user2ClientsRef.value).toEqual([]);
+
+    // switch to baseB
+    graph.graph = baseB;
+    expect(graph.get({ id: user1.id })).toBeNull();
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([]);
+    expect(user1Ref.value).toBeNull();
+    expect(user1ClientsRef.value).toEqual([]);
+    expect(graph.get({ id: user2.id })).toEqual(user2);
+    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientB]);
+    expect(user2Ref.value).toEqual(user2);
+    expect(user2ClientsRef.value).toEqual([clientB]);
+
+    // update user
+    graph.graph = baseA;
+    user1 = { ...user1, name: "user1" } as UserData;
+    baseA.update(user1);
+    expect(graph.get({ id: user1.id })).toEqual(user1);
+    expect(user1Ref.value).toEqual(user1);
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
+    expect(user1ClientsRef.value).toEqual([clientA]);
+
+    // delete
+    graph.graph = baseB;
+    baseB.remove(user2);
+    expect(graph.get({ id: user2.id })).toBeNull();
+    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([]);
+    expect(user2Ref.value).toBeNull();
+    expect(user2ClientsRef.value).toEqual([]);
   });
 });

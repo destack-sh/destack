@@ -51,6 +51,7 @@ export type GraphConnection = {
   mainTx: Transaction;
   sideTx: Transaction;
   isLive: boolean;
+  isFetching: boolean;
   isUsed: boolean;
   referenceCount: number;
 };
@@ -66,6 +67,7 @@ export abstract class GraphConnectionBase implements GraphConnection {
   abstract readonly mainTx: Transaction;
   abstract readonly sideTx: Transaction;
   abstract readonly isLive: boolean;
+  abstract readonly isFetching: boolean;
 
   constructor(
     kind: GraphConnectionKind,
@@ -114,6 +116,7 @@ export class LocalGraphConnection extends GraphConnectionBase {
   }
 
   isLive = true; // always considered live
+  isFetching = false; // never fetching
 
   get isUsed(): boolean {
     return true; // always active
@@ -126,6 +129,7 @@ export class LocalGraphConnection extends GraphConnectionBase {
 export class RemoteGraphConnection extends GraphConnectionBase {
   readonly client: IGraphIOClient;
   readonly isLive: boolean;
+  readonly _isFetching: Ref<boolean>;
   readonly mainTxBuffer: TransactionBuffer;
   readonly sideTxBuffer: TransactionBuffer;
 
@@ -141,8 +145,17 @@ export class RemoteGraphConnection extends GraphConnectionBase {
     super(kind, scope, graph, access, options);
     this.client = client;
     this.isLive = isLive;
+    this._isFetching = shallowRef(false);
     this.mainTxBuffer = new SwapTransactionBuffer(graph.scope, client);
     this.sideTxBuffer = new SwapTransactionBuffer(graph.scope, client);
+  }
+
+  get isFetching(): boolean {
+    return this._isFetching.value;
+  }
+
+  set isFetching(value: boolean) {
+    this._isFetching.value = value;
   }
 
   get mainTx(): Transaction {
@@ -207,6 +220,10 @@ export class ProxyGraphConnection implements GraphConnection {
 
   get isLive(): boolean {
     return this.activeConnection.isLive;
+  }
+
+  get isFetching(): boolean {
+    return this.activeConnection.isFetching;
   }
 
   get isUsed(): boolean {
@@ -309,10 +326,18 @@ export async function acquireGetConnection<T extends NodeType>(
     params.live ?? false,
   );
   addGraphConnection(connection);
-  const {
-    response: { epoch, nodes },
-  } = await client.getNodes({ scope: graph.scope, roots: params.roots, options } as GetNodesRequest);
-  graph.extend(...nodes.map(unwrapSomeNode));
+
+  let epoch: bigint;
+  try {
+    connection.isFetching = true;
+    const {
+      response: { epoch: fetchedEpoch, nodes },
+    } = await client.getNodes({ scope: graph.scope, roots: params.roots, options } as GetNodesRequest);
+    epoch = fetchedEpoch;
+    graph.extend(...nodes.map(unwrapSomeNode));
+  } finally {
+    connection.isFetching = false;
+  }
 
   if (params.live) {
     const allNodeTypes = [...params.roots.map((r) => r.type), ...options.ancestorTypes, ...options.descendantTypes];
@@ -358,7 +383,7 @@ export function useGetNodes<T extends NodeType>(
         connectionProxy.connection.value.referenceCount -= 1;
       }
       connectionProxy.connection.value = connection;
-      graphProxy.graph.value = connection.graph;
+      graphProxy.graph = connection.graph;
     },
     { immediate: true },
   );
@@ -414,10 +439,10 @@ export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
       const connection = findGetConnection({ roots: [nodeRef.value] });
       if (connection != null) {
         connectionProxy.connection.value = connection;
-        graphProxy.graph.value = connection.graph;
+        graphProxy.graph = connection.graph;
       } else {
         connectionProxy.connection.value = null;
-        graphProxy.graph.value = null;
+        graphProxy.graph = null;
       }
     },
     { immediate: true },

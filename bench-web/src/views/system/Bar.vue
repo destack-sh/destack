@@ -35,7 +35,7 @@ const props = defineProps<{
     <div class="flex flex-shrink-0 flex-row">
       <!-- User -->
       <template v-if="user">
-        <button class="border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300">
+        <button class="rounded-md border border-gray-300 bg-white px-2 py-1 font-medium shadow-sm shadow-gray-300">
           {{ user.slug }}
         </button>
       </template>

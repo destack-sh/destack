@@ -427,8 +427,12 @@ export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNode
     const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
     watch(
       this.layers,
-      () => (unsub(), this.layers.value.forEach((layer) => subs.push(layer.subscribe(key, callback)))),
-      { immediate: true },
+      () => {
+        callback();
+        unsub();
+        this.layers.value.forEach((layer) => subs.push(layer.subscribe(key, callback)));
+      },
+      { immediate: true, flush: "sync" },
     );
     return () => subs.forEach((sub) => sub());
   }
@@ -442,10 +446,12 @@ export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNode
     const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
     watch(
       this.layers,
-      () => (
-        unsub(), this.layers.value.forEach((layer) => subs.push(layer.subscribeChildren(parent, metatype, callback)))
-      ),
-      { immediate: true },
+      () => {
+        callback();
+        unsub();
+        this.layers.value.forEach((layer) => subs.push(layer.subscribeChildren(parent, metatype, callback)));
+      },
+      { immediate: true, flush: "sync" },
     );
     return () => subs.forEach((sub) => sub());
   }
@@ -455,41 +461,57 @@ export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNode
  * A proxy to a single graph (like a LayerNodeGraph with a single layer).
  */
 export class ProxyNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
-  public readonly graph: ShallowRef<ReadNodeGraph | null>;
+  readonly _graph: ShallowRef<ReadNodeGraph | null>;
 
   constructor(graph: ReadNodeGraph | null) {
     super();
-    this.graph = shallowRef(graph);
+    this._graph = shallowRef(graph);
+  }
+
+  public get graph(): ReadNodeGraph | null {
+    return this._graph.value;
+  }
+
+  public set graph(graph: ReadNodeGraph | null) {
+    this._graph.value = graph;
   }
 
   get scope(): GraphScope {
-    return this.graph.value?.scope ?? {};
+    return this._graph.value?.scope ?? {};
   }
 
   get isPartial(): boolean {
-    return this.graph.value?.isPartial ?? false;
+    return this._graph.value?.isPartial ?? false;
   }
 
   get nodes(): AnyNodeData[] {
-    return this.graph.value?.nodes ?? [];
+    return this._graph.value?.nodes ?? [];
   }
 
   get size(): number {
-    return this.graph.value?.size ?? 0;
+    return this._graph.value?.size ?? 0;
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    return this.graph.value?.get(key) ?? null;
+    return this._graph.value?.get(key) ?? null;
   }
 
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
-    return this.graph.value?.getChildren(parent, metatype) ?? [];
+    return this._graph.value?.getChildren(parent, metatype) ?? [];
   }
 
   subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {
     let sub: (() => void) | null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
-    watch(this.graph, () => (unsub(), (sub = this.graph.value?.subscribe(key, callback) ?? null)), { immediate: true });
+    watch(
+      this._graph,
+      () => {
+        callback();
+        unsub();
+        sub = this._graph.value?.subscribe(key, callback) ?? null;
+      },
+      { immediate: true, flush: "sync" },
+    );
     return unsub;
   }
 
@@ -501,9 +523,13 @@ export class ProxyNodeGraph extends ObservableNodeGraphMixin implements ReadNode
     let sub: (() => void) | null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
     watch(
-      this.graph,
-      () => (unsub(), (sub = this.graph.value?.subscribeChildren(parent, metatype, callback) ?? null)),
-      { immediate: true },
+      this._graph,
+      () => {
+        callback();
+        unsub();
+        sub = this._graph.value?.subscribeChildren(parent, metatype, callback) ?? null;
+      },
+      { immediate: true, flush: "sync" },
     );
     return unsub;
   }
@@ -554,7 +580,15 @@ export class FilterNodeGraph extends ObservableNodeGraphMixin implements ReadNod
   subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {
     let sub: (() => void) | null = null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
-    watch(this.includeHidden, () => (unsub(), (sub = this.graph.subscribe(key, callback))), { immediate: true });
+    watch(
+      this.includeHidden,
+      () => {
+        callback();
+        unsub();
+        sub = this.graph.subscribe(key, callback);
+      },
+      { immediate: true, flush: "sync" },
+    );
     return unsub;
   }
 
@@ -565,9 +599,15 @@ export class FilterNodeGraph extends ObservableNodeGraphMixin implements ReadNod
   ): () => void {
     let sub: (() => void) | null = null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
-    watch(this.includeHidden, () => (unsub(), (sub = this.graph.subscribeChildren(parent, metatype, callback))), {
-      immediate: true,
-    });
+    watch(
+      this.includeHidden,
+      () => {
+        callback();
+        unsub();
+        sub = this.graph.subscribeChildren(parent, metatype, callback);
+      },
+      { immediate: true, flush: "sync" },
+    );
     return unsub;
   }
 }
