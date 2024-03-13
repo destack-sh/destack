@@ -8,7 +8,7 @@ import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } fro
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
-import { DEFAULT_ORIENTATION } from "@/utils/positioning";
+import { DEFAULT_ORIENTATION, splitBox } from "@/utils/positioning";
 import { computed, watch } from "vue";
 
 // bench/packages
@@ -131,6 +131,23 @@ export function addViewToCurrentRoot(
 }
 
 /**
+ * Removes the given view from the space graph, taking care to close now-empty parents.
+ */
+export function removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+  log.debug("view.remove", view);
+  const parent = graph.get(view.parentPtr!) as ViewData;
+  tx.delete(view); // should soft delete?
+  cleanupRootView(tx, graph, parent);
+}
+
+export function cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+  if (!ROOT_VIEW_TYPES.includes(view.type)) return;
+  if (graph.getChildren(view, NodeType.VIEW).length == 0) {
+    removeView(tx, graph, view);
+  }
+}
+
+/**
  * Adds the given view into this view at the target/anchor.
  */
 export function addView(
@@ -141,7 +158,7 @@ export function addView(
   anchor: "start" | "end",
   targetId: string | null,
 ) {
-  log.debug("tabbed.add", self, child, anchor, targetId);
+  log.debug("view.add", self, child, anchor, targetId);
   const children = graph.getChildren(self, NodeType.VIEW);
   // move & update order
   if (child.id != targetId) {
@@ -157,6 +174,7 @@ export function addView(
   if (child.parentPtr?.id != self.id) {
     tx.move({ ...child, parentPtr: toNodeReference(self) });
   }
+  cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
 }
 
 /**
@@ -170,7 +188,7 @@ export function splitView(
   child: ViewData,
   anchor: Omit<SplitAnchor, "center">,
 ) {
-  log.debug("tabbed.split", self, child, anchor);
+  log.debug("view.split", self, child, anchor);
 
   // determine if we need a new split
   const parent = graph.get(self.parentPtr!) as ViewData;
@@ -179,7 +197,7 @@ export function splitView(
   const isOrderFlipped = anchor == "right" || anchor == "bottom";
   const needsNewSplit = (parent.orientation ?? DEFAULT_ORIENTATION) != orientation;
 
-  // duplicate seed if its from self
+  // duplicate seed if it belongs to self
   if (child.parentPtr?.id == self.id) {
     child = copyNode(child);
     tx.create(child);
@@ -214,11 +232,13 @@ export function splitView(
     tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
   } else {
     // 'split' size between self and child with a new tabbed wrapper
+    const halfSize = splitBox(self.size!);
     const viewParent = makeNode({
       metatype: NodeType.VIEW,
       type: ViewType.TABBED,
       parentPtr: self.parentPtr,
       packagePtr: self.packagePtr,
+      size: halfSize,
       orderKey: getOrderKey({
         nodes: graph.getChildren(parent, NodeType.VIEW),
         position: isOrderFlipped ? "after" : "before",
@@ -228,5 +248,7 @@ export function splitView(
     tx.create(viewParent);
     tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
     tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+    tx.update({ ...self, metatype: NodeType.VIEW, size: halfSize });
   }
+  cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
 }

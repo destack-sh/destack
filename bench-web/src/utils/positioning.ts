@@ -1,11 +1,12 @@
-import { BenchType, NodeType, Orientation, type ViewData } from "@/proto/wire";
+import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
 import { useMouseInElement, useMousePressed } from "@vueuse/core";
-import { computed, watch, type Ref, toRef, ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 export const MIN_WINDOW_SIZE = 200;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
+export const DEFAULT_RELATIVE_UNITS = 1;
 
 export type SizedView = {
   view: ViewData;
@@ -17,7 +18,6 @@ export type SizedView = {
 
 export type SplitLayout = {
   orientation: Orientation;
-  defaultRelativeUnits: number;
   minPx: number;
   dividerSize: number; // should this even affect the layout?
 };
@@ -52,7 +52,7 @@ export function splitView(
     const totalRelativePx = totalPx - totalAbsolutePx;
     const totalRelativeUnits = viewsRef.value
       .filter((view) => getAbsolutePx(view) == null)
-      .reduce((acc, view) => (getRelativeUnits(view) ?? layoutRef.value.defaultRelativeUnits) + acc, 0);
+      .reduce((acc, view) => (getRelativeUnits(view) ?? DEFAULT_RELATIVE_UNITS) + acc, 0);
     return { totalPx, totalAbsolutePx, totalRelativePx, totalRelativeUnits };
   }
 
@@ -68,7 +68,7 @@ export function splitView(
       if (absolutePx > 0) {
         perViewPx.push(absolutePx);
       } else {
-        const relativeUnits = getRelativeUnits(view) ?? layoutRef.value.defaultRelativeUnits;
+        const relativeUnits = getRelativeUnits(view) ?? DEFAULT_RELATIVE_UNITS;
         const relativePx = Math.round((relativeUnits / totalRelativeUnits) * totalRelativePx);
         perViewPx.push(relativePx);
       }
@@ -174,4 +174,18 @@ export function useSplitView(
   });
 
   return { sizedViews, draggingIdx };
+}
+
+/**
+ * Gets the exact half sized box for a view (for both dimensions, for absolute and relative)
+ */
+export function splitBox(size?: BoxData): BoxData {
+  if (size == null) return { metatype: BenchType.BOX, widthRelative: DEFAULT_RELATIVE_UNITS, heightRelative: DEFAULT_RELATIVE_UNITS };
+  return {
+    metatype: BenchType.BOX,
+    width: size.width != null ? size.width / 2 : undefined,
+    widthRelative: size.width != null ? undefined : (size.widthRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
+    height: size.height != null ? size.height / 2 : undefined,
+    heightRelative: size.height != null ? undefined : (size.heightRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
+  }
 }

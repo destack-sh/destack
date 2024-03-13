@@ -20,7 +20,6 @@ const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: orientation.value,
-  defaultRelativeUnits: 1,
   minPx: MIN_WINDOW_SIZE,
   dividerSize: 2,
 }));

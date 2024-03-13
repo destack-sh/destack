@@ -3,7 +3,7 @@ import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, Selection
 import { toNodeReference } from "@/proto/wiring";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { addView, splitView } from "@/system/space";
+import { addView, removeView, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -48,8 +48,7 @@ function select(tab: ViewData) {
 }
 
 function remove(tab: ViewData) {
-  log.debug("tabbed.remove", tab);
-  spaceConnection.sideTx.delete(tab); // should soft delete?
+  removeView(spaceConnection.sideTx, spaceGraph, tab);
 }
 
 // dragging
@@ -100,7 +99,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
     <!-- Tab header -->
     <div
       ref="headerRef"
-      class="flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300"
+      class="relative flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300"
       :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
     >
       <!-- Tab button -->
@@ -144,9 +143,14 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"
           class="absolute z-10 h-full w-1 bg-primary-400"
-          :class="[activeHeaderDropZone.anchor == 'start' ? '-left-[3px]' : '-right-[3px]']"
+          :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </button>
+      <!-- Drop indicator if no tab -->
+      <div
+        v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
+        class="absolute left-0 z-10 h-full w-1 bg-primary-400"
+      />
     </div>
     <!-- Tab body -->
     <div
