@@ -44,7 +44,7 @@ export type Transaction = {
   /** Restore node from soft delete */
   restore(node: AnyNodeData): void;
   /**
-   * @deprecated use softDelete by default (not really deprecated, just to make it clear this should be used deliberately)
+   * @deprecated use softDelete (not actually deprecated, but to be used deliberately)
    */
   delete(node: AnyNodeData): void;
 };

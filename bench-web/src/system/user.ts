@@ -1,5 +1,5 @@
 import { supervisor } from "@/proto/services";
-import { ClientData, NodeType, UserData } from "@/proto/wire";
+import { ClientData, NodeReferenceData, NodeType, Region, UserData } from "@/proto/wire";
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { useGetNodes } from "@/system/connection";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
@@ -91,13 +91,20 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
   }
 }
 
+/** Reports an authentication error from a request using our current credentials */
 export function onAuthenticationError(error: RpcError) {
+  // TODO :Robustness: handle user auth error & badge auth error separately 
   log.error("user.unauthenticated");
   userInfo.value = null;
   clientInfo.value = null;
 }
 
-export async function createBench() {
+export async function createBench(benchIn: {
+  owner: NodeReferenceData;
+  slug: string;
+  region: Region;
+  isMain: boolean;
+}) {
   if (clientInfo.value == null) throw new Error("not logged in");
-  throw new Error("not implemented");
+  const { response: { bench } } = await supervisor.createBench({ ...benchIn });
 }
