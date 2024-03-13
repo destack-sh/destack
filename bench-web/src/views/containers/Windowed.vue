@@ -17,8 +17,9 @@ const emit = defineEmits(viewEmits());
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
+const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
 const splitLayout: Ref<SplitLayout> = computed(() => ({
-  orientation: props.orientation ?? Orientation.HORIZONTAL,
+  orientation: orientation.value,
   defaultRelativeUnits: 1,
   minPx: MIN_WINDOW_SIZE,
   dividerSize: 2,
@@ -41,7 +42,7 @@ defineExpose({ self: toRef(props, "self") });
     class="relative bg-gray-100"
     :style="{ width: size.width + 'px', height: size.height + 'px' }"
     :class="[
-      draggingIdx != null ? (orientation == Orientation.HORIZONTAL ? 'cursor-ew-resize' : 'cursor-ns-resize') : '',
+      draggingIdx != null ? (isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize') : '',
       draggingIdx != null ? 'pointer-events-none select-none' : 'pointer-events-auto select-auto',
     ]"
   >
@@ -50,7 +51,7 @@ defineExpose({ self: toRef(props, "self") });
       <!-- Frame -->
       <div
         class="absolute border-gray-300 bg-gray-100"
-        :class="[viewIdx > 0 ? (orientation == Orientation.HORIZONTAL ? 'border-l-2' : 'border-t-2') : '']"
+        :class="[viewIdx > 0 ? (isHorizontal ? 'border-l-2' : 'border-t-2') : '']"
         :style="{ left: left + 'px', top: top + 'px', width: width + 'px', height: height + 'px' }"
       >
         <!-- Content -->
@@ -66,11 +67,11 @@ defineExpose({ self: toRef(props, "self") });
         v-if="viewIdx > 0"
         class="pointer-events-auto absolute transition-colors duration-500"
         :class="[
-          orientation == Orientation.HORIZONTAL ? 'w-1 cursor-ew-resize' : 'h-1 cursor-ns-resize',
+          isHorizontal ? 'w-1 cursor-ew-resize' : 'h-1 cursor-ns-resize',
           draggingIdx == viewIdx - 1 ? 'bg-primary-400' : 'bg-transparent hover:bg-primary-300',
         ]"
         :style="
-          orientation == Orientation.HORIZONTAL
+          isHorizontal
             ? { left: left - 2 + 'px', top: top + 'px', height: height + 'px' }
             : { left: left + 'px', top: top - 2 + 'px', width: width + 'px' }
         "
