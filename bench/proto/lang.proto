@@ -1452,7 +1452,7 @@ message BlockData {
   repeated int32 set_properties = 22;
   BlockType type = 30;
   optional string name = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   NodeVisibility visibility = 34;
   repeated PolicyData policies = 35;
   repeated NodeReferenceData bases_ptr = 36;
@@ -1630,7 +1630,7 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   optional string name = 30;
-  optional string order_key = 31;
+  string order_key = 31;
   optional string dynamic_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
@@ -1960,7 +1960,7 @@ message QueryData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   optional string name = 30;
-  optional string order_key = 31;
+  string order_key = 31;
   NodeType node_type = 32;
   optional NodeReferenceData base_ptr = 33;
   optional ExpressionData filter = 34;
@@ -2281,6 +2281,7 @@ message ViewData {
   optional string name = 31;
   optional string title = 32;
   optional TextData text = 33;
+  string order_key = 34;
   optional IconData icon = 35;
   optional google.protobuf.Struct value_packed = 40;
   optional NodeReferenceData node_ptr = 41;

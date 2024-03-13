@@ -62,6 +62,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     type: ViewType.WINDOWED,
     name: "side",
     title: "Side Window",
+    orderKey: "a0",
     orientation: Orientation.VERTICAL,
     size: makeStruct({ metatype: StructType.BOX, width: 280 }),
   });
@@ -69,12 +70,14 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(side),
     packagePtr: LOCAL_PACKAGE_PTR,
+    orderKey: "a0",
     type: ViewType.TABBED,
   });
   const sideBottom = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(side),
     packagePtr: LOCAL_PACKAGE_PTR,
+    orderKey: "a1",
     type: ViewType.TABBED,
   });
   const primary = makeNode({
@@ -84,6 +87,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     type: ViewType.TABBED,
     name: "primary",
     title: "Primary Window",
+    orderKey: "a1",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
   });
   const secondary = makeNode({
@@ -93,6 +97,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     type: ViewType.TABBED,
     name: "secondary",
     title: "Secondary Window",
+    orderKey: "a2",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
   graph.extend(space, side, primary, secondary, sideTop, sideBottom);
@@ -107,6 +112,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           type: ViewType.USER_WIZARD,
           icon: makeIcon({ name: "fas fa-right-from-bracket" }),
           title: "Registration 1",
+          orderKey: "a0",
         }),
       );
       graph.add(
@@ -116,6 +122,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           packagePtr: LOCAL_PACKAGE_PTR,
           type: ViewType.BENCH_WIZARD,
           title: "Bench Wizard! 2 Very Long Title Yes Very Long Indeed (I mean it)",
+          orderKey: "a1",
         }),
       );
       graph.add(
@@ -124,6 +131,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           parentPtr: toNodeReference(node),
           packagePtr: LOCAL_PACKAGE_PTR,
           type: ViewType.USER_WIZARD,
+          orderKey: "a2",
         }),
       );
     }
@@ -136,17 +144,17 @@ export function addViewToCurrentRoot(
   view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
   tx: Transaction,
 ) {
-  // nocheckin: handle & assign current root view etc.
   const root = spaceGraph.nodes.find(
     (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
   );
   if (root == null) throw new Error("no root view");
-  tx.create(
-    makeNode({
-      metatype: NodeType.VIEW,
-      ...view,
-      packagePtr: space.value?.packagePtr,
-      parentPtr: toNodeReference(root),
-    }),
-  );
+  // tx.create(
+  //   makeNode({
+  //     metatype: NodeType.VIEW,
+  //     ...view,
+  //     packagePtr: space.value?.packagePtr,
+  //     parentPtr: toNodeReference(root),
+  //   }),
+  // );
+  throw new Error("nocheckin: handle & assign current root view etc.");
 }

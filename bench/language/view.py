@@ -15,6 +15,7 @@ from bench.language.setup import _well_known_enum
 from bench.language.validation import enum_validator, validate_name
 from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -338,6 +339,7 @@ class View(HasViews, HasValues):
     name: Optional[str] = p_regular(31, default=None, validate=validate_name)
     title: Optional[str] = p_regular(32, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
+    order_key: str = p_internal(34, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )

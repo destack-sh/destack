@@ -21,6 +21,7 @@ from bench.language.validation import validate_name
 from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
@@ -115,7 +116,7 @@ class Block(Node, HasValues):
     type: BlockType = p_internal(30, default=BlockType.BLANK)
     # custom type..?
     name: str | None = p_regular(32, default=None, validate=validate_name)
-    order_key: str | None = p_internal(33, default=None)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     visibility: NodeVisibility = p_regular(34, default=NodeVisibility.ALL)
     policies: list["Policy"] | None = p_regular(35, array=True, struct=StructType.POLICY)
     bases: list["Block"] | None = p_regular(

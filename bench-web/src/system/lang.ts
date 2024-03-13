@@ -15,6 +15,8 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   ViewType,
 } from "@/proto/wire";
+import type { Transaction } from "@/system/transaction";
+import { generateKeyBetween } from "@/utils/fractional";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
@@ -43,6 +45,9 @@ export const LOADED_SOURCE_NODE_TYPES = [
   NodeType.VIEW,
 ];
 
+/**
+ * Gets the 'base' node defining a certain node. See HasBase.
+ */
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   if (node.metatype == BenchType.RECORD) {
     return (node as RecordData).parentPtr ?? null;
@@ -55,10 +60,39 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   }
 }
 
+/**
+ * Sorts the given nodes using explicit order keys if available.
+ */
 export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapping[T][]) {
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-  if ("orderKey" in properties) nodes.sort((a, b) => ((a as any).orderKey ?? "").localeCompareTo((b as any).orderKey));
+  if ("orderKey" in properties)
+    nodes.sort((a, b) => ((a as any).orderKey ?? "").localeCompare((b as any).orderKey ?? ""));
   else nodes.sort((a, b) => (b.createdAt?.nanos ?? 0) - (a.createdAt?.nanos ?? 0));
+}
+
+/**
+ * Sets the node order keys so that the target is position relative to the reference. Nodes must be in order.
+ * If any positions need to be 'fixed' because of previous duplicates, these updates are also included.
+ */
+export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order: {
+  tx: Transaction;
+  target: T;
+  position: "before" | "after";
+  reference: T | null;
+  nodes: T[];
+}) {
+  let orderKey;
+  if (order.position == "before") {
+    const a = order.reference?.id == null ? null : order.nodes[order.nodes.findIndex(n => n.id == order.reference!.id) - 1];
+    orderKey = generateKeyBetween(a?.orderKey ?? null, order.reference?.orderKey ?? null);
+  } else {
+    const b = order.reference?.id == null ? null : order.nodes[order.nodes.findIndex(n => n.id == order.reference!.id) + 1];
+    orderKey = generateKeyBetween(order.reference?.orderKey ?? null, b?.orderKey ?? null);
+  }
+  order.tx.update({ ...order.target, orderKey });
+
+  // TODO :Robustness: fix order keys if there are duplicates
+  //  (may happen if two nodes are created in the same place simultaneously)
 }
 
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];
