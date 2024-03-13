@@ -13,7 +13,7 @@ export function setDragData(event: DragEvent, data: Dragged) {
   event?.dataTransfer?.setData("application/symbolx.bench." + data.type, json);
 }
 
-export function useRelativeDropZone(
+export function useDropZone(
   target: Ref<HTMLElement | null | undefined>,
   types: DraggedType[],
   onDrop?: (thing: File[] | Dragged | null) => void,

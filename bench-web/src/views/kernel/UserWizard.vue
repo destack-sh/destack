@@ -1,17 +1,20 @@
 <script lang="tsx" setup>
 import { Region, Variant, type NodeReferenceData } from "@/proto/wire";
+import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { logIn, signUp } from "@/system/user";
+import { logIn, signUp, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { ref, toRef, type Ref } from "vue";
+import { watch, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & {}>();
 const emit = defineEmits(viewEmits());
 
-const state: Ref<"sign-up" | "log-in"> = ref("log-in");
+const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
+
+const state: Ref<"sign-up" | "log-in" | "all-set"> = ref("log-in");
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
@@ -19,6 +22,19 @@ const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
 const lastError = ref<RpcError | null>(null);
+
+// sync
+watch(
+  user,
+  () => {
+    if (user.value) {
+      state.value = "all-set";
+    } else {
+      state.value = "log-in";
+    }
+  },
+  { immediate: true },
+);
 
 async function submit() {
   isActive.value = true;
@@ -41,32 +57,32 @@ defineExpose({ self: toRef(props, "self") });
 </script>
 <template>
   <div
-    class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-10 py-8 text-gray-900 shadow-md shadow-gray-300"
+    class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
   >
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">
-        {{ state === "log-in" ? "Log in" : "Sign up" }}
+        <span v-if="state === 'log-in'">Log in</span>
+        <span v-else-if="state === 'sign-up'">Sign up</span>
+        <span v-else-if="state === 'all-set'">All set</span>
       </h2>
+      <p class="mt-2 text-gray-500">
+        <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
+        <span v-else-if="state === 'sign-up'">Create a new Bench account.</span>
+        <span v-else-if="state === 'all-set'">You're already logged in.</span>
+      </p>
     </div>
     <!-- Data -->
-    <div class="mt-5 flex w-full flex-col gap-y-3">
+    <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
       <String
         v-if="state === 'sign-up'"
-        :icon="makeIcon({ name: 'fas fa-envelope' })"
+        :icon="makeIcon({ name: 'fas fa-user' })"
         name="name"
         title="Name"
         is-input
         v-model="name"
       />
-      <String
-        v-if="state == 'sign-up' || state == 'log-in'"
-        :icon="makeIcon({ name: 'fas fa-at' })"
-        name="username"
-        title="Username"
-        is-input
-        v-model="slug"
-      />
+      <String :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
       <String
         v-if="state === 'sign-up'"
         :icon="makeIcon({ name: 'fas fa-envelope' })"
@@ -87,8 +103,9 @@ defineExpose({ self: toRef(props, "self") });
     <!-- Actions -->
     <div class="mt-7">
       <Button
-        :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
+        v-if="state === 'log-in' || state === 'sign-up'"
         name="submit"
+        :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
         :title="state === 'log-in' ? 'Log in' : 'Sign up'"
         class="w-full"
         @click="submit"
@@ -97,13 +114,23 @@ defineExpose({ self: toRef(props, "self") });
       />
       <Button
         v-if="state === 'log-in' || state === 'sign-up'"
-        :icon="makeIcon({ name: 'fas fa-shuffle' })"
         name="switch"
+        :icon="makeIcon({ name: 'fas fa-shuffle' })"
         :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
         :variant="Variant.V3"
         @click="() => (state = state === 'log-in' ? 'sign-up' : 'log-in')"
       />
+      <Button
+        v-if="state == 'all-set'"
+        name="close"
+        :icon="makeIcon({ name: 'fas fa-xmark' })"
+        :title="'Close'"
+        class="w-full"
+        :variant="Variant.V3"
+        @click="() => spaceConnection.sideTx.delete(spaceGraph.get(self)!)"
+      />
+      <!-- Error -->
       <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
         {{ lastError.code }}: {{ lastError.message }}
       </p>

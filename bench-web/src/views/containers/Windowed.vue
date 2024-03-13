@@ -1,11 +1,10 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
-import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, splitView, type SplitLayout, useSplitView } from "@/utils/positioning";
+import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/positioning";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
-import { useMouseInElement, useMousePressed } from "@vueuse/core";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   {
