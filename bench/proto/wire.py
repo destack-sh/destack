@@ -1629,7 +1629,7 @@ class BlockData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     type: "BlockType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(32, optional=True)
-    order_key: Optional[str] = betterproto.string_field(33, optional=True)
+    order_key: str = betterproto.string_field(33)
     visibility: "NodeVisibility" = betterproto.enum_field(34)
     policies: List["PolicyData"] = betterproto.message_field(35)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(36)
@@ -1829,7 +1829,7 @@ class FieldData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     name: Optional[str] = betterproto.string_field(30, optional=True)
-    order_key: Optional[str] = betterproto.string_field(31, optional=True)
+    order_key: str = betterproto.string_field(31)
     dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
@@ -2213,7 +2213,7 @@ class QueryData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     name: Optional[str] = betterproto.string_field(30, optional=True)
-    order_key: Optional[str] = betterproto.string_field(31, optional=True)
+    order_key: str = betterproto.string_field(31)
     node_type: "NodeType" = betterproto.enum_field(32)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     filter: Optional["ExpressionData"] = betterproto.message_field(34, optional=True)
@@ -2600,6 +2600,7 @@ class ViewData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(31, optional=True)
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
+    order_key: str = betterproto.string_field(34)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
@@ -4447,7 +4448,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.12.0"
+VERSION = "2024.03.13.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

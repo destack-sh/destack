@@ -28,6 +28,7 @@ from bench.language.validation import validate_name
 from bench.language.value import HasValues
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
+from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Text
@@ -205,7 +206,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
 
     parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
     name: str | None = p_regular(30, default=None, validate=validate_name)
-    order_key: str | None = p_internal(31, default=None)
+    order_key: str = p_internal(31, default=INTEGER_ZERO)
     dynamic_key: str | None = p_internal(32, default=None)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT

@@ -1,9 +1,10 @@
 <script lang="tsx" setup>
-import { BenchType, BoxData, NodeReferenceData, NodeType, SelectionKind, ViewData } from "@/proto/wire";
+import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, SelectionKind, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { setDragData, useSingleDropZone } from "@/utils/drag";
+import { updateOrder } from "@/system/lang";
+import { setDragData, useMultiDropZone, useSingleDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
@@ -56,18 +57,33 @@ function remove(tab: ViewData) {
 
 // dragging
 const tabHeaderRef: Ref<HTMLElement | null> = ref(null);
-const tabsRef: Ref<Record<string, HTMLElement | null>> = ref({});
-// nocheckin: use multi drop zone per tab (with orientation for before first/after last)
-const { isOverDropZone } = useSingleDropZone({
+const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
+const { activeDropZone } = useMultiDropZone({
   container: tabHeaderRef,
+  targets: tabsRef,
   kinds: ["node"],
   metatypes: [NodeType.VIEW],
-  onDrop: (dragged) => {
+  orientation: Orientation.HORIZONTAL,
+  onDrop: (dragged, anchor, targetId) => {
     if (dragged.kind == "node") {
-      log.debug("tabbed.drop", props.self, dragged.node);
-      const draggedNode = spaceGraph.get(dragged.node);
+      log.debug("tabbed.drop", props.self, dragged.node, anchor, targetId);
+      const draggedNode = spaceGraph.get(dragged.node) as ViewData;
       if (draggedNode != null) {
-        spaceConnection.sideTx.move({ ...draggedNode, parentPtr: props.self });
+        // move & update order
+        if (draggedNode.id != targetId) {
+          const targetNode = tabs.value.find((tab) => tab.id == targetId)!;
+          updateOrder({
+            tx: spaceConnection.sideTx,
+            target: draggedNode,
+            position: anchor == "start" ? "before" : "after",
+            reference: targetNode,
+            nodes: tabs.value,
+          });
+        }
+        if (draggedNode.parentPtr?.id != props.self.id) {
+          spaceConnection.sideTx.move({ ...draggedNode, parentPtr: props.self });
+        }
+        select(draggedNode);
       }
     }
   },
@@ -81,21 +97,27 @@ defineExpose({ self: toRef(props, "self"), select, remove });
     <div
       ref="tabHeaderRef"
       class="flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300"
-      :class="[isOverDropZone ? ' bg-gray-100' : ' bg-gray-200']"
+      :class="[activeDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
     >
       <!-- Tab button -->
       <button
-        :ref="(ref) => (tabsRef[tab.id] = ref as HTMLElement)"
+        :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group flex h-full max-w-52 flex-row items-center justify-center whitespace-nowrap bg-gray-100 px-2.5"
+        class="group relative flex h-full max-w-52 flex-row items-center justify-center whitespace-nowrap border-r-2 border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
         :class="[
-          i == selectedTabIdx ? 'text-primary-900 shadow-inset-sm shadow-primary-900' : 'hover:text-primary-900',
-          'border-r-2 border-gray-300',
+          i == selectedTabIdx
+            ? 'text-primary-900 shadow-inset-md shadow-primary-900'
+            : 'text-gray-700 hover:text-primary-900',
         ]"
         @click="select(tab)"
         :draggable="true"
-        @dragstart="(e) => setDragData(e, { kind: 'node', node: toNodeReference(tab) })"
+        @dragstart="
+          (e: DragEvent) => {
+            setDragData(e, { kind: 'node', node: toNodeReference(tab) });
+            e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
+          }
+        "
       >
         <IconInline
           v-if="tab.icon"
@@ -114,6 +136,12 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         >
           <i class="fas fa-xmark hover:text-primary-900" />
         </button>
+        <!-- Drop indicator -->
+        <div
+          v-if="activeDropZone?.targetId == tab.id"
+          class="absolute z-10 h-full w-1 bg-primary-400"
+          :class="[activeDropZone.anchor == 'start' ? '-left-[3px]' : '-right-[3px]']"
+        />
       </button>
     </div>
     <!-- Tab body -->

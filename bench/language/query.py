@@ -40,6 +40,7 @@ from bench.proto.wire import (
     GraphScope,
     NodeReferenceData,
 )
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import _auto_async_to_sync, bytetuple
 
 if TYPE_CHECKING:
@@ -60,7 +61,7 @@ class Query(Node):
 
     parent: Union["Block"] = p_node_parent(4, NodeType.BLOCK)
     name: str | None = p_regular(30, default=None)
-    order_key: str | None = p_regular(31, default=None)
+    order_key: str = p_regular(31, default=INTEGER_ZERO)
     node_type: NodeType = p_regular(32)
     base: Optional["Block"] = p_regular(
         33, array=False, require=False, default=None, references=NodeType.BLOCK

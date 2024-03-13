@@ -1918,9 +1918,9 @@ export interface BlockData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 34;
      */
@@ -2561,9 +2561,9 @@ export interface FieldData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 31;
+     * @generated from protobuf field: string order_key = 31;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional string dynamic_key = 32;
      */
@@ -3725,9 +3725,9 @@ export interface QueryData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 31;
+     * @generated from protobuf field: string order_key = 31;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: symbolx.bench.NodeType node_type = 32;
      */
@@ -4876,6 +4876,10 @@ export interface ViewData {
      * @generated from protobuf field: optional symbolx.bench.TextData text = 33;
      */
     text?: TextData;
+    /**
+     * @generated from protobuf field: string order_key = 34;
+     */
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
@@ -12533,7 +12537,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 36, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -12564,6 +12568,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.orderKey = "";
         message.visibility = 0;
         message.policies = [];
         message.basesPtr = [];
@@ -12635,7 +12640,7 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* symbolx.bench.NodeVisibility visibility */ 34:
@@ -12759,8 +12764,8 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* symbolx.bench.NodeVisibility visibility = 34; */
         if (message.visibility !== 0)
@@ -13964,7 +13969,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -13995,6 +14000,7 @@ class FieldData$Type extends MessageType<FieldData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.orderKey = "";
         message.visibility = 0;
         message.isList = false;
         message.isRequired = false;
@@ -14060,7 +14066,7 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional string name */ 30:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 31:
+                case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
                 case /* optional string dynamic_key */ 32:
@@ -14184,8 +14190,8 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 31; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 31; */
+        if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
         /* optional string dynamic_key = 32; */
         if (message.dynamicKey !== undefined)
@@ -16575,7 +16581,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 33, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "filter", kind: "message", T: () => ExpressionData },
@@ -16590,6 +16596,7 @@ class QueryData$Type extends MessageType<QueryData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.orderKey = "";
         message.nodeType = 0;
         message.sort = [];
         if (value !== undefined)
@@ -16650,7 +16657,7 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* optional string name */ 30:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 31:
+                case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
                 case /* symbolx.bench.NodeType node_type */ 32:
@@ -16726,8 +16733,8 @@ class QueryData$Type extends MessageType<QueryData> {
         /* optional string name = 30; */
         if (message.name !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 31; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 31; */
+        if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
         /* symbolx.bench.NodeType node_type = 32; */
         if (message.nodeType !== 0)
@@ -19116,6 +19123,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
+            { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19144,6 +19152,7 @@ class ViewData$Type extends MessageType<ViewData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
         return message;
@@ -19210,6 +19219,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.TextData text */ 33:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* string order_key */ 34:
+                    message.orderKey = reader.string();
                     break;
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -19332,6 +19344,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.TextData text = 33; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 34; */
+        if (message.orderKey !== "")
+            writer.tag(34, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -20495,6 +20510,7 @@ export enum ViewProperty {
   name = 31,
   title = 32,
   text = 33,
+  orderKey = 34,
   icon = 35,
   valuePacked = 40,
   nodePtr = 41,
