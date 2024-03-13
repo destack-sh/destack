@@ -3,18 +3,15 @@ import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, Selection
 import { toNodeReference } from "@/proto/wiring";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { updateOrder } from "@/system/lang";
-import { setDragData, useMultiDropZone, useSingleDropZone } from "@/utils/drag";
+import { addView, splitView } from "@/system/space";
+import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
-import { computed, toRef, type Ref, ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
-    ViewData,
-    "name" | "title" | "text" | "icon" | "selection"
-  >
+  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "selection">
 >();
 const emit = defineEmits(viewEmits());
 
@@ -56,34 +53,41 @@ function remove(tab: ViewData) {
 }
 
 // dragging
-const tabHeaderRef: Ref<HTMLElement | null> = ref(null);
+const headerRef: Ref<HTMLElement | null> = ref(null);
 const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
-const { activeDropZone } = useMultiDropZone({
-  container: tabHeaderRef,
+const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
+  container: headerRef,
   targets: tabsRef,
   kinds: ["node"],
   metatypes: [NodeType.VIEW],
   orientation: Orientation.HORIZONTAL,
   onDrop: (dragged, anchor, targetId) => {
-    if (dragged.kind == "node") {
-      log.debug("tabbed.drop", props.self, dragged.node, anchor, targetId);
-      const draggedNode = spaceGraph.get(dragged.node) as ViewData;
-      if (draggedNode != null) {
-        // move & update order
-        if (draggedNode.id != targetId) {
-          const targetNode = tabs.value.find((tab) => tab.id == targetId)!;
-          updateOrder({
-            tx: spaceConnection.sideTx,
-            target: draggedNode,
-            position: anchor == "start" ? "before" : "after",
-            reference: targetNode,
-            nodes: tabs.value,
-          });
-        }
-        if (draggedNode.parentPtr?.id != props.self.id) {
-          spaceConnection.sideTx.move({ ...draggedNode, parentPtr: props.self });
-        }
+    if (dragged.kind != "node") return;
+    const draggedNode = spaceGraph.get(dragged.node) as ViewData;
+    if (draggedNode != null) {
+      const self = spaceGraph.get(props.self) as ViewData;
+      addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
+      select(draggedNode);
+    }
+  },
+});
+
+// splitting
+const bodyRef: Ref<HTMLElement | null> = ref(null);
+const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
+  container: bodyRef,
+  kinds: ["node"],
+  metatypes: [NodeType.VIEW],
+  onDrop: (dragged, anchor) => {
+    if (dragged.kind != "node") return;
+    const draggedNode = spaceGraph.get(dragged.node) as ViewData;
+    if (draggedNode != null) {
+      const self = spaceGraph.get(props.self) as ViewData;
+      if (anchor == "center") {
+        addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
         select(draggedNode);
+      } else {
+        splitView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor);
       }
     }
   },
@@ -95,9 +99,9 @@ defineExpose({ self: toRef(props, "self"), select, remove });
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tab header -->
     <div
-      ref="tabHeaderRef"
+      ref="headerRef"
       class="flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300"
-      :class="[activeDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
+      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
     >
       <!-- Tab button -->
       <button
@@ -138,14 +142,18 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         </button>
         <!-- Drop indicator -->
         <div
-          v-if="activeDropZone?.targetId == tab.id"
+          v-if="activeHeaderDropZone?.targetId == tab.id"
           class="absolute z-10 h-full w-1 bg-primary-400"
-          :class="[activeDropZone.anchor == 'start' ? '-left-[3px]' : '-right-[3px]']"
+          :class="[activeHeaderDropZone.anchor == 'start' ? '-left-[3px]' : '-right-[3px]']"
         />
       </button>
     </div>
     <!-- Tab body -->
-    <div class="absolute" :style="{ width: innerSize.width + 'px', height: innerSize.height + 'px' }">
+    <div
+      ref="bodyRef"
+      class="absolute"
+      :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+    >
       <!-- Content -->
       <component
         v-if="selectedTabIdx != null && getViewComponent(tabs[selectedTabIdx].type) != null"
@@ -158,6 +166,19 @@ defineExpose({ self: toRef(props, "self"), select, remove });
       </div>
       <div v-else class="h-full w-full">
         <!-- empty state -->
+      </div>
+    </div>
+    <!-- Tab body split drop overlay -->
+    <div
+      v-if="activeBodyDropZone != null"
+      class="pointer-events-none absolute"
+      :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+    >
+      <div class="relative h-full w-full">
+        <div
+          class="absolute z-20 bg-primary-400 opacity-40 transition-all duration-150"
+          :class="activeBodyDropZone.splitClass"
+        />
       </div>
     </div>
   </div>

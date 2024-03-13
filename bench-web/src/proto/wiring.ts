@@ -106,7 +106,8 @@ export function newNodeIdFromCk(packageId: string, ck: string): string {
 }
 
 /**
- * Create a node from the given data and assign it a new id (and ck if in package).
+ * Create a node from the given data and assign it an id (and ck if in package).
+ * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
   data: Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties"> & { metatype: T },
@@ -128,6 +129,14 @@ export function makeNode<T extends NodeType>(
   }
 
   return node;
+}
+
+/**
+ * Copies all data properties of the node with a new identity.
+ */
+export function copyNode<T extends AnyNodeData>(node: T): T {
+  const copy = { ...node, id: undefined, ck: undefined, source: NodeSource.STORE, revision: 0, setProperties: [] };
+  return makeNode(copy) as T;
 }
 
 export function isNode(value: AnyNodeData | AnyStructData): value is AnyNodeData {

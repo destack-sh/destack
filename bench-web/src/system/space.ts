@@ -1,12 +1,14 @@
 import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
-import { makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
+import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
-import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
+import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
-import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES } from "@/system/lang";
+import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
 import type { Transaction } from "@/system/transaction";
+import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
+import { DEFAULT_ORIENTATION } from "@/utils/positioning";
 import { computed, watch } from "vue";
 
 // bench/packages
@@ -55,37 +57,23 @@ watch(
 function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   log.info("setupLocalSpace");
   const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
-  const side = makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: toNodeReference(space),
-    packagePtr: LOCAL_PACKAGE_PTR,
-    type: ViewType.WINDOWED,
-    name: "side",
-    title: "Side Window",
-    orderKey: "a0",
-    orientation: Orientation.VERTICAL,
-    size: makeStruct({ metatype: StructType.BOX, width: 280 }),
-  });
-  const sideTop = makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: toNodeReference(side),
-    packagePtr: LOCAL_PACKAGE_PTR,
-    orderKey: "a0",
-    type: ViewType.TABBED,
-  });
-  const sideBottom = makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: toNodeReference(side),
-    packagePtr: LOCAL_PACKAGE_PTR,
-    orderKey: "a1",
-    type: ViewType.TABBED,
-  });
+  // const side = makeNode({
+  //   metatype: NodeType.VIEW,
+  //   parentPtr: toNodeReference(space),
+  //   packagePtr: LOCAL_PACKAGE_PTR,
+  //   type: ViewType.TABBED,
+  //   name: "Side",
+  //   title: "Side Window",
+  //   orderKey: "a0",
+  //   orientation: Orientation.VERTICAL,
+  //   size: makeStruct({ metatype: StructType.BOX, width: 280 }),
+  // });
   const primary = makeNode({
     metatype: NodeType.VIEW,
     parentPtr: toNodeReference(space),
     packagePtr: LOCAL_PACKAGE_PTR,
     type: ViewType.TABBED,
-    name: "primary",
+    name: "Primary",
     title: "Primary Window",
     orderKey: "a1",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
@@ -95,13 +83,14 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     parentPtr: toNodeReference(space),
     packagePtr: LOCAL_PACKAGE_PTR,
     type: ViewType.TABBED,
-    name: "secondary",
+    name: "Secondary",
     title: "Secondary Window",
     orderKey: "a2",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
-  graph.extend(space, side, primary, secondary, sideTop, sideBottom);
+  graph.extend(space, primary, secondary);
   // nocheckin testing
+  let ord = 0;
   for (const node of graph.nodes) {
     if ((node as ViewData).type == ViewType.TABBED) {
       graph.add(
@@ -109,29 +98,11 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
           metatype: NodeType.VIEW,
           parentPtr: toNodeReference(node),
           packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.USER_WIZARD,
+          type: ViewType.STRING,
           icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-          title: "Registration 1",
+          title: `Registration ${ord++}`,
           orderKey: "a0",
-        }),
-      );
-      graph.add(
-        makeNode({
-          metatype: NodeType.VIEW,
-          parentPtr: toNodeReference(node),
-          packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.BENCH_WIZARD,
-          title: "Bench Wizard! 2 Very Long Title Yes Very Long Indeed (I mean it)",
-          orderKey: "a1",
-        }),
-      );
-      graph.add(
-        makeNode({
-          metatype: NodeType.VIEW,
-          parentPtr: toNodeReference(node),
-          packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.USER_WIZARD,
-          orderKey: "a2",
+          isInput: true,
         }),
       );
     }
@@ -157,4 +128,105 @@ export function addViewToCurrentRoot(
   //   }),
   // );
   throw new Error("nocheckin: handle & assign current root view etc.");
+}
+
+/**
+ * Adds the given view into this view at the target/anchor.
+ */
+export function addView(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  self: ViewData,
+  child: ViewData,
+  anchor: "start" | "end",
+  targetId: string | null,
+) {
+  log.debug("tabbed.add", self, child, anchor, targetId);
+  const children = graph.getChildren(self, NodeType.VIEW);
+  // move & update order
+  if (child.id != targetId) {
+    const targetNode = targetId == null ? null : children.find((v) => v.id == targetId) ?? null;
+    updateOrderKey({
+      tx,
+      target: child,
+      position: anchor == "start" ? "before" : "after",
+      reference: targetNode,
+      nodes: children,
+    });
+  }
+  if (child.parentPtr?.id != self.id) {
+    tx.move({ ...child, parentPtr: toNodeReference(self) });
+  }
+}
+
+/**
+ * 'Splits' the 'self' view to accomodate a new equally sized subview 'seed' (at the anchor).
+ * If we're already split alongside the given orientation, the seed is added to the existing split.
+ */
+export function splitView(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  self: ViewData,
+  child: ViewData,
+  anchor: Omit<SplitAnchor, "center">,
+) {
+  log.debug("tabbed.split", self, child, anchor);
+
+  // determine if we need a new split
+  const parent = graph.get(self.parentPtr!) as ViewData;
+  const isHorizontal = anchor == "left" || anchor == "right";
+  const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
+  const isOrderFlipped = anchor == "right" || anchor == "bottom";
+  const needsNewSplit = (parent.orientation ?? DEFAULT_ORIENTATION) != orientation;
+
+  // duplicate seed if its from self
+  if (child.parentPtr?.id == self.id) {
+    child = copyNode(child);
+    tx.create(child);
+  }
+
+  if (needsNewSplit) {
+    // insert a new split in place of 'self'
+    const split = makeNode({
+      metatype: NodeType.VIEW,
+      type: ViewType.WINDOWED,
+      parentPtr: self.parentPtr,
+      packagePtr: self.packagePtr,
+      orderKey: self.orderKey,
+      size: self.size,
+      name: "Split",
+      orientation,
+    });
+    tx.create(split);
+    tx.move({ ...self, parentPtr: toNodeReference(split) });
+    tx.update({ ...self, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
+
+    // and a new tabbed wrapper
+    const viewParent = makeNode({
+      metatype: NodeType.VIEW,
+      type: ViewType.TABBED,
+      parentPtr: toNodeReference(split),
+      packagePtr: self.packagePtr,
+      orderKey: isOrderFlipped ? "a1" : "a0",
+    });
+    tx.create(viewParent);
+    tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+    tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+  } else {
+    // 'split' size between self and child with a new tabbed wrapper
+    const viewParent = makeNode({
+      metatype: NodeType.VIEW,
+      type: ViewType.TABBED,
+      parentPtr: self.parentPtr,
+      packagePtr: self.packagePtr,
+      orderKey: getOrderKey({
+        nodes: graph.getChildren(parent, NodeType.VIEW),
+        position: isOrderFlipped ? "after" : "before",
+        reference: self,
+      }),
+    });
+    tx.create(viewParent);
+    tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+    tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+  }
 }
