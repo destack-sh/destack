@@ -74,25 +74,40 @@ export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapp
  * Sets the node order keys so that the target is position relative to the reference. Nodes must be in order.
  * If any positions need to be 'fixed' because of previous duplicates, these updates are also included.
  */
-export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order: {
+export function updateOrderKey<T extends AnyNodeData & { orderKey: string }>(order: {
   tx: Transaction;
   target: T;
   position: "before" | "after";
   reference: T | null;
   nodes: T[];
 }) {
-  let orderKey;
-  if (order.position == "before") {
-    const a = order.reference?.id == null ? null : order.nodes[order.nodes.findIndex(n => n.id == order.reference!.id) - 1];
-    orderKey = generateKeyBetween(a?.orderKey ?? null, order.reference?.orderKey ?? null);
-  } else {
-    const b = order.reference?.id == null ? null : order.nodes[order.nodes.findIndex(n => n.id == order.reference!.id) + 1];
-    orderKey = generateKeyBetween(order.reference?.orderKey ?? null, b?.orderKey ?? null);
-  }
+  const orderKey = getOrderKey<T>(order);
+  // @ts-ignore: orderKey must be present at this point
   order.tx.update({ ...order.target, orderKey });
 
   // TODO :Robustness: fix order keys if there are duplicates
   //  (may happen if two nodes are created in the same place simultaneously)
+}
+
+/**
+ * Gets the order key relative to the reference. Nodes must be in order.
+ */
+export function getOrderKey<T extends AnyNodeData & { orderKey: string }>(order: {
+  position: "before" | "after";
+  reference: T | null;
+  nodes: T[];
+}) {
+  let orderKey;
+  if (order.position == "before") {
+    const a =
+      order.reference?.id == null ? null : order.nodes[order.nodes.findIndex((n) => n.id == order.reference!.id) - 1];
+    orderKey = generateKeyBetween(a?.orderKey ?? null, order.reference?.orderKey ?? null);
+  } else {
+    const b =
+      order.reference?.id == null ? null : order.nodes[order.nodes.findIndex((n) => n.id == order.reference!.id) + 1];
+    orderKey = generateKeyBetween(order.reference?.orderKey ?? null, b?.orderKey ?? null);
+  }
+  return orderKey;
 }
 
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];

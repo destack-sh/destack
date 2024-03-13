@@ -198,6 +198,53 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     }
 
     // add to parent/roots
+    this._addToParent(node);
+
+    this.notify(node);
+  }
+
+  extend(...nodes: AnyNodeData[]) {
+    for (const node of nodes) {
+      this.add(node);
+    }
+  }
+
+  update(node: AnyNodeData) {
+    const existing = this.nodesById[node.id];
+    if (!existing && !this.isPartial) throw new Error(`node [id=${node.id}] does not exist`);
+
+    if (existing?.parentPtr?.id != node.parentPtr?.id) {
+      // move
+      if (existing?.parentPtr != null) this._removeFromParent(existing!);
+      if (node.parentPtr != null) this._addToParent(node);
+      this.nodesById[node.id] = node;
+    } else {
+      // simple in place update
+      this.nodesById[node.id] = node;
+      if ("ck" in node) this.nodesByCk[node.ck] = node.id;
+    }
+
+    this.notify(node);
+  }
+
+  remove(node: AnyNodeData) {
+    delete this.nodesById[node.id];
+    if ("ck" in node) delete this.nodesByCk[node.ck];
+
+    // remove from parent/roots
+    this._removeFromParent(node);
+
+    // remove any children (recursively)
+    for (const metatype in this.nodesByParentIdAndType[node.id]) {
+      for (const childId of this.nodesByParentIdAndType[node.id][metatype]) {
+        this.remove(this.nodesById[childId]);
+      }
+    }
+
+    this.notify(node);
+  }
+
+  private _addToParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       if (!this.nodesById[parentId] && !this.isPartial) {
@@ -213,37 +260,9 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     } else {
       this.rootsIds.push(node.id);
     }
-
-    this.notify(node);
   }
 
-  extend(...nodes: AnyNodeData[]) {
-    for (const node of nodes) {
-      this.add(node);
-    }
-  }
-
-  update(node: AnyNodeData) {
-    const existing = this.nodesById[node.id];
-    if (!existing && !this.isPartial) throw new Error(`node [id=${node.id}] does not exist`);
-
-    // remove/re-add to update with parent if needed, otherwise just update in place
-    if (existing?.parentPtr?.id != node.parentPtr?.id) {
-      if (existing != null) this.remove(existing);
-      this.add(node);
-    } else {
-      this.nodesById[node.id] = node;
-      if ("ck" in node) this.nodesByCk[node.ck] = node.id;
-    }
-
-    this.notify(node);
-  }
-
-  remove(node: AnyNodeData) {
-    delete this.nodesById[node.id];
-    if ("ck" in node) delete this.nodesByCk[node.ck];
-
-    // remove from parent/roots
+  private _removeFromParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
@@ -254,14 +273,6 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
       if (rootIdx == -1) throw new Error(`node [id=${node.id}] not found in roots`);
       this.rootsIds.splice(rootIdx, 1);
     }
-    // remove any children (recursively)
-    for (const metatype in this.nodesByParentIdAndType[node.id]) {
-      for (const childId of this.nodesByParentIdAndType[node.id][metatype]) {
-        this.remove(this.nodesById[childId]);
-      }
-    }
-
-    this.notify(node);
   }
 
   get nodes(): AnyNodeData[] {

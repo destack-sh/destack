@@ -113,7 +113,9 @@ export class TransactionBuilder implements Transaction {
       if (propName == "debounce") continue; // ignore special field
       if (propName === "id" || propName === "metatype") {
         // keep as is (but not part of the 'update')
-      } else if ((update as any)[propName] !== undefined) {
+      } else if (propName == "parentPtr" || propName == "archivedAt" || propName == "deletedAt") {
+        // ignore, cannot be updated directly - error?
+      } else if (Object.prototype.hasOwnProperty.call(update, propName)) {
         // update the assigned property
         properties.push((allProperties as any)[propName]);
       } else {

@@ -150,6 +150,82 @@ export function useSingleDropZone(options: {
   return { activeDropZone, getActiveDropZone };
 }
 
+export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
+export const SPLIT_EDGE_ZONE_FRACTION = 0.15;
+
+/*
+ * Track split container view drop events.
+ * The left/top/right/bottom fraction percent are the respective zones, the rest is the center zone.
+ * If the cursor is in two zones at once, the edge we're closest to wins.
+ */
+export function useSplitDropZone(options: {
+  container: Ref<HTMLElement | null | undefined>;
+  kinds: DraggedKind[];
+  metatypes: NodeType[];
+  onDrop?: (dragged: Dragged, anchor: SplitAnchor) => void;
+  enabled?: Ref<boolean>;
+}): {
+  activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
+} {
+  const { isInDropZone } = useDropZone({
+    ...options,
+    onDrop: (dragged) => {
+      options.onDrop?.(dragged, getActiveDropZone().anchor);
+    },
+  });
+
+  const position = useMouseInElement(options.container);
+
+  function getActiveDropZone(): { anchor: SplitAnchor; splitClass: string } {
+    const mouseX = position.elementX.value;
+    const mouseY = position.elementY.value;
+    const distances = {
+      left: mouseX,
+      top: mouseY,
+      right: position.elementWidth.value - mouseX,
+      bottom: position.elementHeight.value - mouseY,
+    };
+    const closestEdge = Object.keys(distances).reduce((a, b) =>
+      (distances as any)[a] < (distances as any)[b] ? a : b,
+    );
+
+    const horizontalEdgeZone = position.elementWidth.value * SPLIT_EDGE_ZONE_FRACTION;
+    const verticalEdgeZone = position.elementHeight.value * SPLIT_EDGE_ZONE_FRACTION;
+    let anchor: SplitAnchor;
+    switch (closestEdge) {
+      case "left":
+        anchor = mouseX <= horizontalEdgeZone ? "left" : "center";
+        break;
+      case "top":
+        anchor = mouseY <= verticalEdgeZone ? "top" : "center";
+        break;
+      case "right":
+        anchor = mouseX >= position.elementWidth.value - horizontalEdgeZone ? "right" : "center";
+        break;
+      case "bottom":
+        anchor = mouseY >= position.elementHeight.value - verticalEdgeZone ? "bottom" : "center";
+        break;
+      default:
+        anchor = "center";
+    }
+
+    const splitClass = {
+      top: "left-0 top-0 w-full h-1/2",
+      bottom: "left-0 top-1/2 w-full h-1/2",
+      left: "left-0 top-0 w-1/2 h-full",
+      right: "left-1/2 top-0 w-1/2 h-full",
+      center: "left-0 top-0 w-full h-full",
+    }[anchor];
+
+    return { anchor, splitClass };
+  }
+
+  const activeDropZone: Ref<{ anchor: SplitAnchor, splitClass: string } | null> = computed(() =>
+    isInDropZone.value ? getActiveDropZone() : null,
+  );
+  return { activeDropZone };
+}
+
 /**
  * Track certain drop zone events across dynamic target regions in a single container.
  */
