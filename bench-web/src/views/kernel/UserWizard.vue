@@ -1,7 +1,8 @@
 <script lang="tsx" setup>
-import { Region, Variant, type NodeReferenceData } from "@/proto/wire";
+import { Region, Variant, type NodeReferenceData, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
+import { removeView } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import String from "@/views/content/String.vue";
@@ -128,7 +129,7 @@ defineExpose({ self: toRef(props, "self") });
         :title="'Close'"
         class="w-full"
         :variant="Variant.V3"
-        @click="() => spaceConnection.sideTx.delete(spaceGraph.get(self)!)"
+        @click="() => removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
       <!-- Error -->
       <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">

@@ -9,6 +9,7 @@ import { toRef, type Ref, ref, watch } from "vue";
 import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import { toNodeReference } from "@/proto/wiring";
+import { removeView } from "@/system/space";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
@@ -91,7 +92,7 @@ defineExpose({ self });
         title="Close"
         class="w-full"
         :variant="Variant.V3"
-        @click="spaceConnection.sideTx.delete(spaceGraph.get(self)!)"
+        @click="() => removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
       <!-- Error -->
       <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
