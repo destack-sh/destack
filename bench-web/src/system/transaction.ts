@@ -190,8 +190,10 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     } else {
       let properties: number[];
       const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeData.metatype]!;
-      if (editType == EditType.UPDATE || editType == EditType.MOVE) {
+      if (editType == EditType.UPDATE) {
         properties = edit.properties;
+      } else if (editType == EditType.MOVE) {
+        properties = [nodeProperties.parentPtr];
       } else if (editType == EditType.ARCHIVE || editType == EditType.UNARCHIVE) {
         properties = [nodeProperties.archivedAt];
       } else if (editType == EditType.SOFT_DELETE || editType == EditType.RESTORE) {
@@ -199,8 +201,9 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
       } else {
         throw new Error(`unexpected edit type: ${editType}`);
       }
-      const existingNode = graph.get({ id: nodeData.id });
+      let existingNode = graph.get({ id: nodeData.id });
       if (!existingNode) throw new Error(`missing node for update: ${edit}`);
+      existingNode = { ...existingNode }; // clone
       for (const propId of properties) {
         const propName = nodeProperties[propId];
         (existingNode as any)[propName] = (nodeData as any)[propName];
