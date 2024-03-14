@@ -14,7 +14,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
   // content
-  [ViewType.STRING]: import("@/views/content/String.vue"),
+  [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
 };
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, any>;
 let didRegisterComponents = false;

@@ -6,7 +6,6 @@ import { createBench, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { toRef, type Ref, ref, watch } from "vue";
-import String from "@/views/content/String.vue";
 import Button from "@/views/controls/Button.vue";
 import { toNodeReference } from "@/proto/wiring";
 import { removeView } from "@/system/space";
@@ -69,7 +68,7 @@ defineExpose({ self });
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
-      <String :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Slug" is-input is-disabled v-model="slug" />
+      <PlainText :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Slug" is-input is-disabled v-model="slug" />
       <!-- Region -->
       <!-- ... -->
     </div>

@@ -147,7 +147,7 @@ abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" |
       parentRef,
       (newParent, oldParent) => {
         if (newParent != oldParent) {
-          if (oldParent) unsub();
+          unsub();
           if (newParent) sub = this.subscribeChildren(newParent, metatype, trigger);
         }
         trigger();
@@ -218,13 +218,14 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
       if (existing?.parentPtr != null) this._removeFromParent(existing!);
       if (node.parentPtr != null) this._addToParent(node);
       this.nodesById[node.id] = node;
+      if (existing) this.notify(existing);
+      this.notify(node);
     } else {
       // simple in place update
       this.nodesById[node.id] = node;
       if ("ck" in node) this.nodesByCk[node.ck] = node.id;
+      this.notify(node);
     }
-
-    this.notify(node);
   }
 
   remove(node: AnyNodeData) {
@@ -336,6 +337,11 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
           this.subsByParentIdAndType[parent.id][metatype].indexOf(callback),
           1,
         );
+        // cleanup
+        if (this.subsByParentIdAndType[parent.id][metatype].length == 0)
+          delete this.subsByParentIdAndType[parent.id][metatype];
+        if (Object.keys(this.subsByParentIdAndType[parent.id]).length == 0)
+          delete this.subsByParentIdAndType[parent.id];
       }
     };
   }
