@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
-import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/positioning";
+import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -64,7 +64,7 @@ defineExpose({ self: toRef(props, "self") });
       <!-- Draggable divider -->
       <div
         v-if="viewIdx > 0"
-        class="pointer-events-auto absolute transition-colors duration-500"
+        class="pointer-events-auto absolute transition-colors duration-300"
         :class="[
           isHorizontal ? 'w-1 cursor-ew-resize' : 'h-1 cursor-ns-resize',
           draggingIdx == viewIdx - 1 ? 'bg-primary-400' : 'bg-transparent hover:bg-primary-300',
@@ -83,3 +83,4 @@ defineExpose({ self: toRef(props, "self") });
     </div>
   </div>
 </template>
+@/utils/layout
