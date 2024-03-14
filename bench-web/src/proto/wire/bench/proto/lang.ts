@@ -7846,6 +7846,10 @@ export enum ViewType {
      */
     SPLIT = 503,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_COLLAPSED = 504;
+     */
+    SPLIT_COLLAPSED = 504,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 505;
      */
     STEPPED = 505,
@@ -7854,9 +7858,9 @@ export enum ViewType {
      */
     STACK = 510,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DISCLOSURE = 511;
+     * @generated from protobuf enum value: VIEW_TYPE_COLLAPSED = 511;
      */
-    DISCLOSURE = 511,
+    COLLAPSED = 511,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_GRID = 512;
      */
@@ -7942,21 +7946,17 @@ export enum ViewType {
      */
     VALUE = 620,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 632;
+     */
+    NUMBER = 632,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 633;
      */
     SLIDER = 633,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 634;
+     * @generated from protobuf enum value: VIEW_TYPE_PLAIN_TEXT = 640;
      */
-    NUMBER = 634,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_PHONE = 635;
-     */
-    PHONE = 635,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 640;
-     */
-    STRING = 640,
+    PLAIN_TEXT = 640,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TEXT = 641;
      */
@@ -7974,14 +7974,6 @@ export enum ViewType {
      */
     TOGGLE = 650,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX = 651;
-     */
-    CHECKBOX = 651,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHECKBOX_GROUP = 652;
-     */
-    CHECKBOX_GROUP = 652,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_PICKER = 653;
      */
     PICKER = 653,
@@ -7994,10 +7986,6 @@ export enum ViewType {
      */
     TIME = 655,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 656;
-     */
-    CALENDAR = 656,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_COLOR = 657;
      */
     COLOR = 657,
@@ -8005,10 +7993,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_FILE = 660;
      */
     FILE = 660,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 661;
-     */
-    DOCUMENT = 661,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_ICON = 662;
      */

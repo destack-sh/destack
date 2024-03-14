@@ -107,7 +107,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 flex-row items-center justify-center whitespace-nowrap border-r-2 border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r-2 border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
         :class="[
           i == selectedTabIdx
             ? 'text-primary-900 shadow-inset-md shadow-primary-900'

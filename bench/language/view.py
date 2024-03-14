@@ -58,10 +58,11 @@ class ViewType(IdEnum):
     WINDOW = 501  # (force window appearance)
     TABBED = 502
     SPLIT = 503
+    SPLIT_COLLAPSED = 504
     # containers (layout)
     STEPPED = 505
     STACK = 510
-    DISCLOSURE = 511
+    COLLAPSED = 511
     GRID = 512
     ROW = 513
     COLUMN = 514
@@ -92,26 +93,21 @@ class ViewType(IdEnum):
     # content
     VALUE = 620  # (generic content based on ... type?)
     # numeric
+    NUMBER = 632
     SLIDER = 633
-    NUMBER = 634
-    PHONE = 635
     # stringy
-    STRING = 640
+    PLAIN_TEXT = 640
     TEXT = 641
     CODE = 642
     JSON = 643
     # selection
     TOGGLE = 650
-    CHECKBOX = 651
-    CHECKBOX_GROUP = 652
     PICKER = 653
     DATE = 654
     TIME = 655
-    CALENDAR = 656
     COLOR = 657
     # file
     FILE = 660
-    DOCUMENT = 661
     ICON = 662
     IMAGE = 663
     VIDEO = 664

@@ -5,7 +5,7 @@ import { makeIcon } from "@/system/icon";
 import { removeView } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
-import String from "@/views/content/String.vue";
+import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
@@ -75,7 +75,7 @@ defineExpose({ self: toRef(props, "self") });
     </div>
     <!-- Data -->
     <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
-      <String
+      <PlainText
         v-if="state === 'sign-up'"
         :icon="makeIcon({ name: 'fas fa-user' })"
         name="name"
@@ -83,8 +83,8 @@ defineExpose({ self: toRef(props, "self") });
         is-input
         v-model="name"
       />
-      <String :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
-      <String
+      <PlainText :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
+      <PlainText
         v-if="state === 'sign-up'"
         :icon="makeIcon({ name: 'fas fa-envelope' })"
         name="email"
@@ -92,7 +92,7 @@ defineExpose({ self: toRef(props, "self") });
         is-input
         v-model="email"
       />
-      <String
+      <PlainText
         :icon="makeIcon({ name: 'fas fa-key' })"
         name="password"
         title="Password"
