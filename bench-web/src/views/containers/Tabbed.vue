@@ -101,7 +101,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
     <!-- Tab header -->
     <Scroll
       ref="headerRef"
-      class="scrollbar-none relative flex w-full flex-row border-b-2 border-gray-300"
+      class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
       :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
@@ -118,7 +118,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
             ? 'text-primary-900 shadow-inset-md shadow-primary-900'
             : 'text-gray-700 hover:text-primary-900',
         ]"
-        @click="select(tab)"
+        @mousedown="select(tab)"
         :draggable="true"
         @dragstart="
           (e: DragEvent) => {
@@ -134,13 +134,14 @@ defineExpose({ self: toRef(props, "self"), select, remove });
           :class="i == selectedTabIdx ? '' : 'text-gray-600 group-hover:text-primary-900'"
         />
         <span class="truncate" :class="[tab.title ? '' : 'italic', i == selectedTabIdx ? '' : '']">
+          {{ tab.orderKey /* nocheckin */ }}
           {{ tab.title ?? `Tab ${i + 1}` }}
         </span>
         <!-- Close tab button -->
         <button
           class="ml-1.5 group-hover:text-gray-400"
           :class="[i == selectedTabIdx ? 'text-gray-400' : 'text-transparent']"
-          @click.stop="remove(tab)"
+          @mousedown.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />
         </button>
@@ -184,7 +185,10 @@ defineExpose({ self: toRef(props, "self"), select, remove });
       :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
     >
       <div class="relative h-full w-full">
-        <div class="absolute z-20 bg-primary-400 opacity-40" :class="activeBodyDropZone.splitClass" />
+        <div
+          class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-300"
+          :class="activeBodyDropZone.splitClass"
+        />
       </div>
     </div>
   </div>

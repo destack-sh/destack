@@ -208,6 +208,7 @@ export function useScrollArea(area: {
   trackWidth: MaybeRef<ScrollbarWidth>;
 }): {
   thumb: Ref<Rect>;
+  setThumb: (newThumb: { left: number; top: number }) => void;
   isScrolling: Ref<boolean>;
   isOverflown: Ref<boolean>;
 } {
@@ -216,8 +217,8 @@ export function useScrollArea(area: {
   const scroll = useScroll(area.container);
   const containerSize = useElementSize(area.container);
 
-  const thumb: Ref<Rect> = computed({
-    get() {
+  const thumb: Ref<Rect> = computed(() => {
+    {
       if (area.container.value == null) return { left: 0, top: 0, width: 0, height: 0 };
       const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
       const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
@@ -231,21 +232,22 @@ export function useScrollArea(area: {
       } else {
         return { left: 0, top: thumbPos, width: trackWidthRef.value, height: thumbSize };
       }
-    },
-    set(newThumb) {
-      if (area.container.value == null) return;
-      const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
-      const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
-      const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
-
-      const newScrollPos = ((isHorizontal ? newThumb.left : newThumb.top) / clientSize) * scrollSize;
-      if (isHorizontal) {
-        scroll.x.value = newScrollPos;
-      } else {
-        scroll.y.value = newScrollPos;
-      }
-    },
+    }
   });
+
+  function setThumb(newThumb: { left: number; top: number }) {
+    if (area.container.value == null) return;
+    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+
+    const newScrollPos = ((isHorizontal ? newThumb.left : newThumb.top) / clientSize) * scrollSize;
+    if (isHorizontal) {
+      scroll.x.value = newScrollPos;
+    } else {
+      scroll.y.value = newScrollPos;
+    }
+  }
 
   const isOverflown = computed(() => {
     if (area.container.value == null) return false;
@@ -255,5 +257,5 @@ export function useScrollArea(area: {
     return scrollSize > clientSize;
   });
 
-  return { thumb, isScrolling: scroll.isScrolling, isOverflown };
+  return { thumb, setThumb, isScrolling: scroll.isScrolling, isOverflown };
 }

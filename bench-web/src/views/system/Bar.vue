@@ -46,8 +46,8 @@ const props = defineProps<{
           @click="
             () => {
               addViewToCurrentRoot(
-                { type: ViewType.USER_WIZARD, name: 'User Wizard', title: 'Log In' },
                 spaceConnection.sideTx,
+                { type: ViewType.USER_WIZARD, name: 'User Wizard', title: 'Log In' },
               );
             }
           "
