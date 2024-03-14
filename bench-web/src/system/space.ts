@@ -8,7 +8,7 @@ import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } fro
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
-import { DEFAULT_ORIENTATION, splitBox } from "@/utils/positioning";
+import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { computed, watch } from "vue";
 
 // bench/packages
@@ -93,18 +93,20 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   let ord = 0;
   for (const node of graph.nodes) {
     if ((node as ViewData).type == ViewType.TABBED) {
-      graph.add(
-        makeNode({
-          metatype: NodeType.VIEW,
-          parentPtr: toNodeReference(node),
-          packagePtr: LOCAL_PACKAGE_PTR,
-          type: ViewType.STRING,
-          icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-          title: `Registration ${ord++}`,
-          orderKey: "a0",
-          isInput: true,
-        }),
-      );
+      for (const i of [0, 1, 2, 3, 4, 5]) {
+        graph.add(
+          makeNode({
+            metatype: NodeType.VIEW,
+            parentPtr: toNodeReference(node),
+            packagePtr: LOCAL_PACKAGE_PTR,
+            type: ViewType.PAGE,
+            icon: makeIcon({ name: "fas fa-right-from-bracket" }),
+            title: `Test Page ${ord++}`,
+            orderKey: "a0",
+            isInput: true,
+          }),
+        );
+      }
     }
   }
 

@@ -1,8 +1,8 @@
 import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
-import { useMouseInElement, useMousePressed } from "@vueuse/core";
-import { computed, ref, watch, type Ref } from "vue";
+import { useElementSize, useMouseInElement, useMousePressed, useScroll } from "@vueuse/core";
+import { computed, ref, watch, type Ref, type MaybeRef, toRef } from "vue";
 
 export const MIN_WINDOW_SIZE = 200;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
@@ -180,12 +180,80 @@ export function useSplitView(
  * Gets the exact half sized box for a view (for both dimensions, for absolute and relative)
  */
 export function splitBox(size?: BoxData): BoxData {
-  if (size == null) return { metatype: BenchType.BOX, widthRelative: DEFAULT_RELATIVE_UNITS, heightRelative: DEFAULT_RELATIVE_UNITS };
+  if (size == null)
+    return { metatype: BenchType.BOX, widthRelative: DEFAULT_RELATIVE_UNITS, heightRelative: DEFAULT_RELATIVE_UNITS };
   return {
     metatype: BenchType.BOX,
     width: size.width != null ? size.width / 2 : undefined,
     widthRelative: size.width != null ? undefined : (size.widthRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
     height: size.height != null ? size.height / 2 : undefined,
     heightRelative: size.height != null ? undefined : (size.heightRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
-  }
+  };
+}
+
+type Rect = { left: number; top: number; width: number; height: number };
+
+export enum ScrollbarWidth {
+  sm = 4,
+  md = 8,
+  lg = 12,
+}
+
+/**
+ * Defines a scrollable area with a settable thumb position (and dynamic size.)
+ */
+export function useScrollArea(area: {
+  container: Ref<HTMLElement | null>;
+  orientation: MaybeRef<Orientation | undefined>;
+  trackWidth: MaybeRef<ScrollbarWidth>;
+}): {
+  thumb: Ref<Rect>;
+  isScrolling: Ref<boolean>;
+  isOverflown: Ref<boolean>;
+} {
+  const orientationRef = toRef(area.orientation) as Ref<Orientation>;
+  const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
+  const scroll = useScroll(area.container);
+  const containerSize = useElementSize(area.container);
+
+  const thumb: Ref<Rect> = computed({
+    get() {
+      if (area.container.value == null) return { left: 0, top: 0, width: 0, height: 0 };
+      const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+      const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+      const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+      const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
+      const thumbSize = Math.max((clientSize / scrollSize) * clientSize, 20); // Ensure thumb has a minimum size for usability
+      const thumbPos = (scrollPos / scrollSize) * clientSize;
+
+      if (isHorizontal) {
+        return { left: thumbPos, top: 0, width: thumbSize, height: trackWidthRef.value };
+      } else {
+        return { left: 0, top: thumbPos, width: trackWidthRef.value, height: thumbSize };
+      }
+    },
+    set(newThumb) {
+      if (area.container.value == null) return;
+      const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+      const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+      const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+
+      const newScrollPos = ((isHorizontal ? newThumb.left : newThumb.top) / clientSize) * scrollSize;
+      if (isHorizontal) {
+        scroll.x.value = newScrollPos;
+      } else {
+        scroll.y.value = newScrollPos;
+      }
+    },
+  });
+
+  const isOverflown = computed(() => {
+    if (area.container.value == null) return false;
+    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+    return scrollSize > clientSize;
+  });
+
+  return { thumb, isScrolling: scroll.isScrolling, isOverflown };
 }

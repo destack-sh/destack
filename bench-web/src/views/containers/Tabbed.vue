@@ -6,9 +6,11 @@ import { IconInline } from "@/system/icon";
 import { addView, removeView, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
+import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
+import Scroll from "@/views/containers/Scroll.vue";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "selection">
@@ -97,10 +99,13 @@ defineExpose({ self: toRef(props, "self"), select, remove });
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tab header -->
-    <div
+    <Scroll
       ref="headerRef"
-      class="relative flex h-[30px] w-full flex-row overflow-x-scroll border-b-2 border-gray-300"
+      class="scrollbar-none relative flex w-full flex-row border-b-2 border-gray-300"
       :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
+      :orientation="Orientation.HORIZONTAL"
+      :track-width="ScrollbarWidth.sm"
+      :size="{ width: innerSize.width, height: 30 }"
     >
       <!-- Tab button -->
       <button
@@ -151,7 +156,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
         class="absolute left-0 z-10 h-full w-1 bg-primary-400"
       />
-    </div>
+    </Scroll>
     <!-- Tab body -->
     <div
       ref="bodyRef"
@@ -179,10 +184,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
       :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
     >
       <div class="relative h-full w-full">
-        <div
-          class="absolute z-20 bg-primary-400 opacity-40 transition-all duration-150"
-          :class="activeBodyDropZone.splitClass"
-        />
+        <div class="absolute z-20 bg-primary-400 opacity-40" :class="activeBodyDropZone.splitClass" />
       </div>
     </div>
   </div>

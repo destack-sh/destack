@@ -19,7 +19,7 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
 </script>
 
 <template>
-  <div ref="spaceRef" class="max-h-screen w-full overflow-hidden bg-gray-100 text-sm">
+  <div ref="spaceRef" class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm">
     <Bar
       ref="barRef"
       class="w-full border-b-2 border-gray-300"
@@ -41,9 +41,16 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
 * {
   /* stop overscrolling */
   overscroll-behavior: none;
-  /* custom scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: #fbbf24;
+  scrollbar-gutter: overlay;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 ::selection {

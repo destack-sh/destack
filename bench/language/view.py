@@ -58,11 +58,11 @@ class ViewType(IdEnum):
     WINDOW = 501  # (force window appearance)
     TABBED = 502
     SPLIT = 503
-    SPLIT_COLLAPSED = 504
+    SPLIT_COLLAPSIBLE = 504
     # containers (layout)
     STEPPED = 505
     STACK = 510
-    COLLAPSED = 511
+    COLLAPSIBLE = 511
     GRID = 512
     ROW = 513
     COLUMN = 514
@@ -105,6 +105,7 @@ class ViewType(IdEnum):
     PICKER = 653
     DATE = 654
     TIME = 655
+    CALENDAR = 656
     COLOR = 657
     # file
     FILE = 660
