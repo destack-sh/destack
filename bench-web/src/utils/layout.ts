@@ -1,8 +1,12 @@
 import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
-import { useElementSize, useMouseInElement, useMousePressed, useScroll } from "@vueuse/core";
+import { useElementSize, useEventListener, useMouseInElement, useMousePressed, useScroll } from "@vueuse/core";
 import { computed, ref, watch, type Ref, type MaybeRef, toRef } from "vue";
+
+// our own 'dragging' state so we can block pointer events at the root component
+const _isDragging = ref(false);
+export const isDragging = computed(() => _isDragging.value);
 
 export const MIN_WINDOW_SIZE = 200;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
@@ -36,7 +40,11 @@ export function splitView(
   updateSeparator: (sepIdx: number, toPx: number) => [Partial<ViewData>, Partial<ViewData>];
 } {
   const getAbsolutePx = (view: ViewData) => {
-    return layoutRef.value.orientation == Orientation.HORIZONTAL ? view.size?.width : view.size?.height;
+    if (layoutRef.value.orientation == Orientation.HORIZONTAL) {
+      return view.size?.widthRelative != null ? null : view.size?.width;
+    } else {
+      return view.size?.heightRelative != null ? null : view.size?.height;
+    }
   };
   const getRelativeUnits = (view: ViewData) => {
     return layoutRef.value.orientation == Orientation.HORIZONTAL ? view.size?.widthRelative : view.size?.heightRelative;
@@ -44,22 +52,20 @@ export function splitView(
 
   function getTotals() {
     // figure out assigned space
-    const totalPx =
+    const px =
       layoutRef.value.orientation === Orientation.HORIZONTAL ? containerRef.value.width : containerRef.value.height;
-    const totalAbsolutePx =
-      viewsRef.value.reduce((acc, view) => (getAbsolutePx(view) ?? 0) + acc, 0) -
-      layoutRef.value.dividerSize * (viewsRef.value.length - 1);
-    const totalRelativePx = totalPx - totalAbsolutePx;
-    const totalRelativeUnits = viewsRef.value
+    const absolutePx = viewsRef.value.reduce((acc, view) => (getAbsolutePx(view) ?? 0) + acc, 0);
+    const relativePx = px - absolutePx;
+    const relativeUnits = viewsRef.value
       .filter((view) => getAbsolutePx(view) == null)
       .reduce((acc, view) => (getRelativeUnits(view) ?? DEFAULT_RELATIVE_UNITS) + acc, 0);
-    return { totalPx, totalAbsolutePx, totalRelativePx, totalRelativeUnits };
+    return { px, absolutePx, relativePx, relativeUnits };
   }
 
   const sizedViews = computed(() => {
     const container = containerRef.value;
     const isHorizontal = layoutRef.value.orientation === Orientation.HORIZONTAL;
-    const { totalRelativePx, totalRelativeUnits } = getTotals();
+    const total = getTotals();
 
     // distribute the relative space
     const perViewPx: number[] = [];
@@ -69,7 +75,7 @@ export function splitView(
         perViewPx.push(absolutePx);
       } else {
         const relativeUnits = getRelativeUnits(view) ?? DEFAULT_RELATIVE_UNITS;
-        const relativePx = Math.round((relativeUnits / totalRelativeUnits) * totalRelativePx);
+        const relativePx = roundToDigits((relativeUnits / total.relativeUnits) * total.relativePx, 0);
         perViewPx.push(relativePx);
       }
     }
@@ -90,6 +96,7 @@ export function splitView(
       });
       offsetPx += perViewPx[i];
     }
+
     return sizedViews;
   });
 
@@ -122,8 +129,8 @@ export function splitView(
         const newSize = isHorizontal ? { width: targetPx } : { height: targetPx };
         return { ...update, size: { metatype: BenchType.BOX, ...newSize } };
       } else {
-        const { totalRelativePx, totalRelativeUnits } = getTotals();
-        const targetRelativeUnits = roundToDigits((targetPx / totalRelativePx) * totalRelativeUnits, 3);
+        const total = getTotals();
+        const targetRelativeUnits = roundToDigits((targetPx / total.relativePx) * total.relativeUnits, 3);
         const newSize = isHorizontal ? { widthRelative: targetRelativeUnits } : { heightRelative: targetRelativeUnits };
         return { ...update, size: { metatype: BenchType.BOX, ...newSize } };
       }
@@ -150,6 +157,7 @@ export function useSplitView(
   const { pressed } = useMousePressed();
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
   const draggingIdx = ref<number | null>(null);
+
   watch([pressed, mouseRelativeX, mouseRelativeY], () => {
     if (draggingIdx.value == null) return;
     if (!pressed.value) {
@@ -172,6 +180,8 @@ export function useSplitView(
       debounce: true,
     });
   });
+
+  watch(draggingIdx, () => (_isDragging.value = draggingIdx.value != null));
 
   return { sizedViews, draggingIdx };
 }
@@ -209,13 +219,27 @@ export function useScrollArea(area: {
 }): {
   thumb: Ref<Rect>;
   setThumb: (newThumb: { left: number; top: number }) => void;
-  isScrolling: Ref<boolean>;
+  moveThumb: (movement: { x: number; y: number }) => void;
+  isManualScrolling: Ref<boolean>;
+  isNativeScrolling: Ref<boolean>;
   isOverflown: Ref<boolean>;
 } {
   const orientationRef = toRef(area.orientation) as Ref<Orientation>;
   const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
   const scroll = useScroll(area.container);
   const containerSize = useElementSize(area.container);
+
+  //
+  // track scrolling state
+  //
+
+  const isOverflown = computed(() => {
+    if (area.container.value == null) return false;
+    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+    return scrollSize > clientSize;
+  });
 
   const thumb: Ref<Rect> = computed(() => {
     {
@@ -235,13 +259,27 @@ export function useScrollArea(area: {
     }
   });
 
+  //
+  // manual scrolling
+  //
+
+  const isManualScrolling = ref(false);
+  const { pressed } = useMousePressed();
+  useEventListener(["mousemove"], (e) => {
+    if (isManualScrolling.value) {
+      moveThumb({ x: e.movementX, y: e.movementY });
+    }
+  });
+
   function setThumb(newThumb: { left: number; top: number }) {
     if (area.container.value == null) return;
     const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
     const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
     const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
 
-    const newScrollPos = ((isHorizontal ? newThumb.left : newThumb.top) / clientSize) * scrollSize;
+    // calculate new scroll position (capped to scroll bounds)
+    let newScrollPos = ((isHorizontal ? newThumb.left : newThumb.top) / clientSize) * scrollSize;
+    newScrollPos = Math.max(0, Math.min(scrollSize - clientSize, newScrollPos));
     if (isHorizontal) {
       scroll.x.value = newScrollPos;
     } else {
@@ -249,13 +287,16 @@ export function useScrollArea(area: {
     }
   }
 
-  const isOverflown = computed(() => {
-    if (area.container.value == null) return false;
-    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
-    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
-    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
-    return scrollSize > clientSize;
-  });
+  function moveThumb(movement: { x: number; y: number }) {
+    setThumb({ left: thumb.value.left + movement.x, top: thumb.value.top + movement.y });
+  }
 
-  return { thumb, setThumb, isScrolling: scroll.isScrolling, isOverflown };
+  watch(pressed, () => {
+    if (!pressed.value) {
+      isManualScrolling.value = false;
+    }
+  });
+  watch(isManualScrolling, () => (_isDragging.value = isManualScrolling.value));
+
+  return { thumb, setThumb, moveThumb, isManualScrolling, isNativeScrolling: scroll.isScrolling, isOverflown };
 }

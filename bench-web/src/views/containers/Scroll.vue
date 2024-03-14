@@ -1,34 +1,37 @@
 <script lang="tsx" setup>
-import { ViewData, NodeReferenceData, Orientation, BoxData } from "@/proto/wire/";
-import { useScrollArea, ScrollbarWidth } from "@/utils/layout";
+import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
+import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
-import { useMousePressed } from "@vueuse/core";
 import { ref, toRef, watch } from "vue";
 
 const props = defineProps<
   {
     self?: NodeReferenceData | undefined;
     trackWidth: ScrollbarWidth;
+    trackIsOverlay?: boolean;
     size: Required<Pick<BoxData, "width" | "height">>;
   } & Pick<ViewData, "orientation" | "variant">
 >();
 const emit = defineEmits(viewEmits());
 
 const areaRef = ref<HTMLElement | null>(null);
-const isScrolling = ref(false);
-const {
-  thumb,
-  isScrolling: isNativeScrolling,
-  isOverflown,
-} = useScrollArea({
+const { thumb, isManualScrolling, isNativeScrolling, isOverflown } = useScrollArea({
   container: areaRef,
   orientation: toRef(props, "orientation"),
   trackWidth: toRef(props, "trackWidth"),
 });
-const { pressed } = useMousePressed();
-watch(pressed, () => {
-  if (!pressed.value) {
-    isScrolling.value = false;
+
+// show scrolling instantly, fade out once inactive
+const isVisiblyScrolling = ref(false);
+watch([isManualScrolling, isNativeScrolling], () => {
+  if (isManualScrolling.value || isNativeScrolling.value) {
+    isVisiblyScrolling.value = true;
+  } else {
+    setTimeout(() => {
+      if (!isManualScrolling.value && !isNativeScrolling.value) {
+        isVisiblyScrolling.value = false;
+      }
+    }, 1000);
   }
 });
 
@@ -36,15 +39,22 @@ const self = toRef(props, "self");
 defineExpose({ self });
 </script>
 <template>
-  <div class="relative">
+  <div
+    class="relative"
+    :style="{
+      width: size.width + 'px',
+      height: size.height + 'px',
+    }"
+  >
     <!-- Scroll area -->
     <div
       ref="areaRef"
       class="scrollbar-none relative"
-      :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-auto' : 'overflow-y-auto', $attrs.class]"
+      :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
       :style="{
-        width: (orientation == Orientation.HORIZONTAL ? size.width : size.width - trackWidth) + 'px',
-        height: (orientation == Orientation.HORIZONTAL ? size.height - trackWidth : size.height) + 'px',
+        width: (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
+        height:
+          (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
       }"
     >
       <slot />
@@ -64,9 +74,9 @@ defineExpose({ self });
       <!-- Scroll thumb -->
       <div
         v-if="isOverflown"
-        class="absolute z-40 rounded-md transition-opacity delay-100 duration-300"
+        class="absolute z-40 rounded-md transition-opacity duration-300"
         :class="[
-          isScrolling || isNativeScrolling
+          isVisiblyScrolling
             ? 'bg-primary-400 opacity-100'
             : 'bg-primary-300 opacity-0 hover:opacity-100 group-hover:opacity-80',
         ]"
@@ -76,7 +86,7 @@ defineExpose({ self });
           width: thumb.width + 'px',
           height: thumb.height + 'px',
         }"
-        @mousedown="isScrolling = true"
+        @mousedown="isManualScrolling = true"
       />
     </div>
   </div>
