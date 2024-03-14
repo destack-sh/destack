@@ -9,7 +9,7 @@ import { log } from "@/utils/log";
 import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref, nextTick } from "vue";
 import Scroll from "@/views/containers/Scroll.vue";
 
 const props = defineProps<
@@ -38,6 +38,7 @@ const innerSize = computed(() => ({
 
 function select(tab: ViewData) {
   log.debug("tabbed.select", tab);
+  // select in graph
   spaceConnection.sideTx.update({
     metatype: NodeType.VIEW,
     id: props.self.id,
@@ -47,6 +48,11 @@ function select(tab: ViewData) {
       nodesPtr: [toNodeReference(tab)],
     },
   });
+  // focus tab in header
+  nextTick(() => {
+    const tabRef = tabsRef.value[tab.id];
+    tabRef!.scrollIntoView({ block: "nearest", inline: "nearest" });
+  })
 }
 
 function remove(tab: ViewData) {
@@ -105,6 +111,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
       :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
+      track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
     >
       <!-- Tab button -->
@@ -134,7 +141,6 @@ defineExpose({ self: toRef(props, "self"), select, remove });
           :class="i == selectedTabIdx ? '' : 'text-gray-600 group-hover:text-primary-900'"
         />
         <span class="truncate" :class="[tab.title ? '' : 'italic', i == selectedTabIdx ? '' : '']">
-          {{ tab.orderKey /* nocheckin */ }}
           {{ tab.title ?? `Tab ${i + 1}` }}
         </span>
         <!-- Close tab button -->

@@ -18,10 +18,12 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
+
+const BORDER_SIZE = 2;
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: orientation.value,
   minPx: MIN_WINDOW_SIZE,
-  dividerSize: 2,
+  dividerSize: BORDER_SIZE,
 }));
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const { sizedViews, draggingIdx } = useSplitView(
@@ -40,28 +42,36 @@ defineExpose({ self: toRef(props, "self") });
     ref="containerRef"
     class="relative bg-gray-100"
     :style="{ width: size.width + 'px', height: size.height + 'px' }"
-    :class="[
-      draggingIdx != null ? (isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize') : '',
-      draggingIdx != null ? 'pointer-events-none select-none' : 'pointer-events-auto select-auto',
-    ]"
+    :class="[draggingIdx != null ? (isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize') : '']"
   >
     <!-- Frames -->
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Frame -->
       <div
         class="absolute border-gray-300 bg-gray-100"
-        :class="[viewIdx > 0 ? (isHorizontal ? 'border-l-2' : 'border-t-2') : '']"
-        :style="{ left: left + 'px', top: top + 'px', width: width + 'px', height: height + 'px' }"
+        :style="{
+          borderLeftWidth: viewIdx > 0 && isHorizontal ? BORDER_SIZE + 'px' : '0',
+          borderTopWidth: viewIdx > 0 && !isHorizontal ? BORDER_SIZE + 'px' : '0',
+          left: left + 'px',
+          top: top + 'px',
+          width: width + 'px',
+          height: height + 'px',
+        }"
       >
-        <!-- Content -->
+        <!-- Frame content -->
         <component
           v-if="getViewComponent(view.type) != null"
           :is="getViewComponent(view.type)"
-          v-bind="getViewBinding(view, { width, height })"
+          v-bind="
+            getViewBinding(view, {
+              width: isHorizontal && viewIdx > 0 ? width - BORDER_SIZE : width,
+              height: !isHorizontal && viewIdx > 0 ? height - BORDER_SIZE : height,
+            })
+          "
         />
         <div v-else class="bg-red-100 text-center">{{ view.type }}</div>
       </div>
-      <!-- Draggable divider -->
+      <!-- Frame divider (draggable) -->
       <div
         v-if="viewIdx > 0"
         class="pointer-events-auto absolute transition-colors duration-300"
