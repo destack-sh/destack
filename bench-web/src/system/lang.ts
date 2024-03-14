@@ -16,7 +16,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import type { Transaction } from "@/system/transaction";
-import { generateKeyBetween } from "@/utils/fractional";
+import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
@@ -78,21 +78,36 @@ export function updateOrderKey<T extends AnyNodeData & { orderKey: string }>(ord
   tx: Transaction;
   target: T;
   position: "before" | "after";
-  reference: T | null;
-  nodes: T[];
+  referenceId: string | null;
+  nodes: () => T[];
 }) {
-  const orderKey = getOrderKey<T>(order);
-  // @ts-ignore: orderKey must be present at this point
+  let orderKey;
+  let nodes = order.nodes();
+  try {
+    orderKey = getOrderKey<T>({
+      nodes,
+      position: order.position,
+      reference: order.referenceId == null ? null : nodes.find((n) => n.id == order.referenceId) ?? null,
+    });
+  } catch {
+    // 'fix' order keys if we couldn't generate one
+    //  (usually because of duplicates, we don't enforce uniqueness per order key for simplicity)
+    fixOrderKeys(order.tx, nodes);
+    nodes = order.nodes(); // 'refresh' to apply tx changes
+    orderKey = getOrderKey<T>({
+      nodes,
+      position: order.position,
+      reference: order.referenceId == null ? null : nodes.find((n) => n.id == order.referenceId) ?? null,
+    });
+  }
+  // @ts-ignore: orderKey must exist
   order.tx.update({ ...order.target, orderKey });
-
-  // TODO :Robustness: fix order keys if there are duplicates
-  //  (may happen if two nodes are created in the same place simultaneously)
 }
 
 /**
  * Gets the order key relative to the reference. Nodes must be in order.
  */
-export function getOrderKey<T extends AnyNodeData & { orderKey: string }>(order: {
+export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
   position: "before" | "after";
   reference: T | null;
   nodes: T[];
@@ -108,6 +123,34 @@ export function getOrderKey<T extends AnyNodeData & { orderKey: string }>(order:
     orderKey = generateKeyBetween(order.reference?.orderKey ?? null, b?.orderKey ?? null);
   }
   return orderKey;
+}
+
+/**
+ * Patches any broken order keys to put the nodes in the given order.
+ */
+export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: Transaction, nodes: T[]) {
+  // ensure nodes are in current order
+  nodes.sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+
+  // scan for successive duplicates (they must be successive now)
+  let i = 0;
+  while (i < nodes.length) {
+    const prevOrderKey = i == 0 ? null : nodes[i - 1].orderKey;
+    const node = nodes[i];
+    if (node.orderKey == prevOrderKey) {
+      // find all duplicates with same key from here and fix them in one go
+      const numDuplicates = nodes.slice(i).filter((n) => n.orderKey == node.orderKey).length;
+      const duplicates = nodes.slice(i, i + numDuplicates);
+      const orderKeys = generateNKeysBetween(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
+      for (let j = 0; j < numDuplicates; j++) {
+        // @ts-ignore: orderKey must exist
+        tx.update({ ...duplicates[j], orderKey: orderKeys[j] });
+      }
+      i += numDuplicates;
+    } else {
+      i++;
+    }
+  }
 }
 
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];

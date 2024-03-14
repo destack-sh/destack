@@ -76,7 +76,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     name: "Primary",
     title: "Primary Window",
     orderKey: "a1",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
   const secondary = makeNode({
     metatype: NodeType.VIEW,
@@ -89,11 +89,10 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
   graph.extend(space, primary, secondary);
-  // nocheckin testing
   let ord = 0;
   for (const node of graph.nodes) {
     if ((node as ViewData).type == ViewType.TABBED) {
-      for (const i of [0, 1, 2, 3, 4, 5]) {
+      for (const i of [0, 1, 2]) {
         graph.add(
           makeNode({
             metatype: NodeType.VIEW,
@@ -114,8 +113,8 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
 }
 
 export function addViewToCurrentRoot(
-  view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
   tx: Transaction,
+  view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
 ) {
   const root = spaceGraph.nodes.find(
     (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
@@ -133,7 +132,7 @@ export function addViewToCurrentRoot(
 }
 
 /**
- * Removes the given view from the space graph, taking care to close now-empty parents.
+ * Removes the given view from the space graph, taking care to clean up.
  */
 export function removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
   log.debug("view.remove", view);
@@ -142,9 +141,15 @@ export function removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData
   cleanupRootView(tx, graph, parent);
 }
 
+/**
+ * Cleanup previously split root views that are no longer needed.
+ */
 export function cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
   if (!ROOT_VIEW_TYPES.includes(view.type)) return;
-  if (graph.getChildren(view, NodeType.VIEW).length == 0) {
+  if (
+    graph.getChildren(view, NodeType.VIEW).length == 0 &&
+    graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1
+  ) {
     removeView(tx, graph, view);
   }
 }
@@ -158,19 +163,17 @@ export function addView(
   self: ViewData,
   child: ViewData,
   anchor: "start" | "end",
-  targetId: string | null,
+  referenceId: string | null,
 ) {
-  log.debug("view.add", self, child, anchor, targetId);
-  const children = graph.getChildren(self, NodeType.VIEW);
+  log.debug("view.add", self, child, anchor, referenceId);
   // move & update order
-  if (child.id != targetId) {
-    const targetNode = targetId == null ? null : children.find((v) => v.id == targetId) ?? null;
+  if (child.id != referenceId) {
     updateOrderKey({
       tx,
       target: child,
       position: anchor == "start" ? "before" : "after",
-      reference: targetNode,
-      nodes: children,
+      referenceId,
+      nodes: () => graph.getChildren(self, NodeType.VIEW),
     });
   }
   if (child.parentPtr?.id != self.id) {

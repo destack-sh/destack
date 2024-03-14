@@ -1,22 +1,21 @@
 import {
   BENCH_TYPE_BY_MESSAGE_TYPE_NAME,
   BenchType,
+  ClientData,
+  ClientProperty,
   MESSAGE_TYPE_BY_BENCH_TYPE,
+  NodeType,
   PROPERTY_ENUM_BY_TYPE,
   StructType,
+  UserData,
   type AnyPropertyType,
   type AnyTypeMapping,
-  NodeType,
-  ClientData,
-  UserData,
-  ClientProperty,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { NodeGraph, LayerNodeGraph, ProxyNodeGraph } from "@/system/graph";
+import { LayerNodeGraph, NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
-import { nextTick, watch } from "vue";
 
 const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
   [ScalarType.DOUBLE]: () => Math.random(),

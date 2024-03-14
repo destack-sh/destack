@@ -10,13 +10,17 @@ const props = defineProps<
     self?: NodeReferenceData | undefined;
     trackWidth: ScrollbarWidth;
     size: Required<Pick<BoxData, "width" | "height">>;
-  } & Pick<ViewData, "orientation">
+  } & Pick<ViewData, "orientation" | "variant">
 >();
 const emit = defineEmits(viewEmits());
 
 const areaRef = ref<HTMLElement | null>(null);
 const isScrolling = ref(false);
-const { thumb, isScrolling: isNativeScrolling, isOverflown } = useScrollArea({
+const {
+  thumb,
+  isScrolling: isNativeScrolling,
+  isOverflown,
+} = useScrollArea({
   container: areaRef,
   orientation: toRef(props, "orientation"),
   trackWidth: toRef(props, "trackWidth"),
@@ -60,11 +64,11 @@ defineExpose({ self });
       <!-- Scroll thumb -->
       <div
         v-if="isOverflown"
-        class="absolute z-40 transition-colors duration-300"
+        class="absolute z-40 rounded-md transition-opacity delay-100 duration-300"
         :class="[
           isScrolling || isNativeScrolling
             ? 'bg-primary-400 opacity-100'
-            : 'bg-primary-300 opacity-0 group-hover:opacity-80',
+            : 'bg-primary-300 opacity-0 hover:opacity-100 group-hover:opacity-80',
         ]"
         :style="{
           left: thumb.left + 'px',
