@@ -2,7 +2,8 @@
 import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
-import { ref, toRef, watch } from "vue";
+import { useMouseInElement } from "@vueuse/core";
+import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   {
@@ -15,6 +16,8 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 
 const areaRef = ref<HTMLElement | null>(null);
+const areaMouse = useMouseInElement(areaRef);
+const isMouseInArea = computed(() => !areaMouse.isOutside.value);
 const { thumb, isManualScrolling, isNativeScrolling, isOverflown } = useScrollArea({
   container: areaRef,
   orientation: toRef(props, "orientation"),
@@ -53,8 +56,7 @@ defineExpose({ self });
       :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
       :style="{
         width: (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
-        height:
-          (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
+        height: (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
       }"
     >
       <slot />
@@ -74,11 +76,14 @@ defineExpose({ self });
       <!-- Scroll thumb -->
       <div
         v-if="isOverflown"
-        class="absolute z-40 rounded-md transition-opacity duration-300"
+        class="absolute z-40 rounded-md transition-colors duration-300"
         :class="[
+          'hover:opacity-100 group-hover:opacity-80',
           isVisiblyScrolling
             ? 'bg-primary-400 opacity-100'
-            : 'bg-primary-300 opacity-0 hover:opacity-100 group-hover:opacity-80',
+            : isMouseInArea
+              ? 'bg-primary-300 opacity-80'
+              : 'bg-primary-300 opacity-0',
         ]"
         :style="{
           left: thumb.left + 'px',

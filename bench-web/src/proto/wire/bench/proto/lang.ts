@@ -7846,9 +7846,9 @@ export enum ViewType {
      */
     SPLIT = 503,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_COLLAPSED = 504;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_COLLAPSIBLE = 504;
      */
-    SPLIT_COLLAPSED = 504,
+    SPLIT_COLLAPSIBLE = 504,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 505;
      */
@@ -7858,9 +7858,9 @@ export enum ViewType {
      */
     STACK = 510,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLLAPSED = 511;
+     * @generated from protobuf enum value: VIEW_TYPE_COLLAPSIBLE = 511;
      */
-    COLLAPSED = 511,
+    COLLAPSIBLE = 511,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_GRID = 512;
      */
@@ -7985,6 +7985,10 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_TIME = 655;
      */
     TIME = 655,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 656;
+     */
+    CALENDAR = 656,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_COLOR = 657;
      */

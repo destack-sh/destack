@@ -3,6 +3,7 @@ import { ClientData, NodeReferenceData, NodeType, Region, UserData } from "@/pro
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { useGetNodes } from "@/system/connection";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
+import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { v4 } from "uuid";
@@ -46,6 +47,7 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
     id: info.client.id,
     accessToken: info.accessToken,
   };
+  toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged in" });
 }
 
 /**
@@ -88,6 +90,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
     log.info("user.logout", options);
     userInfo.value = null;
     clientInfo.value = null;
+    toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out" });
   }
 }
 

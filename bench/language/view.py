@@ -278,6 +278,16 @@ class Spacing(IdEnum):
     S256 = 256
 
 
+@_well_known_enum
+class Anchor(IdEnum):
+    """An anchor in 2D space."""
+
+    TOP_LEFT = 1
+    TOP_RIGHT = 3
+    BOTTOM_RIGHT = 5
+    BOTTOM_LEFT = 7
+
+
 @struct(StructType.OFFSET, inline=True)
 class Offset(Struct):
     """A position value. Units are in pixels, ideally in Spacing scale."""

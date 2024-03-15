@@ -39,7 +39,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
     "rounded-md",
     props.isDisabled
       ? "text-gray-500 hover:cursor-not-allowed"
-      : "text-gray-900 hover:text-primary-900 hover:decoration-primary-400"
+      : "text-gray-900 hover:text-primary-900"
   ],
 }));
 
@@ -51,9 +51,9 @@ defineExpose({ self: toRef(props, "self") });
     :disabled="isDisabled"
   >
     <slot>
-      <IconInline v-if="icon" v-bind="icon" class="mr-2 no-underline" />
+      <i v-if="isLoading" class="fas fa-spin fa-spinner-third mr-2 no-underline" />
+      <IconInline v-else-if="icon" v-bind="icon" class="mr-2 no-underline" />
       <span class="font-semibold">{{ title }}</span>
-      <i v-if="isLoading" class="fas fa-spin fa-spinner-third ml-2 no-underline" />
     </slot>
   </button>
 </template>
