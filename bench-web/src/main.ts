@@ -50,7 +50,6 @@ async function init() {
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
   await registerViewComponents();
-  keytrap.track(document); // ensure it's always running
 
   if (IS_DEBUG) {
     app.config.performance = true;
@@ -58,6 +57,21 @@ async function init() {
   app.config.errorHandler = (err, instance, info) => {
     toaster.error({ title: "Internal error", text: (err as any).message ?? info });
   };
+
+  toaster.run();
+  keytrap.track(document); // ensure it's always running
+  // suppress ctrl+s
+  keytrap.bind(["ctrl+s", "meta+s"], () => {
+    toaster.info({
+      key: "space.suppressSave",
+      icon: "fas fa-floppy-disk",
+      title: "No need to save",
+      text: "Bench synchronizes automatically.",
+      debounce: true,
+    });
+    return true;
+  });
+
   app.mount("#app");
 }
 

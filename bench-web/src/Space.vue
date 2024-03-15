@@ -2,10 +2,10 @@
 import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
-import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
 import { isDragging } from "@/utils/layout";
 import Windowed from "@/views/containers/Windowed.vue";
+import ActionPalette from "@/views/kernel/ActionPalette.vue";
 import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
 import Bar from "@/views/system/Bar.vue";
 import { useWindowSize } from "@vueuse/core";
@@ -21,18 +21,20 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
 
-toaster.run();
-// suppress ctrl+s
-keytrap.bind(["ctrl+s", "meta+s"], () => {
-  toaster.info({
-    key: "space.suppressSave",
-    icon: "fas fa-floppy-disk",
-    title: "No need to save",
-    text: "Bench synchronizes automatically.",
-    debounce: true,
-  });
+const mainBox = computed(() => ({
+  left: 0,
+  top: BAR_HEIGHT,
+  width: spaceWidth.value,
+  height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
+}));
+const actionPaletteRef = ref<InstanceType<typeof ActionPalette> | null>(null);
+
+// TODO :Architecture: move command palette to global Action
+keytrap.bind(["meta+k", "ctrl+k"], () => {
+  actionPaletteRef.value?.show()
   return true;
 });
+
 </script>
 <template>
   <!-- Space -->
@@ -54,19 +56,12 @@ keytrap.bind(["ctrl+s", "meta+s"], () => {
       ref="windowRef"
       v-if="spacePtr && space"
       :self="spacePtr"
-      :size="{ width: spaceWidth, height: spaceHeight - BAR_HEIGHT - BAR_OFFSET }"
+      :size="mainBox"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
-    <!-- Toasts -->
-    <ToastOverlay
-      anchor="bottom-right"
-      :box="{
-        left: 0,
-        top: BAR_HEIGHT,
-        width: spaceWidth,
-        height: spaceHeight - BAR_HEIGHT - BAR_OFFSET,
-      }"
-    />
+    <!-- Overlays -->
+    <ToastOverlay anchor="bottom-right" :box="mainBox" />
+    <ActionPalette ref="actionPaletteRef" :box="mainBox" />
   </div>
 </template>
 <style>
