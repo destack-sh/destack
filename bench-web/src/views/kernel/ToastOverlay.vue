@@ -9,18 +9,20 @@ const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: numbe
 const isInverted = computed(() => props.anchor == "top-left" || props.anchor == "top-right");
 
 // enter from top/bottom
+const TOAST_WIDTH = 320;
+
 const ENTER_FROM_BY_ANCHOR: Record<ToastAnchor, string> = {
-  "top-left": "translate-y-[100px]",
-  "top-right": "translate-y-[100px]",
-  "bottom-left": "translate-y-[-100px]",
-  "bottom-right": "translate-y-[-100px]",
+  "top-left": "translate-y-[-100%]",
+  "top-right": "translate-y-[-100%]",
+  "bottom-left": "translate-y-[100%]",
+  "bottom-right": "translate-y-[100%]",
 };
 // leave to left/right
 const LEAVE_TO_BY_ANCHOR: Record<ToastAnchor, string> = {
-  "top-left": "translate-x-[-100px]",
-  "top-right": "translate-x-[100px]",
-  "bottom-left": "translate-x-[-100px]",
-  "bottom-right": "translate-x-[100px]",
+  "top-left": "translate-x-[-320px]",
+  "top-right": "translate-x-[320px]",
+  "bottom-left": "translate-x-[-320px]",
+  "bottom-right": "translate-x-[320px]",
 };
 
 const absoluteStyle = computed(() => {
@@ -36,8 +38,6 @@ const absoluteStyle = computed(() => {
     throw new Error("unexpected anchor: " + props.anchor);
   }
 });
-
-const TOAST_WIDTH = 320;
 </script>
 <template>
   <TransitionGroup
@@ -45,13 +45,13 @@ const TOAST_WIDTH = 320;
     class="fixed z-50 flex gap-y-2 p-2"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
-    move-class="transition-all duration-150"
+    move-class="transition-all duration-100"
     enter-active-class="transition-all ease-in duration-150"
-    :enter-from-class="'opacity-0 transform ' + ENTER_FROM_BY_ANCHOR[props.anchor]"
-    enter-to-class="opacity-100 transform translate-x-0 translate-y-0"
-    leave-active-class="transition-all ease-out duration-150"
-    leave-from-class="opacity-100 transform translate-x-0 translate-y-0"
-    :leave-to-class="'opacity-0 transform ' + LEAVE_TO_BY_ANCHOR[props.anchor]"
+    :enter-from-class="'scale-95 transform ' + ENTER_FROM_BY_ANCHOR[props.anchor]"
+    enter-to-class="scale-100 transform translate-x-0 translate-y-0"
+    leave-active-class="transition-all ease-out duration-200"
+    leave-from-class="scale-100 transform translate-x-0 translate-y-0"
+    :leave-to-class="'scale-95 transform ' + LEAVE_TO_BY_ANCHOR[props.anchor]"
   >
     <!-- Toasts -->
     <li

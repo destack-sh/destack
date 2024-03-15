@@ -7,6 +7,10 @@ function includes(haystack: string, needle: string): boolean {
   return haystack.indexOf(needle) >= 0;
 }
 
+export function isOnMac(window: Window): boolean {
+  return /Mac OS X/.test(window.navigator.userAgent) || window.navigator.platform.startsWith("Mac");
+}
+
 export function getBrowserName(userAgent: string, vendor: string, isOpera: boolean): string {
   vendor = vendor || ""; // vendor is undefined for at least IE9
   if (isOpera || includes(userAgent, " OPR/")) {

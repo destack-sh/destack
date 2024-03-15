@@ -3,6 +3,7 @@ import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
 import { toaster } from "@/system/toast";
+import { keytrap } from "@/utils/keymap";
 import { isDragging } from "@/utils/layout";
 import Windowed from "@/views/containers/Windowed.vue";
 import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
@@ -21,6 +22,17 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
 );
 
 toaster.run();
+// suppress ctrl+s
+keytrap.bind(["ctrl+s", "meta+s"], () => {
+  toaster.info({
+    key: "space.suppressSave",
+    icon: "fas fa-floppy-disk",
+    title: "No need to save",
+    text: "Bench synchronizes automatically.",
+    debounce: true,
+  });
+  return true;
+});
 </script>
 <template>
   <!-- Space -->

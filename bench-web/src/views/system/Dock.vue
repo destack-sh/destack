@@ -16,21 +16,28 @@ const items: Ref<DockItem[]> = computed(
   () =>
     [
       {
+        id: "action",
+        name: "Act",
+        text: "Do everything in this space",
+        icon: "fas fa-command",
+        shortcut: "Ctrl+K",
+      },  
+      {
         id: "search",
         name: "Search",
-        text: "Search everything in the space",
+        text: "Search everything in this space",
         icon: "fas fa-magnifying-glass",
-        shortcut: "Ctrl+K",
+        shortcut: "Ctrl+Shift+F",
       },
       {
         id: "chat",
         name: "Chat",
-        text: "Chat with everything in the space",
+        text: "Chat with everything in this space",
         icon: "fas fa-comment-dots",
       },
       {
         id: "inspect",
-        name: "Inspector",
+        name: "Inspect",
         text: "Get details on a block",
         icon: "fas fa-eye-dropper",
         shortcut: "Ctrl+I",
@@ -38,13 +45,13 @@ const items: Ref<DockItem[]> = computed(
       {
         id: "library",
         name: "Library",
-        text: "Get blocks from our library",
-        icon: "fas fa-landmark",
+        text: "Get blocks from the common library",
+        icon: "fas fa-books",
       },
       {
         id: "docs",
         name: "Documentation",
-        text: "Read up on help and guides",
+        text: "Read up on help, examples and guides",
         icon: "fas fa-book-open",
       },
       {
@@ -63,7 +70,7 @@ const items: Ref<DockItem[]> = computed(
       :is="item.url ? 'a' : 'button'"
       v-for="item in items"
       :key="item.id"
-      class="group relative rounded-md border border-gray-300 bg-secondary-300 px-1 text-gray-800 hover:cursor-pointer hover:bg-secondary-400"
+      class="group relative rounded-md border border-gray-300 bg-primary-300 px-1 text-gray-900 hover:cursor-pointer hover:bg-primary-400"
       @click="item.action"
       :href="item.url"
       target="_blank"

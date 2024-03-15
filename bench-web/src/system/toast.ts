@@ -15,11 +15,14 @@ export type ToastAction = {
   action: () => void;
 };
 
+const ZOMBIE_TOAST_DURATION = 1000; // ms
+
 /**
  * A timed 'notification' to the user.
  */
 export type Toast = {
   id: string;
+  key?: string;
   icon?: IconData;
   title: string;
   text?: string | TextData;
@@ -39,9 +42,8 @@ export enum ToastDuration {
   inf = Infinity,
 }
 
-export type ToastIn = Pick<Toast, "title" | "text" | "level"> & { icon?: string | IconData } & Partial<
-    Pick<Toast, "actions" | "durationMs">
-  >;
+export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
+  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & { icon?: string | IconData, debounce?: boolean };
 
 export class Toaster {
   toasts: Ref<Toast[]>;
@@ -54,7 +56,12 @@ export class Toaster {
     return this.toasts.value.filter((t) => t.remainingDurationMs > 0);
   }
 
+  hasActiveKey(key: string): boolean {
+    return this.activeToasts.some((t) => t.key === key);
+  }
+
   add(toast: ToastIn) {
+    if (toast.debounce && this.hasActiveKey(toast.key!)) return;
     const id = Math.random().toString(36).substring(2);
     const createdAt = DateTime.now();
     const durationMs = toast.durationMs ?? ToastDuration.md;
@@ -92,19 +99,19 @@ export class Toaster {
     toast.remainingDurationMs = 0;
   }
 
-  /** Updates all toasts at the current time, pruning any dead ones. */
+  /** Updates all toasts at the current time, pruning as needed. */
   private tick() {
     const now = DateTime.now();
     for (const toast of this.toasts.value) {
-      if (toast.remainingDurationMs != 0) {
-        toast.remainingDurationMs = Math.max(0, toast.durationMs - now.diff(toast.createdAt).milliseconds);
+      if (toast.remainingDurationMs > 0) {
+        toast.remainingDurationMs = toast.durationMs - now.diff(toast.createdAt).milliseconds;
       }
     }
-    this.toasts.value = this.toasts.value.filter((t) => t.remainingDurationMs > 0);
+    this.toasts.value = this.toasts.value.filter((t) => t.remainingDurationMs > -ZOMBIE_TOAST_DURATION);
   }
 
   run() {
-    setInterval(() => this.tick(), 100);
+    setInterval(() => this.tick(), 250);
   }
 }
 

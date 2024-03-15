@@ -8,6 +8,7 @@ import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { createHead } from "@unhead/vue";
 import { registerViewComponents } from "@/views";
 import { toaster } from "@/system/toast";
+import { keytrap } from "@/utils/keymap";
 
 async function init() {
   const app = createApp(Space);
@@ -49,6 +50,7 @@ async function init() {
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
   await registerViewComponents();
+  keytrap.track(document); // ensure it's always running
 
   if (IS_DEBUG) {
     app.config.performance = true;
