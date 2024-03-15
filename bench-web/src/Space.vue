@@ -2,8 +2,10 @@
 import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
+import { toaster } from "@/system/toast";
 import { isDragging } from "@/utils/layout";
 import Windowed from "@/views/containers/Windowed.vue";
+import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
 import Bar from "@/views/system/Bar.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
@@ -17,14 +19,17 @@ const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space mus
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
-</script>
 
+toaster.run();
+</script>
 <template>
+  <!-- Space -->
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
     :class="[isDragging ? 'pointer-events-none select-none' : '']"
   >
+    <!-- Bar -->
     <Bar
       ref="barRef"
       class="w-full border-b-2 border-gray-300"
@@ -32,6 +37,7 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
       :space-graph="spaceGraph"
       :space-connection="spaceConnection"
     />
+    <!-- Window root -->
     <Windowed
       ref="windowRef"
       v-if="spacePtr && space"
@@ -39,9 +45,18 @@ const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
       :size="{ width: spaceWidth, height: spaceHeight - BAR_HEIGHT - BAR_OFFSET }"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
+    <!-- Toasts -->
+    <ToastOverlay
+      anchor="bottom-right"
+      :box="{
+        left: 0,
+        top: BAR_HEIGHT,
+        width: spaceWidth,
+        height: spaceHeight - BAR_HEIGHT - BAR_OFFSET,
+      }"
+    />
   </div>
 </template>
-
 <style>
 * {
   /* stop overscrolling */

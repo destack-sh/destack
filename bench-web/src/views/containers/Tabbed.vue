@@ -52,7 +52,7 @@ function select(tab: ViewData) {
   nextTick(() => {
     const tabRef = tabsRef.value[tab.id];
     tabRef!.scrollIntoView({ block: "nearest", inline: "nearest" });
-  })
+  });
 }
 
 function remove(tab: ViewData) {
@@ -119,7 +119,7 @@ defineExpose({ self: toRef(props, "self"), select, remove });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r-2 border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
         :class="[
           i == selectedTabIdx
             ? 'text-primary-900 shadow-inset-md shadow-primary-900'
@@ -185,17 +185,27 @@ defineExpose({ self: toRef(props, "self"), select, remove });
       </div>
     </div>
     <!-- Tab body split drop overlay -->
-    <div
-      v-if="activeBodyDropZone != null"
-      class="pointer-events-none absolute"
-      :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+    <Transition
+      appear
+      enter-active-class="transition-opacity duration-300"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-300"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
     >
-      <div class="relative h-full w-full">
-        <div
-          class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-300"
-          :class="activeBodyDropZone.splitClass"
-        />
+      <div
+        v-if="activeBodyDropZone != null"
+        class="pointer-events-none absolute"
+        :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+      >
+        <div class="relative h-full w-full">
+          <div
+            class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-300"
+            :class="activeBodyDropZone.splitClass"
+          />
+        </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>

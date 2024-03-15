@@ -49,11 +49,15 @@ export default {
         secondary: colors.emerald,
         accent: colors.amber,
         gray: colors.slate,
-        success: colors.green,
+        success: colors.lime,
         hint: colors.sky,
         warning: colors.yellow,
-        danger: colors.red,
+        danger: colors.rose,
       },
+      transitionProperty: {
+        // extend 'colors' to include opacity
+        'colors': 'color, background-color, border-color, text-decoration-color, fill, stroke, opacity',
+      }
     },
   },
   plugins: [],

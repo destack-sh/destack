@@ -1,5 +1,6 @@
 import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
 import { clientInfo, clientMeta } from "@/system/local";
+import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
@@ -78,6 +79,7 @@ const operationsTracker = {
         const { onAuthenticationError } = await import("@/system/user"); // recursive import
         onAuthenticationError(error);
       }
+      toaster.error({ title: "Server error", text: error.message })
     };
 
     // subscribe to call events

@@ -5,15 +5,17 @@ import Space from "./Space.vue";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
-import { createHead } from '@unhead/vue'
+import { createHead } from "@unhead/vue";
 import { registerViewComponents } from "@/views";
+import { toaster } from "@/system/toast";
 
 async function init() {
   const app = createApp(Space);
-  app.use(createHead())
+  app.use(createHead());
 
   // sentry / posthog instrumentation
-  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", { // public capture key
+  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
+    // public capture key
     api_host: "https://eu.posthog.com",
     enable_recording_console_log: true,
   });
@@ -51,6 +53,9 @@ async function init() {
   if (IS_DEBUG) {
     app.config.performance = true;
   }
+  app.config.errorHandler = (err, instance, info) => {
+    toaster.error({ title: "Internal error", text: (err as any).message ?? info });
+  };
   app.mount("#app");
 }
 
