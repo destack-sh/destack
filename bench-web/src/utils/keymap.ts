@@ -25,18 +25,20 @@ export type KeymapChord = {
 export function parseKeymapKey(signature: KeymapSignature): ParsedKeymapSignature {
   signature = signature.toLowerCase();
   const chords = signature.split(" ").map((chord) => {
+    // parse out individual chords
     const keys = chord.split("+");
-    // figure out the main key
     let key: string | null = null;
     const modifiers: KeymapModifier[] = [];
     for (const k of keys) {
       if (KEYMAP_MODIFIERS.includes(k as KeymapModifier)) {
+        // modifier
         if (modifiers.includes(k as KeymapModifier))
           throw new Error(`duplicate modifier ${k} in chord ${chord} of ${signature}`);
         modifiers.push(k as KeymapModifier);
       } else {
+        // main key
         if (key) throw new Error(`multiple keys in chord ${chord} of ${signature}`);
-        if (!CHAR_KEYS_BY_CODE[k.charCodeAt(0)]) throw new Error(`invalid key ${k} in chord ${chord} of ${signature}`);
+        if (!CHAR_KEYS[k]) throw new Error(`invalid key ${k} in chord ${chord} of ${signature}`);
         key = k;
       }
     }
