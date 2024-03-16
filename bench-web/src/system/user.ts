@@ -1,8 +1,11 @@
 import { supervisor } from "@/proto/services";
-import { ClientData, NodeReferenceData, NodeType, Region, UserData } from "@/proto/wire";
+import { ClientData, NodeReferenceData, NodeType, Region, UserData, ViewType } from "@/proto/wire";
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
+import { contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
+import { makeIcon } from "@/system/icon";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
+import { addViewToCurrentRoot } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -12,6 +15,7 @@ import { computed } from "vue";
 export const nonce = v4();
 
 export const isAuthenticated = computed(() => clientInfo.value?.accessToken != null);
+export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
 export const { graph: userGraph, connection: userConnection } = useGetNodes(
   computed(() => ({
@@ -96,7 +100,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
 
 /** Reports an authentication error from a request using our current credentials */
 export function onAuthenticationError(error: RpcError) {
-  // TODO :Robustness: handle user auth error & badge auth error separately 
+  // TODO :Robustness: handle user auth error & badge auth error separately
   log.error("user.unauthenticated");
   userInfo.value = null;
   clientInfo.value = null;
@@ -109,5 +113,34 @@ export async function createBench(benchIn: {
   isMain: boolean;
 }) {
   if (clientInfo.value == null) throw new Error("not logged in");
-  const { response: { bench } } = await supervisor.createBench({ ...benchIn });
+  const {
+    response: { bench },
+  } = await supervisor.createBench({ ...benchIn });
 }
+
+contributeActionMap<"user">({
+  "user.signup": {
+    icon: "fas fa-right-from-bracket",
+    title: "Sign Up",
+    enabled: isUnauthenticated,
+    action: () =>
+      addViewToCurrentRoot({
+        type: ViewType.USER_WIZARD,
+        title: "Sign Up",
+        icon: makeIcon({ name: "fas fa-right-from-bracket" }),
+      }),
+  },
+  "user.login": {
+    icon: "fas fa-right-from-bracket",
+    title: "Log In",
+    enabled: isUnauthenticated,
+    action: () => {
+      addViewToCurrentRoot({
+        type: ViewType.USER_WIZARD,
+        title: "Log In",
+        icon: makeIcon({ name: "fas fa-right-from-bracket" }),
+      });
+    },
+  },
+  "user.logout": { icon: "fas fa-right-to-bracket", title: "Log Out", enabled: isAuthenticated, action: logOut },
+});

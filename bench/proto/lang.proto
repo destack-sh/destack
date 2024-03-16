@@ -2291,6 +2291,7 @@ message ViewData {
   optional Orientation orientation = 64;
   optional Alignment alignment = 65;
   optional SelectionData selection = 70;
+  optional SelectionData focus = 71;
   optional bool is_visible = 80;
   optional bool is_disabled = 81;
   optional bool is_loading = 82;

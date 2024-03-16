@@ -31,7 +31,7 @@ const actionPaletteRef = ref<InstanceType<typeof ActionPalette> | null>(null);
 
 // TODO :Architecture: move command palette to global Action
 keytrap.bind(["meta+k", "ctrl+k"], () => {
-  actionPaletteRef.value?.show()
+  actionPaletteRef.value?.open()
   return true;
 });
 
