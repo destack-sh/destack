@@ -2,10 +2,9 @@
 import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
-import { keytrap } from "@/utils/keymap";
 import { isDragging } from "@/utils/layout";
 import Windowed from "@/views/containers/Windowed.vue";
-import ActionPalette from "@/views/kernel/ActionPalette.vue";
+import Omnibar from "@/views/kernel/Omnibar.vue";
 import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
 import Bar from "@/views/system/Bar.vue";
 import { useWindowSize } from "@vueuse/core";
@@ -27,14 +26,7 @@ const mainBox = computed(() => ({
   width: spaceWidth.value,
   height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
 }));
-const actionPaletteRef = ref<InstanceType<typeof ActionPalette> | null>(null);
-
-// TODO :Architecture: move command palette to global Action
-keytrap.bind(["meta+k", "ctrl+k"], () => {
-  actionPaletteRef.value?.open()
-  return true;
-});
-
+const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 </script>
 <template>
   <!-- Space -->
@@ -61,7 +53,7 @@ keytrap.bind(["meta+k", "ctrl+k"], () => {
     />
     <!-- Overlays -->
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
-    <ActionPalette ref="actionPaletteRef" :box="mainBox" />
+    <Omnibar ref="omnibarRef" :box="mainBox" />
   </div>
 </template>
 <style>
