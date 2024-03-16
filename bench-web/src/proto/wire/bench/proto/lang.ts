@@ -4929,6 +4929,10 @@ export interface ViewData {
      */
     selection?: SelectionData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.SelectionData focus = 71;
+     */
+    focus?: SelectionData;
+    /**
      * @generated from protobuf field: optional bool is_visible = 80;
      */
     isVisible?: boolean;
@@ -19124,6 +19128,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 64, name: "orientation", kind: "enum", opt: true, T: () => ["symbolx.bench.Orientation", Orientation, "ORIENTATION_"] },
             { no: 65, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
             { no: 70, name: "selection", kind: "message", T: () => SelectionData },
+            { no: 71, name: "focus", kind: "message", T: () => SelectionData },
             { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -19246,6 +19251,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.SelectionData selection */ 70:
                     message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                    break;
+                case /* optional symbolx.bench.SelectionData focus */ 71:
+                    message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
                     break;
                 case /* optional bool is_visible */ 80:
                     message.isVisible = reader.bool();
@@ -19371,6 +19379,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.SelectionData selection = 70; */
         if (message.selection)
             SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData focus = 71; */
+        if (message.focus)
+            SelectionData.internalBinaryWrite(message.focus, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
         /* optional bool is_visible = 80; */
         if (message.isVisible !== undefined)
             writer.tag(80, WireType.Varint).bool(message.isVisible);
@@ -20511,6 +20522,7 @@ export enum ViewProperty {
   orientation = 64,
   alignment = 65,
   selection = 70,
+  focus = 71,
   isVisible = 80,
   isDisabled = 81,
   isLoading = 82,

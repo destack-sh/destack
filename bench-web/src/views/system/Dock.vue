@@ -18,21 +18,21 @@ const items: Ref<DockItem[]> = computed(
       {
         id: "action",
         name: "Act",
-        text: "Do everything in this space",
+        text: "Do something in this Bench",
         icon: "fas fa-command",
         shortcut: "Ctrl+K",
       },  
       {
         id: "search",
         name: "Search",
-        text: "Search everything in this space",
+        text: "Search everything in this Bench",
         icon: "fas fa-magnifying-glass",
         shortcut: "Ctrl+Shift+F",
       },
       {
         id: "chat",
         name: "Chat",
-        text: "Chat with everything in this space",
+        text: "Chat with everything in this Bench",
         icon: "fas fa-comment-dots",
       },
       {

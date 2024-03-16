@@ -113,7 +113,6 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
 }
 
 export function addViewToCurrentRoot(
-  tx: Transaction,
   view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
 ) {
   const root = spaceGraph.nodes.find(

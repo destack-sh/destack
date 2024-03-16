@@ -388,6 +388,9 @@ class View(HasViews, HasValues):
     selection: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION
     )
+    focus: Optional[Selection] = p_regular(
+        71, default=None, require=False, struct=StructType.SELECTION
+    )
     ...  # selection/focus/placeholder/behavior/effects/...
 
     # flags

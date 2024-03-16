@@ -1,8 +1,8 @@
 <script lang="tsx" setup>
-import { ViewType } from "@/proto/wire";
+import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { addViewToCurrentRoot, bench } from "@/system/space";
+import { bench } from "@/system/space";
 import { user } from "@/system/user";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/system/Dock.vue";
@@ -43,14 +43,7 @@ const props = defineProps<{
         <Button
           title="Log in"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
-          @click="
-            () => {
-              addViewToCurrentRoot(
-                spaceConnection.sideTx,
-                { type: ViewType.USER_WIZARD, name: 'User Wizard', title: 'Log In' },
-              );
-            }
-          "
+          @click="() => runAction('user.login')"
         />
       </template>
     </div>

@@ -1,3 +1,5 @@
+export type FIlterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
+
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
 }
