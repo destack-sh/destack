@@ -10,6 +10,7 @@ import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { computed, watch } from "vue";
+import { contributeActionMap } from "@/system/action";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -112,9 +113,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   return { space };
 }
 
-export function addViewToCurrentRoot(
-  view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">,
-) {
+export function addViewToCurrentRoot(view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">) {
   const root = spaceGraph.nodes.find(
     (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
   );
@@ -256,3 +255,17 @@ export function splitView(
   }
   cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
 }
+
+const DISCORD_URL = "https://discord.gg/pSBdq6XC";
+contributeActionMap<"space">({
+  "space.open.discord": {
+    title: "Open Discord",
+    text: "Join our community on Discord",
+    icon: "fab fa-discord",
+    url: DISCORD_URL,
+    action: () => {
+      // open in new tab
+      window.open(DISCORD_URL, "_blank");
+    },
+  },
+});

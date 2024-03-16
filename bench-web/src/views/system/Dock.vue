@@ -1,82 +1,35 @@
 <script lang="tsx" setup>
+import { BUILTIN_ACTIONS, type Action, type ActionBuiltinId } from "@/system/action";
+import { IconInline } from "@/system/icon";
 import { Tooltip } from "@/utils/tooltip";
 import { computed, type Ref } from "vue";
 
-type DockItem = {
-  id: string;
-  name: string;
-  icon: string; // font awesome solid icon
-  text: string;
-  url?: string;
-  shortcut?: string;
-  action?: () => void;
-};
-
-const items: Ref<DockItem[]> = computed(
+const actions: Ref<Action[]> = computed(
   () =>
-    [
-      {
-        id: "action",
-        name: "Act",
-        text: "Do something in this Bench",
-        icon: "fas fa-command",
-        shortcut: "Ctrl+K",
-      },  
-      {
-        id: "search",
-        name: "Search",
-        text: "Search everything in this Bench",
-        icon: "fas fa-magnifying-glass",
-        shortcut: "Ctrl+Shift+F",
-      },
-      {
-        id: "chat",
-        name: "Chat",
-        text: "Chat with everything in this Bench",
-        icon: "fas fa-comment-dots",
-      },
-      {
-        id: "inspect",
-        name: "Inspect",
-        text: "Get details on a block",
-        icon: "fas fa-eye-dropper",
-        shortcut: "Ctrl+I",
-      },
-      {
-        id: "library",
-        name: "Library",
-        text: "Get blocks from the common library",
-        icon: "fas fa-books",
-      },
-      {
-        id: "docs",
-        name: "Documentation",
-        text: "Read up on help, examples and guides",
-        icon: "fas fa-book-open",
-      },
-      {
-        id: "community",
-        name: "Community",
-        icon: "fab fa-discord",
-        text: "Join our community on Discord",
-        url: "https://discord.gg/pSBdq6XC",
-      },
-    ] as DockItem[],
+    (["space.open.omnibar.action", "space.open.omnibar.search", "space.open.discord"] as ActionBuiltinId[])
+      .map((id) => BUILTIN_ACTIONS.value[id])
+      .filter((a) => a != null) as Action[],
 );
 </script>
 <template>
   <div class="flex flex-row items-center gap-x-2">
     <component
-      :is="item.url ? 'a' : 'button'"
-      v-for="item in items"
-      :key="item.id"
+      :is="action.url ? 'a' : 'button'"
+      v-for="action in actions"
+      :key="action.key"
       class="group relative rounded-md border border-gray-300 bg-primary-300 px-1 text-gray-900 hover:cursor-pointer hover:bg-primary-400"
-      @click="item.action"
-      :href="item.url"
+      @click="action.action"
+      :href="action.url"
       target="_blank"
     >
-      <i :class="`${item.icon}`" />
-      <Tooltip :icon="item.icon" :title="item.name" :text="item.text" :shortcut="item.shortcut" position="top-6 -left-3" />
+      <IconInline v-bind="action.icon" />
+      <Tooltip
+        :icon="action.icon"
+        :title="action.title.split(' ')[1]"
+        :text="action.text as string"
+        :shortcut="action.shortcuts?.[0]"
+        position="top-6 -left-3"
+      />
     </component>
   </div>
 </template>

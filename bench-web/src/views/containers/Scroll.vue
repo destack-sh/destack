@@ -11,6 +11,7 @@ const props = defineProps<
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     size: Required<Pick<BoxData, "width" | "height">>;
+    sizeIsDynamic?: boolean;
   } & Pick<ViewData, "orientation" | "variant">
 >();
 const emit = defineEmits(viewEmits());
@@ -45,8 +46,8 @@ defineExpose({ self });
   <div
     class="relative"
     :style="{
-      width: size.width + 'px',
-      height: size.height + 'px',
+      // width: size.width + 'px',
+      // height: size.height + 'px',
     }"
   >
     <!-- Scroll area -->
@@ -56,7 +57,7 @@ defineExpose({ self });
       :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
       :style="{
         width: (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
-        height: (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
+        [sizeIsDynamic ? 'maxHeight' : 'height']: (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
       }"
     >
       <slot />

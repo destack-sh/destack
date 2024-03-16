@@ -1,56 +1,59 @@
 import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
-import type { KeymapSignature } from "@/utils/keymap";
-import type { Ref } from "vue";
+import { IS_DEBUG } from "@/utils/globals";
+import { keytrap, type KeySignature } from "@/utils/keymap";
+import { log } from "@/utils/log";
+import { getCurrentInstance, shallowRef, type Ref, triggerRef, watch } from "vue";
 
-export type ActionCategory = "space" | "user" | "view" | "editor" | "custom";
+export type ActionCategory = "user" | "space" | "view" | "editor";
 export type ActionBuiltinId =
-  // space
-  | "space.openActionPalette"
-  | "space.openSearch"
-  | "space.openChat"
-  | "space.openInspector"
-  | "space.openLibrary"
-  | "space.openExplorer"
-  | "space.openOutline"
-  | "space.openDocs"
-  | "space.openLogs"
-  | "space.openDiscord"
   // user
   | "user.signup"
   | "user.login"
   | "user.logout"
+  // space
+  | "space.open.omnibar.universal"
+  | "space.open.omnibar.action"
+  | "space.open.omnibar.space"
+  | "space.open.omnibar.package"
+  | "space.open.omnibar.bench"
+  | "space.open.chat"
+  | "space.open.inspector"
+  | "space.open.library"
+  | "space.open.explorer"
+  | "space.open.outline"
+  | "space.open.docs"
+  | "space.open.logs"
+  | "space.open.discord"
   // view
-  | "view.closeTab"
-  | "view.openTab"
-  | "view.closeWindow"
-  | "view.splitWindowHorizontal"
-  | "view.splitWindowVertical"
-  // editor
-  | "editor.navigate.up"
-  | "editor.navigate.down"
-  | "editor.navigate.left"
-  | "editor.navigate.right"
-  | "editor.select.all"
-  | "editor.select.up"
-  | "editor.select.down"
-  | "editor.select.left"
-  | "editor.select.right"
-  | "editor.select.clear"
-  | "editor.indent"
-  | "editor.unindent"
-  | "editor.move.up"
-  | "editor.move.down"
-  | "editor.move.left"
-  | "editor.move.right"
-  | "editor.delete"
-  | "editor.copy"
-  | "editor.cut"
-  | "editor.paste"
-  | "editor.duplicate"
-  | "editor.goToDefinition"
-  | "editor.findReferences";
+  | "view.edit.do"
+  | "view.edit.undo"
+  | "view.edit.delete"
+  | "view.edit.copy"
+  | "view.edit.cut"
+  | "view.edit.paste"
+  | "view.edit.duplicate"
+  | "view.navigate.up"
+  | "view.navigate.down"
+  | "view.navigate.left"
+  | "view.navigate.right"
+  | "view.select.all"
+  | "view.select.up"
+  | "view.select.down"
+  | "view.select.left"
+  | "view.select.right"
+  | "view.select.clear"
+  | "view.move.up"
+  | "view.move.down"
+  | "view.move.left"
+  | "view.move.right"
+  | "view.layout.closeTab"
+  | "view.layout.focusNextWindow"
+  | "view.layout.splitWindowHorizontal"
+  | "view.layout.splitWindowVertical"
+  | "view.analyze.goToDefinition"
+  | "view.analyze.findReferences";
 
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 
@@ -70,16 +73,21 @@ export type Action = {
   title: string;
   aliases?: string[];
   text?: string | TextData;
-  shortcuts?: KeymapSignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
+  shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
   enabled?: Ref<boolean>;
   source: ActionSource;
   category: string;
-  action: () => void;
+  action: () => void | boolean | Promise<void> | Promise<boolean>;
+  url?: string; // for external URLs
+  excludeInOmnibar?: boolean; // don't show in omnibar
 };
 
-export const BUILTIN_ACTIONS: Partial<Record<ActionBuiltinId, Action>> = {};
+export const BUILTIN_ACTIONS: Ref<Partial<Record<ActionBuiltinId, Action>>> = shallowRef({});
 
-type ActionIn = Pick<Action, "title" | "aliases" | "text" | "shortcuts" | "enabled" | "action"> & {
+type ActionIn = Pick<
+  Action,
+  "title" | "aliases" | "text" | "shortcuts" | "enabled" | "action" | "url" | "excludeInOmnibar"
+> & {
   id: ActionBuiltinId;
   icon?: string | IconData;
 };
@@ -93,9 +101,11 @@ export function contributeAction(in_: ActionIn) {
     key: in_.id,
     category: in_.id.split(".")[0],
   };
-  if (BUILTIN_ACTIONS[in_.id] != null)
-    throw new Error(`action already exists: ${in_.id} (${in_} != ${BUILTIN_ACTIONS[in_.id]})`);
-  BUILTIN_ACTIONS[in_.id as ActionBuiltinId] = action;
+  if (BUILTIN_ACTIONS.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
+    // hot-reloading re-registers actions
+    throw new Error(`action already exists: ${in_.id} (${in_} != ${BUILTIN_ACTIONS.value[in_.id]})`);
+  BUILTIN_ACTIONS.value[in_.id as ActionBuiltinId] = action;
+  triggerRef(BUILTIN_ACTIONS);
 }
 
 export function contributeActionMap<T extends string>(map: Partial<BuiltinActionMap<T>>) {
@@ -103,7 +113,7 @@ export function contributeActionMap<T extends string>(map: Partial<BuiltinAction
 }
 
 export function getAction(id: ActionBuiltinId): Action {
-  const action = BUILTIN_ACTIONS[id];
+  const action = BUILTIN_ACTIONS.value[id];
   if (action == null) throw new Error(`no such action: ${id}`);
   return action;
 }
@@ -111,3 +121,22 @@ export function getAction(id: ActionBuiltinId): Action {
 export function runAction(id: ActionBuiltinId) {
   getAction(id).action();
 }
+
+function fireAction(action: Action): boolean {
+  if (action.enabled != null && !action.enabled.value) return false;
+  const ret = action.action();
+  return typeof ret === "boolean" ? ret : true;
+}
+
+// register actions with keytrap
+const bindings: Array<() => void> = [];
+watch(BUILTIN_ACTIONS, (actions) => {
+  log.debug("action.keymap", Object.keys(actions));
+  bindings.forEach((unbind) => unbind());
+  Object.values(actions)
+    .filter((a) => (a.shortcuts?.length ?? 0) > 0)
+    .forEach((action) => {
+      const unbind = keytrap.bind(action.shortcuts!, () => fireAction(action));
+      bindings.push(unbind);
+    });
+});

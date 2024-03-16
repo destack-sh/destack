@@ -1,3 +1,5 @@
+import type { IconData } from "@/proto/wire";
+import { makeIcon } from "@/system/icon";
 import { type FunctionalComponent } from "vue";
 
 export function shortcut(shorcut: string) {
@@ -8,15 +10,20 @@ export function shortcut(shorcut: string) {
   );
 }
 
+export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, context) => {
+  return shortcut(props.shortcut);
+}
+
 // TODO :UI: position & animate tooltips better
 // TODO :UI :Performance: create (and destroy) tooltip element on the fly
 export const Tooltip: FunctionalComponent<{
-  icon?: string;
+  icon?: string | IconData;
   title?: string;
   text: string;
   shortcut?: string;
   position: string;
 }> = (props, context) => {
+  const icon = typeof props.icon === "string" ? makeIcon({ name: props.icon }) : props.icon;
   const element = (
     <div
       class={
@@ -26,9 +33,9 @@ export const Tooltip: FunctionalComponent<{
     >
       {props.icon || props.title ? (
         <p class="mb-0.5 flex flex-row items-center gap-x-1.5">
-          {props.icon ? <i class={`text-gray-600 ${props.icon}`}></i> : null}
+          {icon?.name ? <i class={`text-gray-600 ${icon.name}`} /> : null}
           {props.title ? <h3 class="font-semibold">{props.title}</h3> : null}
-          {props.shortcut ? shortcut(props.shortcut) : null}
+          <span class="ml-auto">{props.shortcut ? shortcut(props.shortcut) : null}</span>
         </p>
       ) : null}
       <p>{props.text}</p>
