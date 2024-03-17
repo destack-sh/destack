@@ -1,18 +1,31 @@
 import type { IconData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { type FunctionalComponent } from "vue";
-
-export function shortcut(shorcut: string) {
-  return (
-    <kbd class="items-center rounded-md border border-gray-500 bg-primary-300 px-1 font-sans text-xs font-semibold uppercase text-gray-700 shadow-sm shadow-gray-200">
-      {shorcut}
-    </kbd>
-  );
-}
+import { parseKeymapSignature, renderKeymapKey } from "@/utils/keymap";
+import { Casing, toCasing } from "@/utils/string";
+import { computed, type FunctionalComponent } from "vue";
 
 export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, context) => {
-  return shortcut(props.shortcut);
-}
+  const parsed = computed(() => parseKeymapSignature(props.shortcut));
+  return (
+    // Shortcut
+    <span class="flex flex-row gap-x-2">
+      {parsed.value.chords.map((chord) => {
+        const keys = [...chord.modifiers, chord.key];
+        return (
+          // Chord
+          <span class="flex flex-row gap-x-0.5">
+            {keys.map((key) => (
+              // Key
+              <kbd class="rounded-md border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900">
+                {toCasing(renderKeymapKey(key), Casing.CAMEL)}
+              </kbd>
+            ))}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
 
 // TODO :UI: position & animate tooltips better
 // TODO :UI :Performance: create (and destroy) tooltip element on the fly
@@ -35,7 +48,7 @@ export const Tooltip: FunctionalComponent<{
         <p class="mb-0.5 flex flex-row items-center gap-x-1.5">
           {icon?.name ? <i class={`text-gray-600 ${icon.name}`} /> : null}
           {props.title ? <h3 class="font-semibold">{props.title}</h3> : null}
-          <span class="ml-auto">{props.shortcut ? shortcut(props.shortcut) : null}</span>
+          <span class="ml-auto">{props.shortcut ? <Shortcut shortcut={props.shortcut} /> : null}</span>
         </p>
       ) : null}
       <p>{props.text}</p>
