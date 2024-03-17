@@ -4,7 +4,7 @@ import type { FunctionalComponent } from "vue";
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "name">> = (props, context) => {
   if (props.name) {
     // font awesome
-    return <i class={props.name} />;
+    return <i class={props.name + ' w-[18px] text-center'} />;
   } else if (props.emoji) {
     return <span>{props.emoji}</span>;
   } else {

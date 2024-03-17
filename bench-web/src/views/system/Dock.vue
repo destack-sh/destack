@@ -6,7 +6,7 @@ import { computed, type Ref } from "vue";
 
 const actions: Ref<Action[]> = computed(
   () =>
-    (["space.open.omnibar.action", "space.open.omnibar.search", "space.open.discord"] as ActionBuiltinId[])
+    (["space.open.omnibar.actions", "space.open.omnibar.space", "space.open.discord"] as ActionBuiltinId[])
       .map((id) => BUILTIN_ACTIONS.value[id])
       .filter((a) => a != null) as Action[],
 );

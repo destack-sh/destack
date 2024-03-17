@@ -13,9 +13,12 @@ export type ActionBuiltinId =
   | "user.login"
   | "user.logout"
   // space
-  | "space.open.omnibar.universal"
-  | "space.open.omnibar.action"
+  | "space.open.omnibar.everywhere"
+  | "space.open.omnibar.actions"
   | "space.open.omnibar.space"
+  | "space.open.omnibar.views"
+  | "space.open.omnibar.page"
+  | "space.open.omnibar.module"
   | "space.open.omnibar.package"
   | "space.open.omnibar.bench"
   | "space.open.chat"
@@ -27,7 +30,7 @@ export type ActionBuiltinId =
   | "space.open.logs"
   | "space.open.discord"
   // view
-  | "view.edit.do"
+  | "view.edit.redo"
   | "view.edit.undo"
   | "view.edit.delete"
   | "view.edit.copy"
@@ -49,6 +52,7 @@ export type ActionBuiltinId =
   | "view.move.left"
   | "view.move.right"
   | "view.layout.closeTab"
+  | "view.layout.reopenClosedTab"
   | "view.layout.focusNextWindow"
   | "view.layout.splitWindowHorizontal"
   | "view.layout.splitWindowVertical"
@@ -131,7 +135,7 @@ function fireAction(action: Action): boolean {
 // register actions with keytrap
 const bindings: Array<() => void> = [];
 watch(BUILTIN_ACTIONS, (actions) => {
-  log.debug("action.keymap", Object.keys(actions));
+  log.debug("action.updateKeymap", Object.keys(actions));
   bindings.forEach((unbind) => unbind());
   Object.values(actions)
     .filter((a) => (a.shortcuts?.length ?? 0) > 0)

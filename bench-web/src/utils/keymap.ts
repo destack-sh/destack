@@ -25,7 +25,7 @@ export type KeyChord = {
  * Parses a string-based keymap signature into a proper key.
  * Case is irrelevant. Throws if invalid.
  *  */
-export function parseKeymapKey(signature: KeySignature): ParsedKeySignature {
+export function parseKeymapSignature(signature: KeySignature): ParsedKeySignature {
   signature = signature.toLowerCase();
   // parse out individual chords
   const chords = signature.split(" ").map((chord) => {
@@ -53,12 +53,17 @@ export function parseKeymapKey(signature: KeySignature): ParsedKeySignature {
 }
 
 /** Renders a parsed keymap key back into a nice string signature */
-export function renderKeymapKey(key: ParsedKeySignature): KeySignature {
+export function renderKeymapSignature(key: ParsedKeySignature): KeySignature {
   const chords = key.chords.map((chord) => {
     const keys = (chord.modifiers as string[]).concat(chord.key);
-    return keys.join("+");
+    return keys.map(renderKeymapKey).join("+");
   });
   return chords.join(" ");
+}
+export 
+function renderKeymapKey(key: string) {
+  if (key == "mod") return IS_ON_MAC ? "cmd" : "ctrl";
+  else return key;
 }
 
 export type KeymapCallback = (e: KeyboardEvent, combination: KeySignature) => boolean | void;
@@ -133,8 +138,8 @@ function getEventModifiers(e: KeyboardEvent): KeyModifier[] {
 function modifiersMatch(e: KeyboardEvent, modifiers: KeyModifier[]) {
   if (e.shiftKey != modifiers.includes("shift")) return false;
   if (e.altKey != modifiers.includes("alt")) return false;
-  if (e.ctrlKey != (modifiers.includes("ctrl") || !IS_ON_MAC && modifiers.includes("mod"))) return false;
-  if (e.metaKey != (modifiers.includes("meta") || IS_ON_MAC && modifiers.includes("mod"))) return false;
+  if (e.ctrlKey != (modifiers.includes("ctrl") || (!IS_ON_MAC && modifiers.includes("mod")))) return false;
+  if (e.metaKey != (modifiers.includes("meta") || (IS_ON_MAC && modifiers.includes("mod")))) return false;
   return true;
 }
 
@@ -193,8 +198,8 @@ export class Keytrap {
     const signatures = Array.isArray(signature) ? signature : [signature];
     for (const signature of signatures) {
       // normalize
-      const parsedSignature = typeof signature == "string" ? parseKeymapKey(signature) : signature;
-      const key = renderKeymapKey(parsedSignature);
+      const parsedSignature = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
+      const key = renderKeymapSignature(parsedSignature);
       const binding = { signature: key, parsedSignature, callback };
 
       // bind
@@ -216,8 +221,8 @@ export class Keytrap {
     const signatures = Array.isArray(signature) ? signature : [signature];
     for (const signature of signatures) {
       // normalize
-      const parsedSignature = typeof signature == "string" ? parseKeymapKey(signature) : signature;
-      const key = renderKeymapKey(parsedSignature);
+      const parsedSignature = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
+      const key = renderKeymapSignature(parsedSignature);
 
       // unbind
       const bindings = this.bindings[key];

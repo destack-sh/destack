@@ -1,4 +1,4 @@
-import { parseKeymapKey, renderKeymapKey } from "@/utils/keymap";
+import { parseKeymapSignature, renderKeymapSignature } from "@/utils/keymap";
 import { describe, expect, test } from "vitest";
 
 describe("keymap", () => {
@@ -27,9 +27,9 @@ describe("keymap", () => {
       },
     ],
     ["ctrl+space", { chords: [{ key: "space", modifiers: ["ctrl"] }] }],
-  ] as [string, ReturnType<typeof parseKeymapKey> | "error"][])("parseKeymapKey(%s)", (input, expected) => {
+  ] as [string, ReturnType<typeof parseKeymapSignature> | "error"][])("parseKeymapKey(%s)", (input, expected) => {
     try {
-      expect(parseKeymapKey(input)).toEqual(expected);
+      expect(parseKeymapSignature(input)).toEqual(expected);
     } catch {
       expect(expected).toBe("error");
     }
@@ -45,6 +45,6 @@ describe("keymap", () => {
     "ctrl+shift+space",
     "ctrl+shift+a ctrl+shift+b ctrl+shift+c",
   ])("renderKeymapKey(parseKeymapKey(%s)) == %s", (input) => {
-    expect(input).toBe(renderKeymapKey(parseKeymapKey(input)));
+    expect(input).toBe(renderKeymapSignature(parseKeymapSignature(input)));
   });
 });

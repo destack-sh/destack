@@ -43,21 +43,17 @@ const self = toRef(props, "self");
 defineExpose({ self });
 </script>
 <template>
-  <div
-    class="relative"
-    :style="{
-      // width: size.width + 'px',
-      // height: size.height + 'px',
-    }"
-  >
+  <div class="relative">
     <!-- Scroll area -->
     <div
       ref="areaRef"
       class="scrollbar-none relative"
       :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
       :style="{
-        width: (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
-        [sizeIsDynamic ? 'maxHeight' : 'height']: (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
+        [sizeIsDynamic ? 'maxWidth' : 'width']:
+          (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
+        [sizeIsDynamic ? 'maxHeight' : 'height']:
+          (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
       }"
     >
       <slot />
