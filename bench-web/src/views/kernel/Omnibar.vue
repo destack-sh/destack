@@ -264,11 +264,20 @@ defineExpose({ isActive, open });
                   <!-- Content -->
                   <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-600" />
                   <!-- Content (Action) -->
-                  <span v-if="result.metatype == 'action'" class="ml-2">{{ result.title }}</span>
+                  <span v-if="result.metatype == 'action'" class="ml-2">
+                    <span v-if="result.titleMarked" v-html="result.titleMarked" />
+                    <span v-else>{{ result.title }}</span>
+                  </span>
                   <!-- Content (Node) -->
                   <span v-else-if="result.metatype == 'node'" class="ml-2">
-                    {{ result.title }}
-                    <span class="text-gray-500 ml-1.5">{{ result.path }}</span>
+                    <!-- Name -->
+                    <span v-if="result.titleMarked" v-html="result.titleMarked" />
+                    <template v-else>{{ result.title }}</template>
+                    <!-- Path -->
+                    <span class="ml-1.5 text-gray-500">
+                      <span v-if="result.pathMarked" v-html="result.pathMarked" />
+                      <template v-else>{{ result.path }}</template>
+                    </span>
                   </span>
                   <!-- Metadata (shortcut, last edited, etc.) -->
                   <Shortcut
@@ -298,4 +307,3 @@ defineExpose({ isActive, open });
     </div>
   </Transition>
 </template>
-@/system/search

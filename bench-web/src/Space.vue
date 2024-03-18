@@ -75,4 +75,10 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 ::selection {
   background-color: #fcd34d;
 }
+
+mark {
+  background-color: transparent;
+  color: inherit;
+  font-weight: bold;
+}
 </style>
