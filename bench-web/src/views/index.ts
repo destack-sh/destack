@@ -1,5 +1,7 @@
 import { BoxData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
+import Tabbed from "@/views/containers/Tabbed.vue";
+import type { ComponentInstance } from "vue";
 
 // TODO :Architecture: how to register & wrap Views & their Components?
 //  This setup is kind of annoying because it forces a complete reload during development.
@@ -17,7 +19,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // content
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
 };
-const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, any>;
+const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ComponentInstance<any>>;
 let didRegisterComponents = false;
 
 export async function registerViewComponents() {
@@ -36,5 +38,13 @@ export function getViewComponent<T extends ViewType>(viewType: T): (typeof COMPO
 
 export function getViewBinding(view: ViewData, size: Omit<BoxData, "metatype">): Record<string, any> {
   // probably need to filter these?
-  return { ...view, size, self: toNodeReference(view) };
+  const component = COMPONENT_BY_VIEW_TYPE[view.type];
+  if (!component) throw new Error(`no component for view type: ${view.type}`);
+  const filteredProps = {};
+  for (const propName in component.props) {
+    if (propName == "size") (filteredProps as any)[propName] = size;
+    else if (propName == "self") (filteredProps as any)[propName] = toNodeReference(view);
+    else if (propName in view) (filteredProps as any)[propName] = (view as any)[propName];
+  }
+  return filteredProps;
 }
