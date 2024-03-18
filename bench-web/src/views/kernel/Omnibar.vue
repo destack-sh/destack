@@ -1,8 +1,9 @@
 <script lang="tsx" setup>
-import { Orientation } from "@/proto/wire";
-import type { SearchResult } from "@/system";
-import { BUILTIN_ACTIONS, contributeAction, type ActionBuiltinId } from "@/system/action";
+import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { contributeAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode } from "@/system/action";
 import { IconInline, makeIcon } from "@/system/icon";
+import { actionIndex, useSearch, type SearchIndex, graphIndex } from "@/system/search";
+import { bench, spaceGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
 import { Shortcut } from "@/utils/tooltip";
@@ -13,9 +14,6 @@ const PANEL_WIDTH = 600;
 const PANEL_MAX_HEIGHT = 400;
 const PANEL_HEADER_HEIGHT = 38;
 const DEFAULT_ACTION_ICON = makeIcon({ name: "fas fas fa-arrow-right" });
-// :OmnibarModes
-type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "page" | "module" | "package" | "bench";
-const OMNIBAR_MODES: OmnibarMode[] = ["everywhere", "actions", "space", "views", "page", "module", "package", "bench"];
 
 const props = defineProps<{ box: { left: number; top: number; width: number; height: number } }>();
 
@@ -27,14 +25,21 @@ const containerRef = ref<HTMLElement | null>(null);
 const queryRef = ref<HTMLInputElement | null>(null);
 const selectedResultId: Ref<string | null> = ref(null);
 
-const candidates: Ref<SearchResult[]> = computed(() =>
-  Object.values(BUILTIN_ACTIONS.value)
-    .filter((a) => !a.excludeInOmnibar && (a.enabled == null || a.enabled.value))
-    .map((a) => ({ ...a, metatype: "action" })),
-);
-const results = candidates; // nocheckin: facet search
+const indices = computed(() => {
+  const m = mode.value;
+  const indices: Record<string, SearchIndex<any>> = {};
+  if (m == "everywhere" || m == "actions") indices["actions"] = actionIndex();
+  if (m == "everywhere" || m == "space" || m == "views")
+    indices["views"] = graphIndex(
+      spaceGraph,
+      [NodeType.VIEW],
+      (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TABBED,
+    );
+  return indices;
+});
+const { candidates, results } = useSearch({ query, enabled: isActive, indices });
 const resultsRefs: Record<string, HTMLElement | null> = {};
-const showResultCategory = true;
+const showResultCategory = computed(() => query.value.length === 0);
 
 /** Go to the selected result */
 function go() {
@@ -47,6 +52,8 @@ async function fire(id: string) {
   // fire
   if (result != null) {
     if (result.metatype == "action") result.action(result);
+    else if (result.metatype == "node") throw new Error("nocheckin: go to node");
+    else throw new Error(`unexpected result: ${result}`);
   }
   // refocus or close
   if (id.includes(".omnibar.")) nextTick(focus);
@@ -54,8 +61,8 @@ async function fire(id: string) {
 }
 
 /** Select absolute/relative result */
-function select(option: string | number) {
-  if (typeof option === "string") {
+function select(option: string | number | null) {
+  if (typeof option === "string" || option == null) {
     selectedResultId.value = option;
   } else {
     const index = results.value.findIndex((r) => r.id === selectedResultId.value);
@@ -69,6 +76,13 @@ function select(option: string | number) {
     resultsRefs[selectedResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
+// auto-select first result if nothing matches (anymore)
+watch([results], () => {
+  if (selectedResultId.value == null || !results.value.some((r) => r.id === selectedResultId.value)) {
+    selectedResultId.value = results.value[0]?.id ?? null;
+  }
+});
+
 function clear() {
   query.value = "";
   mode.value = "everywhere";
@@ -78,7 +92,7 @@ function open(inMode: OmnibarMode = "everywhere") {
   isActive.value = true;
   clear();
   mode.value = inMode;
-  selectedResultId.value = candidates.value[0].id ?? null;
+  select(candidates.value[0]?.id ?? null);
   nextTick(focus);
 }
 
@@ -103,7 +117,10 @@ watch(
   },
 );
 
-// actions (assumes Omnibar is a singleton, also see :OmnibarModes)
+//
+// Actions (assumes Omnibar is a singleton, also see :OmnibarModes)
+//
+
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   everywhere: ["mod+k"],
   actions: ["mod+shift+a"],
@@ -124,6 +141,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   package: "Search the current Package",
   bench: "Search the current Bench",
 };
+const IN_BENCH_MODES: OmnibarMode[] = ["page", "module", "package", "bench"];
 for (const inMode of OMNIBAR_MODES) {
   contributeAction({
     id: ("space.open.omnibar." + inMode) as ActionBuiltinId,
@@ -132,7 +150,12 @@ for (const inMode of OMNIBAR_MODES) {
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
     action: () => open(inMode),
-    enabled: computed(() => props.box.width >= PANEL_WIDTH && (!isActive.value || inMode != mode.value)),
+    enabled: computed(
+      () =>
+        props.box.width >= PANEL_WIDTH &&
+        (!isActive.value || inMode != mode.value) &&
+        (!IN_BENCH_MODES.includes(inMode) || bench.value != null),
+    ),
   });
 }
 
@@ -195,6 +218,7 @@ defineExpose({ isActive, open });
               @keydown.enter.stop.prevent="go"
               @keydown.down.stop.prevent="select(1)"
               @keydown.up.stop.prevent="select(-1)"
+              @keydown.delete="query.length > 0 || (mode = 'everywhere')"
             />
             <!-- Close -->
             <button class="ml-auto" @click="close">
@@ -207,19 +231,20 @@ defineExpose({ isActive, open });
             :orientation="Orientation.VERTICAL"
             track-is-always-visible
             :trackWidth="ScrollbarWidth.sm"
+            size-is-dynamic
             :size="{
               width: PANEL_WIDTH,
               height: PANEL_MAX_HEIGHT - PANEL_HEADER_HEIGHT - 2 /* border */,
             }"
           >
             <!-- Results -->
-            <ul class="mb-0.5 flex w-full select-none flex-col px-2 py-1 text-gray-900">
+            <ul v-if="results.length > 0" class="flex w-full select-none flex-col px-2 py-1 text-gray-900">
               <template v-for="(result, i) in results" :key="result.id">
                 <!-- Category -->
                 <div
                   v-if="showResultCategory && (i === 0 || results[i - 1].category !== result.category)"
-                  class="-mx-2 mb-0.5 px-4 pt-1"
-                  :class="[i > 0 ? 'mt-1.5 border-t border-gray-900' : '']"
+                  class="-mx-2 mb-0.5 px-4 pt-0.5"
+                  :class="[i > 0 ? 'mt-1' : '']"
                 >
                   <span class="text-xs font-semibold text-gray-500">
                     {{ toCasing(result.category, Casing.CAMEL) }}
@@ -236,20 +261,41 @@ defineExpose({ isActive, open });
                   ]"
                   @click.stop.prevent="() => fire(result.id)"
                 >
+                  <!-- Content -->
                   <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-600" />
-                  <span class="ml-2">{{ result.title }}</span>
-                  <!-- Shortcut -->
+                  <!-- Content (Action) -->
+                  <span v-if="result.metatype == 'action'" class="ml-2">{{ result.title }}</span>
+                  <!-- Content (Node) -->
+                  <span v-else-if="result.metatype == 'node'" class="ml-2">
+                    {{ result.title }}
+                    <span class="text-gray-500 ml-1.5">{{ result.path }}</span>
+                  </span>
+                  <!-- Metadata (shortcut, last edited, etc.) -->
                   <Shortcut
-                    v-if="(result.shortcuts?.length ?? 0) > 0"
+                    v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
                     class="ml-auto"
                     :shortcut="result.shortcuts![0]"
                   />
                 </li>
               </template>
             </ul>
+            <!-- Help -->
+            <div v-if="results.length == 0" class="my-1 px-2 py-1">
+              <!-- Nothing found -->
+              <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
+                <i class="fas fa-face-monocle text-gray-600" />
+                <span class="ml-1">
+                  No results
+                  <span v-if="query"
+                    >for <span class="font-semibold">{{ query }}</span></span
+                  >
+                </span>
+              </div>
+            </div>
           </Scroll>
         </div>
       </Transition>
     </div>
   </Transition>
 </template>
+@/system/search

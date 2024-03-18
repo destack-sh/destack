@@ -6,7 +6,16 @@ import { computed, type Ref } from "vue";
 
 const actions: Ref<Action[]> = computed(
   () =>
-    (["space.open.omnibar.actions", "space.open.omnibar.space", "space.open.discord"] as ActionBuiltinId[])
+    (
+      [
+        "space.open.omnibar.actions",
+        "space.open.omnibar.space",
+        "space.open.inspector",
+        "space.open.library",
+        "space.open.docs",
+        "space.open.discord",
+      ] as ActionBuiltinId[]
+    )
       .map((id) => BUILTIN_ACTIONS.value[id])
       .filter((a) => a != null) as Action[],
 );
@@ -25,7 +34,7 @@ const actions: Ref<Action[]> = computed(
       <IconInline v-bind="action.icon" />
       <Tooltip
         :icon="action.icon"
-        :title="action.title.split(' ')[1]"
+        :title="action.title"
         :text="action.text as string"
         :shortcut="action.shortcuts?.[0]"
         position="top-7 -left-3"

@@ -2,6 +2,7 @@ import { BoxData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 
 // TODO :Architecture: how to register & wrap Views & their Components?
+//  This setup is kind of annoying because it forces a complete reload during development.
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // kernel
   [ViewType.USER_WIZARD]: import("@/views/kernel/UserWizard.vue"),
