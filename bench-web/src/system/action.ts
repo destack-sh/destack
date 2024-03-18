@@ -7,12 +7,13 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { getCurrentInstance, shallowRef, type Ref, triggerRef, watch } from "vue";
 
-export type ActionCategory = "user" | "space" | "view" | "editor";
+// :OmnibarModes
+export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "page" | "module" | "package" | "bench";
+export const OMNIBAR_MODES: OmnibarMode[] = ["everywhere", "actions", "space", "views", "page", "module", "package", "bench"];
+
+export type ActionCategory = "space" | "user" | "view";
+export const ACTION_CATEGORIES: ActionCategory[] = ["space", "user", "view"];
 export type ActionBuiltinId =
-  // user
-  | "user.signup"
-  | "user.login"
-  | "user.logout"
   // space
   // (:OmnibarModes)
   | "space.open.omnibar.everywhere"
@@ -31,6 +32,10 @@ export type ActionBuiltinId =
   | "space.open.docs"
   | "space.open.logs"
   | "space.open.discord"
+  // user
+  | "user.signup"
+  | "user.login"
+  | "user.logout"
   // view
   | "view.edit.redo"
   | "view.edit.undo"
@@ -62,7 +67,6 @@ export type ActionBuiltinId =
   | "view.analyze.findReferences";
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
-// export type ActionKind = "global" | "contextual";
 export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
 
 export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
@@ -75,7 +79,6 @@ export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
  *  provide actions by tagging runnable (no args) Blocks with Action?
  */
 export type Action = {
-  // kind: ActionKind;
   id: string; // some unique identifier for the action
   icon?: IconData;
   title: string;
@@ -87,15 +90,11 @@ export type Action = {
   category: string;
   action: ActionCallable;
   url?: string; // for external URLs
-  excludeInOmnibar?: boolean; // don't show in omnibar
 };
 
 export const BUILTIN_ACTIONS: Ref<Partial<Record<ActionBuiltinId, Action>>> = shallowRef({});
 
-type ActionIn = Pick<
-  Action,
-  "title" | "aliases" | "text" | "shortcuts" | "enabled" | "action" | "url" | "excludeInOmnibar"
-> & {
+type ActionIn = Pick<Action, "title" | "aliases" | "text" | "shortcuts" | "enabled" | "action" | "url"> & {
   id: ActionBuiltinId;
   icon?: string | IconData;
 };

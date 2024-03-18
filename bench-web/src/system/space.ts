@@ -11,7 +11,7 @@ import { log } from "@/utils/log";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { computed, watch } from "vue";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
-import { toaster } from "@/system/toast";
+
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -278,8 +278,8 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.open.discord": {
-    title: "Join Discord",
-    text: "Join our community on Discord",
+    title: "Discuss on Discord",
+    text: "Join the community on Discord",
     icon: "fab fa-discord",
     url: DISCORD_URL,
     action: () => {

@@ -24,6 +24,8 @@ export interface ReadNodeGraph {
   get nodes(): AnyNodeData[];
   /** Number of nodes in this graph */
   get size(): number;
+  /** The (relative) roots (nodes without parents in graph) */
+  get roots(): AnyNodeData[];
   /** Gets the current node with that key (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   /** Gets the children of the given parent with the given metatype (not reactive) */
@@ -37,8 +39,17 @@ export interface ReadNodeGraph {
     callback: () => void,
   ): () => void;
 
+  /**
+   * General helpers
+   */
+  /**
+   * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
+   * The filter must depend on only the given node.
+   */
+  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter: (node: AnyNodeData) => boolean): AnyNodeData[];
+
   //
-  // Observable helpers (generally provided by ObservableNodeGraphMixin)
+  // Observable helpers
   //
 
   /** Gets a reactive reference to the current node with that key */
@@ -49,16 +60,6 @@ export interface ReadNodeGraph {
   getChildrenRef<T extends NodeType>(
     parent: MaybeRef<NodeKey<any> | undefined | null>,
     metatype: T,
-  ): SubRef<NodeTypeMapping[T][]>;
-  /**
-   * Gets a reactive reference to the descendants matching a certain filter.
-   * The filter must depend on only the given node.
-   * NOTE: the search stops at any mismatch, so nodes are only included if all ancestors are.
-   */
-  getDescendantsRef<T extends NodeType>(
-    parent: MaybeRef<NodeKey<any> | undefined | null>,
-    metatype: T,
-    filter: (node: NodeTypeMapping[T]) => boolean,
   ): SubRef<NodeTypeMapping[T][]>;
 }
 
@@ -77,9 +78,10 @@ export interface WriteNodeGraph {
 }
 
 /**
- * Helper mixin for managing reactivity in a graph.
+ * Helper mixin for managing in a graph.
  */
-abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPartial" | "nodes" | "size"> {
+abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPartial" | "size"> {
+  abstract nodes: AnyNodeData[];
   abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   abstract getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
   abstract subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void;
@@ -88,6 +90,26 @@ abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" |
     metatype: T,
     callback: () => void,
   ): () => void;
+
+  get roots() {
+    return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);
+  }
+
+  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter: (node: AnyNodeData) => boolean): AnyNodeData[] {
+    const descendants: AnyNodeData[] = [];
+    const children = [];
+    for (const metatype of metatypes) {
+      children.push(...this.getChildren(parent, metatype));
+    }
+
+    for (const child of children) {
+      if (filter(child)) {
+        descendants.push(child);
+        descendants.push(...this.getDescendants(child, metatypes, filter));
+      }
+    }
+    return descendants;
+  }
 
   getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
     const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
@@ -157,21 +179,13 @@ abstract class ObservableNodeGraphMixin implements Omit<ReadNodeGraph, "scope" |
     onUnmountedIfComponent(unsub);
     return ref;
   }
-
-  getDescendantsRef<T extends NodeType>(
-    parent: MaybeRef<NodeKey<any> | null | undefined>,
-    metatype: T,
-    filter: (node: NodeTypeMapping[T]) => boolean,
-  ): SubRef<NodeTypeMapping[T][]> {
-    throw new Error("Method not implemented.");
-  }
 }
 
 /**
  * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, archived, etc.).
  * If 'isPartial', we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
-export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
+export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
   public readonly scope: GraphScope = {};
   public readonly isPartial: boolean = false;
   private nodesById: { [id: string]: AnyNodeData } = {};
@@ -284,6 +298,10 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
     return Object.keys(this.nodesById).length;
   }
 
+  get roots(): AnyNodeData[] {
+    return this.rootsIds.map((id) => this.nodesById[id]);
+  }
+
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const id = "id" in key ? key.id : this.nodesByCk[key.ck!];
     if (!id) return null;
@@ -364,7 +382,7 @@ export class NodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph
  * A graph composed of multiple (potentially overlapping subgraphs).
  * Nodes are merged from the layers in order, with later layers taking precedence.
  */
-export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
+export class LayerNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph {
   // TODO :Performance: LayerNodeGraph.layers should be scoped
   //  (so we only need to acquire refs from layers with the requested scope)
   public readonly layers: ShallowRef<ReadNodeGraph[]>;
@@ -477,7 +495,7 @@ export class LayerNodeGraph extends ObservableNodeGraphMixin implements ReadNode
 /**
  * A proxy to a single graph (like a LayerNodeGraph with a single layer).
  */
-export class ProxyNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
+export class ProxyNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph {
   readonly _graph: ShallowRef<ReadNodeGraph | null>;
 
   constructor(graph: ReadNodeGraph | null) {
@@ -555,7 +573,7 @@ export class ProxyNodeGraph extends ObservableNodeGraphMixin implements ReadNode
 /**
  * A 'view' of a graph with some nodes filtered out.
  */
-export class FilterNodeGraph extends ObservableNodeGraphMixin implements ReadNodeGraph {
+export class FilterNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph {
   public readonly graph: ReadNodeGraph;
   public readonly includeHidden: Ref<boolean>;
 

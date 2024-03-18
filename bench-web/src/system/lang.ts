@@ -14,7 +14,10 @@ import {
   type NodeTypeMapping,
   NODE_PROPERTY_ENUM_BY_TYPE,
   ViewType,
+  IconData,
+  BlockType,
 } from "@/proto/wire";
+import { makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 
@@ -153,4 +156,100 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
   }
 }
 
+export const DEFAULT_MISSING_ICON = makeIcon({ name: "fas fa-question" });
+
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];
+
+function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
+  return Object.fromEntries(
+    Object.entries(icons).map(([key, value]) => {
+      return [key as K, typeof value == "string" ? makeIcon({ name: value as string }) : value];
+    }),
+  ) as Record<K, IconData>;
+}
+
+export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
+  // root
+  [NodeType.BENCH]: "fas ca-castle",
+  [NodeType.ENVIRONMENT]: "fas fa-globe",
+  [NodeType.BRANCH]: "fas fa-code-branch",
+
+  // source
+  [NodeType.PACKAGE]: "fas fa-box-open",
+  [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
+  [NodeType.UPGRADE]: "fas fa-circle-up",
+  [NodeType.SPACE]: "fas fa-browser",
+  [NodeType.LINK]: "fas fa-link",
+  [NodeType.SKIP]: "fas fa-ban",
+  [NodeType.NOTICE]: "fas fa-square-exclamation",
+  [NodeType.BLOCK]: "fas fa-cube",
+  [NodeType.TRIGGER]: "fas fa-bolt",
+  // [NodeType.FIELD]: "fas fa-font",
+  [NodeType.RECORD]: "fas fa-database",
+  [NodeType.QUERY]: "fas fa-magnifying-glass",
+  [NodeType.VIEW]: "fas fa-window",
+
+  // auth
+  [NodeType.BADGE]: "fas fa-id-badge",
+  [NodeType.ROLE]: "fas fa-user-tag",
+  [NodeType.IDENTITY]: "fas fa-image-user",
+  [NodeType.MEMBERSHIP]: "fas fa-users",
+  [NodeType.INVITE]: "fas fa-envelope",
+
+  // runtime
+  [NodeType.SESSION]: "fas fa-circle-play",
+  [NodeType.RUN]: "fas fa-play",
+  [NodeType.PAUSE]: "fas fa-pause",
+  [NodeType.SIGNAL]: "fas fa-signal-stream",
+  [NodeType.LOG]: "fas fa-file-alt",
+  [NodeType.NOTIFICATION]: "fas fa-bell",
+
+  // resources
+  [NodeType.SERVER]: "fas fa-server",
+  [NodeType.STORE]: "fas fa-database",
+  [NodeType.DRIVE]: "fas fa-hdd",
+  [NodeType.CACHE]: "fas fa-memory",
+  [NodeType.FILE_CONTENT]: "fas fa-file",
+
+  // user
+  [NodeType.HANDLE]: "fas fa-at",
+  [NodeType.USER]: "fas fa-user",
+  [NodeType.ORGANIZATION]: "fas fa-building",
+  [NodeType.CLIENT]: "fas fa-desktop",
+});
+
+export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
+  [BlockType.PAGE]: "fas fa-page",
+  [BlockType.BLANK]: "fas fa-square",
+  [BlockType.TEXT]: "fas fa-font",
+  [BlockType.ALIAS]: "fas fa-link",
+
+  [BlockType.CLASS]: "fas fa-objects-column",
+  [BlockType.CHOICE]: "fas fa-circle-chevron-down",
+  [BlockType.SIGNAL]: "fas fa-signal-stream",
+  [BlockType.PROTOCOL]: "fas fa-list-check",
+
+  [BlockType.SINGLE_VARIABLE]: "fas fa-columns-3",
+  [BlockType.MULTI_VARIABLE]: "fas fa-columns-3",
+
+  [BlockType.MODEL_ROUTINE]: "fas fa-function",
+  [BlockType.CODE_ROUTINE]: "fas fa-code",
+  [BlockType.SCRIPT]: "fas fa-file-code",
+  [BlockType.FLOW]: "fas fa-diagram-project",
+
+  [BlockType.QUERY]: "fas fa-magnifying-glass",
+  [BlockType.DATABASE]: "fas fa-database",
+
+  [BlockType.SCREEN]: "fas fa-window",
+
+  [BlockType.ROLE]: "fas fa-user-tag",
+  [BlockType.IDENTITY]: "fas fa-image-user",
+});
+
+export function getNodeIcon(nodeType: NodeType) {
+  return ICON_BY_NODE_TYPE[nodeType] ?? DEFAULT_MISSING_ICON;
+}
+
+export function getBlockIcon(blockType: BlockType) {
+  return ICON_BY_BLOCK_TYPE[blockType] ?? DEFAULT_MISSING_ICON;
+}
