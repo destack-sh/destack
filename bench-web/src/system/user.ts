@@ -142,5 +142,5 @@ contributeActionMap<"user">({
       });
     },
   },
-  "user.logout": { icon: "fas fa-right-to-bracket", title: "Log Out", enabled: isAuthenticated, action: logOut },
+  "user.logout": { icon: "fas fa-right-to-bracket", title: "Log Out", enabled: isAuthenticated, action: () => logOut() },
 });

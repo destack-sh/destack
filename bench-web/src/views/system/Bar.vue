@@ -28,7 +28,7 @@ const props = defineProps<{
     <!-- Middle -->
     <div class="flex flex-1 flex-shrink-0 items-center justify-center -sm:hidden">
       <!-- Dock -->
-      <Dock class="w-fit rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300" />
+      <Dock class="w-fit px-2 py-1" />
     </div>
 
     <!-- Right -->
