@@ -10,6 +10,7 @@ const props = defineProps<
     self?: NodeReferenceData | undefined;
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
+    trackIsAlwaysVisible?: boolean;
     size: Required<Pick<BoxData, "width" | "height">>;
     sizeIsDynamic?: boolean;
   } & Pick<ViewData, "orientation" | "variant">
@@ -76,7 +77,7 @@ defineExpose({ self });
         class="absolute z-40 rounded-md transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
-          isVisiblyScrolling
+          trackIsAlwaysVisible || isVisiblyScrolling
             ? 'bg-primary-400 opacity-100'
             : isMouseInArea
               ? 'bg-primary-300 opacity-80'

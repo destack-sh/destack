@@ -10,7 +10,8 @@ import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { computed, watch } from "vue";
-import { contributeActionMap } from "@/system/action";
+import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
+import { toaster } from "@/system/toast";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -258,8 +259,26 @@ export function splitView(
 
 const DISCORD_URL = "https://discord.gg/pSBdq6XC";
 contributeActionMap<"space">({
+  "space.open.inspector": {
+    title: "Inspect Node",
+    text: "Open the Inspector View",
+    icon: "fas fa-eye-dropper",
+    action: ACTION_COMING_SOON,
+  },
+  "space.open.library": {
+    title: "Open Library",
+    text: "Get building blocks from the library",
+    icon: "fas fa-books",
+    action: ACTION_COMING_SOON,
+  },
+  "space.open.docs": {
+    title: "Read the Docs",
+    text: "Get help from our examples and guides",
+    icon: "fas fa-book-open",
+    action: ACTION_COMING_SOON,
+  },
   "space.open.discord": {
-    title: "Open Discord",
+    title: "Join Discord",
     text: "Join our community on Discord",
     icon: "fab fa-discord",
     url: DISCORD_URL,

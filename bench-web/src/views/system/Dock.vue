@@ -16,8 +16,8 @@ const actions: Ref<Action[]> = computed(
     <component
       :is="action.url ? 'a' : 'button'"
       v-for="action in actions"
-      :key="action.key"
-      class="group relative rounded-md border border-gray-300 bg-primary-300 px-1 text-gray-900 hover:cursor-pointer hover:bg-primary-400"
+      :key="action.id"
+      class="group relative rounded-md border border-gray-900 bg-primary-300 px-1 py-0.5 text-gray-900 shadow-sm shadow-gray-900 hover:cursor-pointer hover:bg-primary-400"
       @click="action.action"
       :href="action.url"
       target="_blank"
@@ -28,7 +28,7 @@ const actions: Ref<Action[]> = computed(
         :title="action.title.split(' ')[1]"
         :text="action.text as string"
         :shortcut="action.shortcuts?.[0]"
-        position="top-6 -left-3"
+        position="top-7 -left-3"
       />
     </component>
   </div>

@@ -1,5 +1,6 @@
 import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
+import { toaster } from "@/system/toast";
 import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
@@ -13,6 +14,7 @@ export type ActionBuiltinId =
   | "user.login"
   | "user.logout"
   // space
+  // (:OmnibarModes)
   | "space.open.omnibar.everywhere"
   | "space.open.omnibar.actions"
   | "space.open.omnibar.space"
@@ -58,11 +60,13 @@ export type ActionBuiltinId =
   | "view.layout.splitWindowVertical"
   | "view.analyze.goToDefinition"
   | "view.analyze.findReferences";
-
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
-
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
 // export type ActionKind = "global" | "contextual";
+export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
+
+export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
+  toaster.debug({ title: "Coming soon", text: `"${action.title}" is not yet available.`, icon: action.icon });
 
 /**
  * An Action that can be performed by the user in the space.
@@ -72,8 +76,8 @@ export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "b
  */
 export type Action = {
   // kind: ActionKind;
+  id: string; // some unique identifier for the action
   icon?: IconData;
-  key: string; // some unique identifier for the action
   title: string;
   aliases?: string[];
   text?: string | TextData;
@@ -81,7 +85,7 @@ export type Action = {
   enabled?: Ref<boolean>;
   source: ActionSource;
   category: string;
-  action: () => void | boolean | Promise<void> | Promise<boolean>;
+  action: ActionCallable;
   url?: string; // for external URLs
   excludeInOmnibar?: boolean; // don't show in omnibar
 };
@@ -102,7 +106,7 @@ export function contributeAction(in_: ActionIn) {
     ...in_,
     icon: typeof in_.icon === "string" ? makeIcon({ name: in_.icon }) : in_.icon,
     source: { kind: "builtin", id: in_.id },
-    key: in_.id,
+    id: in_.id,
     category: in_.id.split(".")[0],
   };
   if (BUILTIN_ACTIONS.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
@@ -123,12 +127,13 @@ export function getAction(id: ActionBuiltinId): Action {
 }
 
 export function runAction(id: ActionBuiltinId) {
-  getAction(id).action();
+  const action = getAction(id);
+  action.action(action);
 }
 
 function fireAction(action: Action): boolean {
   if (action.enabled != null && !action.enabled.value) return false;
-  const ret = action.action();
+  const ret = action.action(action);
   return typeof ret === "boolean" ? ret : true;
 }
 

@@ -1,9 +1,30 @@
 import type { IconData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
+import { isOnMac } from "@/utils/browser";
 import { parseKeymapSignature, renderKeymapKey } from "@/utils/keymap";
 import { Casing, toCasing } from "@/utils/string";
 import { computed, type FunctionalComponent } from "vue";
 
+const IS_ON_MAC = isOnMac(window);
+const KEY_ICONS_FA: Record<string, string | undefined> = {
+  cmd: "fas fa-command",
+  ctrl: IS_ON_MAC ? "fas fa-chevron-up" : undefined,
+  mod: IS_ON_MAC ? "fas fa-command" : undefined, // :ModKey
+  alt: IS_ON_MAC ? "fas fa-option" : undefined,
+  enter: "fas fa-arrow-turn-down-left",
+  backspace: "fas fa-delete-left",
+  tab: "fas fa-arrow-right-long-to-line",
+  pageup: "fas fa-arrow-up-to-line",
+  pagedown: "fas fa-arrow-down-to-line",
+  up: "fas fa-arrow-up",
+  down: "fas fa-arrow-down",
+  left: "fas fa-arrow-left",
+  right: "fas fa-arrow-right",
+  home: "fas fa-house",
+};
+const KEY_ICONS_TEXT: Record<string, string> = {
+  shift: "⇧",
+};
 export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, context) => {
   const parsed = computed(() => parseKeymapSignature(props.shortcut));
   return (
@@ -16,8 +37,14 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, conte
           <span class="flex flex-row gap-x-0.5">
             {keys.map((key) => (
               // Key
-              <kbd class="rounded-md border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900">
-                {toCasing(renderKeymapKey(key), Casing.CAMEL)}
+              <kbd class="min-w-5 rounded-md border border-gray-300 bg-white px-1 py-0.5 text-center font-sans text-xs text-gray-700 hover:border-orange-900 hover:bg-gray-100 hover:text-orange-900">
+                {KEY_ICONS_FA[key] != null ? (
+                  <i class={KEY_ICONS_FA[key]} />
+                ) : KEY_ICONS_TEXT[key] != null ? (
+                  KEY_ICONS_TEXT[key]
+                ) : (
+                  toCasing(renderKeymapKey(key), Casing.CAMEL)
+                )}
               </kbd>
             ))}
           </span>
