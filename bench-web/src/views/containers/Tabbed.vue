@@ -1,34 +1,34 @@
 <script lang="tsx" setup>
 import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, SelectionKind, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
+import { type ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { addView, removeView, spaceRegistry, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
-import { log } from "@/utils/log";
 import { ScrollbarWidth } from "@/utils/layout";
-import { getViewBinding, getViewComponent, makeViewId } from "@/views";
-import { type ViewExposed, viewEmits } from "@/views/common";
-import { computed, ref, toRef, type Ref, nextTick } from "vue";
+import { log } from "@/utils/log";
+import { getViewBinding, getViewComponent } from "@/views";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import { type ActionMapImplementation } from "@/system/action";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "selection">
+  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "focus">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-// selection
+// focus
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW);
 
-const selectedTabIdx: Ref<number | null> = computed(() => {
+const focusedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) return null;
-  if ((props.selection?.nodesPtr.length ?? 0) > 0) {
-    const selectedId = props.selection!.nodesPtr[0].id;
-    const selectedTabIdx = tabs.value.findIndex((tab) => tab.id == selectedId);
-    return selectedTabIdx >= 0 ? selectedTabIdx : 0;
+  if ((props.focus?.nodesPtr.length ?? 0) > 0) {
+    const focusedId = props.focus!.nodesPtr[0].id;
+    const focusedTabIdx = tabs.value.findIndex((tab) => tab.id == focusedId);
+    return focusedTabIdx >= 0 ? focusedTabIdx : 0;
   } else {
     return 0;
   }
@@ -38,22 +38,11 @@ const innerSize = computed(() => ({
   height: props.size.height - 30,
 }));
 
-function select(tab: ViewData) {
-  log.debug("tabbed.select", tab);
-  // select in graph
-  spaceConnection.sideTx.update({
-    metatype: NodeType.VIEW,
-    id: props.self.id,
-    selection: {
-      metatype: BenchType.SELECTION,
-      kind: SelectionKind.LIST,
-      nodesPtr: [toNodeReference(tab)],
-    },
-  });
-  // focus tab in header
+function focus(tab: ViewData) {
+  spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: tab });
+  // ensure tab is visible in header
   nextTick(() => {
-    const tabRef = tabsRef.value[tab.id];
-    tabRef!.scrollIntoView({ block: "nearest", inline: "nearest" });
+    tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
 }
 
@@ -76,7 +65,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
       addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
-      select(draggedNode);
+      focus(draggedNode);
     }
   },
 });
@@ -95,7 +84,7 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
       const self = spaceGraph.get(props.self) as ViewData;
       if (anchor == "center") {
         addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
-        select(draggedNode);
+        focus(draggedNode);
       } else {
         splitView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor);
       }
@@ -106,8 +95,8 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
 // actions
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
-    enabled: computed(() => selectedTabIdx.value != null),
-    action: () => remove(tabs.value[selectedTabIdx.value!]),
+    enabled: computed(() => focusedTabIdx.value != null),
+    action: () => remove(tabs.value[focusedTabIdx.value!]),
   },
   "view.layout.splitHorizontal": {
     action: () => {
@@ -124,10 +113,10 @@ const actions: Partial<ActionMapImplementation<"view">> = {
 };
 
 spaceRegistry.registerCurrent(self);
-defineExpose<ViewExposed>({ self, select, actions });
+defineExpose<ViewExposed>({ self, focus, actions });
 </script>
 <template>
-  <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
+  <div class="relative select-none" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tab header -->
     <Scroll
       ref="headerRef"
@@ -145,11 +134,11 @@ defineExpose<ViewExposed>({ self, select, actions });
         :key="tab.id"
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
         :class="[
-          i == selectedTabIdx
+          i == focusedTabIdx
             ? 'text-primary-900 shadow-inset-md shadow-primary-900'
             : 'text-gray-700 hover:text-primary-900',
         ]"
-        @mousedown="select(tab)"
+        @mousedown="focus(tab)"
         :draggable="true"
         @dragstart="
           (e: DragEvent) => {
@@ -162,15 +151,15 @@ defineExpose<ViewExposed>({ self, select, actions });
           v-if="tab.icon"
           v-bind="tab.icon"
           class="mr-1.5"
-          :class="i == selectedTabIdx ? '' : 'text-gray-600 group-hover:text-primary-900'"
+          :class="i == focusedTabIdx ? '' : 'text-gray-600 group-hover:text-primary-900'"
         />
-        <span class="truncate" :class="[tab.title ? '' : 'italic', i == selectedTabIdx ? '' : '']">
+        <span class="truncate" :class="[tab.title ? '' : 'italic', i == focusedTabIdx ? '' : '']">
           {{ tab.title ?? `Tab ${i + 1}` }}
         </span>
         <!-- Close tab button -->
         <button
           class="ml-1.5 group-hover:text-gray-400"
-          :class="[i == selectedTabIdx ? 'text-gray-400' : 'text-transparent']"
+          :class="[i == focusedTabIdx ? 'text-gray-400' : 'text-transparent']"
           @mousedown.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />
@@ -196,12 +185,12 @@ defineExpose<ViewExposed>({ self, select, actions });
     >
       <!-- Content -->
       <component
-        v-if="selectedTabIdx != null && getViewComponent(tabs[selectedTabIdx].type) != null"
-        :is="getViewComponent(tabs[selectedTabIdx].type)"
-        :self="toNodeReference(tabs[selectedTabIdx])"
-        v-bind="getViewBinding(tabs[selectedTabIdx], innerSize)"
+        v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
+        :is="getViewComponent(tabs[focusedTabIdx].type)"
+        :self="toNodeReference(tabs[focusedTabIdx])"
+        v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />
-      <div v-else-if="selectedTabIdx != null" class="h-full w-full">
+      <div v-else-if="focusedTabIdx != null" class="h-full w-full">
         <!-- missing view -->
       </div>
       <div v-else class="h-full w-full">

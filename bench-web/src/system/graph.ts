@@ -42,9 +42,9 @@ export interface ReadNodeGraph {
   /**
    * General helpers
    */
-  /**
-   * Gets all ancestors of the given node with the given or any metatypes.
-   */
+  /** Gets the current node with the key if the key is given */
+  getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
+  /** * Gets all ancestors of the given node with the given or any metatypes. */
   getAncestors(node: NodeKey<any>, metatypes?: NodeType[]): AnyNodeData[];
   /**
    * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
@@ -97,6 +97,10 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
 
   get roots() {
     return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);
+  }
+
+  getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null {
+    return key ? this.get(key) : null;
   }
 
   getAncestors(node: NodeKey<any>, metatypes?: NodeType[] | undefined): AnyNodeData[] {

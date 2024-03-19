@@ -10,6 +10,7 @@ const isInverted = computed(() => props.anchor == "top-left" || props.anchor == 
 
 // enter from top/bottom
 const TOAST_WIDTH = 320;
+const MAX_TOASTS = 5;
 
 const ENTER_FROM_BY_ANCHOR: Record<ToastAnchor, string> = {
   "top-left": "translate-y-[-100%]",
@@ -24,6 +25,12 @@ const LEAVE_TO_BY_ANCHOR: Record<ToastAnchor, string> = {
   "bottom-left": "translate-x-[-320px]",
   "bottom-right": "translate-x-[320px]",
 };
+
+const visibleToasts = computed(() => {
+  let toasts = toaster.activeToasts;
+  if (toasts.length > MAX_TOASTS) toasts = toasts.slice(toasts.length - MAX_TOASTS);
+  return toasts;
+});
 
 const absoluteStyle = computed(() => {
   if (props.anchor == "top-left") {
@@ -55,7 +62,7 @@ const absoluteStyle = computed(() => {
   >
     <!-- Toasts -->
     <li
-      v-for="toast in toaster.activeToasts"
+      v-for="toast in visibleToasts"
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
       class="group relative rounded-md border border-gray-300 bg-white px-4 py-3 shadow-md shadow-gray-300"

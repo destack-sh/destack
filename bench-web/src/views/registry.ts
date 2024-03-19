@@ -1,6 +1,7 @@
-import { NodeReferenceData, NodeType } from "@/proto/wire";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
-import type { ReadNodeGraph } from "@/system/graph";
+import { BenchType, NodeReferenceData, NodeType, SelectionKind, SpaceData, ViewData } from "@/proto/wire";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import type { NodeKey, ReadNodeGraph } from "@/system/graph";
+import type { Transaction } from "@/system/transaction";
 import { log } from "@/utils/log";
 import type { ViewComponent } from "@/views";
 import { useActiveElement } from "@vueuse/core";
@@ -63,6 +64,8 @@ export function collectViewComponents(componentOrEl: ComponentInstance<any> | HT
 
 const activeElement = useActiveElement();
 
+type SomeView = NodeReferenceData | ViewData;
+
 /**
  * A registry for linking Views, their Vue components, and their HTML elements.
  * Some of our View components may not have an associated View, so we track them with a derived id.
@@ -72,27 +75,26 @@ export class ViewRegistry {
   viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
+  focusedView: Ref<NodeReferenceData | null> = shallowRef(null);
 
   constructor(graph: ReadNodeGraph) {
     this.graph = graph;
 
+    // update focus manually when active element changes (if not in excluded elements)
     watch(activeElement, () => {
-      if (activeElement.value == null) {
+      const viewComponent = activeElement.value == null ? null : findViewComponent(activeElement.value);
+      if (activeElement.value == null || viewComponent == null) {
         this.focusedViewComponent.value = null;
         this.focusedViewComponentsById.value = {};
-      } else {
-        const viewComponent = findViewComponent(activeElement.value);
-        if (viewComponent == null) {
-          this.focusedViewComponent.value = null;
-          this.focusedViewComponentsById.value = {};
-        } else if (this.focusedViewComponent.value !== viewComponent) {
-          this.focusedViewComponent.value = viewComponent;
-          const componentsById: Record<string, ViewComponent> = {};
-          collectViewComponents(viewComponent).forEach((c) => {
-            componentsById[getViewComponentId(c)] = c;
-          });
-          this.focusedViewComponentsById.value = componentsById;
-        }
+        this.focusedView.value = null;
+      } else if (this.focusedViewComponent.value !== viewComponent) {
+        this.focusedViewComponent.value = viewComponent;
+        const componentsById: Record<string, ViewComponent> = {};
+        collectViewComponents(viewComponent).forEach((c) => {
+          componentsById[getViewComponentId(c)] = c;
+        });
+        this.focusedViewComponentsById.value = componentsById;
+        this.focusedView.value = viewComponent.exposed.self?.value ?? null;
       }
     });
   }
@@ -101,30 +103,48 @@ export class ViewRegistry {
     return Object.values(this.focusedViewComponentsById.value);
   }
 
-  /** Finds the View pointer of the closest ViewComponent ancestor. */
+  /** Resolve the view data */
+  getViewData(view: SomeView): ViewData {
+    if (view.metatype == BenchType.VIEW) return view as ViewData;
+    else return this.graph.get(view as NodeKey<NodeType.VIEW>) as ViewData;
+  }
+
+  /** Focus the given views (and all ancestor views) */
+  focus(tx: Transaction, self: SomeView, focus: { view: SomeView }) {
+    log.debug("focus", self, focus);
+
+    // focus view and all ancestors
+    let parent: ViewData | SpaceData | null = this.getViewData(self);
+    let child = this.getViewData(focus.view);
+    while (parent?.metatype == BenchType.VIEW || parent?.metatype == BenchType.SPACE) {
+      tx.update({
+        metatype: parent.metatype as unknown as NodeType.VIEW | NodeType.SPACE,
+        id: parent.id,
+        focus: {
+          metatype: BenchType.SELECTION,
+          kind: SelectionKind.LIST,
+          nodesPtr: [toNodeReference(child)],
+        },
+      });
+      child = parent as ViewData;
+      parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
+    }
+  }
+
+  /** Whether the given view is directly focused (not an ancestor/descendant view) */
+  isFocusedDirectly(view: SomeView): boolean {
+    return this.focusedView.value?.id == view.id;
+  }
+
+  /** Whether the given view or its descendants have focus */
+  isFocusedDown(view: SomeView): boolean {
+    return this.focusedViewComponents.some((c) => getViewComponentId(c) == view.id);
+  }
+
+  /** Finds the View identity of the closest ViewComponent ancestor. */
   findViewPtr(e: HTMLElement): TypedNodeReferenceData<NodeType.VIEW> | null {
     const component = findViewComponent(e);
     return (component?.exposed.self?.value ?? null) as TypedNodeReferenceData<NodeType.VIEW> | null;
-  }
-
-  /** Whether the given view is directly focused */
-  isFocused(node: NodeReferenceData): boolean {
-    return this.focusedViewComponent.value?.exposed?.id == node.id;
-  }
-
-  /** Whether the given view is directly focused (reactive) */
-  isFocusedRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
-    return computed(() => node?.value != null && this.isFocused(node.value));
-  }
-
-  /** Whether anything inside the given view is focused */
-  isFocusedWithin(node: NodeReferenceData): boolean {
-    return this.focusedViewComponentsById.value[node.id ?? ""] != null;
-  }
-
-  /** Whether anything inside the given view is focused (reactive) */
-  isFocusedWithinRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
-    return computed(() => node?.value != null && this.isFocusedWithin(node.value));
   }
 
   /** Registers the current Vue instance as the given identity */
@@ -138,10 +158,11 @@ export class ViewRegistry {
       () => {
         if (oldComponentId != null) delete this.viewRefsById.value[oldComponentId];
         const componentId = self.value?.id ?? id?.value!;
-        if (this.viewRefsById.value[componentId] != null)
-        // This only happens for our own components, so we should fail hard.
-        //  (This must be a name-derived id from makeViewId, with colliding names).  
-          throw new Error(`duplicate component id: ${componentId}`); 
+        if (this.viewRefsById.value[componentId] != null) {
+          // This only happens for our own components, so we should fail hard.
+          //  (This is almost certainly a name-derived id from makeViewId, so we re-used an anonymous views' name accidentally).
+          throw new Error(`duplicate component id: ${componentId}`);
+        }
         this.viewRefsById.value[componentId] = instance;
         triggerRef(this.viewRefsById);
         oldComponentId = componentId;

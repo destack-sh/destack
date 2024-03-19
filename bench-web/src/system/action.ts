@@ -1,15 +1,14 @@
-import type { IconData, NodeReferenceData, TextData, ViewData } from "@/proto/wire";
+import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { spaceRegistry } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
-import { keytrap, type KeySignature, type ParsedKeySignature } from "@/utils/keymap";
+import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
-import { onUnmountedStrict } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
 import { collectViewComponents } from "@/views/registry";
-import { getCurrentInstance, shallowRef, triggerRef, watch, type Ref, computed } from "vue";
+import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -197,7 +196,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
 }
 
 /** Triggers the bound action from a given view (as starting point). */
-export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null) {
+export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null) {
   if (action.enabled != null && !action.enabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly

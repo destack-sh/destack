@@ -156,9 +156,11 @@ export function nodeReference<T extends NodeType>(
 }
 
 export function toNodeReference(node: null): null;
+export function toNodeReference<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
+  if (node.metatype == BenchType.NODE_REFERENCE) return node as unknown as TypedNodeReferenceData<T>;
   const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const reference: TypedNodeReferenceData<T> = {
     metatype: BenchType.NODE_REFERENCE,

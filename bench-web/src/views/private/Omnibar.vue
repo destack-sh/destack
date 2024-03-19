@@ -197,7 +197,7 @@ defineExpose({ isActive, open });
         >
           <!-- Header (pr is +2px for inset scroll track) -->
           <div
-            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-700 pl-4 pr-[18px] text-sm text-gray-900"
+            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-700 pl-[18px] pr-[18px] text-sm text-gray-900"
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->
@@ -293,9 +293,9 @@ defineExpose({ isActive, open });
                 <i class="fas fa-face-monocle text-gray-600" />
                 <span class="ml-1">
                   No results
-                  <span v-if="query"
-                    >for <span class="font-semibold">{{ query }}</span></span
-                  >
+                  <span v-if="query">
+                    for <span class="font-semibold">{{ query }}</span>
+                  </span>
                 </span>
               </div>
             </div>
