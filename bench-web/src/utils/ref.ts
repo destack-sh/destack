@@ -132,6 +132,16 @@ export function onUnmountedIfComponent(callback: () => void) {
   }
 }
 
+/**
+ * Run a callback when the component is unmounted, error if not in a component.
+ */
+export function onUnmountedStrict(callback: () => void) {
+  if (!getCurrentInstance()) {
+    throw new Error("onUnmountedStrict can only be used in a component");
+  }
+  onUnmounted(callback);
+}
+
 /** A read-only reference that can stop its reactivity subscription (permanently) */
 export type SubRef<T> = Ref<T> & {
   /** Stops tracking */

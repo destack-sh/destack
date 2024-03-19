@@ -510,28 +510,34 @@ METATYPE_KEY = "_type"
 
 class UnsupportedExpressionError(ValueError):
     def __init__(self, field: "Field", thing: Any):
-        super().__init__(f"{repr(field)} does not support {thing}")
+        super().__init__(f"{field!r} does not support {thing!r}")
 
 
 def _check_field_supports(type: "TypeInfo", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
-        return type.primitive_type in (
+        if type.primitive_type in (
             PrimitiveType.DATETIME,
             PrimitiveType.FLOAT32,
             PrimitiveType.INT32,
             PrimitiveType.INT64,
-        )
+        ):
+            return
     else:
-        if op not in _ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
+        if op in _ExprOps.COND_EXISTENCE:
+            return True
+        elif type.primitive_type is not None and op in SUPPORTED_PRIMITIVE_OPS.get(
             type.primitive_type, _EMPTY_SET
         ):
-            raise UnsupportedExpressionError(type, op)
+            return True
+        elif type.bench_type is not None and op in SUPPORTED_NODE_OPS:
+            return True
+    raise UnsupportedExpressionError(type, op)
 
 
 # should probably also have expression support per query engine?
 _ExprOps = ExpressionOps  # alias
-SUPPORTED_OPS_BY_TYPE: dict[PrimitiveType, set[ConditionalOp]] = {
+SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalOp]] = {
     # cumulative supported query ops by type
     PrimitiveType.UUID: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.INT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
@@ -545,6 +551,7 @@ SUPPORTED_OPS_BY_TYPE: dict[PrimitiveType, set[ConditionalOp]] = {
     | _ExprOps.COND_RANGE
     | {ConditionalOp.MATCHES, ConditionalOp.STARTS_WITH, ConditionalOp.REGEX},
 }
+SUPPORTED_NODE_OPS = _ExprOps.COND_RANGE | _ExprOps.COND_EXACT
 _EMPTY_SET = set()
 
 NodeT = TypeVar("NodeT", bound="Node")

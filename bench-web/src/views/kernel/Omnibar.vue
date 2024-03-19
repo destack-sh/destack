@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { contributeAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode } from "@/system/action";
+import { addAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode } from "@/system/action";
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, useSearch, type SearchIndex, graphIndex } from "@/system/search";
 import { bench, spaceGraph } from "@/system/space";
@@ -124,9 +124,9 @@ watch(
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   everywhere: ["mod+k"],
   actions: ["mod+shift+a"],
-  space: ["mod+shift+s"],
+  space: ["mod+shift+f"],
   views: ["mod+shift+v"],
-  page: ["mod+p"],
+  view: ["mod+f"],
   module: ["mod+shift+m"],
   package: ["mod+shift+p"],
   bench: ["mod+shift+b"],
@@ -136,14 +136,14 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   actions: "Find an action to run",
   space: "Search across your Space",
   views: "Search Views in your Space",
-  page: "Search the current page (Block)",
+  view: "Search the focused View",
   module: "Search the current Module",
   package: "Search the current Package",
   bench: "Search the current Bench",
 };
-const IN_BENCH_MODES: OmnibarMode[] = ["page", "module", "package", "bench"];
+const IN_BENCH_MODES: OmnibarMode[] = ["module", "package", "bench"];
 for (const inMode of OMNIBAR_MODES) {
-  contributeAction({
+  addAction("static", {
     id: ("space.open.omnibar." + inMode) as ActionBuiltinId,
     title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],

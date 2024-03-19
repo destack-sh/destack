@@ -13,6 +13,7 @@ const KEY_ICONS_FA: Record<string, string | undefined> = {
   alt: IS_ON_MAC ? "fas fa-option" : undefined,
   enter: "fas fa-arrow-turn-down-left",
   backspace: "fas fa-delete-left",
+  del: "fas fa-delete-left",
   tab: "fas fa-arrow-right-long-to-line",
   pageup: "fas fa-arrow-up-to-line",
   pagedown: "fas fa-arrow-down-to-line",
@@ -21,6 +22,7 @@ const KEY_ICONS_FA: Record<string, string | undefined> = {
   left: "fas fa-arrow-left",
   right: "fas fa-arrow-right",
   home: "fas fa-house",
+  end: "fas fa-flag",
 };
 const KEY_ICONS_TEXT: Record<string, string> = {
   shift: "⇧",

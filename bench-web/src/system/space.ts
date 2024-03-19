@@ -1,7 +1,16 @@
-import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
-import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
+import {
+  BenchType,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  SpaceData,
+  StructType,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
-import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
+import { NodeGraph, ProxyNodeGraph, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
@@ -9,9 +18,10 @@ import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
-import { computed, watch } from "vue";
-import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
-
+import { computed, ref, watch, type Ref, shallowRef, type ComponentPublicInstance, type ComponentInstance } from "vue";
+import { ACTION_COMING_SOON, contributeActionMap, declareActionMap } from "@/system/action";
+import { useActiveElement } from "@vueuse/core";
+import type { ViewComponent } from "@/views";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -100,7 +110,7 @@ function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
             metatype: NodeType.VIEW,
             parentPtr: toNodeReference(node),
             packagePtr: LOCAL_PACKAGE_PTR,
-            type: ViewType.PAGE,
+            type: ViewType.USER_WIZARD,
             icon: makeIcon({ name: "fas fa-right-from-bracket" }),
             title: `Test Page ${ord++}`,
             orderKey: "a0",
@@ -119,15 +129,6 @@ export function addViewToCurrentRoot(view: Partial<Omit<ViewData, "metatype">> &
     (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
   );
   if (root == null) throw new Error("no root view");
-  // tx.create(
-  //   makeNode({
-  //     metatype: NodeType.VIEW,
-  //     ...view,
-  //     packagePtr: space.value?.packagePtr,
-  //     parentPtr: toNodeReference(root),
-  //   }),
-  // );
-  throw new Error("nocheckin: handle & assign current root view etc.");
 }
 
 /**
@@ -286,5 +287,167 @@ contributeActionMap<"space">({
       // open in new tab
       window.open(DISCORD_URL, "_blank");
     },
+  },
+});
+
+export const activeElement = useActiveElement();
+
+/** Finds the closest Vue component */
+function findVueComponent(el: HTMLElement): ComponentInstance<any> | null {
+  while (el != null) {
+    if ((el as any).__vueParentComponent != null) return (el as any).__vueParentComponent;
+    el = el.parentElement!;
+  }
+  return null;
+}
+
+/**
+ * A registry for linking Views, their Vue components, and their HTML elements.
+ */
+export class SpaceRegistry {
+  graph: ReadNodeGraph;
+  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
+  focusedView: Ref<ViewData | null>; // nocheckin: track focus even if activeElement is elsewhere (e.g. omnibar)
+  focusedViews: Ref<ViewData[]>;
+
+  constructor(graph: ReadNodeGraph) {
+    this.graph = graph;
+
+    this.focusedView = computed(() => {
+      const focused = activeElement.value;
+      if (focused == null) return null;
+      const viewPtr = this.findViewPtr(focused);
+      if (viewPtr == null) return null;
+      else return this.graph.get(viewPtr) as ViewData;
+    });
+    this.focusedViews = computed(() => {
+      const focused = this.focusedView.value;
+      if (focused == null) return [];
+      const focusedView = this.graph.get(focused as NodeKey<any>) as ViewData;
+      return this.graph.getAncestors(focusedView, [NodeType.VIEW]) as ViewData[];
+    });
+  }
+
+  /** Finds the closest ViewComponent ancestor. */
+  findViewComponent(e: HTMLElement): ViewComponent | null {
+    // first find the Vue component
+    let vueComponent = findVueComponent(e);
+    // then look for View component
+    while (vueComponent != null) {
+      if (vueComponent.exposed.self != null) {
+        return vueComponent as ViewComponent;
+      }
+      vueComponent = vueComponent.parent;
+    }
+    return null;
+  }
+
+  /** Finds the View pointer of the closest ViewComponent ancestor. */
+  findViewPtr(e: HTMLElement): TypedNodeReferenceData<NodeType.VIEW> | null {
+    const component = this.findViewComponent(e);
+    return (component?.exposed.self ?? null) as TypedNodeReferenceData<NodeType.VIEW> | null;
+  }
+
+  /** Whether the given view is directly focused */
+  isFocused(node: NodeReferenceData): boolean {
+    return this.focusedView.value?.id == node.id;
+  }
+
+  /** Whether the given view is directly focused (reactive) */
+  isFocusedRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
+    return computed(() => node?.value != null && this.isFocused(node.value));
+  }
+
+  /** Whether anything inside the given view is focused */
+  isFocusedWithin(node: NodeReferenceData): boolean {
+    return this.focusedViews.value.some((v) => v.id == node.id);
+  }
+
+  /** Whether anything inside the given view is focused (reactive) */
+  isFocusedWithinRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
+    return computed(() => node?.value != null && this.isFocusedWithin(node.value));
+  }
+
+  /** Register/unregister the given view's component instance */
+  register(viewSelf: NodeReferenceData, instance: ViewComponent | undefined) {
+    if (viewSelf.id == null) throw new Error(`node has no id: ${viewSelf}`);
+    if (instance == null) {
+      delete this.viewRefsById.value[viewSelf.id];
+    } else {
+      this.viewRefsById.value[viewSelf.id] = instance;
+    }
+  }
+}
+
+export const spaceRegistry = new SpaceRegistry(spaceGraph);
+
+// declare space actions
+declareActionMap<"view">({
+  // navigate
+  "view.navigate.focusPreviousTab": {
+    icon: "fas fa-chevron-left",
+    title: "Focus Previous Tab",
+    text: "Navigate to the previous tab",
+  },
+  "view.navigate.focusNextTab": {
+    icon: "fas fa-chevron-right",
+    title: "Focus Next Tab",
+    text: "Navigate to the next tab",
+  },
+  "view.navigate.focusPreviousWindow": {
+    icon: "fas fa-chevrons-left",
+    title: "Focus Previous Window",
+    text: "Navigate to the previous window",
+  },
+  "view.navigate.focusNextWindow": {
+    icon: "fas fa-chevrons-right",
+    title: "Focus Next Window",
+    text: "Navigate to the next window",
+    shortcuts: ["mod+shift+space"],
+  },
+  "view.navigate.closeTab": {
+    icon: "fas fa-xmark",
+    title: "Close Tab",
+    text: "Close the current tab",
+    shortcuts: ["mod+w", "ctrl+w"],
+  },
+  "view.navigate.closeOtherTabs": {
+    icon: "fas fa-xmark",
+    title: "Close Other Tabs",
+    text: "Close all other tabs",
+  },
+  "view.navigate.reopenClosedTab": {
+    icon: "fas fa-arrow-rotate-left",
+    title: "Reopen Closed Tab",
+    text: "Reopen the last closed tab",
+    shortcuts: ["mod+shift+t"],
+  },
+  "view.navigate.closeWindow": {
+    icon: "fas fa-xmark",
+    title: "Close Window",
+    text: "Close the current window",
+    shortcuts: ["mod+shift+w"],
+  },
+  "view.navigate.closeOtherWindows": {
+    icon: "fas fa-xmark",
+    title: "Close Other Windows",
+    text: "Close all other windows",
+  },
+  "view.navigate.reopenClosedWindow": {
+    icon: "fas fa-arrow-rotate-left",
+    title: "Reopen Closed Window",
+    text: "Reopen the last closed window",
+    shortcuts: ["mod+shift+n"],
+  },
+  // layout
+  "view.layout.splitVertical": {
+    icon: "fas fa-reflect-vertical",
+    title: "Split Vertical",
+    text: "Split the current window vertically",
+  },
+  "view.layout.splitHorizontal": {
+    icon: "fas fa-reflect-horizontal",
+    title: "Split Horizontal",
+    text: "Split the current window horizontally",
   },
 });

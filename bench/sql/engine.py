@@ -451,8 +451,7 @@ def compile_pg_conditional(
                 else PostgresConditionalOp.NEQ
             )
             return SqlComparison(left=left, op=op, right=right)
-
-        if cond.op == ConditionalOp.STARTS_WITH:
+        elif cond.op == ConditionalOp.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
         elif cond.op == ConditionalOp.MATCHES:
             right = sqlstr("'%' || {} || '%'").format(sql.Literal(cond.value))

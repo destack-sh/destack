@@ -1,9 +1,14 @@
-import { BoxData, ViewData, ViewType } from "@/proto/wire";
+import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import Tabbed from "@/views/containers/Tabbed.vue";
-import type { ComponentInstance } from "vue";
+import { type ComponentInstance } from "vue";
 
-// TODO :Architecture: how to register & wrap Views & their Components?
+export type ViewComponent = {
+  new (): ComponentInstance<any>;
+  props: { self: NodeReferenceData };
+  exposed: { self?: NodeReferenceData };
+} 
+
+// TODO :Architecture: how to register, type & wrap Views/Components?
 //  This setup is kind of annoying because it forces a complete reload during development.
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // kernel
@@ -19,13 +24,13 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // content
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
 };
-const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ComponentInstance<any>>;
+const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 let didRegisterComponents = false;
 
 export async function registerViewComponents() {
   if (didRegisterComponents) throw new Error("components already registered");
   for (const [viewType, component] of Object.entries(COMPONENT_BY_VIEW_TYPE_LAZY)) {
-    COMPONENT_BY_VIEW_TYPE[viewType as unknown as ViewType] = (await component).default;
+    COMPONENT_BY_VIEW_TYPE[viewType as unknown as ViewType] = (await component).default as unknown as ViewComponent;
   }
   didRegisterComponents = true;
 }

@@ -55,6 +55,7 @@ async function init() {
     app.config.performance = true;
   }
   app.config.errorHandler = (err, instance, info) => {
+    console.error(err);
     toaster.error({ title: "Internal error", text: (err as any).message ?? info });
   };
 
