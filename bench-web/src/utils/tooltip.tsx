@@ -1,7 +1,7 @@
 import type { IconData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { isOnMac } from "@/utils/browser";
-import { parseKeymapSignature, renderKeymapKey } from "@/utils/keymap";
+import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
 import { Casing, toCasing } from "@/utils/string";
 import { computed, type FunctionalComponent } from "vue";
 
@@ -45,7 +45,7 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, conte
                 ) : KEY_ICONS_TEXT[key] != null ? (
                   KEY_ICONS_TEXT[key]
                 ) : (
-                  toCasing(renderKeymapKey(key), Casing.CAMEL)
+                  toCasing(normalizeKeymapKey(key), Casing.CAMEL)
                 )}
               </kbd>
             ))}

@@ -61,8 +61,8 @@ async function init() {
 
   toaster.run();
   keytrap.track(document); // ensure it's always running
-  // suppress ctrl+s
-  keytrap.bind(["ctrl+s", "meta+s"], () => {
+  // suppress save everywhere
+  keytrap.bind(["ctrl+s", "mod+s"], () => {
     toaster.info({
       key: "space.suppressSave",
       icon: "fas fa-floppy-disk",

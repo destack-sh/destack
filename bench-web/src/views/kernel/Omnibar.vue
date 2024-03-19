@@ -127,9 +127,6 @@ const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   space: ["mod+shift+f"],
   views: ["mod+shift+v"],
   view: ["mod+f"],
-  module: ["mod+shift+m"],
-  package: ["mod+shift+p"],
-  bench: ["mod+shift+b"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   everywhere: "Search anything",

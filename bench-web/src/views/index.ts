@@ -1,11 +1,11 @@
 import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { type ComponentInstance } from "vue";
+import { type ComponentInstance, type Ref } from "vue";
 
 export type ViewComponent = {
   new (): ComponentInstance<any>;
   props: { self: NodeReferenceData };
-  exposed: { self?: NodeReferenceData };
+  exposed: { self?: Ref<NodeReferenceData> };
 } 
 
 // TODO :Architecture: how to register, type & wrap Views/Components?

@@ -16,12 +16,12 @@ describe("keymap", () => {
     ["a", { chords: [{ key: "a", modifiers: [] }] }],
     ["ctrl+a", { chords: [{ key: "a", modifiers: ["ctrl"] }] }],
     ["/", { chords: [{ key: "/", modifiers: [] }] }],
-    ["ctrl+shift+a", { chords: [{ key: "a", modifiers: ["ctrl", "shift"] }] }],
+    ["shift+ctrl+a", { chords: [{ key: "a", modifiers: ["shift", "ctrl"] }] }],
     [
-      "ctrl+shift+a b",
+      "shift+ctrl+a b",
       {
         chords: [
-          { key: "a", modifiers: ["ctrl", "shift"] },
+          { key: "a", modifiers: ["shift", "ctrl"] },
           { key: "b", modifiers: [] },
         ],
       },
@@ -39,11 +39,11 @@ describe("keymap", () => {
     "a",
     "ctrl+a",
     "/",
-    "ctrl+shift+a",
-    "ctrl+shift+a b",
+    "shift+ctrl+a",
+    "shift+ctrl+a b",
     "ctrl+space",
-    "ctrl+shift+space",
-    "ctrl+shift+a ctrl+shift+b ctrl+shift+c",
+    "shift+ctrl+space",
+    "shift+ctrl+a shift+ctrl+b shift+ctrl+c",
   ])("renderKeymapKey(parseKeymapKey(%s)) == %s", (input) => {
     expect(input).toBe(renderKeymapSignature(parseKeymapSignature(input)));
   });
