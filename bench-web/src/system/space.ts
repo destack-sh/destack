@@ -1,27 +1,18 @@
-import {
-  BenchType,
-  NodeReferenceData,
-  NodeType,
-  Orientation,
-  SpaceData,
-  StructType,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
+import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
+import { ACTION_COMING_SOON, contributeActionMap, declareActionMap } from "@/system/action";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
-import { NodeGraph, ProxyNodeGraph, type NodeKey, type ReadNodeGraph } from "@/system/graph";
+import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
-import { log } from "@/utils/log";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
-import { computed, ref, watch, type Ref, shallowRef, type ComponentPublicInstance, type ComponentInstance } from "vue";
-import { ACTION_COMING_SOON, contributeActionMap, declareActionMap } from "@/system/action";
+import { log } from "@/utils/log";
+import { ViewRegistry } from "@/views/registry";
 import { useActiveElement } from "@vueuse/core";
-import type { ViewComponent } from "@/views";
+import { computed, watch } from "vue";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -47,6 +38,7 @@ export const pkg = pkgGraph.getRef(packagePtr);
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
+export const spaceRegistry = new ViewRegistry(spaceGraph);
 
 // setup/connect local space as needed
 watch(
@@ -291,95 +283,6 @@ contributeActionMap<"space">({
 });
 
 export const activeElement = useActiveElement();
-
-/** Finds the closest Vue component */
-function findVueComponent(el: HTMLElement): ComponentInstance<any> | null {
-  while (el != null) {
-    if ((el as any).__vueParentComponent != null) return (el as any).__vueParentComponent;
-    el = el.parentElement!;
-  }
-  return null;
-}
-
-/**
- * A registry for linking Views, their Vue components, and their HTML elements.
- */
-export class SpaceRegistry {
-  graph: ReadNodeGraph;
-  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
-  focusedView: Ref<ViewData | null>; // nocheckin: track focus even if activeElement is elsewhere (e.g. omnibar)
-  focusedViews: Ref<ViewData[]>;
-
-  constructor(graph: ReadNodeGraph) {
-    this.graph = graph;
-
-    this.focusedView = computed(() => {
-      const focused = activeElement.value;
-      if (focused == null) return null;
-      const viewPtr = this.findViewPtr(focused);
-      if (viewPtr == null) return null;
-      else return this.graph.get(viewPtr) as ViewData;
-    });
-    this.focusedViews = computed(() => {
-      const focused = this.focusedView.value;
-      if (focused == null) return [];
-      const focusedView = this.graph.get(focused as NodeKey<any>) as ViewData;
-      return this.graph.getAncestors(focusedView, [NodeType.VIEW]) as ViewData[];
-    });
-  }
-
-  /** Finds the closest ViewComponent ancestor. */
-  findViewComponent(e: HTMLElement): ViewComponent | null {
-    // first find the Vue component
-    let vueComponent = findVueComponent(e);
-    // then look for View component
-    while (vueComponent != null) {
-      if (vueComponent.exposed.self != null) {
-        return vueComponent as ViewComponent;
-      }
-      vueComponent = vueComponent.parent;
-    }
-    return null;
-  }
-
-  /** Finds the View pointer of the closest ViewComponent ancestor. */
-  findViewPtr(e: HTMLElement): TypedNodeReferenceData<NodeType.VIEW> | null {
-    const component = this.findViewComponent(e);
-    return (component?.exposed.self ?? null) as TypedNodeReferenceData<NodeType.VIEW> | null;
-  }
-
-  /** Whether the given view is directly focused */
-  isFocused(node: NodeReferenceData): boolean {
-    return this.focusedView.value?.id == node.id;
-  }
-
-  /** Whether the given view is directly focused (reactive) */
-  isFocusedRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
-    return computed(() => node?.value != null && this.isFocused(node.value));
-  }
-
-  /** Whether anything inside the given view is focused */
-  isFocusedWithin(node: NodeReferenceData): boolean {
-    return this.focusedViews.value.some((v) => v.id == node.id);
-  }
-
-  /** Whether anything inside the given view is focused (reactive) */
-  isFocusedWithinRef(node: Ref<NodeReferenceData> | null): Ref<boolean> {
-    return computed(() => node?.value != null && this.isFocusedWithin(node.value));
-  }
-
-  /** Register/unregister the given view's component instance */
-  register(viewSelf: NodeReferenceData, instance: ViewComponent | undefined) {
-    if (viewSelf.id == null) throw new Error(`node has no id: ${viewSelf}`);
-    if (instance == null) {
-      delete this.viewRefsById.value[viewSelf.id];
-    } else {
-      this.viewRefsById.value[viewSelf.id] = instance;
-    }
-  }
-}
-
-export const spaceRegistry = new SpaceRegistry(spaceGraph);
 
 // declare space actions
 declareActionMap<"view">({

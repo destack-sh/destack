@@ -6,6 +6,7 @@ from uuid import UUID
 from bench.language.const import (
     BASED_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
+    SUB_BENCH_NODE_TYPES,
     AggregationOp,
     BenchType,
     ConditionalOp,
@@ -15,7 +16,6 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
-    SUB_BENCH_NODE_TYPES,
 )
 from bench.language.node import HasBase, Node, Property, Struct, struct
 from bench.language.property import p_regular

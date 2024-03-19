@@ -1,6 +1,6 @@
 import type { AnyNodeData, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { ACTIONS, type Action } from "@/system/action";
+import { ACTIONS, ACTION_BUILTIN_IDS, ACTION_BUILTIN_IDS_INDEX, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getNodeIcon } from "@/system/lang";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef } from "vue";
@@ -108,7 +108,7 @@ export function actionIndex(): SearchIndex<ActionItem> {
     candidates: () =>
       (Object.values(ACTIONS.value) as Action[])
         .filter((a) => a.enabled == null || a.enabled.value)
-        .sort((a, b) => a.id.localeCompare(b.id))
+        .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
         .map((a) => ({ ...a, metatype: "action" })),
   };
   return markRaw(index);

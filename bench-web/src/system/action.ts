@@ -24,68 +24,84 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
 
 export type ActionCategory = "space" | "user" | "common" | "view";
 export const ACTION_CATEGORIES: ActionCategory[] = ["space", "user", "view"];
-export type ActionBuiltinId =
+
+export const ACTION_BUILTIN_IDS = [
   // space
   // (:OmnibarModes)
-  | "space.open.omnibar.everywhere"
-  | "space.open.omnibar.actions"
-  | "space.open.omnibar.space"
-  | "space.open.omnibar.views"
-  | "space.open.omnibar.view"
-  | "space.open.omnibar.module"
-  | "space.open.omnibar.package"
-  | "space.open.omnibar.bench"
-  | "space.open.chat"
-  | "space.open.inspector"
-  | "space.open.library"
-  | "space.open.explorer"
-  | "space.open.outline"
-  | "space.open.docs"
-  | "space.open.logs"
-  | "space.open.discord"
+  "space.open.omnibar.everywhere",
+  "space.open.omnibar.actions",
+  "space.open.omnibar.space",
+  "space.open.omnibar.views",
+  "space.open.omnibar.view",
+  "space.open.omnibar.module",
+  "space.open.omnibar.package",
+  "space.open.omnibar.bench",
+  "space.open.chat",
+  "space.open.inspector",
+  "space.open.library",
+  "space.open.explorer",
+  "space.open.outline",
+  "space.open.docs",
+  "space.open.logs",
+  "space.open.discord",
   // user
-  | "user.signup"
-  | "user.login"
-  | "user.logout"
+  "user.signup",
+  "user.login",
+  "user.logout",
   // common
-  | "common.edit.undo"
-  | "common.edit.redo"
-  | "common.edit.delete"
-  | "common.edit.copy"
-  | "common.edit.cut"
-  | "common.edit.paste"
-  | "common.edit.duplicate"
-  | "common.navigate.up"
-  | "common.navigate.down"
-  | "common.navigate.left"
-  | "common.navigate.right"
-  | "common.navigate.pageUp"
-  | "common.navigate.pageDown"
-  | "common.select.all"
-  | "common.select.up"
-  | "common.select.down"
-  | "common.select.left"
-  | "common.select.right"
-  | "common.select.clear"
-  | "common.move.up"
-  | "common.move.down"
-  | "common.move.left"
-  | "common.move.right"
-  | "common.analyze.goToDefinition"
-  | "common.analyze.findReferences"
+  "common.edit.undo",
+  "common.edit.redo",
+  "common.edit.delete",
+  "common.edit.copy",
+  "common.edit.cut",
+  "common.edit.paste",
+  "common.edit.duplicate",
+  "common.navigate.up",
+  "common.navigate.down",
+  "common.navigate.left",
+  "common.navigate.right",
+  "common.navigate.pageUp",
+  "common.navigate.pageDown",
+  "common.select.all",
+  "common.select.up",
+  "common.select.down",
+  "common.select.left",
+  "common.select.right",
+  "common.select.clear",
+  "common.move.up",
+  "common.move.down",
+  "common.move.left",
+  "common.move.right",
+  "common.sense.focus",
+  "common.sense.goToDefinition",
+  "common.sense.findReferences",
+  "common.sense.findImplementations",
+  "common.sense.rename",
+  "common.session.run",
+  "common.session.debug",
+  "common.session.pause",
+  "common.session.resume",
+  "common.session.stop",
+  "common.session.kill",
   // view
-  | "view.navigate.focusPreviousTab"
-  | "view.navigate.focusNextTab"
-  | "view.navigate.focusPreviousWindow"
-  | "view.navigate.focusNextWindow"
-  | "view.navigate.closeTab"
-  | "view.navigate.closeOtherTabs"
-  | "view.navigate.reopenClosedTab"
-  | "view.navigate.closeWindow"
-  | "view.navigate.closeOtherWindows"
-  | "view.navigate.reopenClosedWindow"
-  | "view.layout.splitHorizontal"
-  | "view.layout.splitVertical";
+  "view.navigate.focusPreviousTab",
+  "view.navigate.focusNextTab",
+  "view.navigate.focusPreviousWindow",
+  "view.navigate.focusNextWindow",
+  "view.navigate.closeTab",
+  "view.navigate.closeOtherTabs",
+  "view.navigate.reopenClosedTab",
+  "view.navigate.closeWindow",
+  "view.navigate.closeOtherWindows",
+  "view.navigate.reopenClosedWindow",
+  "view.layout.splitHorizontal",
+  "view.layout.splitVertical",
+] as const;
+export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
+  (acc, id, idx) => ({ ...acc, [id]: idx }),
+  {},
+) as Record<ActionBuiltinId, number>;
+export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
 export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
@@ -103,7 +119,7 @@ export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
  */
 export type Action = {
   kind: ActionKind;
-  id: string; // some unique identifier for the action
+  id: ActionBuiltinId;
   icon?: IconData;
   title: string;
   text?: string | TextData;
@@ -137,7 +153,7 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
     icon: typeof in_.icon === "string" ? makeIcon({ name: in_.icon }) : in_.icon,
     source: { kind: "builtin", id: in_.id },
     id: in_.id,
-    category: in_.id.split(".")[0],
+    category: in_.id.startsWith("common") ? in_.id.split(".")[1] : in_.id.split(".")[0],
   };
   if (ACTIONS.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
     // hot-reloading re-registers actions
@@ -358,25 +374,25 @@ declareActionMap<"common">({
     shortcuts: ["mod+a"],
   },
   "common.select.up": {
-    icon: "fas fa-arrow-up",
+    icon: "fas fa-square-caret-up",
     title: "Select Up",
     text: "Select up",
     shortcuts: ["shift+up"],
   },
   "common.select.down": {
-    icon: "fas fa-arrow-down",
+    icon: "fas fa-square-caret-down",
     title: "Select Down",
     text: "Select down",
     shortcuts: ["shift+down"],
   },
   "common.select.left": {
-    icon: "fas fa-arrow-left",
+    icon: "fas fa-square-caret-left",
     title: "Select Left",
     text: "Select left",
     shortcuts: ["shift+left"],
   },
   "common.select.right": {
-    icon: "fas fa-arrow-right",
+    icon: "fas fa-square-caret-right",
     title: "Select Right",
     text: "Select right",
     shortcuts: ["shift+right"],
@@ -389,38 +405,90 @@ declareActionMap<"common">({
   },
   // move
   "common.move.up": {
-    icon: "fas fa-arrow-up",
+    icon: "fas fa-square-up",
     title: "Move Up",
     text: "Move up",
     shortcuts: ["mod+up"],
   },
   "common.move.down": {
-    icon: "fas fa-arrow-down",
+    icon: "fas fa-square-down",
     title: "Move Down",
     text: "Move down",
     shortcuts: ["mod+down"],
   },
   "common.move.left": {
-    icon: "fas fa-arrow-left",
+    icon: "fas fa-square-left",
     title: "Move Left",
     text: "Move left",
     shortcuts: ["mod+left"],
   },
   "common.move.right": {
-    icon: "fas fa-arrow-right",
+    icon: "fas fa-square-right",
     title: "Move Right",
     text: "Move right",
     shortcuts: ["mod+right"],
   },
-  // analyze
-  "common.analyze.goToDefinition": {
+  // sense
+  "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
     title: "Go to Definition",
-    text: "Go to definition",
+    text: "Go to definition of the current node",
+    shortcuts: ["mod+b"],
   },
-  "common.analyze.findReferences": {
+  "common.sense.findReferences": {
     icon: "fas fa-turn-down-left",
     title: "Find References",
-    text: "Find references",
+    text: "Find references of the current node",
+    shortcuts: ["mod+shift+b"],
+  },
+  "common.sense.findImplementations": {
+    icon: "fas fa-turn-down-left",
+    title: "Find Implementations",
+    text: "Find implementations of the current node",
+  },
+  "common.sense.focus": {
+    icon: "fas fa-magnifying-glass-plus",
+    title: "Focus",
+    text: "Focus on the current node in a new view",
+    shortcuts: ["mod+enter"],
+  },
+  "common.sense.rename": {
+    icon: "fas fa-font",
+    title: "Rename",
+    text: "Rename the current node",
+    shortcuts: ["f2"],
+  },
+  // session
+  "common.session.run": {
+    icon: "fas fa-play",
+    title: "Run",
+    text: "Run the current node",
+    shortcuts: ["ctrl+r", "f5"],
+  },
+  "common.session.debug": {
+    icon: "fas fa-bug",
+    title: "Debug",
+    text: "Debug the current node",
+    shortcuts: ["ctrl+d", "f6"],
+  },
+  "common.session.pause": {
+    icon: "fas fa-pause",
+    title: "Pause",
+    text: "Pause the current node",
+  },
+  "common.session.resume": {
+    icon: "fas fa-play",
+    title: "Resume",
+    text: "Resume the current node",
+  },
+  "common.session.stop": {
+    icon: "fas fa-stop",
+    title: "Stop",
+    text: "Stop the current node",
+  },
+  "common.session.kill": {
+    icon: "fas fa-skull",
+    title: "Kill",
+    text: "Kill the current node",
   },
 });

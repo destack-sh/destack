@@ -67,7 +67,7 @@ defineExpose({ self: toRef(props, "self") });
         <span v-else-if="state === 'sign-up'">Sign Up</span>
         <span v-else-if="state === 'all-set'">All Set</span>
       </h2>
-      <p class="mt- text-gray-500">
+      <p class="mt-2 text-gray-500">
         <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
         <span v-else-if="state === 'sign-up'">Create a new Bench account.</span>
         <span v-else-if="state === 'all-set'">You're already logged in.</span>

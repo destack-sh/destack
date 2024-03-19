@@ -1,12 +1,11 @@
 import { isOnMac } from "@/utils/browser";
-import { reverseRecord } from "@/utils/functools";
 
 /** String based keymap. '+' to combine, ' ' for chords. */
 export type KeySignature = string;
 
 // special 'mod' key :ModKey (ctrl on windows, cmd on mac)
 const IS_ON_MAC = isOnMac(window);
-export type KeyModifier = "shift" | "ctrl" | "alt" | "meta" | "mod";
+export type KeyModifier = "shift" | "ctrl" | "alt" | "meta" | "mod"; // :ModifierOrder
 export const KEYMAP_MODIFIERS: KeyModifier[] = ["shift", "ctrl", "alt", "meta", "mod"];
 
 /** A parsed 'key' in our keymap. */
@@ -46,6 +45,7 @@ export function parseKeymapSignature(signature: KeySignature): ParsedKeySignatur
     }
 
     if (!key) throw new Error(`missing key in chord ${chord} of ${signature}`);
+    modifiers.sort((a, b) => KEYMAP_MODIFIERS.indexOf(a) - KEYMAP_MODIFIERS.indexOf(b)); // :ModifierOrder
     return { key: key, modifiers: modifiers };
   });
   if (chords.length == 0) throw new Error(`empty keymap signature ${signature}`);
@@ -54,15 +54,12 @@ export function parseKeymapSignature(signature: KeySignature): ParsedKeySignatur
 
 /** Renders a parsed keymap key back into a nice string signature */
 export function renderKeymapSignature(key: ParsedKeySignature): KeySignature {
-  const chords = key.chords.map((chord) => {
-    const keys = (chord.modifiers as string[]).concat(chord.key);
-    return keys.map(renderKeymapKey).join("+");
-  });
-  return chords.join(" ");
+  return key.chords.map(renderChord).join(" ");
 }
-export function renderKeymapKey(key: string) {
-  if (key == "mod") return IS_ON_MAC ? "cmd" : "ctrl";
-  else return key;
+
+/** Renders a single keymap chord back into a nice string signature (partial) */
+export function renderChord(chord: KeyChord): string {
+  return (chord.modifiers as string[]).concat(chord.key).map(normalizeKeymapKey).join("+");
 }
 
 export type KeymapCallback = (e: KeyboardEvent, combination: KeySignature) => boolean | void;
@@ -113,12 +110,19 @@ for (let i = 0; i <= 9; ++i) {
 if (IS_ON_MAC) CHAR_KEYS["mod"] = CHAR_KEYS["meta"];
 else CHAR_KEYS["mod"] = CHAR_KEYS["ctrl"];
 
-function modifiersMatch(e: KeyboardEvent, modifiers: KeyModifier[]) {
-  if (e.shiftKey != modifiers.includes("shift")) return false;
-  if (e.altKey != modifiers.includes("alt")) return false;
-  if (e.ctrlKey != (modifiers.includes("ctrl") || (!IS_ON_MAC && modifiers.includes("mod")))) return false;
-  if (e.metaKey != (modifiers.includes("meta") || (IS_ON_MAC && modifiers.includes("mod")))) return false;
-  return true;
+export function normalizeKeymapKey(key: string) {
+  if (key == "mod") return IS_ON_MAC ? "meta" : "ctrl";
+  else return key;
+}
+
+function getEventModifiers(e: KeyboardEvent): KeyModifier[] {
+  const modifiers: KeyModifier[] = [];
+  // must be in :ModifierOrder
+  if (e.shiftKey) modifiers.push("shift");
+  if (e.altKey) modifiers.push("alt");
+  if (e.ctrlKey) modifiers.push("ctrl");
+  if (e.metaKey) modifiers.push("meta");
+  return modifiers;
 }
 
 type KeymapBinding = {
@@ -129,67 +133,62 @@ type KeymapBinding = {
 
 /**
  * Simple key trap that fires callbacks on keymap signatures.
- * Handles chords and all the funky stuff.
+ * Handles chords and all the funky stuff. A key signature must be unique.
  */
 export class Keytrap {
-  private bindings: Record<KeySignature, KeymapBinding[]> = {};
-  private bindingsByKey: Record<string, KeymapBinding[]> = {};
+  private bindings: Record<KeySignature, KeymapBinding> = {};
+  private bindingsByChord: Record<string, KeymapBinding> = {};
 
   private onKeyDown(e: Event) {
     if (!(e instanceof KeyboardEvent)) return;
 
-    // prefilter by main key
+    // get binding by chord
     const mainKey = e.key.toLowerCase();
     if (!CHAR_KEYS[mainKey] || KEYMAP_MODIFIERS.includes(mainKey as any)) return;
-    const candidateBindings = this.bindingsByKey[mainKey];
-    if (!candidateBindings) return;
+    const modifiers = getEventModifiers(e);
+    const chord = renderChord({ key: mainKey, modifiers });
+    const binding = this.bindingsByChord[chord];
 
-    // match (:SingleChord only for now)
-    for (const binding of candidateBindings) {
-      const { parsedSignature, callback } = binding;
-      const { chords } = parsedSignature;
-      const lastChord = chords[chords.length - 1];
-      if (lastChord.key != mainKey || !modifiersMatch(e, lastChord.modifiers)) continue;
-
-      // fire callback
-      if (callback(e, binding.signature)) {
+    // fire callback (assumes :SingleChord)
+    if (binding != null) {
+      if (binding.callback(e, binding.signature)) {
         e.preventDefault();
         e.stopPropagation();
-        return;
       }
     }
   }
 
+  /** Tracks events in the given element */
   track(element: HTMLElement | Document) {
     element.addEventListener("keydown", this.onKeyDown.bind(this));
   }
 
+  /** Clears ALL bindings */
   clear() {
     this.bindings = {};
-    this.bindingsByKey = {};
+    this.bindingsByChord = {};
   }
 
+  /** Binds the given key signature uniquely to some callback */
   bind(
     signature: KeySignature | ParsedKeySignature | Array<KeySignature | ParsedKeySignature>,
     callback: KeymapCallback,
   ): () => void {
     const signatures = Array.isArray(signature) ? signature : [signature];
+    const parsedSignatures: ParsedKeySignature[] = [];
     for (const signature of signatures) {
       // normalize
-      const parsedSignature = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
-      const key = renderKeymapSignature(parsedSignature);
-      const binding = { signature: key, parsedSignature, callback };
+      const parsed = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
+      const binding = { signature: renderKeymapSignature(parsed), parsedSignature: parsed, callback };
+      if (parsed.chords.length != 1) throw new Error("only :SingleChord is supported for now");
+      parsedSignatures.push(parsed);
 
       // bind
-      if (!this.bindings[key]) this.bindings[key] = [];
-      this.bindings[key].push(binding);
-      for (const chord of parsedSignature.chords) {
-        const key = chord.key;
-        if (!this.bindingsByKey[key]) this.bindingsByKey[key] = [];
-        this.bindingsByKey[key].push(binding);
-      }
+      if (this.bindings[binding.signature]) throw new Error(`keymap signature ${binding.signature} already bound`);
+      this.bindings[binding.signature] = binding;
+      this.bindingsByChord[renderChord(parsed.chords[0])] = binding; // :SingleChord
     }
-    return () => this.unbind(signature, callback);
+    return () => this.unbind(parsedSignatures, callback);
   }
 
   unbind(
@@ -199,15 +198,15 @@ export class Keytrap {
     const signatures = Array.isArray(signature) ? signature : [signature];
     for (const signature of signatures) {
       // normalize
-      const parsedSignature = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
-      const key = renderKeymapSignature(parsedSignature);
+      const parsed = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
+      const key = renderKeymapSignature(parsed);
 
       // unbind
-      const bindings = this.bindings[key];
-      if (!bindings) return;
-      const index = bindings.findIndex((b) => b.callback == callback);
-      if (index >= 0) bindings.splice(index, 1);
-      if (bindings.length == 0) delete this.bindings[key];
+      const binding = this.bindings[key];
+      if (binding == null) throw new Error(`keymap signature ${key} not bound`);
+      if (binding.callback != callback) throw new Error(`keymap signature ${key} bound to different callback`);
+      delete this.bindings[key];
+      delete this.bindingsByChord[renderChord(parsed.chords[0])]; // :SingleChord
     }
   }
 }
