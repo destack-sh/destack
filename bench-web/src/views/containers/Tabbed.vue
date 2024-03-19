@@ -3,7 +3,7 @@ import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, Selection
 import { toNodeReference } from "@/proto/wiring";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { addView, removeView, splitView } from "@/system/space";
+import { addView, removeView, spaceRegistry, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -123,6 +123,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
 };
 
+spaceRegistry.registerCurrent(self);
 defineExpose<ViewExposed>({ self, select, actions });
 </script>
 <template>

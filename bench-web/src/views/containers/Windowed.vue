@@ -1,6 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
+import { spaceRegistry } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -13,6 +14,7 @@ const props = defineProps<
   } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation">
 >();
 const emit = defineEmits(viewEmits());
+const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
@@ -34,7 +36,8 @@ const { sizedViews, draggingIdx } = useSplitView(
   spaceConnection,
 );
 
-defineExpose<ViewExposed>({ self: toRef(props, "self") });
+spaceRegistry.registerCurrent(self);
+defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <!-- Container -->

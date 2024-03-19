@@ -1,6 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import { useGetNodes, useLoadedGraph } from "@/system/connection";
+import { spaceRegistry } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -25,14 +26,11 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 );
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
+spaceRegistry.registerCurrent(self);
 defineExpose({ self });
 </script>
 <template>
-  <Scroll
-    :size="size"
-    :orientation="Orientation.VERTICAL"
-    :track-width="ScrollbarWidth.md"
-  >
+  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md">
     <!-- Placeholder content for testing vertical scrolling -->
     <div class="flex h-[200%] w-full items-center justify-center bg-gray-100">
       <span class="text-4xl font-bold">{{ size }}</span>

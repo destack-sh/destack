@@ -1,6 +1,7 @@
 <script lang="tsx" setup>
 import { NodeReferenceData, ViewData, Variant } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
+import { spaceRegistry } from "@/system/space";
 import { makeViewId } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
 import { computed, toRef, type Ref } from "vue";
@@ -12,6 +13,8 @@ const props = defineProps<
   >
 >();
 const emit = defineEmits(viewEmits());
+const self = toRef(props, "self");
+const id = makeViewId(props);
 
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({
   // prominent filled button
@@ -42,8 +45,8 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
 }));
 
-const self = toRef(props, "self");
-defineExpose<ViewExposed>({ self, id: makeViewId(props) });
+spaceRegistry.registerCurrent(self, id);
+defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <button :class="[classByVariant[variant ?? Variant.V1] ?? classByVariant[Variant.V1]]" :disabled="isDisabled">

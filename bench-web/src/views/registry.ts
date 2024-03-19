@@ -4,7 +4,16 @@ import type { ReadNodeGraph } from "@/system/graph";
 import { log } from "@/utils/log";
 import type { ViewComponent } from "@/views";
 import { useActiveElement } from "@vueuse/core";
-import { computed, shallowRef, type ComponentInstance, type Ref, watch } from "vue";
+import {
+  computed,
+  shallowRef,
+  type ComponentInstance,
+  type Ref,
+  watch,
+  getCurrentInstance,
+  onBeforeUnmount,
+  triggerRef,
+} from "vue";
 
 /** Finds the closest Vue component */
 export function findVueComponent(el: HTMLElement): ComponentInstance<any> | null {
@@ -118,13 +127,34 @@ export class ViewRegistry {
     return computed(() => node?.value != null && this.isFocusedWithin(node.value));
   }
 
-  /** Register/unregister the given view's component instance */
-  register(viewSelf: NodeReferenceData, instance: ViewComponent | undefined) {
-    if (viewSelf.id == null) throw new Error(`node has no id: ${viewSelf}`);
-    if (instance == null) {
-      delete this.viewRefsById.value[viewSelf.id];
-    } else {
-      this.viewRefsById.value[viewSelf.id] = instance;
-    }
+  /** Registers the current Vue instance as the given identity */
+  registerCurrent(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>) {
+    const instance = getCurrentInstance() as ViewComponent | null;
+    if (instance == null) throw new Error("no current Vue instance");
+    let oldComponentId: string | null = null;
+    // register
+    watch(
+      [() => self.value?.id, () => id?.value],
+      () => {
+        if (oldComponentId != null) delete this.viewRefsById.value[oldComponentId];
+        const componentId = self.value?.id ?? id?.value!;
+        if (this.viewRefsById.value[componentId] != null)
+        // This only happens for our own components, so we should fail hard.
+        //  (This must be a name-derived id from makeViewId, with colliding names).  
+          throw new Error(`duplicate component id: ${componentId}`); 
+        this.viewRefsById.value[componentId] = instance;
+        triggerRef(this.viewRefsById);
+        oldComponentId = componentId;
+      },
+      { immediate: true },
+    );
+    // unregister
+    onBeforeUnmount(() => {
+      // should always be true, but maybe errored
+      if (oldComponentId != null) {
+        delete this.viewRefsById.value[oldComponentId];
+        triggerRef(this.viewRefsById);
+      }
+    });
   }
 }

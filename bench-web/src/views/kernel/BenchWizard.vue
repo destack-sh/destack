@@ -8,7 +8,7 @@ import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { toRef, type Ref, ref, watch } from "vue";
 import Button from "@/views/controls/Button.vue";
 import { toNodeReference } from "@/proto/wiring";
-import { removeView } from "@/system/space";
+import { removeView, spaceRegistry } from "@/system/space";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
@@ -49,6 +49,7 @@ async function submit() {
   }
 }
 
+spaceRegistry.registerCurrent(self);
 defineExpose({ self });
 </script>
 <template>
