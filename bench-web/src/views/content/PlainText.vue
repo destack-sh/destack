@@ -1,11 +1,12 @@
 <script lang="tsx" setup>
 import { NodeReferenceData, type ViewData } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
-import { viewEmits } from "@/views/common";
+import { makeViewId } from "@/views";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import { toRef } from "vue";
 
 const props = defineProps<
-  { self?: NodeReferenceData | null } & Pick<
+  { self?: NodeReferenceData } & Pick<
     ViewData,
     "name" | "title" | "text" | "icon" | "orientation" | "isInput" | "isDisabled" | "isSecret"
   >
@@ -13,7 +14,9 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const modelValue = defineModel<string>();
 
-defineExpose({ self: toRef(props, "self") });
+
+const self = toRef(props, "self");
+defineExpose<ViewExposed>({ self, id: makeViewId(props) });
 </script>
 <template>
   <div v-if="!isInput">

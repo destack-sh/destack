@@ -3,7 +3,7 @@ import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/p
 import { useLoadedGraph } from "@/system/connection";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
-import { viewEmits } from "@/views/common";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -34,7 +34,7 @@ const { sizedViews, draggingIdx } = useSplitView(
   spaceConnection,
 );
 
-defineExpose({ self: toRef(props, "self") });
+defineExpose<ViewExposed>({ self: toRef(props, "self") });
 </script>
 <template>
   <!-- Container -->

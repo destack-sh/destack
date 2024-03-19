@@ -1,11 +1,12 @@
 <script lang="tsx" setup>
 import { NodeReferenceData, ViewData, Variant } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
-import { viewEmits } from "@/views/common";
+import { makeViewId } from "@/views";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import { computed, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: NodeReferenceData | null } & Pick<
+  { self?: NodeReferenceData } & Pick<
     ViewData,
     "name" | "title" | "text" | "icon" | "variant" | "isDisabled" | "isLoading"
   >
@@ -37,20 +38,15 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   // 'stealth' button
   [Variant.V4]: [
     "rounded-md",
-    props.isDisabled
-      ? "text-gray-500 hover:cursor-not-allowed"
-      : "text-gray-900 hover:text-primary-900"
+    props.isDisabled ? "text-gray-500 hover:cursor-not-allowed" : "text-gray-900 hover:text-primary-900",
   ],
 }));
 
-
-defineExpose({ self: toRef(props, "self") });
+const self = toRef(props, "self");
+defineExpose<ViewExposed>({ self, id: makeViewId(props) });
 </script>
 <template>
-  <button
-    :class="[classByVariant[variant ?? Variant.V1] ?? classByVariant[Variant.V1]]"
-    :disabled="isDisabled"
-  >
+  <button :class="[classByVariant[variant ?? Variant.V1] ?? classByVariant[Variant.V1]]" :disabled="isDisabled">
     <slot>
       <i v-if="isLoading" class="fas fa-spin fa-spinner-third mr-2 no-underline" />
       <IconInline v-else-if="icon" v-bind="icon" class="mr-2 no-underline" />

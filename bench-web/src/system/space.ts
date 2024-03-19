@@ -1,6 +1,5 @@
 import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
 import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
-import { ACTION_COMING_SOON, contributeActionMap, declareActionMap } from "@/system/action";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
@@ -11,7 +10,6 @@ import type { SplitAnchor } from "@/utils/drag";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { ViewRegistry } from "@/views/registry";
-import { useActiveElement } from "@vueuse/core";
 import { computed, watch } from "vue";
 
 // bench/packages
@@ -249,108 +247,3 @@ export function splitView(
   }
   cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
 }
-
-const DISCORD_URL = "https://discord.gg/pSBdq6XC";
-contributeActionMap<"space">({
-  "space.open.inspector": {
-    title: "Inspect Node",
-    text: "Open the Inspector View",
-    icon: "fas fa-eye-dropper",
-    action: ACTION_COMING_SOON,
-  },
-  "space.open.library": {
-    title: "Open Library",
-    text: "Get building blocks from the library",
-    icon: "fas fa-books",
-    action: ACTION_COMING_SOON,
-  },
-  "space.open.docs": {
-    title: "Read the Docs",
-    text: "Get help from our examples and guides",
-    icon: "fas fa-book-open",
-    action: ACTION_COMING_SOON,
-  },
-  "space.open.discord": {
-    title: "Discuss on Discord",
-    text: "Join the community on Discord",
-    icon: "fab fa-discord",
-    url: DISCORD_URL,
-    action: () => {
-      // open in new tab
-      window.open(DISCORD_URL, "_blank");
-    },
-  },
-});
-
-export const activeElement = useActiveElement();
-
-// declare space actions
-declareActionMap<"view">({
-  // navigate
-  "view.navigate.focusPreviousTab": {
-    icon: "fas fa-chevron-left",
-    title: "Focus Previous Tab",
-    text: "Navigate to the previous tab",
-  },
-  "view.navigate.focusNextTab": {
-    icon: "fas fa-chevron-right",
-    title: "Focus Next Tab",
-    text: "Navigate to the next tab",
-  },
-  "view.navigate.focusPreviousWindow": {
-    icon: "fas fa-chevrons-left",
-    title: "Focus Previous Window",
-    text: "Navigate to the previous window",
-  },
-  "view.navigate.focusNextWindow": {
-    icon: "fas fa-chevrons-right",
-    title: "Focus Next Window",
-    text: "Navigate to the next window",
-    shortcuts: ["mod+shift+space"],
-  },
-  "view.navigate.closeTab": {
-    icon: "fas fa-xmark",
-    title: "Close Tab",
-    text: "Close the current tab",
-    shortcuts: ["mod+w", "ctrl+w"],
-  },
-  "view.navigate.closeOtherTabs": {
-    icon: "fas fa-xmark",
-    title: "Close Other Tabs",
-    text: "Close all other tabs",
-  },
-  "view.navigate.reopenClosedTab": {
-    icon: "fas fa-arrow-rotate-left",
-    title: "Reopen Closed Tab",
-    text: "Reopen the last closed tab",
-    shortcuts: ["mod+shift+t"],
-  },
-  "view.navigate.closeWindow": {
-    icon: "fas fa-xmark",
-    title: "Close Window",
-    text: "Close the current window",
-    shortcuts: ["mod+shift+w"],
-  },
-  "view.navigate.closeOtherWindows": {
-    icon: "fas fa-xmark",
-    title: "Close Other Windows",
-    text: "Close all other windows",
-  },
-  "view.navigate.reopenClosedWindow": {
-    icon: "fas fa-arrow-rotate-left",
-    title: "Reopen Closed Window",
-    text: "Reopen the last closed window",
-    shortcuts: ["mod+shift+n"],
-  },
-  // layout
-  "view.layout.splitVertical": {
-    icon: "fas fa-reflect-vertical",
-    title: "Split Vertical",
-    text: "Split the current window vertically",
-  },
-  "view.layout.splitHorizontal": {
-    icon: "fas fa-reflect-horizontal",
-    title: "Split Horizontal",
-    text: "Split the current window horizontally",
-  },
-});

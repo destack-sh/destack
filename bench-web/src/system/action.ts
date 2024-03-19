@@ -3,11 +3,13 @@ import { makeIcon } from "@/system/icon";
 import { spaceRegistry } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
-import { IS_DEBUG } from "@/utils/globals";
+import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature, type ParsedKeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { onUnmountedStrict } from "@/utils/ref";
-import { getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
+import type { ViewComponent } from "@/views";
+import { collectViewComponents } from "@/views/registry";
+import { getCurrentInstance, shallowRef, triggerRef, watch, type Ref, computed } from "vue";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -131,8 +133,8 @@ export type Action = {
   url?: string; // for external URLs
 };
 
-export const ACTIONS: Ref<Partial<Record<string, Action>>> = shallowRef({});
-export const VIRTUAL_ACTIONS: Ref<Partial<Record<string, ActionImplementation>>> = shallowRef({}); // for virtual actions
+export const DECLARED_ACTIONS_BY_ID: Ref<Partial<Record<string, Action>>> = shallowRef({});
+export const DECLARED_ACTIONS: Ref<Action[]> = computed(() => Object.values(DECLARED_ACTIONS_BY_ID.value) as Action[]);
 
 type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "enabled" | "action" | "url"> & {
   id: ActionBuiltinId;
@@ -155,11 +157,11 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
     id: in_.id,
     category: in_.id.startsWith("common") ? in_.id.split(".")[1] : in_.id.split(".")[0],
   };
-  if (ACTIONS.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
+  if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
     // hot-reloading re-registers actions
-    throw new Error(`action already exists: ${in_.id} (${in_} != ${ACTIONS.value[in_.id]})`);
-  ACTIONS.value[in_.id as ActionBuiltinId] = action;
-  triggerRef(ACTIONS);
+    throw new Error(`action already exists: ${in_.id} (${in_} != ${DECLARED_ACTIONS_BY_ID.value[in_.id]})`);
+  DECLARED_ACTIONS_BY_ID.value[in_.id as ActionBuiltinId] = action;
+  triggerRef(DECLARED_ACTIONS_BY_ID);
 }
 
 /** Contributes actions globally (same implementation everywhere) */
@@ -176,50 +178,8 @@ export function declareActionMap<T extends string>(map: Partial<ActionMapDeclara
   );
 }
 
-export function getVirtualActionKey(viewId: string, actionId: string) {
-  return `${viewId}.${actionId}`;
-}
-
-/** Implements virtual actions in a certain component (view). */
-export function implementActionMap<T extends string>(
-  view: Ref<NodeReferenceData | null>,
-  map: Partial<ActionMapImplementation<T>>,
-) {
-  const unregister = () => {
-    if (view.value?.id == null) return;
-    Object.keys(map).forEach((id) => {
-      const key = getVirtualActionKey(view.value!.id!, id);
-      delete VIRTUAL_ACTIONS.value[key];
-    });
-  };
-
-  // register current actions into VIRTUAL_ACTIONS
-  watch(
-    view,
-    (newView, oldView) => {
-      if (newView?.id == oldView?.id) return; // same view
-      if (view.value?.id == null) return; // doesn't have a view
-
-      if (oldView?.id != null) unregister();
-
-      Object.entries(map).forEach(([id, action]) => {
-        const declared = ACTIONS.value[id as ActionBuiltinId];
-        if (declared == null) throw new Error(`action was not declared: ${id}`);
-        if (declared.kind !== "virtual") throw new Error(`action is not virtual: ${id}`);
-        const key = getVirtualActionKey(view.value?.id!, id);
-        if (VIRTUAL_ACTIONS.value[key] != null) throw new Error(`action already implemented: ${key}`);
-        VIRTUAL_ACTIONS.value[key] = action as ActionImplementation;
-      });
-    },
-    { immediate: true },
-  );
-
-  // unregister on unmount
-  onUnmountedStrict(unregister);
-}
-
 export function getAction(id: ActionBuiltinId): Action {
-  const action = ACTIONS.value[id];
+  const action = DECLARED_ACTIONS_BY_ID.value[id];
   if (action == null) throw new Error(`no such action: ${id}`);
   return action;
 }
@@ -232,12 +192,12 @@ export function runAction(id: ActionBuiltinId) {
 /** Triggers the bound action from a keyboard event. */
 export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   if (action.enabled != null && !action.enabled.value) return false;
-  const view = action.kind == "virtual" && e.target != null ? spaceRegistry.findViewPtr(e.target as HTMLElement) : null;
-  return fireAction(action, view);
+  const chain = collectViewComponents(e.target as HTMLElement);
+  return fireAction(action, chain);
 }
 
 /** Triggers the bound action from a given view (as starting point). */
-export function fireAction(action: Action, view: NodeReferenceData | null) {
+export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null) {
   if (action.enabled != null && !action.enabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly
@@ -245,44 +205,63 @@ export function fireAction(action: Action, view: NodeReferenceData | null) {
     const ret = action.action(action);
     return typeof ret === "boolean" ? ret : true;
   } else if (action.kind == "virtual") {
-    if (view == null) {
-      log.debug("action.virtual.ignore", action.id, "no active view");
-      return false;
-    }
-    // virtual: find closest component implementing that action
-    const focusedViews = spaceRegistry.graph.getAncestors(view) as ViewData[];
-    for (const view of focusedViews) {
-      const key = getVirtualActionKey(view.id!, action.id);
-      const impl = VIRTUAL_ACTIONS.value[key];
+    // virtual: find first component implementing that action
+    for (const view of viewsInOrder ?? []) {
+      const impl = view.exposed?.actions?.[action.id];
       if (impl != null && (impl.enabled == null || impl.enabled.value == true)) {
-        log.debug("action.virtual", action.id, view.id);
+        log.debug("action.virtual", action.id);
         const ret = impl.action(action);
         return typeof ret === "boolean" ? ret : true;
       }
     }
-    log.debug("action.virtual", action.id, view.id, "no implementing view", focusedViews);
+    log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
+    toaster.debug({ title: "Action not available", text: `No active view supports "${action.title}".` });
     return false; // no action found
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
   }
 }
 
-// register actions with keytrap
-const bindings: Array<() => void> = [];
-watch(ACTIONS, (actions) => {
-  const actionsWithShortcuts = Object.values(actions)
-    .map((a) => a as Action)
-    .filter((a) => (a.shortcuts?.length ?? 0) > 0);
-  log.debug(
-    "action.updateKeymap",
-    actionsWithShortcuts.map((a) => a.id),
-  );
-  bindings.forEach((unbind) => unbind());
-  actionsWithShortcuts.forEach((action) => {
-    const unbind = keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e));
-    bindings.push(unbind);
-  });
-});
+// track implemented actions (and register with keytrap)
+// NOTE: implemented actions may contain disabled actions, we filter those at a later step to avoid updating this too often
+//  (we evaluate the actual action to call only when firing the callback anyway)
+export const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
+export const IMPLEMENTED_ACTIONS: Ref<Action[]> = computed(() => Object.values(IMPLEMENTED_ACTIONS_BY_ID.value));
+watch(
+  [DECLARED_ACTIONS, spaceRegistry.focusedViewComponentsById],
+  () => {
+    const implemented: Record<string, Action> = {};
+
+    // all static actions
+    Object.values(DECLARED_ACTIONS.value)
+      .filter((a) => a.kind == "static")
+      .forEach((a) => (implemented[a.id] = a));
+
+    // collect virtual actions bottom up
+    for (const view of Object.values(spaceRegistry.focusedViewComponentsById.value)) {
+      for (const [actionId, action] of Object.entries(view.exposed?.actions ?? {})) {
+        if (implemented[actionId] != null) continue; // already declared (either static or by lower view)
+        const declaration = DECLARED_ACTIONS_BY_ID.value[actionId];
+        if (declaration == null) throw new Error(`no declaration for virtual action: ${actionId}`);
+        implemented[actionId] = { ...declaration, ...action };
+      }
+    }
+
+    // diff & update keytrap
+    const oldImplemented = IMPLEMENTED_ACTIONS_BY_ID.value;
+    const removedActions = Object.keys(oldImplemented).filter((id) => implemented[id] == null);
+    const addedActions = Object.keys(implemented).filter((id) => oldImplemented[id] == null);
+    removedActions.forEach((id) => keytrap.unbind(oldImplemented[id].shortcuts ?? []));
+    addedActions.forEach((id) => {
+      const action = implemented[id];
+      if ((action.shortcuts?.length ?? 0) > 0)
+        keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), id);
+    });
+
+    IMPLEMENTED_ACTIONS_BY_ID.value = implemented;
+  },
+  { immediate: true },
+);
 
 // declare common actions
 declareActionMap<"common">({
@@ -453,7 +432,7 @@ declareActionMap<"common">({
     shortcuts: ["mod+enter"],
   },
   "common.sense.rename": {
-    icon: "fas fa-font",
+    icon: "fas fa-pencil",
     title: "Rename",
     text: "Rename the current node",
     shortcuts: ["f2"],
@@ -490,5 +469,108 @@ declareActionMap<"common">({
     icon: "fas fa-skull",
     title: "Kill",
     text: "Kill the current node",
+  },
+});
+
+// space actions
+contributeActionMap<"space">({
+  "space.open.inspector": {
+    title: "Inspect Node",
+    text: "Open the Inspector View",
+    icon: "fas fa-eye-dropper",
+    action: ACTION_COMING_SOON,
+  },
+  "space.open.library": {
+    title: "Open Library",
+    text: "Get building blocks from the library",
+    icon: "fas fa-books",
+    action: ACTION_COMING_SOON,
+  },
+  "space.open.docs": {
+    title: "Read the Docs",
+    text: "Get help from our examples and guides",
+    icon: "fas fa-book-open",
+    action: ACTION_COMING_SOON,
+  },
+  "space.open.discord": {
+    title: "Discuss on Discord",
+    text: "Join the community on Discord",
+    icon: "fab fa-discord",
+    url: DISCORD_URL,
+    action: () => {
+      // open in new tab
+      window.open(DISCORD_URL, "_blank");
+    },
+  },
+});
+
+// view actions
+declareActionMap<"view">({
+  // navigate
+  "view.navigate.focusPreviousTab": {
+    icon: "fas fa-chevron-left",
+    title: "Focus Previous Tab",
+    text: "Navigate to the previous tab",
+  },
+  "view.navigate.focusNextTab": {
+    icon: "fas fa-chevron-right",
+    title: "Focus Next Tab",
+    text: "Navigate to the next tab",
+  },
+  "view.navigate.focusPreviousWindow": {
+    icon: "fas fa-chevrons-left",
+    title: "Focus Previous Window",
+    text: "Navigate to the previous window",
+  },
+  "view.navigate.focusNextWindow": {
+    icon: "fas fa-chevrons-right",
+    title: "Focus Next Window",
+    text: "Navigate to the next window",
+    shortcuts: ["mod+shift+space"],
+  },
+  "view.navigate.closeTab": {
+    icon: "fas fa-xmark",
+    title: "Close Tab",
+    text: "Close the current tab",
+    shortcuts: ["mod+w", "ctrl+w"],
+  },
+  "view.navigate.closeOtherTabs": {
+    icon: "fas fa-xmark",
+    title: "Close Other Tabs",
+    text: "Close all other tabs",
+  },
+  "view.navigate.reopenClosedTab": {
+    icon: "fas fa-arrow-rotate-left",
+    title: "Reopen Closed Tab",
+    text: "Reopen the last closed tab",
+    shortcuts: ["mod+shift+t"],
+  },
+  "view.navigate.closeWindow": {
+    icon: "fas fa-xmark",
+    title: "Close Window",
+    text: "Close the current window",
+    shortcuts: ["mod+shift+w"],
+  },
+  "view.navigate.closeOtherWindows": {
+    icon: "fas fa-xmark",
+    title: "Close Other Windows",
+    text: "Close all other windows",
+  },
+  "view.navigate.reopenClosedWindow": {
+    icon: "fas fa-arrow-rotate-left",
+    title: "Reopen Closed Window",
+    text: "Reopen the last closed window",
+    shortcuts: ["mod+shift+n"],
+  },
+  // layout
+  "view.layout.splitVertical": {
+    icon: "fas fa-reflect-vertical",
+    title: "Split Vertical",
+    text: "Split the current window vertically",
+  },
+  "view.layout.splitHorizontal": {
+    icon: "fas fa-reflect-horizontal",
+    title: "Split Horizontal",
+    text: "Split the current window horizontally",
   },
 });

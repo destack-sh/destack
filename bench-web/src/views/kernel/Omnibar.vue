@@ -1,9 +1,9 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { addAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode } from "@/system/action";
+import { addAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode, fireAction } from "@/system/action";
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, useSearch, type SearchIndex, graphIndex } from "@/system/search";
-import { bench, spaceGraph } from "@/system/space";
+import { bench, spaceGraph, spaceRegistry } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
 import { Shortcut } from "@/utils/tooltip";
@@ -51,7 +51,8 @@ async function fire(id: string) {
   const result = candidates.value.find((r) => r.id === id);
   // fire
   if (result != null) {
-    if (result.metatype == "action") result.action(result);
+    console.log("fire", id, result);
+    if (result.metatype == "action") fireAction(result, spaceRegistry.focusedViewComponents);
     else if (result.metatype == "node") throw new Error("nocheckin: go to node");
     else throw new Error(`unexpected result: ${result}`);
   }
