@@ -2155,6 +2155,7 @@ message SpaceData {
   optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
+  optional SelectionData focus = 70;
 }
 
 // A store for database-like storage in a Bench.

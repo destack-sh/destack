@@ -421,3 +421,7 @@ class Space(HasViews):
     order_key: str = p_internal(33)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
     # layout/views/...
+
+    focus: Optional[Selection] = p_regular(
+        70, default=None, require=False, struct=StructType.SELECTION
+    )

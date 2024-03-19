@@ -4432,6 +4432,10 @@ export interface SpaceData {
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 34;
      */
     policies: PolicyData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SelectionData focus = 70;
+     */
+    focus?: SelectionData;
 }
 /**
  * A store for database-like storage in a Bench.
@@ -18124,7 +18128,8 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData }
+            { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 70, name: "focus", kind: "message", T: () => SelectionData }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -18205,6 +18210,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* repeated symbolx.bench.PolicyData policies */ 34:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.SelectionData focus */ 70:
+                    message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -18275,6 +18283,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* repeated symbolx.bench.PolicyData policies = 34; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData focus = 70; */
+        if (message.focus)
+            SelectionData.internalBinaryWrite(message.focus, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20286,6 +20297,7 @@ export enum SpaceProperty {
   text = 32,
   orderKey = 33,
   policies = 34,
+  focus = 70,
 }
 
 export enum LinkProperty {

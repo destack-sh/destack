@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { DECLARED_ACTIONS_BY_ID, type Action, type ActionBuiltinId } from "@/system/action";
+import { DECLARED_ACTIONS_BY_ID, type Action, type ActionBuiltinId, fireAction } from "@/system/action";
 import { IconInline } from "@/system/icon";
 import { Tooltip } from "@/utils/tooltip";
 import { computed, type Ref } from "vue";
@@ -27,7 +27,7 @@ const actions: Ref<Action[]> = computed(
       v-for="action in actions"
       :key="action.id"
       class="group relative rounded-md border border-gray-900 bg-primary-300 px-1 py-0.5 text-gray-900 shadow-sm shadow-gray-900 hover:cursor-pointer hover:bg-primary-400"
-      @click="action.action"
+      @click="fireAction(action)"
       :href="action.url"
       target="_blank"
     >
