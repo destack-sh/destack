@@ -5,7 +5,7 @@ import { makeIcon } from "@/system/icon";
 import { bench } from "@/system/space";
 import { user } from "@/system/user";
 import Button from "@/views/controls/Button.vue";
-import Dock from "@/views/system/Dock.vue";
+import Dock from "@/views/private/Dock.vue";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;

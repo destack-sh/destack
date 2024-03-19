@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
+import { spaceRegistry } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { makeViewId } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -42,7 +43,9 @@ watch([isManualScrolling, isNativeScrolling], () => {
   }
 });
 
-defineExpose<ViewExposed>({ self, id: makeViewId(props) });
+const id = makeViewId(props);
+spaceRegistry.registerCurrent(self, id);
+defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div class="relative">

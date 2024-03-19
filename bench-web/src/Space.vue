@@ -5,9 +5,9 @@ import { space } from "@/system/space";
 import { isDragging } from "@/utils/layout";
 import { type ViewExposed } from "@/views/common";
 import Windowed from "@/views/containers/Windowed.vue";
-import Omnibar from "@/views/kernel/Omnibar.vue";
-import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
-import Bar from "@/views/system/Bar.vue";
+import Omnibar from "@/views/private/Omnibar.vue";
+import ToastOverlay from "@/views/private/ToastOverlay.vue";
+import Bar from "@/views/private/Bar.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -60,25 +60,27 @@ defineExpose<ViewExposed>({ id: computed(() => spacePtr.value?.id ?? LOCAL_SPACE
   </div>
 </template>
 <style>
+/* stop overscrolling */
 * {
-  /* stop overscrolling */
   overscroll-behavior: none;
   scrollbar-gutter: overlay;
 }
 
+/* hide scrollbar with .scrollbar-none */
 .scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
 
+/** make selections match primary color */
 ::selection {
   background-color: #fcd34d;
 }
 
+/* marks should be bold */
 mark {
   background-color: transparent;
   color: inherit;

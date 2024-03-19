@@ -2,7 +2,7 @@
 import { Region, Variant, type NodeReferenceData, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { removeView } from "@/system/space";
+import { removeView, spaceRegistry } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
@@ -12,6 +12,7 @@ import { watch, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & {}>();
 const emit = defineEmits(viewEmits());
+const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 
@@ -54,7 +55,8 @@ async function submit() {
   }
 }
 
-defineExpose({ self: toRef(props, "self") });
+spaceRegistry.registerCurrent(self);
+defineExpose({ self });
 </script>
 <template>
   <div
