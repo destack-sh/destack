@@ -3,6 +3,7 @@ import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
 import { isDragging } from "@/utils/layout";
+import { type ViewExposed } from "@/views/common";
 import Windowed from "@/views/containers/Windowed.vue";
 import Omnibar from "@/views/kernel/Omnibar.vue";
 import ToastOverlay from "@/views/kernel/ToastOverlay.vue";
@@ -27,6 +28,8 @@ const mainBox = computed(() => ({
   height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
 }));
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
+
+defineExpose<ViewExposed>({ id: computed(() => spacePtr.value?.id ?? LOCAL_SPACE_PTR.id!) });
 </script>
 <template>
   <!-- Space -->

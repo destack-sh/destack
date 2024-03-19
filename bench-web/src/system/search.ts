@@ -1,8 +1,8 @@
 import type { AnyNodeData, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { ACTIONS, ACTION_BUILTIN_IDS, ACTION_BUILTIN_IDS_INDEX, type Action } from "@/system/action";
+import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
-import { getNodeIcon } from "@/system/lang";
+import { getNodeTypeIcon } from "@/system/lang";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 
@@ -72,7 +72,7 @@ export function graphIndex(
       path,
       pathIndexed,
       title: (node as any).title ?? (node as any).name,
-      icon: getNodeIcon(node.metatype as unknown as NodeType),
+      icon: getNodeTypeIcon(node.metatype as unknown as NodeType),
       ancestors: ancestors,
     };
     const items = [];
@@ -106,7 +106,7 @@ export function graphIndex(
 export function actionIndex(): SearchIndex<ActionItem> {
   const index: SearchIndex<ActionItem> = {
     candidates: () =>
-      (Object.values(ACTIONS.value) as Action[])
+      IMPLEMENTED_ACTIONS.value
         .filter((a) => a.enabled == null || a.enabled.value)
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
         .map((a) => ({ ...a, metatype: "action" })),

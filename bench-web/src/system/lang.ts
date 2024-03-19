@@ -246,10 +246,16 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.IDENTITY]: "fas fa-image-user",
 });
 
-export function getNodeIcon(nodeType: NodeType) {
+export function getNodeTypeIcon(nodeType: NodeType) {
   return ICON_BY_NODE_TYPE[nodeType] ?? DEFAULT_MISSING_ICON;
 }
 
-export function getBlockIcon(blockType: BlockType) {
+export function getBlockTypeIcon(blockType: BlockType) {
   return ICON_BY_BLOCK_TYPE[blockType] ?? DEFAULT_MISSING_ICON;
+}
+
+export function getNodeIcon(node: { metatype: BenchType; type?: BlockType | ViewType }) {
+  // TODO :Incomplete: view type icons
+  if (node.metatype == BenchType.BLOCK) return getBlockTypeIcon(node.type! as BlockType);
+  else return getNodeTypeIcon(node.metatype as unknown as NodeType);
 }

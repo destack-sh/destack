@@ -1,13 +1,14 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
-import { viewEmits } from "@/views/common";
+import { makeViewId } from "@/views";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   {
-    self?: NodeReferenceData | undefined;
+    self?: NodeReferenceData;
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;
@@ -16,6 +17,7 @@ const props = defineProps<
   } & Pick<ViewData, "orientation" | "variant">
 >();
 const emit = defineEmits(viewEmits());
+const self = toRef(props, "self");
 
 const areaRef = ref<HTMLElement | null>(null);
 const areaMouse = useMouseInElement(areaRef);
@@ -40,8 +42,7 @@ watch([isManualScrolling, isNativeScrolling], () => {
   }
 });
 
-const self = toRef(props, "self");
-defineExpose({ self });
+defineExpose<ViewExposed>({ self, id: makeViewId(props) });
 </script>
 <template>
   <div class="relative">

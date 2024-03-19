@@ -129,6 +129,7 @@ type KeymapBinding = {
   signature: KeySignature;
   parsedSignature: ParsedKeySignature;
   callback: KeymapCallback;
+  opaque?: unknown;
 };
 
 /**
@@ -163,38 +164,34 @@ export class Keytrap {
     element.addEventListener("keydown", this.onKeyDown.bind(this));
   }
 
-  /** Clears ALL bindings */
-  clear() {
-    this.bindings = {};
-    this.bindingsByChord = {};
-  }
-
   /** Binds the given key signature uniquely to some callback */
   bind(
     signature: KeySignature | ParsedKeySignature | Array<KeySignature | ParsedKeySignature>,
     callback: KeymapCallback,
+    opaque: unknown = undefined,
   ): () => void {
     const signatures = Array.isArray(signature) ? signature : [signature];
     const parsedSignatures: ParsedKeySignature[] = [];
     for (const signature of signatures) {
       // normalize
       const parsed = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
-      const binding = { signature: renderKeymapSignature(parsed), parsedSignature: parsed, callback };
+      const binding = { signature: renderKeymapSignature(parsed), parsedSignature: parsed, callback, opaque };
       if (parsed.chords.length != 1) throw new Error("only :SingleChord is supported for now");
       parsedSignatures.push(parsed);
 
       // bind
-      if (this.bindings[binding.signature]) throw new Error(`keymap signature ${binding.signature} already bound`);
+      const existing = this.bindings[binding.signature];
+      if (existing)
+        throw new Error(
+          `${binding.signature} already bound: ${existing.opaque ?? existing.callback} vs ${opaque ?? callback}`,
+        );
       this.bindings[binding.signature] = binding;
       this.bindingsByChord[renderChord(parsed.chords[0])] = binding; // :SingleChord
     }
-    return () => this.unbind(parsedSignatures, callback);
+    return () => this.unbind(parsedSignatures);
   }
 
-  unbind(
-    signature: KeySignature | ParsedKeySignature | Array<KeySignature | ParsedKeySignature>,
-    callback: KeymapCallback,
-  ) {
+  unbind(signature: KeySignature | ParsedKeySignature | Array<KeySignature | ParsedKeySignature>) {
     const signatures = Array.isArray(signature) ? signature : [signature];
     for (const signature of signatures) {
       // normalize
@@ -204,7 +201,6 @@ export class Keytrap {
       // unbind
       const binding = this.bindings[key];
       if (binding == null) throw new Error(`keymap signature ${key} not bound`);
-      if (binding.callback != callback) throw new Error(`keymap signature ${key} bound to different callback`);
       delete this.bindings[key];
       delete this.bindingsByChord[renderChord(parsed.chords[0])]; // :SingleChord
     }

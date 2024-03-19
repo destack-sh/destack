@@ -7,11 +7,11 @@ import { addView, removeView, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { log } from "@/utils/log";
 import { ScrollbarWidth } from "@/utils/layout";
-import { getViewBinding, getViewComponent } from "@/views";
-import { viewEmits } from "@/views/common";
+import { getViewBinding, getViewComponent, makeViewId } from "@/views";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import { computed, ref, toRef, type Ref, nextTick } from "vue";
 import Scroll from "@/views/containers/Scroll.vue";
-import { implementActionMap } from "@/system/action";
+import { type ActionMapImplementation } from "@/system/action";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "selection">
@@ -82,7 +82,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 });
 
 // splitting body
-// TODO :Architecture: shouldn't window splitting be implemented in Windowed? 
+// TODO :Architecture: shouldn't window splitting be implemented in Windowed?
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
   container: bodyRef,
@@ -104,7 +104,7 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
 });
 
 // actions
-implementActionMap<"view">(self, {
+const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
     enabled: computed(() => selectedTabIdx.value != null),
     action: () => remove(tabs.value[selectedTabIdx.value!]),
@@ -115,15 +115,15 @@ implementActionMap<"view">(self, {
       splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "right");
     },
   },
-  "view.layout.splitVertical": { 
+  "view.layout.splitVertical": {
     action: () => {
       const selfData = spaceGraph.get(props.self) as ViewData;
       splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "bottom");
     },
   },
-});
+};
 
-defineExpose({ self, select });
+defineExpose<ViewExposed>({ self, select, actions });
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">

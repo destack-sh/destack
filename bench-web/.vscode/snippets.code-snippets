@@ -15,7 +15,7 @@
 		"body": [
 			"<script lang=\"tsx\" setup>",
 			"import { ViewData, NodeReferenceData } from \"@/proto/wire/\";",
-			"import { viewEmits } from \"@/views/common\";",
+			"import { viewEmits, ViewExposed } from \"@/views/common\";",
 			"import { toRef } from \"vue\";",
 			"",
 			"const props = defineProps<{self: NodeReferenceData} & Pick<ViewData, \"name\" | \"title\" | \"text\" | \"icon\" | \"nodePtr\">>();",
@@ -24,7 +24,7 @@
 			"",
 			"const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);",
 			"",
-			"defineExpose({ self });",
+			"defineExpose<ViewExposed>({ self });",
 			"</script>",
 			"<template>",
 			"  <div>$1</div>",
