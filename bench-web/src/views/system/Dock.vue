@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { BUILTIN_ACTIONS, type Action, type ActionBuiltinId } from "@/system/action";
+import { ACTIONS, type Action, type ActionBuiltinId } from "@/system/action";
 import { IconInline } from "@/system/icon";
 import { Tooltip } from "@/utils/tooltip";
 import { computed, type Ref } from "vue";
@@ -16,7 +16,7 @@ const actions: Ref<Action[]> = computed(
         "space.open.discord",
       ] as ActionBuiltinId[]
     )
-      .map((id) => BUILTIN_ACTIONS.value[id])
+      .map((id) => ACTIONS.value[id])
       .filter((a) => a != null) as Action[],
 );
 </script>

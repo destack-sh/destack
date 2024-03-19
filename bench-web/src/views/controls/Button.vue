@@ -43,6 +43,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
 }));
 
+
 defineExpose({ self: toRef(props, "self") });
 </script>
 <template>

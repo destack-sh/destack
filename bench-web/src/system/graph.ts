@@ -43,6 +43,10 @@ export interface ReadNodeGraph {
    * General helpers
    */
   /**
+   * Gets all ancestors of the given node with the given or any metatypes.
+   */
+  getAncestors(node: NodeKey<any>, metatypes?: NodeType[]): AnyNodeData[];
+  /**
    * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
    * The filter must depend on only the given node.
    */
@@ -93,6 +97,20 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
 
   get roots() {
     return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);
+  }
+
+  getAncestors(node: NodeKey<any>, metatypes?: NodeType[] | undefined): AnyNodeData[] {
+    const ancestors: AnyNodeData[] = [];
+    let parent = this.get(node)?.parentPtr;
+    while (parent != null) {
+      const parentNode = this.get(parent);
+      if (parentNode == null) break;
+      if (metatypes == null || metatypes.includes(parentNode.metatype as unknown as NodeType)) {
+        ancestors.push(parentNode);
+      }
+      parent = parentNode.parentPtr;
+    }
+    return ancestors;
   }
 
   getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter: (node: AnyNodeData) => boolean): AnyNodeData[] {

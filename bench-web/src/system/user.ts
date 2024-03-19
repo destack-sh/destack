@@ -87,9 +87,11 @@ export async function logIn(userIn: { slug: string } | { email: string }, passwo
  */
 export async function logOut(options?: { all?: boolean; clients?: { id: string }[] }) {
   if (clientInfo.value == null) throw new Error("not logged in");
-  const clients = (options?.clients ?? [clientInfo.value]).map((c) => nodeReference(NodeType.CLIENT, c.id!));
-  await supervisor.logoutUser({ clients, logoutAll: options?.all });
-  if (options?.all || clients.some((c) => c.id == clientInfo.value?.id)) {
+  await supervisor.logoutUser({
+    clients: options?.clients?.map((c) => nodeReference(NodeType.CLIENT, c.id!)) ?? [],
+    logoutAll: options?.all,
+  });
+  if (options == null || options?.all || options?.clients?.some((c) => c.id == clientInfo.value?.id)) {
     // logged out current client
     log.info("user.logout", options);
     userInfo.value = null;
@@ -142,5 +144,10 @@ contributeActionMap<"user">({
       });
     },
   },
-  "user.logout": { icon: "fas fa-right-to-bracket", title: "Log Out", enabled: isAuthenticated, action: () => logOut() },
+  "user.logout": {
+    icon: "fas fa-right-to-bracket",
+    title: "Log Out",
+    enabled: isAuthenticated,
+    action: () => logOut(),
+  },
 });

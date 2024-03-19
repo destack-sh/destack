@@ -11,15 +11,17 @@ import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
 import { computed, ref, toRef, type Ref, nextTick } from "vue";
 import Scroll from "@/views/containers/Scroll.vue";
+import { implementActionMap } from "@/system/action";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "selection">
 >();
 const emit = defineEmits(viewEmits());
+const self = toRef(props, "self");
 
 // selection
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
-const tabs = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
+const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);
+const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW);
 
 const selectedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) return null;
@@ -59,7 +61,7 @@ function remove(tab: ViewData) {
   removeView(spaceConnection.sideTx, spaceGraph, tab);
 }
 
-// dragging
+// dragging into header
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
@@ -79,7 +81,8 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   },
 });
 
-// splitting
+// splitting body
+// TODO :Architecture: shouldn't window splitting be implemented in Windowed? 
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
   container: bodyRef,
@@ -100,7 +103,27 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
   },
 });
 
-defineExpose({ self: toRef(props, "self"), select, remove });
+// actions
+implementActionMap<"view">(self, {
+  "view.navigate.closeTab": {
+    enabled: computed(() => selectedTabIdx.value != null),
+    action: () => remove(tabs.value[selectedTabIdx.value!]),
+  },
+  "view.layout.splitHorizontal": {
+    action: () => {
+      const selfData = spaceGraph.get(props.self) as ViewData;
+      splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "right");
+    },
+  },
+  "view.layout.splitVertical": { 
+    action: () => {
+      const selfData = spaceGraph.get(props.self) as ViewData;
+      splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "bottom");
+    },
+  },
+});
+
+defineExpose({ self, select });
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">

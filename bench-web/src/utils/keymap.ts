@@ -60,80 +60,58 @@ export function renderKeymapSignature(key: ParsedKeySignature): KeySignature {
   });
   return chords.join(" ");
 }
-export 
-function renderKeymapKey(key: string) {
+export function renderKeymapKey(key: string) {
   if (key == "mod") return IS_ON_MAC ? "cmd" : "ctrl";
   else return key;
 }
 
 export type KeymapCallback = (e: KeyboardEvent, combination: KeySignature) => boolean | void;
 
-/**
- * Regular character keycodes. Much like in VSCode.
- */
-const CHAR_KEYS_BY_CODE: { [key: number]: string } = {
-  8: "backspace",
-  9: "tab",
-  13: "enter",
-  16: "shift",
-  17: "ctrl",
-  18: "alt",
-  20: "capslock",
-  27: "esc",
-  32: "space",
-  33: "pageup",
-  34: "pagedown",
-  35: "end",
-  36: "home",
-  37: "left",
-  38: "up",
-  39: "right",
-  40: "down",
-  45: "ins",
-  46: "del",
-  91: "meta",
-  93: "meta",
-  224: "meta",
+export const CHAR_KEYS: Record<string, number> = {
+  backspace: 8,
+  tab: 9,
+  enter: 13,
+  shift: 16,
+  ctrl: 17,
+  alt: 18,
+  capslock: 20,
+  esc: 27,
+  space: 32,
+  pageup: 33,
+  pagedown: 34,
+  end: 35,
+  home: 36,
+  left: 37,
+  up: 38,
+  right: 39,
+  down: 40,
+  ins: 45,
+  del: 46,
 };
 // a-z (lowercase only)
 for (let i = 0; i < 26; ++i) {
-  CHAR_KEYS_BY_CODE[65 + i] = String.fromCharCode(97 + i);
+  CHAR_KEYS[String.fromCharCode(97 + i)] = 65 + i; // a-z to A-Z keycode
 }
-// 0-9
+// 0-9 (top row numbers)
 for (let i = 0; i < 10; ++i) {
-  CHAR_KEYS_BY_CODE[48 + i] = i.toString();
+  CHAR_KEYS[i.toString()] = 48 + i; // numbers as strings to keycodes
 }
-// `, -, =, [, ], \, ;, ', ,, ., /
+// special characters `,-,=,[,],\,;,' ,, ., /
 for (const key of "`-=[]\\;',./") {
-  CHAR_KEYS_BY_CODE[key.charCodeAt(0)] = key;
+  CHAR_KEYS[key] = key.charCodeAt(0);
 }
-// F keys
-for (let i = 1; i < 20; ++i) {
-  CHAR_KEYS_BY_CODE[111 + i] = "f" + i;
+// F keys (F1 to F19)
+for (let i = 1; i <= 19; ++i) {
+  CHAR_KEYS["f" + i] = 112 + i - 1;
 }
-// numpad keys
+// numpad 0-9
 for (let i = 0; i <= 9; ++i) {
-  CHAR_KEYS_BY_CODE[i + 96] = i.toString();
+  CHAR_KEYS["numpad" + i.toString()] = 96 + i; // numpad numbers as strings to keycodes
 }
-export const CHAR_KEYS = reverseRecord(CHAR_KEYS_BY_CODE);
+
 // :ModKey
 if (IS_ON_MAC) CHAR_KEYS["mod"] = CHAR_KEYS["meta"];
 else CHAR_KEYS["mod"] = CHAR_KEYS["ctrl"];
-
-function getEventModifiers(e: KeyboardEvent): KeyModifier[] {
-  const modifiers: KeyModifier[] = [];
-  if (e.shiftKey) modifiers.push("shift");
-  if (e.altKey) modifiers.push("alt");
-  if (e.ctrlKey) {
-    modifiers.push("ctrl");
-    if (!IS_ON_MAC) modifiers.push("mod");
-  }
-  if (e.metaKey) {
-    modifiers.push("meta");
-    if (IS_ON_MAC) modifiers.push("mod");
-  }
-  return modifiers;
-}
 
 function modifiersMatch(e: KeyboardEvent, modifiers: KeyModifier[]) {
   if (e.shiftKey != modifiers.includes("shift")) return false;
@@ -150,7 +128,7 @@ type KeymapBinding = {
 };
 
 /**
- * Simple key trap that fires callbacks based on keymap keys.
+ * Simple key trap that fires callbacks on keymap signatures.
  * Handles chords and all the funky stuff.
  */
 export class Keytrap {
