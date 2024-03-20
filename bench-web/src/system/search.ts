@@ -11,7 +11,7 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   id: string;
   metatype: "node";
   path: string; // the ancestor path to display
-  pathIndexed?: string; // the path to index for searching (lengths must match for highlighting!)
+  pathIndexed?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
   icon: IconData;
   title: string;

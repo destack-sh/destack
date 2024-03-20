@@ -6,6 +6,7 @@ import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
+import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import { collectViewComponents } from "@/views/registry";
 import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
@@ -23,32 +24,8 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
   "bench",
 ];
 
-export type ActionCategory = "space" | "user" | "common" | "view";
-export const ACTION_CATEGORIES: ActionCategory[] = ["space", "user", "view"];
-
+export type ActionCategory = "common" | "view" | "space" | "user";
 export const ACTION_BUILTIN_IDS = [
-  // space
-  // (:OmnibarModes)
-  "space.open.omnibar.everywhere",
-  "space.open.omnibar.actions",
-  "space.open.omnibar.space",
-  "space.open.omnibar.views",
-  "space.open.omnibar.view",
-  "space.open.omnibar.module",
-  "space.open.omnibar.package",
-  "space.open.omnibar.bench",
-  "space.open.chat",
-  "space.open.inspector",
-  "space.open.library",
-  "space.open.explorer",
-  "space.open.outline",
-  "space.open.docs",
-  "space.open.logs",
-  "space.open.discord",
-  // user
-  "user.signup",
-  "user.login",
-  "user.logout",
   // common
   "common.edit.undo",
   "common.edit.redo",
@@ -97,6 +74,28 @@ export const ACTION_BUILTIN_IDS = [
   "view.navigate.reopenClosedWindow",
   "view.layout.splitHorizontal",
   "view.layout.splitVertical",
+  // space
+  // (:OmnibarModes)
+  "space.launch.omnibar.everywhere",
+  "space.launch.omnibar.actions",
+  "space.launch.omnibar.space",
+  "space.launch.omnibar.views",
+  "space.launch.omnibar.view",
+  "space.launch.omnibar.module",
+  "space.launch.omnibar.package",
+  "space.launch.omnibar.bench",
+  "space.launch.chat",
+  "space.launch.inspector",
+  "space.launch.library",
+  "space.launch.explorer",
+  "space.launch.outline",
+  "space.launch.docs",
+  "space.launch.logs",
+  "space.launch.discord",
+  // user
+  "user.signup",
+  "user.login",
+  "user.logout",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -107,7 +106,6 @@ export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
 export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
 export type ActionKind = "static" | "virtual";
-
 export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
   toaster.debug({ title: "Coming soon", text: `"${action.title}" is not yet available.`, icon: action.icon });
 
@@ -128,6 +126,7 @@ export type Action = {
   enabled?: Ref<boolean>;
   source: ActionSource;
   category: string;
+  path: string;
   action: ActionCallable;
   url?: string; // for external URLs
 };
@@ -148,13 +147,16 @@ export type ActionMapContribution<T extends string> = Record<FilterPrefix<Action
 
 /** Adds an action directly to the map. */
 export function addAction(kind: ActionKind, in_: ActionIn) {
+  let idParts = in_.id.split(".").map((p) => toCasing(p, Casing.CAMEL));
+  if (idParts[0] == "common") idParts = idParts.slice(1);
   const action: Action = {
     kind,
     ...in_,
     icon: typeof in_.icon === "string" ? makeIcon({ name: in_.icon }) : in_.icon,
     source: { kind: "builtin", id: in_.id },
     id: in_.id,
-    category: in_.id.startsWith("common") ? in_.id.split(".")[1] : in_.id.split(".")[0],
+    category: idParts[0],
+    path: idParts.slice(0, -1).join(" / "),
   };
   if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
     // hot-reloading re-registers actions
@@ -183,14 +185,50 @@ export function getAction(id: ActionBuiltinId): Action {
   return action;
 }
 
+/**
+ * Actions can be suppressed in the DOM with data-suppress-actions='mask1,mask2,...'.
+ * If not specified, we default to the  DEFAULT_SUPPRESSED_ACTIONS per tag.
+ * Suppressions accumulate up the DOM tree, and for simplicity you cannot un-suppress an action.
+ * The mask is simply a prefix match.
+ */
+export const DEFAULT_SUPPRESSED_ACTIONS: Record<string, string[]> = {
+  input: ["common.navigate", "common.select", "common.move"],
+  textarea: ["common.navigate", "common.select", "common.move"],
+  contenteditable: ["common.navigate", "common.select", "common.move"],
+};
+
+function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement | null {
+  while (el != null) {
+    const elTag = el.tagName.toLowerCase();
+    const suppress = el.getAttribute("data-suppress-actions");
+    let masks: string[];
+    if (suppress != null) masks = suppress.split(",");
+    else if (DEFAULT_SUPPRESSED_ACTIONS[elTag] != null) masks = DEFAULT_SUPPRESSED_ACTIONS[elTag];
+    else if (el.contentEditable == "true") masks = DEFAULT_SUPPRESSED_ACTIONS.contenteditable;
+    else masks = [];
+
+    if (masks.some((mask) => id.startsWith(mask))) return el;
+    else el = el.parentElement!;
+  }
+  return null;
+}
+
 export function runAction(id: ActionBuiltinId) {
   const action = getAction(id);
-  action.action(action);
+  fireAction(action);
 }
 
 /** Triggers the bound action from a keyboard event. */
 export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
-  if (action.enabled != null && !action.enabled.value) return false;
+  if (action.enabled != null && !action.enabled.value) {
+    log.debug("action.disabled", action.id);
+    return false;
+  }
+  const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
+  if (suppressor) {
+    log.debug("action.suppressed", action.id, suppressor);
+    return false;
+  }
   const chain = collectViewComponents(e.target as HTMLElement);
   return fireAction(action, chain);
 }
@@ -473,25 +511,25 @@ declareActionMap<"common">({
 
 // space actions
 contributeActionMap<"space">({
-  "space.open.inspector": {
+  "space.launch.inspector": {
     title: "Inspect Node",
     text: "Open the Inspector View",
     icon: "fas fa-eye-dropper",
     action: ACTION_COMING_SOON,
   },
-  "space.open.library": {
+  "space.launch.library": {
     title: "Open Library",
     text: "Get building blocks from the library",
     icon: "fas fa-books",
     action: ACTION_COMING_SOON,
   },
-  "space.open.docs": {
+  "space.launch.docs": {
     title: "Read the Docs",
     text: "Get help from our examples and guides",
     icon: "fas fa-book-open",
     action: ACTION_COMING_SOON,
   },
-  "space.open.discord": {
+  "space.launch.discord": {
     title: "Discuss on Discord",
     text: "Join the community on Discord",
     icon: "fab fa-discord",

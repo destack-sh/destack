@@ -8,12 +8,12 @@ const actions: Ref<Action[]> = computed(
   () =>
     (
       [
-        "space.open.omnibar.actions",
-        "space.open.omnibar.space",
-        "space.open.inspector",
-        "space.open.library",
-        "space.open.docs",
-        "space.open.discord",
+        "space.launch.omnibar.actions",
+        "space.launch.omnibar.space",
+        "space.launch.inspector",
+        "space.launch.library",
+        "space.launch.docs",
+        "space.launch.discord",
       ] as ActionBuiltinId[]
     )
       .map((id) => DECLARED_ACTIONS_BY_ID.value[id])

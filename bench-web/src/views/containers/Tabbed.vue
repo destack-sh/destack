@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { BenchType, BoxData, NodeReferenceData, NodeType, Orientation, SelectionKind, ViewData } from "@/proto/wire";
+import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
@@ -7,7 +7,6 @@ import { IconInline } from "@/system/icon";
 import { addView, removeView, spaceRegistry, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
-import { log } from "@/utils/log";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -99,15 +98,19 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => remove(tabs.value[focusedTabIdx.value!]),
   },
   "view.layout.splitHorizontal": {
+    enabled: computed(() => focusedTabIdx.value != null),
     action: () => {
       const selfData = spaceGraph.get(props.self) as ViewData;
-      splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "right");
+      const focusedTab = tabs.value[focusedTabIdx.value!];
+      splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "right");
     },
   },
   "view.layout.splitVertical": {
+    enabled: computed(() => focusedTabIdx.value != null),
     action: () => {
       const selfData = spaceGraph.get(props.self) as ViewData;
-      splitView(spaceConnection.sideTx, spaceGraph, selfData, selfData, "bottom");
+      const focusedTab = tabs.value[focusedTabIdx.value!];
+      splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "bottom");
     },
   },
 };

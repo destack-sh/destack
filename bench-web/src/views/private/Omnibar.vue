@@ -142,7 +142,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
 const IN_BENCH_MODES: OmnibarMode[] = ["module", "package", "bench"];
 for (const inMode of OMNIBAR_MODES) {
   addAction("static", {
-    id: ("space.open.omnibar." + inMode) as ActionBuiltinId,
+    id: ("space.launch.omnibar." + inMode) as ActionBuiltinId,
     title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
@@ -173,6 +173,7 @@ defineExpose({ isActive, open });
     <div
       v-if="isActive"
       class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700 bg-opacity-20"
+      data-outside-view="true"
       @keydown.esc.exact.prevent="isActive = false"
       @click="isActive = false"
     >
@@ -263,8 +264,14 @@ defineExpose({ isActive, open });
                   <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-600" />
                   <!-- Content (Action) -->
                   <span v-if="result.metatype == 'action'" class="ml-2">
+                    <!-- Name -->
                     <span v-if="result.titleMarked" v-html="result.titleMarked" />
                     <span v-else>{{ result.title }}</span>
+                    <!-- Path -->
+                    <span v-if="!showResultCategory" class="ml-1.5 text-gray-500">
+                      <span v-if="result.pathMarked" v-html="result.pathMarked" />
+                      <template v-else>{{ result.path }}</template>
+                    </span>
                   </span>
                   <!-- Content (Node) -->
                   <span v-else-if="result.metatype == 'node'" class="ml-2">

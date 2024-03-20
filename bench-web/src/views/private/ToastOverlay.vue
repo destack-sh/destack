@@ -50,6 +50,7 @@ const absoluteStyle = computed(() => {
   <TransitionGroup
     tag="ul"
     class="fixed z-50 flex gap-y-2 p-2"
+    data-outside-view="true"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
     move-class="transition-all duration-100"
