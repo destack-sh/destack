@@ -204,7 +204,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
         throw new Error(`unexpected edit type: ${editType}`);
       }
       let existingNode = graph.get({ id: nodeData.id });
-      if (!existingNode) throw new Error(`missing node for update: ${edit}`);
+      if (!existingNode) throw new Error(`missing node for update: ${nodeData.id}`);
       existingNode = { ...existingNode }; // clone
       for (const propId of properties) {
         const propName = nodeProperties[propId];

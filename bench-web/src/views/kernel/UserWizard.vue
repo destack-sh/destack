@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { Region, Variant, type NodeReferenceData, ViewData } from "@/proto/wire";
+import { Region, Variant, type NodeReferenceData, ViewData, NodeType } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas } from "@/system/space";
@@ -10,14 +10,24 @@ import Button from "@/views/controls/Button.vue";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
+import { reverseRecord } from "@/utils/functools";
 
-const props = defineProps<{ self: NodeReferenceData } & {}>();
+const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 
-const state: Ref<"sign-up" | "log-in" | "all-set"> = ref("log-in");
+type State = "sign-up" | "log-in" | "all-set";
+const TITLE_BY_STATE: Record<State, string> = {
+  "sign-up": "Sign Up",
+  "log-in": "Log In",
+  "all-set": "All Set",
+};
+const STATE_BY_TITLE = reverseRecord(TITLE_BY_STATE);
+
+// determine initial state from title (not great but we only use this internally)
+const state: Ref<State> = ref(STATE_BY_TITLE[props.title ?? ""] ?? "log-in");
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
@@ -26,14 +36,21 @@ const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
 const lastError = ref<RpcError | null>(null);
 
-// sync
+function setState(newState: State) {
+  if (newState == state.value) return;
+  state.value = newState;
+  spaceConnection.sideTx.update({ metatype: NodeType.VIEW, id: self.value.id, title: TITLE_BY_STATE[newState] });
+  canvas.focusInComponent(self.value);
+}
+
+// sync state with user
 watch(
   user,
   () => {
     if (user.value) {
-      state.value = "all-set";
-    } else {
-      state.value = "log-in";
+      setState("all-set");
+    } else if (state.value == "all-set") {
+      setState("log-in");
     }
   },
   { immediate: true },
@@ -70,14 +87,12 @@ defineExpose<ViewExposed>({ self, focus });
 </script>
 <template>
   <div
-    class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
+    class="mx-auto mt-24 h-fit min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
   >
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">
-        <span v-if="state === 'log-in'">Log In</span>
-        <span v-else-if="state === 'sign-up'">Sign Up</span>
-        <span v-else-if="state === 'all-set'">All Set</span>
+        {{ title }}
       </h2>
       <p class="mt-2 text-gray-500">
         <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
@@ -132,7 +147,7 @@ defineExpose<ViewExposed>({ self, focus });
         :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
         :variant="Variant.V3"
-        @click="() => (state = state === 'log-in' ? 'sign-up' : 'log-in')"
+        @click="() => setState(state == 'log-in' ? 'sign-up' : 'log-in')"
       />
       <Button
         v-if="state == 'all-set'"
@@ -149,4 +164,4 @@ defineExpose<ViewExposed>({ self, focus });
       </p>
     </div>
   </div>
-</template>@/views/canvas
+</template>

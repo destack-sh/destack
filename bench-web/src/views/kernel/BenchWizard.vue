@@ -65,7 +65,7 @@ defineExpose({ self, focus });
 </script>
 <template>
   <div
-    class="m-4 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
+    class="mx-auto mt-24 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
   >
     <!-- Header -->
     <div>
