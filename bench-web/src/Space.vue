@@ -1,13 +1,13 @@
 <script lang="ts" setup>
+import { Orientation } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
 import { isDragging } from "@/utils/layout";
-import { type ViewExposed } from "@/views/common";
 import Windowed from "@/views/containers/Windowed.vue";
+import Bar from "@/views/private/Bar.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
-import Bar from "@/views/private/Bar.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -28,15 +28,13 @@ const mainBox = computed(() => ({
   height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
 }));
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
-
-defineExpose<ViewExposed>({ id: computed(() => spacePtr.value?.id ?? LOCAL_SPACE_PTR.id!) });
 </script>
 <template>
   <!-- Space -->
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDragging ? 'pointer-events-none select-none' : '']"
+    :class="[isDragging ? 'pointer-events-none yselect-none' : '']"
   >
     <!-- Bar -->
     <Bar
@@ -52,6 +50,11 @@ defineExpose<ViewExposed>({ id: computed(() => spacePtr.value?.id ?? LOCAL_SPACE
       v-if="spacePtr && space"
       :self="spacePtr"
       :size="mainBox"
+      :focus="space.focus"
+      :name="space.name"
+      :title="space.name"
+      :text="space.text"
+      :orientation="Orientation.HORIZONTAL"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
     <!-- Overlays -->

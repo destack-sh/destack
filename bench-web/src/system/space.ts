@@ -1,4 +1,13 @@
-import { BenchType, NodeType, Orientation, SpaceData, StructType, ViewData, ViewType } from "@/proto/wire";
+import {
+  BenchType,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  SpaceData,
+  StructType,
+  ViewData,
+  ViewType
+} from "@/proto/wire";
 import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
@@ -36,7 +45,7 @@ export const pkg = pkgGraph.getRef(packagePtr);
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
-export const spaceRegistry = new ViewRegistry(spaceGraph);
+export const spaceRegistry = new ViewRegistry(spacePtr, spaceGraph);
 
 // setup/connect local space as needed
 watch(
@@ -52,6 +61,7 @@ watch(
     } else {
       spaceGraph.graph = pkgGraph;
     }
+    spaceRegistry.restoreFocus();
   },
   { immediate: true },
 );
@@ -246,4 +256,13 @@ export function splitView(
     tx.update({ ...self, metatype: NodeType.VIEW, size: halfSize });
   }
   cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
+}
+
+/**
+ * Goes to the given node.
+ * If it's a view node, we focus it in the space graph.
+ * If it's a regular node, we open an appropriate view for it and focus that.
+ */
+export function goToNode(node: NodeReferenceData, options?: {}) {
+  throw new Error("nocheckin: goToNode");
 }

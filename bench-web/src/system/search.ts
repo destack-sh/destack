@@ -7,7 +7,7 @@ import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef } from "vue"
 import uFuzzy from "@leeoniya/ufuzzy";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
-  node?: AnyNodeData;
+  node: AnyNodeData;
   id: string;
   metatype: "node";
   path: string; // the ancestor path to display

@@ -1,10 +1,10 @@
 <script lang="tsx" setup>
-import { NodeReferenceData, ViewData, Variant } from "@/proto/wire";
+import { NodeReferenceData, Variant, ViewData } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
 import { spaceRegistry } from "@/system/space";
 import { makeViewId } from "@/views";
-import { type ViewExposed, viewEmits } from "@/views/common";
-import { computed, toRef, type Ref } from "vue";
+import { viewEmits, type ViewExposed } from "@/views/common";
+import { computed, toRef, type Ref, ref } from "vue";
 
 const props = defineProps<
   { self?: NodeReferenceData } & Pick<
@@ -15,6 +15,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({
   // prominent filled button
@@ -45,11 +46,19 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
 }));
 
+function focus() {
+  buttonRef.value?.focus();
+}
+
 spaceRegistry.registerCurrent(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <button :class="[classByVariant[variant ?? Variant.V1] ?? classByVariant[Variant.V1]]" :disabled="isDisabled">
+  <button
+    ref="buttonRef"
+    :class="[classByVariant[variant ?? Variant.V1] ?? classByVariant[Variant.V1]]"
+    :disabled="isDisabled"
+  >
     <slot>
       <i v-if="isLoading" class="fas fa-spin fa-spinner-third mr-2 no-underline" />
       <IconInline v-else-if="icon" v-bind="icon" class="mr-2 no-underline" />

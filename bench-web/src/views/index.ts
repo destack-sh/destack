@@ -1,6 +1,8 @@
 import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import type { ViewExposed } from "@/views/common";
+import { getVueComponentType } from "@/views/registry";
+import { v4 } from "uuid";
 import { computed, type ComponentInstance, type Ref, getCurrentInstance } from "vue";
 
 export type ViewComponent = {
@@ -78,6 +80,7 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
         return deriveViewId(exposed.id.value, props.name ?? instanceInternalId.toString());
       parent = parent.parent;
     }
-    throw new Error("no parent view");
+    // this is a component outside of parent view, just use a random id 
+    return v4(); 
   });
 }

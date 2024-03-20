@@ -10,11 +10,14 @@ export function viewEmits() {
   return VIEW_EMITS;
 }
 
+export type FocusAnchor = "left" | "right" | "top" | "bottom" | "center";
+
 export type ViewExposed = (
   | { self: Ref<NodeReferenceData> }
   | { self?: Ref<NodeReferenceData | null | undefined>; id: Ref<string> }
 ) & {
   actions?: Partial<ActionMapImplementation<any>>;
+  focus?: (anchor: FocusAnchor) => void;
 } & {
   // any additional exposed methods
   [key: string]: any;

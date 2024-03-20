@@ -251,7 +251,7 @@ export interface AggregationBucketData {
     count: number;
 }
 /**
- * A box value. Units are in pixels, ideally in Spacing scale.
+ * A box value. Absolute units are in pixels, ideally in Spacing scale.
  *
  * @generated from protobuf message symbolx.bench.BoxData
  */
@@ -269,13 +269,13 @@ export interface BoxData {
      */
     width?: number;
     /**
-     * @generated from protobuf field: optional float width_relative = 51;
-     */
-    widthRelative?: number;
-    /**
-     * @generated from protobuf field: optional int32 height = 52;
+     * @generated from protobuf field: optional int32 height = 51;
      */
     height?: number;
+    /**
+     * @generated from protobuf field: optional float width_relative = 52;
+     */
+    widthRelative?: number;
     /**
      * @generated from protobuf field: optional float height_relative = 53;
      */
@@ -644,7 +644,7 @@ export interface NodeReferenceData {
     baseBenchId?: string;
 }
 /**
- * A position value. Units are in pixels, ideally in Spacing scale.
+ * A position value. Absolute units are in pixels, ideally in Spacing scale.
  *
  * @generated from protobuf message symbolx.bench.OffsetData
  */
@@ -673,6 +673,22 @@ export interface OffsetData {
      * @generated from protobuf field: optional int32 left = 43;
      */
     left?: number;
+    /**
+     * @generated from protobuf field: optional float top_relative = 44;
+     */
+    topRelative?: number;
+    /**
+     * @generated from protobuf field: optional float right_relative = 45;
+     */
+    rightRelative?: number;
+    /**
+     * @generated from protobuf field: optional float bottom_relative = 46;
+     */
+    bottomRelative?: number;
+    /**
+     * @generated from protobuf field: optional float left_relative = 47;
+     */
+    leftRelative?: number;
 }
 /**
  * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
@@ -8656,8 +8672,8 @@ class BoxData$Type extends MessageType<BoxData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "width_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "width_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 53, name: "height_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
@@ -8682,11 +8698,11 @@ class BoxData$Type extends MessageType<BoxData> {
                 case /* optional int32 width */ 50:
                     message.width = reader.int32();
                     break;
-                case /* optional float width_relative */ 51:
-                    message.widthRelative = reader.float();
-                    break;
-                case /* optional int32 height */ 52:
+                case /* optional int32 height */ 51:
                     message.height = reader.int32();
+                    break;
+                case /* optional float width_relative */ 52:
+                    message.widthRelative = reader.float();
                     break;
                 case /* optional float height_relative */ 53:
                     message.heightRelative = reader.float();
@@ -8712,12 +8728,12 @@ class BoxData$Type extends MessageType<BoxData> {
         /* optional int32 width = 50; */
         if (message.width !== undefined)
             writer.tag(50, WireType.Varint).int32(message.width);
-        /* optional float width_relative = 51; */
-        if (message.widthRelative !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.widthRelative);
-        /* optional int32 height = 52; */
+        /* optional int32 height = 51; */
         if (message.height !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.height);
+            writer.tag(51, WireType.Varint).int32(message.height);
+        /* optional float width_relative = 52; */
+        if (message.widthRelative !== undefined)
+            writer.tag(52, WireType.Bit32).float(message.widthRelative);
         /* optional float height_relative = 53; */
         if (message.heightRelative !== undefined)
             writer.tag(53, WireType.Bit32).float(message.heightRelative);
@@ -9669,7 +9685,11 @@ class OffsetData$Type extends MessageType<OffsetData> {
             { no: 40, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 41, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 42, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 43, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 43, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "top_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 45, name: "right_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 46, name: "bottom_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 47, name: "left_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<OffsetData>): OffsetData {
@@ -9702,6 +9722,18 @@ class OffsetData$Type extends MessageType<OffsetData> {
                 case /* optional int32 left */ 43:
                     message.left = reader.int32();
                     break;
+                case /* optional float top_relative */ 44:
+                    message.topRelative = reader.float();
+                    break;
+                case /* optional float right_relative */ 45:
+                    message.rightRelative = reader.float();
+                    break;
+                case /* optional float bottom_relative */ 46:
+                    message.bottomRelative = reader.float();
+                    break;
+                case /* optional float left_relative */ 47:
+                    message.leftRelative = reader.float();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -9732,6 +9764,18 @@ class OffsetData$Type extends MessageType<OffsetData> {
         /* optional int32 left = 43; */
         if (message.left !== undefined)
             writer.tag(43, WireType.Varint).int32(message.left);
+        /* optional float top_relative = 44; */
+        if (message.topRelative !== undefined)
+            writer.tag(44, WireType.Bit32).float(message.topRelative);
+        /* optional float right_relative = 45; */
+        if (message.rightRelative !== undefined)
+            writer.tag(45, WireType.Bit32).float(message.rightRelative);
+        /* optional float bottom_relative = 46; */
+        if (message.bottomRelative !== undefined)
+            writer.tag(46, WireType.Bit32).float(message.bottomRelative);
+        /* optional float left_relative = 47; */
+        if (message.leftRelative !== undefined)
+            writer.tag(47, WireType.Bit32).float(message.leftRelative);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21416,8 +21460,8 @@ export enum BoxProperty {
   metatype = 1,
   id = 2,
   width = 50,
-  widthRelative = 51,
-  height = 52,
+  height = 51,
+  widthRelative = 52,
   heightRelative = 53,
 }
 
@@ -21428,6 +21472,10 @@ export enum OffsetProperty {
   right = 41,
   bottom = 42,
   left = 43,
+  topRelative = 44,
+  rightRelative = 45,
+  bottomRelative = 46,
+  leftRelative = 47,
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty

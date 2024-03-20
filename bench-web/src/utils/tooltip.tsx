@@ -70,7 +70,7 @@ export const Tooltip: FunctionalComponent<{
     <div
       class={
         props.position +
-        " pointer-events-none absolute z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-gray-100 px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-sm shadow-gray-300 transition-opacity group-hover:opacity-100"
+        " pointer-events-none absolute z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-md shadow-gray-300 transition-opacity group-hover:opacity-100"
       }
     >
       {props.icon || props.title ? (

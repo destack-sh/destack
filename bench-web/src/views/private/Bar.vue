@@ -44,7 +44,6 @@ const props = defineProps<{
       </template>
       <template v-else>
         <Button
-          id="login"
           title="Log In"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
           @click="() => runAction('user.login')"
