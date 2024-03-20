@@ -5,7 +5,7 @@ import { contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
-import { addViewToCurrentRoot } from "@/system/space";
+import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -126,7 +126,7 @@ contributeActionMap<"user">({
     title: "Sign Up",
     enabled: isUnauthenticated,
     action: () =>
-      addViewToCurrentRoot({
+      canvas.addViewToCurrentRoot({
         type: ViewType.USER_WIZARD,
         title: "Sign Up",
         icon: makeIcon({ name: "fas fa-right-from-bracket" }),
@@ -137,7 +137,7 @@ contributeActionMap<"user">({
     title: "Log In",
     enabled: isUnauthenticated,
     action: () => {
-      addViewToCurrentRoot({
+      canvas.addViewToCurrentRoot({
         type: ViewType.USER_WIZARD,
         title: "Log In",
         icon: makeIcon({ name: "fas fa-right-from-bracket" }),

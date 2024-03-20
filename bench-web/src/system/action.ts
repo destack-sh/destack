@@ -1,6 +1,6 @@
 import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { spaceRegistry } from "@/system/space";
+import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
@@ -8,7 +8,7 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp } from "@/views/registry";
+import { collectViewComponentsUp } from "@/views/canvas";
 import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 // :OmnibarModes
@@ -265,7 +265,7 @@ export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null
 export const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
 export const IMPLEMENTED_ACTIONS: Ref<Action[]> = computed(() => Object.values(IMPLEMENTED_ACTIONS_BY_ID.value));
 watch(
-  [DECLARED_ACTIONS, spaceRegistry.focusedViewComponentsById],
+  [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
   () => {
     const implemented: Record<string, Action> = {};
 
@@ -275,7 +275,7 @@ watch(
       .forEach((a) => (implemented[a.id] = a));
 
     // collect virtual actions bottom up
-    for (const view of Object.values(spaceRegistry.focusedViewComponentsById.value)) {
+    for (const view of Object.values(canvas.focusedViewComponentsById.value)) {
       for (const [actionId, action] of Object.entries(view.exposed?.actions ?? {})) {
         if (implemented[actionId] != null) continue; // already declared (either static or by lower view)
         const declaration = DECLARED_ACTIONS_BY_ID.value[actionId];

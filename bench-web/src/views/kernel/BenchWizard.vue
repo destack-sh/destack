@@ -9,8 +9,8 @@ import { toRef, type Ref, ref, watch } from "vue";
 import Button from "@/views/controls/Button.vue";
 import PlainText from "@/views/content/PlainText.vue";
 import { toNodeReference } from "@/proto/wiring";
-import { removeView, spaceRegistry } from "@/system/space";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/registry";
+import { canvas } from "@/system/space";
+import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
@@ -51,7 +51,7 @@ async function submit() {
   }
 }
 
-const instance = spaceRegistry.registerCurrent(self);
+const instance = canvas.registerCurrent(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
@@ -103,7 +103,7 @@ defineExpose({ self, focus });
         title="Close"
         class="w-full"
         :variant="Variant.V3"
-        @click="() => removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
       <!-- Error -->
       <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
@@ -111,4 +111,4 @@ defineExpose({ self, focus });
       </p>
     </div>
   </div>
-</template>
+</template>@/views/canvas

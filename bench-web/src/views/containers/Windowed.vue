@@ -2,7 +2,7 @@
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
-import { removeView, spaceRegistry } from "@/system/space";
+import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -52,7 +52,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeWindow": {
     enabled: computed(() => focusedWindowIdx.value != null),
     action: () => {
-      removeView(spaceConnection.sideTx, spaceGraph, windows.value[focusedWindowIdx.value!]);
+      canvas.removeView(spaceConnection.sideTx, spaceGraph, windows.value[focusedWindowIdx.value!]);
     },
   },
   "view.navigate.closeOtherWindows": {
@@ -61,7 +61,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedWindow = windows.value[focusedWindowIdx.value!];
       for (const window of windows.value) {
         if (window != focusedWindow) {
-          removeView(spaceConnection.sideTx, spaceGraph, window);
+          canvas.removeView(spaceConnection.sideTx, spaceGraph, window);
         }
       }
     },
@@ -69,21 +69,24 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusPreviousWindow": {
     enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
-      // nocheckin: windows relative to root view
-      const prevIdx = ((focusedWindowIdx.value ?? 0) - 1 + windows.value.length) % windows.value.length;
-      spaceRegistry.focus(spaceConnection.sideTx, { view: windows.value[prevIdx] });
+      const allWindows = canvas.currentWindows;
+      const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);
+      const prevIdx = ((currentIdx ?? 0) - 1 + allWindows.length) % allWindows.length;
+      canvas.focus(spaceConnection.sideTx, { view: allWindows[prevIdx] });
     },
   },
   "view.navigate.focusNextWindow": {
     enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
-      const nextIdx = ((focusedWindowIdx.value ?? 0) + 1) % windows.value.length;
-      spaceRegistry.focus(spaceConnection.sideTx, { view: windows.value[nextIdx] });
+      const allWindows = canvas.currentWindows;
+      const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);
+      const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentWindows.length;
+      canvas.focus(spaceConnection.sideTx, { view: allWindows[nextIdx] });
     },
   },
 };
 
-spaceRegistry.registerCurrent(self);
+canvas.registerCurrent(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
@@ -135,6 +138,7 @@ defineExpose<ViewExposed>({ self, actions });
             : { left: left + 'px', top: top - 2 + 'px', width: width + 'px' }
         "
         @mousedown="draggingIdx = viewIdx - 1"
+        data-outside-view="true"
       />
     </template>
     <!-- No frames -->

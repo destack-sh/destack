@@ -1,7 +1,7 @@
 import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import type { ViewExposed } from "@/views/common";
-import { getVueComponentType } from "@/views/registry";
+import { getVueComponentType } from "@/views/canvas";
 import { v4 } from "uuid";
 import { computed, type ComponentInstance, type Ref, getCurrentInstance } from "vue";
 

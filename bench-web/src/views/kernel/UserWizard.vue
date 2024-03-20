@@ -2,12 +2,12 @@
 import { Region, Variant, type NodeReferenceData, ViewData } from "@/proto/wire";
 import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { removeView, spaceRegistry } from "@/system/space";
+import { canvas } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/registry";
+import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
 
@@ -56,7 +56,7 @@ async function submit() {
   }
 }
 
-const instance = spaceRegistry.registerCurrent(self);
+const instance = canvas.registerCurrent(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
@@ -141,7 +141,7 @@ defineExpose<ViewExposed>({ self, focus });
         :title="'Close'"
         class="w-full"
         :variant="Variant.V3"
-        @click="() => removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
       <!-- Error -->
       <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
@@ -149,4 +149,4 @@ defineExpose<ViewExposed>({ self, focus });
       </p>
     </div>
   </div>
-</template>
+</template>@/views/canvas

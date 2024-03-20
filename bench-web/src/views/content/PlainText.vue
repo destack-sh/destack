@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { NodeReferenceData, type ViewData } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
-import { spaceRegistry } from "@/system/space";
+import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
 import { ref, toRef } from "vue";
@@ -18,7 +18,7 @@ const modelValue = defineModel<string>();
 const inputRef = ref<HTMLInputElement | null>(null);
 
 const id = makeViewId(props);
-spaceRegistry.registerCurrent(self, id);
+canvas.registerCurrent(self, id);
 defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
 </script>
 <template>

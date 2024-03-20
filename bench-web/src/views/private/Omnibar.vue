@@ -1,12 +1,11 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { addAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode, fireAction } from "@/system/action";
+import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
 import { IconInline, makeIcon } from "@/system/icon";
-import { actionIndex, useSearch, type SearchIndex, graphIndex } from "@/system/search";
-import { bench, goToNode, spaceGraph, spaceRegistry } from "@/system/space";
+import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
+import { bench, spaceGraph, canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import { Shortcut } from "@/utils/tooltip";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -53,8 +52,8 @@ async function fire(id: string) {
   const result = candidates.value.find((r) => r.id === id);
   // fire
   if (result != null) {
-    if (result.metatype == "action") fireAction(result, spaceRegistry.focusedViewComponents);
-    else if (result.metatype == "node") goToNode(toNodeReference(result.node));
+    if (result.metatype == "action") fireAction(result, canvas.focusedViewComponents);
+    else if (result.metatype == "node") canvas.goToNode(toNodeReference(result.node));
     else throw new Error(`unexpected result: ${result}`);
   }
   // refocus or close
@@ -107,7 +106,7 @@ function focus() {
 function close() {
   isActive.value = false;
   clear();
-  spaceRegistry.restoreComponentFocus();
+  canvas.restoreComponentFocus();
 }
 
 // auto-close when the box becomes too small
