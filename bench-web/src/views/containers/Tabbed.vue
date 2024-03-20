@@ -4,7 +4,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { moveView, removeView, spaceRegistry, splitView } from "@/system/space";
+import { canvas } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -38,16 +38,16 @@ const innerSize = computed(() => ({
 }));
 
 function focus(tab: ViewData) {
-  spaceRegistry.focus(spaceConnection.sideTx, { view: tab, parent: self.value });
+  canvas.focus(spaceConnection.sideTx, { view: tab, parent: self.value });
   // ensure tab is visible in header
   nextTick(() => {
     tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
 }
-const isFocusAbsolute = spaceRegistry.isFocusedAbsoluteRef(self);
+const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 
 function remove(tab: ViewData) {
-  removeView(spaceConnection.sideTx, spaceGraph, tab);
+  canvas.removeView(spaceConnection.sideTx, spaceGraph, tab);
 }
 
 // dragging into header
@@ -64,7 +64,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
     const draggedNode = spaceGraph.get(dragged.node) as ViewData;
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
-      moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
+      canvas.moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
       focus(draggedNode);
     }
   },
@@ -83,10 +83,10 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
       if (anchor == "center") {
-        moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
+        canvas.moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
         focus(draggedNode);
       } else {
-        splitView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor);
+        canvas.splitView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor);
       }
     }
   },
@@ -103,7 +103,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => {
       const focusedTab = tabs.value[focusedTabIdx.value!];
       for (const tab of tabs.value) {
-        if (tab != focusedTab) removeView(spaceConnection.sideTx, spaceGraph, tab);
+        if (tab != focusedTab) canvas.removeView(spaceConnection.sideTx, spaceGraph, tab);
       }
     },
   },
@@ -126,7 +126,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => {
       const selfData = spaceGraph.get(props.self) as ViewData;
       const focusedTab = tabs.value[focusedTabIdx.value!];
-      splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "right");
+      canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "right");
     },
   },
   "view.layout.splitVertical": {
@@ -134,12 +134,12 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => {
       const selfData = spaceGraph.get(props.self) as ViewData;
       const focusedTab = tabs.value[focusedTabIdx.value!];
-      splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "bottom");
+      canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "bottom");
     },
   },
 };
 
-spaceRegistry.registerCurrent(self);
+canvas.registerCurrent(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>

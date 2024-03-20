@@ -212,7 +212,3 @@ export function unwrapSomeNode(node: SomeNodeData): AnyNodeData {
   if (!oneOfKind) throw new Error("missing oneofKind");
   return (node.node as any)[oneOfKind];
 }
-
-export function toRobustJson(value: AnyStructData | AnyNodeData): { [key: string]: any } {
-  throw new Error("not yet implemented");
-}

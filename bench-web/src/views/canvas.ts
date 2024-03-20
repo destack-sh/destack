@@ -1,7 +1,20 @@
-import { BenchType, NodeReferenceData, NodeType, SelectionKind, SpaceData, ViewData } from "@/proto/wire";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BenchType,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  SelectionKind,
+  SpaceData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { copyNode, makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
+import { ROOT_VIEW_TYPES, updateOrderKey, getOrderKey } from "@/system/lang";
+import { spaceGraph } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
+import type { SplitAnchor } from "@/utils/drag";
+import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
@@ -120,11 +133,11 @@ function isOutsideView(el: HTMLElement): boolean {
 type SomeView = NodeReferenceData | ViewData;
 
 /**
- * A registry for linking Views, their Vue components, and their HTML elements.
+ * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements.
  * Some of our View components may not have an associated View, so we track them with a derived id.
- * NOTE: ViewRegistry is effectively a global singleton (currently).
+ * NOTE: ViewCanvas is effectively a global singleton (currently).
  */
-export class ViewRegistry {
+export class ViewCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
   graph: ReadNodeGraph;
   txFactory: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
@@ -355,5 +368,164 @@ export class ViewRegistry {
       }
     });
     return instance;
+  }
+
+  /** Gets all the current windows (leaves of Windowed views) */
+  get currentWindows(): ViewData[] {
+    if (this.spacePtr.value == null) return [];
+    const getWindowLeaves = (view: ViewData): ViewData[] => {
+      if (view.type == ViewType.WINDOWED) {
+        return this.graph.getChildren(view, NodeType.VIEW).flatMap(getWindowLeaves);
+      } else {
+        return [view];
+      }
+    }
+    const windows = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getWindowLeaves);
+    return windows;
+  }
+
+  addViewToCurrentRoot(view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">) {
+    const root = spaceGraph.nodes.find(
+      (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
+    );
+    if (root == null) throw new Error("no root view");
+  }
+
+  /**
+   * Removes the given view from the space graph, taking care to clean up.
+   */
+  removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+    log.debug("view.remove", view);
+    const parent = graph.get(view.parentPtr!) as ViewData;
+    tx.delete(view); // should soft delete?
+    this.cleanupRootView(tx, graph, parent);
+  }
+
+  /**
+   * Cleanup previously split root views that are no longer needed.
+   */
+  cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+    if (!ROOT_VIEW_TYPES.includes(view.type)) return;
+    if (
+      graph.getChildren(view, NodeType.VIEW).length == 0 &&
+      graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1
+    ) {
+      // TODO :UX: re-distribute space if cleaning up after a split
+      this.removeView(tx, graph, view);
+    }
+  }
+
+  /**
+   * Adds the given view into this view at the target/anchor.
+   */
+  moveView(
+    tx: Transaction,
+    graph: ReadNodeGraph,
+    self: ViewData,
+    child: ViewData,
+    anchor: "start" | "end",
+    referenceId: string | null,
+  ) {
+    log.debug("view.add", self, child, anchor, referenceId);
+    // move & update order
+    if (child.id != referenceId) {
+      updateOrderKey({
+        tx,
+        target: child,
+        position: anchor == "start" ? "before" : "after",
+        referenceId,
+        nodes: () => graph.getChildren(self, NodeType.VIEW),
+      });
+    }
+    if (child.parentPtr?.id != self.id) {
+      tx.move({ ...child, parentPtr: toNodeReference(self) });
+    }
+    this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
+  }
+
+  /**
+   * 'Splits' the 'self' view to accomodate a new equally sized subview 'seed' (at the anchor).
+   * If we're already split alongside the given orientation, the seed is added to the existing split.
+   */
+  splitView(
+    tx: Transaction,
+    graph: ReadNodeGraph,
+    self: ViewData,
+    child: ViewData,
+    anchor: Omit<SplitAnchor, "center">,
+  ) {
+    log.debug("view.split", self, child, anchor);
+
+    // determine if we need a new split
+    const parent = graph.get(self.parentPtr!) as ViewData;
+    const isHorizontal = anchor == "left" || anchor == "right";
+    const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
+    const isOrderFlipped = anchor == "right" || anchor == "bottom";
+    const needsNewSplit = (parent.orientation ?? DEFAULT_ORIENTATION) != orientation;
+
+    // duplicate seed if it belongs to self
+    if (child.parentPtr?.id == self.id) {
+      child = copyNode(child);
+      tx.create(child);
+    }
+
+    if (needsNewSplit) {
+      // insert a new split in place of 'self'
+      const split = makeNode({
+        metatype: NodeType.VIEW,
+        type: ViewType.WINDOWED,
+        parentPtr: self.parentPtr,
+        packagePtr: self.packagePtr,
+        orderKey: self.orderKey,
+        size: self.size,
+        name: "Split",
+        orientation,
+      });
+      tx.create(split);
+      tx.move({ ...self, parentPtr: toNodeReference(split) });
+      tx.update({ ...self, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
+
+      // and a new tabbed wrapper
+      const viewParent = makeNode({
+        metatype: NodeType.VIEW,
+        type: ViewType.TABBED,
+        parentPtr: toNodeReference(split),
+        packagePtr: self.packagePtr,
+        orderKey: isOrderFlipped ? "a1" : "a0",
+      });
+      tx.create(viewParent);
+      tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+      tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+    } else {
+      // 'split' size between self and child with a new tabbed wrapper
+      const halfSize = splitBox(self.size!);
+      const viewParent = makeNode({
+        metatype: NodeType.VIEW,
+        type: ViewType.TABBED,
+        parentPtr: self.parentPtr,
+        packagePtr: self.packagePtr,
+        size: halfSize,
+        orderKey: getOrderKey({
+          nodes: graph.getChildren(parent, NodeType.VIEW),
+          position: isOrderFlipped ? "after" : "before",
+          reference: self,
+        }),
+      });
+      console.log(self.size, halfSize);
+      tx.create(viewParent);
+      tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+      tx.update({ ...child, metatype: NodeType.VIEW, size: halfSize, orderKey: "a0" });
+      tx.update({ ...self, metatype: NodeType.VIEW, size: halfSize });
+    }
+    this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
+  }
+
+  /**
+   * Goes to the given node.
+   * If it's a view node, we focus it in the space graph.
+   * If it's a regular node, we open an appropriate view for it and focus that.
+   */
+  goToNode(node: NodeReferenceData, options?: {}) {
+    throw new Error("nocheckin: goToNode");
   }
 }

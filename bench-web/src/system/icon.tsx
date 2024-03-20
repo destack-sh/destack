@@ -1,7 +1,7 @@
 import { IconKind, type IconData, BenchType } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 
-export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "name">> = (props, context) => {
+export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "name">> = (props) => {
   if (props.name) {
     // font awesome
     return <i class={props.name + ' w-[18px] text-center'} />;

@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import { useGetNodes, useLoadedGraph } from "@/system/connection";
-import { spaceRegistry } from "@/system/space";
+import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -26,7 +26,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 );
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
-spaceRegistry.registerCurrent(self);
+canvas.registerCurrent(self);
 defineExpose({ self });
 </script>
 <template>
