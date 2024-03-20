@@ -463,7 +463,11 @@ export class ViewCanvas {
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
   goToNode(node: NodeReferenceData, options?: {}) {
-    throw new Error("nocheckin: goToNode");
+    if (node.type == NodeType.VIEW) {
+      this.focus(this.txFactory(), { view: node });
+    } else {
+      throw new Error("not yet implemented");
+    }
   }
 
   /**

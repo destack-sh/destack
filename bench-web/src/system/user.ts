@@ -123,7 +123,6 @@ export async function createBench(benchIn: {
 
 function userWizardView(view: { title: string }): ViewDataIn {
   return {
-    // nocheckin: center/position user wizard
     type: ViewType.USER_WIZARD,
     icon: makeIcon({ name: "fas fa-right-from-bracket" }),
     ...view,

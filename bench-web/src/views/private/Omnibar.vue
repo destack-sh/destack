@@ -48,6 +48,7 @@ function go() {
   fire(selectedResultId.value);
 }
 
+/** Fires the action associated with the given result  */
 async function fire(id: string) {
   const result = candidates.value.find((r) => r.id === id);
   // fire
@@ -136,7 +137,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   space: "Search across your Space",
   views: "Search Views in your Space",
   view: "Search the focused View",
-  module: "Search the current Module",
+  module: "Search the current Module", 
   package: "Search the current Package",
   bench: "Search the current Bench",
 };
