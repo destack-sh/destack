@@ -57,8 +57,8 @@ defineExpose<ViewExposed>({ self, id, focus: () => buttonRef.value });
   >
     <slot>
       <i v-if="isLoading" class="fas fa-spin fa-spinner-third mr-2 no-underline" />
-      <IconInline v-else-if="icon" v-bind="icon" class="mr-2 no-underline" />
-      <span class="font-semibold">{{ title }}</span>
+      <IconInline v-else-if="icon" v-bind="icon" class="no-underline" :class="title ? 'mr-2' : ''" />
+      <span v-if="title" class="font-semibold">{{ title }}</span>
     </slot>
   </button>
 </template>

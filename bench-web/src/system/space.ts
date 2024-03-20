@@ -70,42 +70,24 @@ watch(
 function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
   log.info("setupLocalSpace");
   const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
-  // const side = makeNode({
-  //   metatype: NodeType.VIEW,
-  //   parentPtr: toNodeReference(space),
-  //   packagePtr: LOCAL_PACKAGE_PTR,
-  //   type: ViewType.TABBED,
-  //   name: "Side",
-  //   title: "Side Window",
-  //   orderKey: "a0",
-  //   orientation: Orientation.VERTICAL,
-  //   size: makeStruct({ metatype: StructType.BOX, width: 280 }),
-  // });
-  const primary = makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: toNodeReference(space),
-    packagePtr: LOCAL_PACKAGE_PTR,
-    type: ViewType.TABBED,
-    name: "Primary",
-    title: "Primary Window",
-    orderKey: "a1",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
-  });
-  const secondary = makeNode({
-    metatype: NodeType.VIEW,
-    parentPtr: toNodeReference(space),
-    packagePtr: LOCAL_PACKAGE_PTR,
-    type: ViewType.TABBED,
-    name: "Secondary",
-    title: "Secondary Window",
-    orderKey: "a2",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
-  });
-  graph.extend(space, primary, secondary);
+  graph.add(space);
+  for (let i = 0; i < 2; i++) {
+    const root = makeNode({
+      metatype: NodeType.VIEW,
+      parentPtr: toNodeReference(space),
+      packagePtr: LOCAL_PACKAGE_PTR,
+      type: ViewType.TABBED,
+      name: `Window ${i}`,
+      title: `Window ${i}`,
+      orderKey: `a${i}`,
+      orientation: Orientation.HORIZONTAL,
+    });
+    graph.add(root);
+  }
   let ord = 0;
   for (const node of graph.nodes) {
     if ((node as ViewData).type == ViewType.TABBED) {
-      for (const i of [0, 1, 2]) {
+      for (const i of [0, 1]) {
         graph.add(
           makeNode({
             metatype: NodeType.VIEW,
@@ -132,6 +114,8 @@ export function addViewToCurrentRoot(view: Partial<Omit<ViewData, "metatype">> &
   if (root == null) throw new Error("no root view");
 }
 
+// nocheckin: move below into view 'registry'
+
 /**
  * Removes the given view from the space graph, taking care to clean up.
  */
@@ -151,6 +135,7 @@ export function cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: Vie
     graph.getChildren(view, NodeType.VIEW).length == 0 &&
     graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1
   ) {
+    // TODO :UX: re-distribute space if cleaning up after a split
     removeView(tx, graph, view);
   }
 }
@@ -158,7 +143,7 @@ export function cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: Vie
 /**
  * Adds the given view into this view at the target/anchor.
  */
-export function addView(
+export function moveView(
   tx: Transaction,
   graph: ReadNodeGraph,
   self: ViewData,
@@ -251,9 +236,10 @@ export function splitView(
         reference: self,
       }),
     });
+    console.log(self.size, halfSize);
     tx.create(viewParent);
     tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
-    tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+    tx.update({ ...child, metatype: NodeType.VIEW, size: halfSize, orderKey: "a0" });
     tx.update({ ...self, metatype: NodeType.VIEW, size: halfSize });
   }
   cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);

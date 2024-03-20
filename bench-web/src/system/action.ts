@@ -238,7 +238,7 @@ export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null
   if (action.enabled != null && !action.enabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly
-    log.debug("action.static", action.id);
+    log.info("action.static", action.id);
     const ret = action.action(action);
     return typeof ret === "boolean" ? ret : true;
   } else if (action.kind == "virtual") {
@@ -246,7 +246,7 @@ export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null
     for (const view of viewsInOrder ?? []) {
       const impl = view.exposed?.actions?.[action.id];
       if (impl != null && (impl.enabled == null || impl.enabled.value == true)) {
-        log.debug("action.virtual", action.id);
+        log.info("action.virtual", action.id);
         const ret = impl.action(action);
         return typeof ret === "boolean" ? ret : true;
       }

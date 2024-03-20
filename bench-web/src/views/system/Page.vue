@@ -32,7 +32,8 @@ defineExpose({ self });
 <template>
   <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md">
     <!-- Placeholder content for testing vertical scrolling -->
-    <div class="flex h-[200%] w-full items-center justify-center bg-gray-100">
+    <div class="flex flex-col h-[150%] w-full items-center justify-center bg-green-100">
+      <span class="text-xl">{{ self.id }}</span>
       <span class="text-4xl font-bold">{{ size }}</span>
     </div>
   </Scroll>

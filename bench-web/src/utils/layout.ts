@@ -190,8 +190,11 @@ export function useSplitView(
  * Gets the exact half sized box for a view (for both dimensions, for absolute and relative)
  */
 export function splitBox(size?: BoxData): BoxData {
-  if (size == null)
-    return { metatype: BenchType.BOX, widthRelative: DEFAULT_RELATIVE_UNITS, heightRelative: DEFAULT_RELATIVE_UNITS };
+  size = size ?? {
+    metatype: BenchType.BOX,
+    widthRelative: DEFAULT_RELATIVE_UNITS,
+    heightRelative: DEFAULT_RELATIVE_UNITS,
+  };
   return {
     metatype: BenchType.BOX,
     width: size.width != null ? size.width / 2 : undefined,

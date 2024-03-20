@@ -4,7 +4,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { addView, removeView, spaceRegistry, splitView } from "@/system/space";
+import { moveView, removeView, spaceRegistry, splitView } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -38,7 +38,7 @@ const innerSize = computed(() => ({
 }));
 
 function focus(tab: ViewData) {
-  spaceRegistry.focus(spaceConnection.sideTx, { view: tab });
+  spaceRegistry.focus(spaceConnection.sideTx, { view: tab, parent: self.value });
   // ensure tab is visible in header
   nextTick(() => {
     tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -64,7 +64,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
     const draggedNode = spaceGraph.get(dragged.node) as ViewData;
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
-      addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
+      moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor, targetId);
       focus(draggedNode);
     }
   },
@@ -83,7 +83,7 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
       if (anchor == "center") {
-        addView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
+        moveView(spaceConnection.sideTx, spaceGraph, self, draggedNode, "end", null);
         focus(draggedNode);
       } else {
         splitView(spaceConnection.sideTx, spaceGraph, self, draggedNode, anchor);
@@ -165,7 +165,7 @@ defineExpose<ViewExposed>({ self, actions });
           i == focusedTabIdx ? (isFocusAbsolute ? 'shadow-inset-md' : 'shadow-inset-sm') : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-500') : '',
         ]"
-        @mousedown="focus(tab)"
+        @click="focus(tab)"
         :draggable="true"
         @dragstart="
           (e: DragEvent) => {
