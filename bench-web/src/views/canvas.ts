@@ -5,15 +5,16 @@ import {
   Orientation,
   SelectionKind,
   SpaceData,
+  StructType,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { copyNode, makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
-import { ROOT_VIEW_TYPES, updateOrderKey, getOrderKey } from "@/system/lang";
-import { spaceGraph } from "@/system/space";
+import { ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
+import { generateKeyBetween } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import type { ViewComponent } from "@/views";
@@ -130,7 +131,8 @@ function isOutsideView(el: HTMLElement): boolean {
   return false;
 }
 
-type SomeView = NodeReferenceData | ViewData;
+export type SomeView = NodeReferenceData | ViewData;
+export type ViewDataIn = Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">;
 
 /**
  * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements.
@@ -146,7 +148,7 @@ export class ViewCanvas {
   // absolutely focused views/components (focused from the top down)
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
-  focusedView: Ref<NodeReferenceData | null> = shallowRef(null);
+  focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -179,7 +181,7 @@ export class ViewCanvas {
     if (component == null) {
       this.focusedViewComponent.value = null;
       this.focusedViewComponentsById.value = {};
-      this.focusedView.value = null;
+      this.focusedViewPtr.value = null;
     } else if (this.focusedViewComponent.value !== component) {
       this.focusedViewComponent.value = component;
       const componentsById: Record<string, ViewComponent> = {};
@@ -187,12 +189,13 @@ export class ViewCanvas {
         componentsById[getViewComponentId(c)] = c;
       });
       this.focusedViewComponentsById.value = componentsById;
-      this.focusedView.value = findIdentifiedViewComponent(component)?.exposed.self?.value ?? null;
+      this.focusedViewPtr.value = (findIdentifiedViewComponent(component)?.exposed.self?.value ??
+        null) as TypedNodeReferenceData<NodeType.VIEW> | null;
     }
 
     // update graph focus state
-    if (this.focusedView.value != null && wasDifferent) {
-      this.focusInGraph(this.txFactory(), { view: this.focusedView.value });
+    if (this.focusedViewPtr.value != null && wasDifferent) {
+      this.focusInGraph(this.txFactory(), { view: this.focusedViewPtr.value });
     }
   }
 
@@ -370,25 +373,97 @@ export class ViewCanvas {
     return instance;
   }
 
-  /** Gets all the current windows (leaves of Windowed views) */
+  /** Gets the current root view ('lowest' focused root view) */
+  get focusedRoot(): ViewData | null {
+    if (this.focusedViewPtr.value == null) return null;
+    if (this.spacePtr.value == null) return null;
+
+    // traverse focused view up until we find a root
+    let view = this.graph.get(this.focusedViewPtr.value);
+    if (view == null) return null;
+    while (view.parentPtr?.id != null) {
+      if (ROOT_VIEW_TYPES.includes(view.type)) return view;
+      view = this.graph.get(view.parentPtr) as ViewData;
+    }
+    return null; // not found
+  }
+
+  /** Gets all the open windows (direct children of Windowed views) */
   get currentWindows(): ViewData[] {
     if (this.spacePtr.value == null) return [];
-    const getWindowLeaves = (view: ViewData): ViewData[] => {
+    const getWindows = (view: ViewData): ViewData[] => {
       if (view.type == ViewType.WINDOWED) {
-        return this.graph.getChildren(view, NodeType.VIEW).flatMap(getWindowLeaves);
+        return this.graph.getChildren(view, NodeType.VIEW).flatMap(getWindows);
       } else {
         return [view];
       }
-    }
-    const windows = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getWindowLeaves);
+    };
+    const windows = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getWindows);
     return windows;
   }
 
-  addViewToCurrentRoot(view: Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">) {
-    const root = spaceGraph.nodes.find(
-      (n) => n.metatype == BenchType.VIEW && ROOT_VIEW_TYPES.includes((n as ViewData).type),
-    );
-    if (root == null) throw new Error("no root view");
+  /** Finds a view with properties exactly like the criteria */
+  findView(like: Partial<ViewData>): ViewData | null {
+    if (Object.keys(like).length == 0) return null;
+    if (this.spacePtr.value == null) return null;
+    const views = this.graph.getDescendants(this.spacePtr.value, [NodeType.VIEW]) as ViewData[];
+    const match = views.find((v) => {
+      // simple exact match every property
+      for (const key in like) {
+        if ((v as any)[key] != (like as any)[key]) return false;
+      }
+      return true;
+    });
+    return match ?? null;
+  }
+
+  /** Add a new view to the canvas at the current root.  */
+  addView(
+    view: ViewDataIn,
+    options?: {
+      where?: "currentRoot";
+      ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
+    },
+  ) {
+    const tx = this.txFactory();
+    const existing = this.findView({ type: view.type });
+
+    if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
+      // find/make root
+      let root = this.focusedRoot ?? this.currentWindows[0];
+      if (root == null) {
+        // no root, reset space
+        log.info("view.repair", this.spacePtr.value);
+        const space = this.graph.get(this.spacePtr.value!)!;
+        root = setupEmptyCanvas(tx, space).root;
+      }
+
+      // create & focus
+      const rootChildren = this.graph.getChildren(root, NodeType.VIEW);
+      const newView = makeNode({
+        ...view,
+        metatype: NodeType.VIEW,
+        packagePtr: root.packagePtr,
+        orderKey: generateKeyBetween(rootChildren[-1]?.orderKey ?? null, null),
+        parentPtr: toNodeReference(root),
+      });
+      tx.create(newView);
+      this.focus(tx, { view: newView });
+    } else if (options?.ifPresent == "focus") {
+      this.focus(tx, { view: existing });
+    } else if (options?.ifPresent == "upsertAndFocus") {
+      tx.update({ id: existing.id, metatype: NodeType.VIEW, ...view });
+      this.focus(tx, { view: existing });
+    }
+  }
+
+  /**
+   * Goes to the given node, whatever that means.
+   * If it's a view node, we focus it in the space graph (it must exist).
+   * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
+   */
+  goToNode(node: NodeReferenceData, options?: {}) {
+    throw new Error("nocheckin: goToNode");
   }
 
   /**
@@ -519,13 +594,60 @@ export class ViewCanvas {
     }
     this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }
+}
 
-  /**
-   * Goes to the given node.
-   * If it's a view node, we focus it in the space graph.
-   * If it's a regular node, we open an appropriate view for it and focus that.
-   */
-  goToNode(node: NodeReferenceData, options?: {}) {
-    throw new Error("nocheckin: goToNode");
-  }
+/** Sets up a minimal empty space with one root tabbed */
+export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { root: ViewData } {
+  const main = makeNode({
+    metatype: NodeType.VIEW,
+    type: ViewType.TABBED,
+    parentPtr: toNodeReference(space),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Main Window",
+    title: "Main Window",
+  });
+  tx.create(main);
+  return { root: main };
+}
+
+/** Setups up the default three-window canvas */
+export function setupDefaultCanvas(
+  tx: Transaction,
+  space: SpaceData,
+): { side: ViewData; primary: ViewData; secondary: ViewData } {
+  const side = makeNode({
+    metatype: NodeType.VIEW,
+    type: ViewType.TABBED,
+    parentPtr: toNodeReference(space),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Side Window",
+    title: "Side Window",
+    size: makeStruct({ metatype: StructType.BOX, width: 300 }),
+  });
+  tx.create(side);
+  const primary = makeNode({
+    metatype: NodeType.VIEW,
+    type: ViewType.TABBED,
+    parentPtr: toNodeReference(space),
+    packagePtr: space.packagePtr,
+    orderKey: "a1",
+    name: "Primary Window",
+    title: "Primary Window",
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
+  });
+  tx.create(primary);
+  const secondary = makeNode({
+    metatype: NodeType.VIEW,
+    type: ViewType.TABBED,
+    parentPtr: toNodeReference(space),
+    packagePtr: space.packagePtr,
+    orderKey: "a2",
+    name: "Secondary Window",
+    title: "Secondary Window",
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
+  });
+  tx.create(secondary);
+  return { side, primary, secondary };
 }

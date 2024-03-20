@@ -55,19 +55,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       canvas.removeView(spaceConnection.sideTx, spaceGraph, windows.value[focusedWindowIdx.value!]);
     },
   },
-  "view.navigate.closeOtherWindows": {
-    enabled: computed(() => sizedViews.value.length > 1),
-    action: () => {
-      const focusedWindow = windows.value[focusedWindowIdx.value!];
-      for (const window of windows.value) {
-        if (window != focusedWindow) {
-          canvas.removeView(spaceConnection.sideTx, spaceGraph, window);
-        }
-      }
-    },
-  },
   "view.navigate.focusPreviousWindow": {
-    enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
       const allWindows = canvas.currentWindows;
       const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);
@@ -76,7 +64,6 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusNextWindow": {
-    enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
       const allWindows = canvas.currentWindows;
       const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);

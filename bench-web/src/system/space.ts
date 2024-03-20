@@ -18,7 +18,7 @@ import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { ViewCanvas } from "@/views/canvas";
+import { ViewCanvas, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, watch } from "vue";
 
 // bench/packages
@@ -56,8 +56,11 @@ watch(
       // local
       spaceGraph.graph = spaceGraphLocal;
       if (spaceGraphLocal.size == 0) {
-        const { space } = setupLocalSpace(spaceGraphLocal);
+        const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
+        const tx = spaceConnection.connection.sideTx;
+        tx.create(space);
         spacePtr.value = toNodeReference(space);
+        setupEmptyCanvas(spaceConnection.connection.sideTx, space);
       }
     } else {
       spaceGraph.graph = pkgGraph;
@@ -66,44 +69,3 @@ watch(
   },
   { immediate: true },
 );
-
-function setupLocalSpace(graph: NodeGraph): { space: SpaceData } {
-  log.info("setupLocalSpace");
-  const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
-  graph.add(space);
-  for (let i = 0; i < 2; i++) {
-    const root = makeNode({
-      metatype: NodeType.VIEW,
-      parentPtr: toNodeReference(space),
-      packagePtr: LOCAL_PACKAGE_PTR,
-      type: ViewType.TABBED,
-      name: `Window ${i}`,
-      title: `Window ${i}`,
-      orderKey: `a${i}`,
-      orientation: Orientation.HORIZONTAL,
-    });
-    graph.add(root);
-  }
-  let ord = 0;
-  for (const node of graph.nodes) {
-    if ((node as ViewData).type == ViewType.TABBED) {
-      for (const i of [0, 1]) {
-        graph.add(
-          makeNode({
-            metatype: NodeType.VIEW,
-            parentPtr: toNodeReference(node),
-            packagePtr: LOCAL_PACKAGE_PTR,
-            type: ViewType.USER_WIZARD,
-            icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-            title: `Test Page ${ord++}`,
-            orderKey: "a0",
-            isInput: true,
-          }),
-        );
-      }
-    }
-  }
-
-  return { space };
-}
-

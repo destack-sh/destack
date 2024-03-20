@@ -31,7 +31,8 @@ export type Transaction = {
    * TODO :Broken: handle debounce updates
    */
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T },
+    options?: { debounce?: boolean },
   ): void;
   /** Move node between parents */
   move(node: AnyNodeData): void;
@@ -101,7 +102,7 @@ export class TransactionBuilder implements Transaction {
   }
 
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T; debounce?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T }, options?: { debounce?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
@@ -110,7 +111,6 @@ export class TransactionBuilder implements Transaction {
     let ord = 0;
     for (const propName of Object.keys(allProperties)) {
       if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
-      if (propName == "debounce") continue; // ignore special field
       if (propName === "id" || propName === "metatype") {
         // keep as is (but not part of the 'update')
       } else if (propName == "parentPtr" || propName == "archivedAt" || propName == "deletedAt") {
@@ -125,7 +125,7 @@ export class TransactionBuilder implements Transaction {
       }
       ord += 1;
     }
-    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties, update.debounce ?? false);
+    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties, options?.debounce ?? false);
   }
 
   move(node: AnyNodeData) {

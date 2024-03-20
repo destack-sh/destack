@@ -167,18 +167,22 @@ export function useSplitView(
     const draggedToPx =
       layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
     const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-    graphConnection.sideTx.update({
-      metatype: NodeType.VIEW,
-      id: viewsRef.value[draggingIdx.value].id,
-      size: aUpdate.size,
-      debounce: true,
-    });
-    graphConnection.sideTx.update({
-      metatype: NodeType.VIEW,
-      id: viewsRef.value[draggingIdx.value + 1].id,
-      size: bUpdate.size,
-      debounce: true,
-    });
+    graphConnection.sideTx.update(
+      {
+        metatype: NodeType.VIEW,
+        id: viewsRef.value[draggingIdx.value].id,
+        size: aUpdate.size,
+      },
+      { debounce: true },
+    );
+    graphConnection.sideTx.update(
+      {
+        metatype: NodeType.VIEW,
+        id: viewsRef.value[draggingIdx.value + 1].id,
+        size: bUpdate.size,
+      },
+      { debounce: true },
+    );
   });
 
   watch(draggingIdx, () => (_isDragging.value = draggingIdx.value != null));

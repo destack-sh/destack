@@ -591,11 +591,6 @@ declareActionMap<"view">({
     text: "Close the current window",
     shortcuts: ["mod+shift+w"],
   },
-  "view.navigate.closeOtherWindows": {
-    icon: "fas fa-xmark",
-    title: "Close Other Windows",
-    text: "Close all other windows",
-  },
   "view.navigate.reopenClosedWindow": {
     icon: "fas fa-arrow-rotate-left",
     title: "Reopen Closed Window",
