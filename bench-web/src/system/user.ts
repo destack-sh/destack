@@ -1,5 +1,5 @@
 import { supervisor } from "@/proto/services";
-import { ClientData, NodeReferenceData, NodeType, Region, UserData, ViewType } from "@/proto/wire";
+import { ClientData, NodeReferenceData, NodeType, Region, UserData, ViewData, ViewType } from "@/proto/wire";
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
@@ -8,6 +8,7 @@ import { clientInfo, clientMeta, userInfo } from "@/system/local";
 import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
+import type { ViewDataIn } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { v4 } from "uuid";
 import { computed } from "vue";
@@ -120,28 +121,28 @@ export async function createBench(benchIn: {
   } = await supervisor.createBench({ ...benchIn });
 }
 
+function userWizardView(view: { title: string }): ViewDataIn {
+  return {
+    // nocheckin: center/position user wizard
+    type: ViewType.USER_WIZARD,
+    icon: makeIcon({ name: "fas fa-right-from-bracket" }),
+    ...view,
+  };
+}
+
 contributeActionMap<"user">({
   "user.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     enabled: isUnauthenticated,
-    action: () =>
-      canvas.addViewToCurrentRoot({
-        type: ViewType.USER_WIZARD,
-        title: "Sign Up",
-        icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-      }),
+    action: () => canvas.addView(userWizardView({ title: "Sign Up" }), { ifPresent: "upsertAndFocus" }),
   },
   "user.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     enabled: isUnauthenticated,
     action: () => {
-      canvas.addViewToCurrentRoot({
-        type: ViewType.USER_WIZARD,
-        title: "Log In",
-        icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-      });
+      canvas.addView(userWizardView({ title: "Log In" }), { ifPresent: "upsertAndFocus" });
     },
   },
   "user.logout": {
