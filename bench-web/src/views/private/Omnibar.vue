@@ -107,6 +107,7 @@ function focus() {
 function close() {
   isActive.value = false;
   clear();
+  spaceRegistry.restoreComponentFocus();
 }
 
 // auto-close when the box becomes too small
@@ -143,7 +144,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
 const IN_BENCH_MODES: OmnibarMode[] = ["module", "package", "bench"];
 for (const inMode of OMNIBAR_MODES) {
   addAction("static", {
-    id: ("space.launch.omnibar." + inMode) as ActionBuiltinId,
+    id: ("space.omnibar." + inMode) as ActionBuiltinId,
     title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",

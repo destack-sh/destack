@@ -4,9 +4,10 @@ import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { removeView, spaceRegistry } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
-import { viewEmits, type FocusAnchor } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
+import { getViewComponentChildren, isVueInstanceOf } from "@/views/registry";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
 
@@ -55,12 +56,17 @@ async function submit() {
   }
 }
 
-function focus(anchor: FocusAnchor) {
-  throw new Error("nocheckin: custom focus");
+const instance = spaceRegistry.registerCurrent(self);
+function focus(anchor: FocusAnchor | NodeReferenceData) {
+  const childViews = getViewComponentChildren(instance);
+  if (anchor != "bottom") {
+    return childViews.find((v) => isVueInstanceOf(v, PlainText));
+  } else {
+    return childViews.reverse().find((v) => isVueInstanceOf(v, Button));
+  }
 }
 
-spaceRegistry.registerCurrent(self);
-defineExpose({ self });
+defineExpose<ViewExposed>({ self, focus });
 </script>
 <template>
   <div

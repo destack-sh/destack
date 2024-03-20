@@ -3,6 +3,7 @@
  */
 
 import { LogLevel } from "@/proto/wire";
+import { IS_DEBUG } from "@/utils/globals";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.UNSPECIFIED]: "log",
@@ -14,14 +15,30 @@ const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.FATAL]: "error",
 };
 
+const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
+  [LogLevel.UNSPECIFIED]: 0,
+  [LogLevel.TRACE]: 1,
+  [LogLevel.DEBUG]: 2,
+  [LogLevel.INFO]: 3,
+  [LogLevel.WARNING]: 4,
+  [LogLevel.ERROR]: 5,
+  [LogLevel.FATAL]: 6,
+};
+
 export class Logger {
   public static globalInstance: Logger;
 
-  constructor(readonly name: string) {
+  constructor(
+    readonly name: string,
+    readonly minLevel: LogLevel = LogLevel.DEBUG,
+  ) {
     this.name = name;
+    this.minLevel = minLevel;
   }
 
   log(level: LogLevel, ...args: any[]) {
+    if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[this.minLevel]) return;
+
     const method = CONSOLE_METHOD_MAP[level];
     const levelName = LogLevel[level].toLowerCase();
     (console as any)[method](`[${levelName}]`, ...args);
@@ -52,5 +69,5 @@ export class Logger {
   }
 }
 
-Logger.globalInstance = new Logger("global");
+Logger.globalInstance = new Logger("global", IS_DEBUG ? LogLevel.TRACE : LogLevel.DEBUG);
 export const log = Logger.globalInstance;

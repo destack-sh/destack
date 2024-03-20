@@ -110,6 +110,8 @@ for (let i = 0; i <= 9; ++i) {
 if (IS_ON_MAC) CHAR_KEYS["mod"] = CHAR_KEYS["meta"];
 else CHAR_KEYS["mod"] = CHAR_KEYS["ctrl"];
 
+const KEY_ALIAS: Record<string, string> = { " ": "space" };
+
 export function normalizeKeymapKey(key: string) {
   if (key == "mod") return IS_ON_MAC ? "meta" : "ctrl";
   else return key;
@@ -144,7 +146,8 @@ export class Keytrap {
     if (!(e instanceof KeyboardEvent)) return;
 
     // get binding by chord
-    const mainKey = e.key.toLowerCase();
+    let mainKey = e.key.toLowerCase();
+    mainKey = KEY_ALIAS[mainKey] ?? mainKey;
     if (!CHAR_KEYS[mainKey] || KEYMAP_MODIFIERS.includes(mainKey as any)) return;
     const modifiers = getEventModifiers(e);
     const chord = renderChord({ key: mainKey, modifiers });

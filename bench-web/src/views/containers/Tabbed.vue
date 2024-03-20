@@ -38,7 +38,7 @@ const innerSize = computed(() => ({
 }));
 
 function focus(tab: ViewData) {
-  spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: tab });
+  spaceRegistry.focus(spaceConnection.sideTx, { view: tab });
   // ensure tab is visible in header
   nextTick(() => {
     tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -110,7 +110,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusPreviousTab": {
     enabled: computed(() => tabs.value.length > 1),
     action: () => {
-      const newIdx = focusedTabIdx.value == 0 ? tabs.value.length - 1 : (focusedTabIdx.value ?? 1 ) - 1;
+      const newIdx = focusedTabIdx.value == 0 ? tabs.value.length - 1 : (focusedTabIdx.value ?? 1) - 1;
       focus(tabs.value[newIdx]);
     },
   },
@@ -186,7 +186,7 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- Close tab button -->
         <button
           class="ml-1.5 group-hover:text-gray-400"
-          :class="[i == focusedTabIdx ? 'text-gray-400' : 'text-transparent']"
+          :class="[i == focusedTabIdx ? (isFocusAbsolute ? 'text-gray-400' : 'text-gray-300') : 'text-transparent']"
           @mousedown.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />

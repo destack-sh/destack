@@ -899,13 +899,13 @@ message AggregationBucketData {
   int32 count = 31;
 }
 
-// A box value. Units are in pixels, ideally in Spacing scale.
+// A box value. Absolute units are in pixels, ideally in Spacing scale.
 message BoxData {
   BenchType metatype = 1;
   optional int32 id = 2;
   optional int32 width = 50;
-  optional float width_relative = 51;
-  optional int32 height = 52;
+  optional int32 height = 51;
+  optional float width_relative = 52;
   optional float height_relative = 53;
 }
 
@@ -1022,7 +1022,7 @@ message NodeReferenceData {
   optional string base_bench_id = 35;
 }
 
-// A position value. Units are in pixels, ideally in Spacing scale.
+// A position value. Absolute units are in pixels, ideally in Spacing scale.
 message OffsetData {
   BenchType metatype = 1;
   optional int32 id = 2;
@@ -1030,6 +1030,10 @@ message OffsetData {
   optional int32 right = 41;
   optional int32 bottom = 42;
   optional int32 left = 43;
+  optional float top_relative = 44;
+  optional float right_relative = 45;
+  optional float bottom_relative = 46;
+  optional float left_relative = 47;
 }
 
 // A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.

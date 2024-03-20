@@ -8,7 +8,7 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp, getVueComponentType } from "@/views/registry";
+import { collectViewComponentsUp } from "@/views/registry";
 import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 // :OmnibarModes
@@ -24,8 +24,26 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
   "bench",
 ];
 
-export type ActionCategory = "common" | "view" | "space" | "user";
+export type ActionCategory = "space" | "common" | "view" | "user";
 export const ACTION_BUILTIN_IDS = [
+  // space
+  // (:OmnibarModes)
+  "space.omnibar.everywhere",
+  "space.omnibar.actions",
+  "space.omnibar.space",
+  "space.omnibar.views",
+  "space.omnibar.view",
+  "space.omnibar.module",
+  "space.omnibar.package",
+  "space.omnibar.bench",
+  "space.launch.chat",
+  "space.launch.inspector",
+  "space.launch.library",
+  "space.launch.explorer",
+  "space.launch.outline",
+  "space.launch.docs",
+  "space.launch.logs",
+  "space.launch.discord",
   // common
   "common.edit.undo",
   "common.edit.redo",
@@ -74,24 +92,6 @@ export const ACTION_BUILTIN_IDS = [
   "view.navigate.reopenClosedWindow",
   "view.layout.splitHorizontal",
   "view.layout.splitVertical",
-  // space
-  // (:OmnibarModes)
-  "space.launch.omnibar.everywhere",
-  "space.launch.omnibar.actions",
-  "space.launch.omnibar.space",
-  "space.launch.omnibar.views",
-  "space.launch.omnibar.view",
-  "space.launch.omnibar.module",
-  "space.launch.omnibar.package",
-  "space.launch.omnibar.bench",
-  "space.launch.chat",
-  "space.launch.inspector",
-  "space.launch.library",
-  "space.launch.explorer",
-  "space.launch.outline",
-  "space.launch.docs",
-  "space.launch.logs",
-  "space.launch.discord",
   // user
   "user.signup",
   "user.login",
@@ -548,11 +548,13 @@ declareActionMap<"view">({
     icon: "fas fa-chevron-left",
     title: "Focus Previous Tab",
     text: "Navigate to the previous tab",
+    shortcuts: ["alt+shift+tab", "ctrl+shift+tab"],
   },
   "view.navigate.focusNextTab": {
     icon: "fas fa-chevron-right",
     title: "Focus Next Tab",
     text: "Navigate to the next tab",
+    shortcuts: ["alt+tab", "ctrl+tab"],
   },
   "view.navigate.focusPreviousWindow": {
     icon: "fas fa-chevrons-left",
@@ -581,7 +583,7 @@ declareActionMap<"view">({
     icon: "fas fa-arrow-rotate-left",
     title: "Reopen Closed Tab",
     text: "Reopen the last closed tab",
-    shortcuts: ["mod+shift+t"],
+    shortcuts: ["mod+shift+t", "ctrl+shift+t"],
   },
   "view.navigate.closeWindow": {
     icon: "fas fa-xmark",

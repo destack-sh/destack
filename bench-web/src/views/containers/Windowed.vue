@@ -71,7 +71,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => {
       const idx = focusedWindowIdx.value ?? 0;
       const previousWindow = windows.value[(idx - 1 + windows.value.length) % windows.value.length];
-      spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: previousWindow });
+      spaceRegistry.focus(spaceConnection.sideTx, { view: previousWindow });
     },
   },
   "view.navigate.focusNextWindow": {
@@ -79,7 +79,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: () => {
       const idx = focusedWindowIdx.value ?? 0;
       const nextWindow = windows.value[(idx + 1) % windows.value.length];
-      spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: nextWindow });
+      spaceRegistry.focus(spaceConnection.sideTx, { view: nextWindow });
     },
   },
 };

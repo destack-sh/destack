@@ -290,21 +290,26 @@ class Anchor(IdEnum):
 
 @struct(StructType.OFFSET, inline=True)
 class Offset(Struct):
-    """A position value. Units are in pixels, ideally in Spacing scale."""
+    """A position value. Absolute units are in pixels, ideally in Spacing scale."""
 
     top: Optional[int] = p_regular(40, default=None)
     right: Optional[int] = p_regular(41, default=None)
     bottom: Optional[int] = p_regular(42, default=None)
     left: Optional[int] = p_regular(43, default=None)
 
+    top_relative: Optional[float] = p_regular(44, default=None)
+    right_relative: Optional[float] = p_regular(45, default=None)
+    bottom_relative: Optional[float] = p_regular(46, default=None)
+    left_relative: Optional[float] = p_regular(47, default=None)
+
 
 @struct(StructType.BOX, inline=True)
 class Box(Struct):
-    """A box value. Units are in pixels, ideally in Spacing scale."""
+    """A box value. Absolute units are in pixels, ideally in Spacing scale."""
 
     width: Optional[int] = p_regular(50, default=None)
-    width_relative: Optional[float] = p_regular(51, default=None)
-    height: Optional[int] = p_regular(52, default=None)
+    height: Optional[int] = p_regular(51, default=None)
+    width_relative: Optional[float] = p_regular(52, default=None)
     height_relative: Optional[float] = p_regular(53, default=None)
 
 
