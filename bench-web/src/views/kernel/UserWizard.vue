@@ -4,7 +4,7 @@ import { useLoadedGraph } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { removeView, spaceRegistry } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
-import { viewEmits } from "@/views/common";
+import { viewEmits, type FocusAnchor } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -53,6 +53,10 @@ async function submit() {
   } finally {
     isActive.value = false;
   }
+}
+
+function focus(anchor: FocusAnchor) {
+  throw new Error("nocheckin: custom focus");
 }
 
 spaceRegistry.registerCurrent(self);

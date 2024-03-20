@@ -8,7 +8,7 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
-import { collectViewComponents } from "@/views/registry";
+import { collectViewComponentsUp, getVueComponentType } from "@/views/registry";
 import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 // :OmnibarModes
@@ -229,7 +229,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
     log.debug("action.suppressed", action.id, suppressor);
     return false;
   }
-  const chain = collectViewComponents(e.target as HTMLElement);
+  const chain = collectViewComponentsUp(e.target as HTMLElement);
   return fireAction(action, chain);
 }
 
@@ -436,13 +436,13 @@ declareActionMap<"common">({
     icon: "fas fa-square-left",
     title: "Move Left",
     text: "Move left",
-    shortcuts: ["mod+left"],
+    shortcuts: ["mod+left", "shift+tab"],
   },
   "common.move.right": {
     icon: "fas fa-square-right",
     title: "Move Right",
     text: "Move right",
-    shortcuts: ["mod+right"],
+    shortcuts: ["mod+right", "tab"], // :TabKey
   },
   // sense
   "common.sense.goToDefinition": {
@@ -558,12 +558,13 @@ declareActionMap<"view">({
     icon: "fas fa-chevrons-left",
     title: "Focus Previous Window",
     text: "Navigate to the previous window",
+    shortcuts: ["ctrl+mod+shift+space"],
   },
   "view.navigate.focusNextWindow": {
     icon: "fas fa-chevrons-right",
     title: "Focus Next Window",
     text: "Navigate to the next window",
-    shortcuts: ["mod+shift+space"],
+    shortcuts: ["shift+mod+space"],
   },
   "view.navigate.closeTab": {
     icon: "fas fa-xmark",

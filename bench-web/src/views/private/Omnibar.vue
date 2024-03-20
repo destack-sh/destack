@@ -1,9 +1,10 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { toNodeReference } from "@/proto/wiring";
 import { addAction, type ActionBuiltinId, OMNIBAR_MODES, type OmnibarMode, fireAction } from "@/system/action";
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, useSearch, type SearchIndex, graphIndex } from "@/system/search";
-import { bench, spaceGraph, spaceRegistry } from "@/system/space";
+import { bench, goToNode, spaceGraph, spaceRegistry } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
@@ -53,7 +54,7 @@ async function fire(id: string) {
   // fire
   if (result != null) {
     if (result.metatype == "action") fireAction(result, spaceRegistry.focusedViewComponents);
-    else if (result.metatype == "node") throw new Error("nocheckin: go to node");
+    else if (result.metatype == "node") goToNode(toNodeReference(result.node));
     else throw new Error(`unexpected result: ${result}`);
   }
   // refocus or close

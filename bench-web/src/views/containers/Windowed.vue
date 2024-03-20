@@ -1,7 +1,8 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
+import type { ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
-import { spaceRegistry } from "@/system/space";
+import { removeView, spaceRegistry } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -11,13 +12,23 @@ const props = defineProps<
   {
     self: NodeReferenceData;
     size: Required<Pick<BoxData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation">
+  } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation" | "focus">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
+const focusedWindowIdx: Ref<number | null> = computed(() => {
+  if (windows.value.length == 0) return null;
+  if (props.focus?.nodesPtr.length ?? 0 > 0) {
+    const focusedId = props.focus!.nodesPtr[0].id;
+    const focusedWindowIdx = windows.value.findIndex((window) => window.id == focusedId);
+    return focusedWindowIdx >= 0 ? focusedWindowIdx : 0;
+  } else {
+    return 0;
+  }
+});
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
 
@@ -36,8 +47,45 @@ const { sizedViews, draggingIdx } = useSplitView(
   spaceConnection,
 );
 
+// actions
+const actions: Partial<ActionMapImplementation<"view">> = {
+  "view.navigate.closeWindow": {
+    enabled: computed(() => focusedWindowIdx.value != null),
+    action: () => {
+      removeView(spaceConnection.sideTx, spaceGraph, windows.value[focusedWindowIdx.value!]);
+    },
+  },
+  "view.navigate.closeOtherWindows": {
+    enabled: computed(() => sizedViews.value.length > 1),
+    action: () => {
+      const focusedWindow = windows.value[focusedWindowIdx.value!];
+      for (const window of windows.value) {
+        if (window != focusedWindow) {
+          removeView(spaceConnection.sideTx, spaceGraph, window);
+        }
+      }
+    },
+  },
+  "view.navigate.focusPreviousWindow": {
+    enabled: computed(() => sizedViews.value.length > 1),
+    action: () => {
+      const idx = focusedWindowIdx.value ?? 0;
+      const previousWindow = windows.value[(idx - 1 + windows.value.length) % windows.value.length];
+      spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: previousWindow });
+    },
+  },
+  "view.navigate.focusNextWindow": {
+    enabled: computed(() => sizedViews.value.length > 1),
+    action: () => {
+      const idx = focusedWindowIdx.value ?? 0;
+      const nextWindow = windows.value[(idx + 1) % windows.value.length];
+      spaceRegistry.focus(spaceConnection.sideTx, self.value, { view: nextWindow });
+    },
+  },
+};
+
 spaceRegistry.registerCurrent(self);
-defineExpose<ViewExposed>({ self });
+defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
   <!-- Container -->

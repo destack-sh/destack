@@ -44,6 +44,7 @@ function focus(tab: ViewData) {
     tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
 }
+const isFocusAbsolute = spaceRegistry.isFocusedAbsoluteRef(self);
 
 function remove(tab: ViewData) {
   removeView(spaceConnection.sideTx, spaceGraph, tab);
@@ -97,6 +98,29 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     enabled: computed(() => focusedTabIdx.value != null),
     action: () => remove(tabs.value[focusedTabIdx.value!]),
   },
+  "view.navigate.closeOtherTabs": {
+    enabled: computed(() => tabs.value.length > 1),
+    action: () => {
+      const focusedTab = tabs.value[focusedTabIdx.value!];
+      for (const tab of tabs.value) {
+        if (tab != focusedTab) removeView(spaceConnection.sideTx, spaceGraph, tab);
+      }
+    },
+  },
+  "view.navigate.focusPreviousTab": {
+    enabled: computed(() => tabs.value.length > 1),
+    action: () => {
+      const newIdx = focusedTabIdx.value == 0 ? tabs.value.length - 1 : (focusedTabIdx.value ?? 1 ) - 1;
+      focus(tabs.value[newIdx]);
+    },
+  },
+  "view.navigate.focusNextTab": {
+    enabled: computed(() => tabs.value.length > 1),
+    action: () => {
+      const newIdx = focusedTabIdx.value == tabs.value.length - 1 ? 0 : (focusedTabIdx.value ?? -1) + 1;
+      focus(tabs.value[newIdx]);
+    },
+  },
   "view.layout.splitHorizontal": {
     enabled: computed(() => focusedTabIdx.value != null),
     action: () => {
@@ -116,7 +140,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
 };
 
 spaceRegistry.registerCurrent(self);
-defineExpose<ViewExposed>({ self, focus, actions });
+defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
   <div class="relative select-none" :style="{ width: size.width + 'px', height: size.height + 'px' }">
@@ -137,9 +161,9 @@ defineExpose<ViewExposed>({ self, focus, actions });
         :key="tab.id"
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
         :class="[
-          i == focusedTabIdx
-            ? 'text-primary-900 shadow-inset-md shadow-primary-900'
-            : 'text-gray-700 hover:text-primary-900',
+          i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : ' hover:text-primary-900',
+          i == focusedTabIdx ? (isFocusAbsolute ? 'shadow-inset-md' : 'shadow-inset-sm') : '',
+          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-500') : '',
         ]"
         @mousedown="focus(tab)"
         :draggable="true"
@@ -154,7 +178,7 @@ defineExpose<ViewExposed>({ self, focus, actions });
           v-if="tab.icon"
           v-bind="tab.icon"
           class="mr-1.5"
-          :class="i == focusedTabIdx ? '' : 'text-gray-600 group-hover:text-primary-900'"
+          :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
         <span class="truncate" :class="[tab.title ? '' : 'italic', i == focusedTabIdx ? '' : '']">
           {{ tab.title ?? `Tab ${i + 1}` }}

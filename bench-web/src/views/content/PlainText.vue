@@ -4,7 +4,7 @@ import { IconInline } from "@/system/icon";
 import { spaceRegistry } from "@/system/space";
 import { makeViewId } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
-import { toRef } from "vue";
+import { ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: NodeReferenceData } & Pick<
@@ -15,10 +15,15 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const modelValue = defineModel<string>();
+const inputRef = ref<HTMLInputElement | null>(null);
+
+function focus() {
+  inputRef.value?.focus();
+}
 
 const id = makeViewId(props);
 spaceRegistry.registerCurrent(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
   <div v-if="!isInput">
@@ -33,6 +38,7 @@ defineExpose<ViewExposed>({ self, id });
     >
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />
       <input
+        ref="inputRef"
         :type="isSecret ? 'password' : 'text'"
         v-model="modelValue"
         class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
