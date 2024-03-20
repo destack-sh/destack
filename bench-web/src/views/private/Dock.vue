@@ -8,8 +8,8 @@ const actions: Ref<Action[]> = computed(
   () =>
     (
       [
-        "space.launch.omnibar.actions",
-        "space.launch.omnibar.space",
+        "space.omnibar.actions",
+        "space.omnibar.space",
         "space.launch.inspector",
         "space.launch.library",
         "space.launch.docs",

@@ -17,13 +17,9 @@ const self = toRef(props, "self");
 const modelValue = defineModel<string>();
 const inputRef = ref<HTMLInputElement | null>(null);
 
-function focus() {
-  inputRef.value?.focus();
-}
-
 const id = makeViewId(props);
 spaceRegistry.registerCurrent(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
 </script>
 <template>
   <div v-if="!isInput">

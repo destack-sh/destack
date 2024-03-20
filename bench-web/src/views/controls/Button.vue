@@ -46,12 +46,8 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
 }));
 
-function focus() {
-  buttonRef.value?.focus();
-}
-
 spaceRegistry.registerCurrent(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExposed>({ self, id, focus: () => buttonRef.value });
 </script>
 <template>
   <button

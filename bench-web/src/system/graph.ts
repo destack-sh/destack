@@ -50,7 +50,7 @@ export interface ReadNodeGraph {
    * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
    * The filter must depend on only the given node.
    */
-  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter: (node: AnyNodeData) => boolean): AnyNodeData[];
+  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter?: (node: AnyNodeData) => boolean): AnyNodeData[];
 
   //
   // Observable helpers
@@ -117,7 +117,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     return ancestors;
   }
 
-  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter: (node: AnyNodeData) => boolean): AnyNodeData[] {
+  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter?: (node: AnyNodeData) => boolean): AnyNodeData[] {
     const descendants: AnyNodeData[] = [];
     const children = [];
     for (const metatype of metatypes) {
@@ -125,7 +125,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     }
 
     for (const child of children) {
-      if (filter(child)) {
+      if (filter == null || filter(child)) {
         descendants.push(child);
         descendants.push(...this.getDescendants(child, metatypes, filter));
       }

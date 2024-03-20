@@ -6,10 +6,10 @@ import {
   SpaceData,
   StructType,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
-import { spaceGraphLocal, useGetNodes } from "@/system/connection";
+import { spaceGraphLocal, useGetNodes, useLoadedGraph } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
@@ -45,7 +45,8 @@ export const pkg = pkgGraph.getRef(packagePtr);
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
-export const spaceRegistry = new ViewRegistry(spacePtr, spaceGraph);
+export const spaceConnection = useLoadedGraph(spacePtr);
+export const spaceRegistry = new ViewRegistry(spacePtr, spaceGraph, () => spaceConnection.connection.sideTx);
 
 // setup/connect local space as needed
 watch(
@@ -61,7 +62,7 @@ watch(
     } else {
       spaceGraph.graph = pkgGraph;
     }
-    spaceRegistry.restoreFocus();
+    spaceRegistry.restoreComponentFocus();
   },
   { immediate: true },
 );

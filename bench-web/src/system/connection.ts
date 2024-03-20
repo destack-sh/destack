@@ -12,7 +12,7 @@ import {
   type ReadOptionsData,
   Timestamp,
 } from "@/proto/wire";
-import { makeDefaultProto, unwrapSomeNode } from "@/proto/wiring";
+import { makeDefaultProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { accessAsOwner, type AccessArbiter } from "@/system/access";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/local";
@@ -427,7 +427,7 @@ export function useAggregateNodes(params: MaybeRef<AggregateNodesParams>): {
 /**
  * Gets the currently loaded graph for the given scope. Does not acquire any new connections.
  */
-export function useLoadedGraph(node: MaybeRef<NodeReferenceData>): {
+export function useLoadedGraph(node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>): {
   graph: ReadNodeGraph;
   connection: GraphConnection;
 } {
