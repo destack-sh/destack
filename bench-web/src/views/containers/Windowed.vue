@@ -69,17 +69,16 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusPreviousWindow": {
     enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
-      const idx = focusedWindowIdx.value ?? 0;
-      const previousWindow = windows.value[(idx - 1 + windows.value.length) % windows.value.length];
-      spaceRegistry.focus(spaceConnection.sideTx, { view: previousWindow });
+      // nocheckin: windows relative to root view
+      const prevIdx = ((focusedWindowIdx.value ?? 0) - 1 + windows.value.length) % windows.value.length;
+      spaceRegistry.focus(spaceConnection.sideTx, { view: windows.value[prevIdx] });
     },
   },
   "view.navigate.focusNextWindow": {
     enabled: computed(() => sizedViews.value.length > 1),
     action: () => {
-      const idx = focusedWindowIdx.value ?? 0;
-      const nextWindow = windows.value[(idx + 1) % windows.value.length];
-      spaceRegistry.focus(spaceConnection.sideTx, { view: nextWindow });
+      const nextIdx = ((focusedWindowIdx.value ?? 0) + 1) % windows.value.length;
+      spaceRegistry.focus(spaceConnection.sideTx, { view: windows.value[nextIdx] });
     },
   },
 };
@@ -144,4 +143,3 @@ defineExpose<ViewExposed>({ self, actions });
     </div>
   </div>
 </template>
-@/utils/layout

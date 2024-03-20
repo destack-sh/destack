@@ -32,6 +32,7 @@ const actions: Ref<Action[]> = computed(
       target="_blank"
     >
       <IconInline v-bind="action.icon" />
+      <!-- nocheckin: (detached) tooltips & floating shit -->
       <Tooltip
         :icon="action.icon"
         :title="action.title"

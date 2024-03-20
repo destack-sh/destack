@@ -1,22 +1,21 @@
 import { BenchType, NodeReferenceData, NodeType, SelectionKind, SpaceData, ViewData } from "@/proto/wire";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
-import type { Transaction, TransactionBuffer } from "@/system/transaction";
+import type { Transaction } from "@/system/transaction";
 import { log } from "@/utils/log";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
-import type { ViewModel } from "@sentry/vue/types/types";
 import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
+  getCurrentInstance,
+  nextTick,
+  onBeforeUnmount,
   shallowRef,
+  triggerRef,
+  watch,
   type ComponentInstance,
   type Ref,
-  watch,
-  getCurrentInstance,
-  onBeforeUnmount,
-  triggerRef,
-  nextTick,
 } from "vue";
 
 /** Finds the closest Vue component */
@@ -203,14 +202,14 @@ export class ViewRegistry {
   /** Focus the given view absolutely in the graph and in the component. */
   focus(
     tx: Transaction,
-    focus: { view: SomeView; parent?: SomeView; anchor?: FocusAnchor; hasBrowserFocus?: boolean },
+    focus: { view: SomeView; parent?: SomeView; anchor?: FocusAnchor | NodeReferenceData; hasBrowserFocus?: boolean },
   ) {
     log.debug("view.focus", focus);
     this.focusInGraph(tx, focus);
     if (!focus.hasBrowserFocus) nextTick(() => this.focusInComponent(focus.view, focus.anchor));
   }
 
-  /** Focuses the given view absolustely in the graph. */
+  /** Focuses the given view absolutely in the graph. */
   focusInGraph(tx: Transaction, focus: { view: SomeView; parent?: SomeView; clearDown?: boolean }) {
     log.trace("view.focusInGraph", focus);
 
@@ -245,7 +244,7 @@ export class ViewRegistry {
 
   /** Focus the first focusable component within the given view. */
   focusInComponent(view: SomeView | ViewComponent, anchor?: FocusAnchor | NodeReferenceData): boolean {
-    log.trace("view.componentFocus", view, anchor);
+    log.trace("view.focusInComponent", view, anchor);
 
     // get component/view data
     let component: ViewComponent | null;
@@ -257,7 +256,9 @@ export class ViewRegistry {
       component = view as ViewComponent;
       viewData = component.exposed?.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
     }
-    if (component == null) throw new Error(`no component for view: ${(viewData ?? view)?.id}`);
+    if (component == null) {
+      throw new Error(`no component for view ${(view as any)?.id}`);
+    }
 
     // if no anchor is given, try to use existing focus state
     if (anchor == null && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
@@ -271,9 +272,13 @@ export class ViewRegistry {
       if (typeof focusResult == "object") {
         if (focusResult instanceof HTMLElement) {
           focusResult.focus();
+          this.onComponentFocused(focusResult); // immediately update active element
+          return true;
         } else if (isViewComponent(focusResult)) {
           // an inner view component to focus
-          this.focusInComponent(focusResult);
+          if (this.focusInComponent(focusResult, anchor)) {
+            return true;
+          }
         }
       } else if (focusResult !== null && focusResult !== false) {
         // success
@@ -294,7 +299,7 @@ export class ViewRegistry {
   /** Restores component focus to the currently absolutely focused element if possible. */
   restoreComponentFocus(): boolean {
     if (this.spacePtr.value == null) throw new Error("no current space");
-    log.debug("view.restoreFocus", this.spacePtr.value);
+    log.debug("view.restoreComponentFocus", this.spacePtr.value);
     const space = this.graph.get(this.spacePtr.value);
     if ((space?.focus?.nodesPtr?.length ?? 0) > 0) {
       const view = this.getViewData(space!.focus!.nodesPtr[0]);
@@ -324,12 +329,16 @@ export class ViewRegistry {
     watch(
       [() => self.value?.id, () => id?.value],
       () => {
-        if (oldComponentId != null) delete this.viewRefsById.value[oldComponentId];
+        if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance)
+          delete this.viewRefsById.value[oldComponentId];
         const componentId = self.value?.id ?? id?.value!;
-        if (this.viewRefsById.value[componentId] != null) {
-          // This only happens for our own components, so we should fail hard.
-          //  (This is almost certainly a name-derived id from makeViewId, so we re-used an anonymous views' name accidentally).
-          throw new Error(`duplicate component id: ${componentId}`);
+        const existingComponent = this.viewRefsById.value[componentId];
+        if (existingComponent != null) {
+          // TODO :Robustness: check for duplicate component registration
+          // Duplicate component ids happen for two reasons:
+          //  1. When moving a view, the new component may be created before the old one is destroyed. This is fine.
+          //  2. We messed up naming our own internal/anonymous components. This is bad.
+          // Currently not sure how to distinguish these two cases.
         }
         this.viewRefsById.value[componentId] = instance;
         triggerRef(this.viewRefsById);
@@ -340,7 +349,7 @@ export class ViewRegistry {
     // unregister
     onBeforeUnmount(() => {
       // should always be true, but maybe errored
-      if (oldComponentId != null) {
+      if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance) {
         delete this.viewRefsById.value[oldComponentId];
         triggerRef(this.viewRefsById);
       }
