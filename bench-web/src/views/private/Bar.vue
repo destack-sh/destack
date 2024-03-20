@@ -12,7 +12,10 @@ const props = defineProps<{
 }>();
 </script>
 <template>
-  <div class="flex w-full flex-row items-center justify-between gap-x-4 bg-gray-100 px-4 text-sm text-gray-900">
+  <div
+    class="flex w-full flex-row items-center justify-between gap-x-4 bg-gray-100 px-4 text-sm text-gray-900"
+    data-outside-view="true"
+  >
     <!-- Left -->
     <div class="flex flex-shrink-0">
       <!-- Bench -->

@@ -64,6 +64,15 @@ export function collectViewComponents(componentOrEl: ComponentInstance<any> | HT
 
 const activeElement = useActiveElement();
 
+/** Traverses the DOM up to check if any element is marked as outside view */
+function isOutsideView(el: HTMLElement): boolean {
+  while (el != null) {
+    if (el.hasAttribute("data-outside-view")) return true;
+    el = el.parentElement!;
+  }
+  return false;
+}
+
 type SomeView = NodeReferenceData | ViewData;
 
 /**
@@ -72,7 +81,7 @@ type SomeView = NodeReferenceData | ViewData;
  */
 export class ViewRegistry {
   graph: ReadNodeGraph;
-  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
+  private viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedView: Ref<NodeReferenceData | null> = shallowRef(null);
@@ -82,8 +91,10 @@ export class ViewRegistry {
 
     // update focus manually when active element changes (if not in excluded elements)
     watch(activeElement, () => {
-      const viewComponent = activeElement.value == null ? null : findViewComponent(activeElement.value);
-      if (activeElement.value == null || viewComponent == null) {
+      if (activeElement.value == null || isOutsideView(activeElement.value!)) return;
+
+      const viewComponent = findViewComponent(activeElement.value);
+      if (viewComponent == null) {
         this.focusedViewComponent.value = null;
         this.focusedViewComponentsById.value = {};
         this.focusedView.value = null;
@@ -101,6 +112,11 @@ export class ViewRegistry {
 
   get focusedViewComponents(): ViewComponent[] {
     return Object.values(this.focusedViewComponentsById.value);
+  }
+
+  /** Gets the view component for a certain view identity (self.id or anonymous id) */
+  getViewComponent<T extends ViewComponent>(id: string): T | null {
+    return this.viewRefsById.value[id] as T | null;
   }
 
   /** Resolve the view data */
@@ -136,10 +152,7 @@ export class ViewRegistry {
     return this.focusedView.value?.id == view.id;
   }
 
-  /** Whether the given view or its descendants have focus */
-  isFocusedDown(view: SomeView): boolean {
-    return this.focusedViewComponents.some((c) => getViewComponentId(c) == view.id);
-  }
+  // type FocusInfo = { isAbsolute: boolean, kind: "self" | "ancestor" | "descendant" | null };
 
   /** Finds the View identity of the closest ViewComponent ancestor. */
   findViewPtr(e: HTMLElement): TypedNodeReferenceData<NodeType.VIEW> | null {
