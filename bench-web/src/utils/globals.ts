@@ -1,4 +1,3 @@
-
 export const VERSION = import.meta.env.VITE_APP_VERSION;
 export const COMMIT = import.meta.env.VITE_APP_GIT_COMMIT || "dev";
 
