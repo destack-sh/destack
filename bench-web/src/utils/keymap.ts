@@ -159,10 +159,6 @@ export class Keytrap {
         e.preventDefault();
         e.stopPropagation();
       }
-    } else if (mainKey == "tab") {
-      // suppress :TabKey if not bound
-      e.preventDefault();
-      e.stopPropagation();
     }
   }
 

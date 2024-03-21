@@ -17,8 +17,9 @@ const emit = defineEmits(viewEmits());
 
 const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
 
+type State = "create-bench" | "activate-bench" | "all-set";
 const self = toRef(props, "self");
-const state: Ref<"create-bench" | "all-set"> = ref("create-bench");
+const state: Ref<State> = ref("create-bench");
 const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
@@ -111,4 +112,5 @@ defineExpose({ self, focus });
       </p>
     </div>
   </div>
-</template>@/views/canvas
+</template>
+@/views/canvas

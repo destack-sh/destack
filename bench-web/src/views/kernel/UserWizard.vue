@@ -97,7 +97,7 @@ defineExpose<ViewExposed>({ self, focus });
       <p class="mt-2 text-gray-500">
         <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
         <span v-else-if="state === 'sign-up'">Create a new Bench account.</span>
-        <span v-else-if="state === 'all-set'">You're already logged in.</span>
+        <span v-else-if="state === 'all-set'">You're logged in and good to go.</span>
       </p>
     </div>
     <!-- Data -->

@@ -1,5 +1,6 @@
 import {
   BenchType,
+  IconData,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -11,6 +12,7 @@ import {
 } from "@/proto/wire";
 import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
+import { makeIcon, toIconMaybe } from "@/system/icon";
 import { ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
@@ -124,7 +126,8 @@ function isOutsideView(el: HTMLElement): boolean {
 }
 
 export type SomeView = NodeReferenceData | ViewData;
-export type ViewDataIn = Partial<Omit<ViewData, "metatype">> & Pick<ViewData, "type">;
+export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
+  Pick<ViewData, "type"> & { icon?: string | IconData };
 
 /**
  * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements.
@@ -445,15 +448,26 @@ export class ViewCanvas {
         packagePtr: root.packagePtr,
         orderKey: generateKeyBetween(rootChildren[-1]?.orderKey ?? null, null),
         parentPtr: toNodeReference(root),
+        icon: toIconMaybe(view.icon),
       });
       tx.create(newView);
       this.focus(tx, { view: newView });
     } else if (options?.ifPresent == "focus") {
       this.focus(tx, { view: existing });
     } else if (options?.ifPresent == "upsertAndFocus") {
-      tx.update({ id: existing.id, metatype: NodeType.VIEW, ...view });
+      tx.update({
+        id: existing.id,
+        metatype: NodeType.VIEW,
+        ...view,
+        icon: toIconMaybe(view.icon),
+      });
       this.focus(tx, { view: existing });
     }
+  }
+
+  /** Upserts a view in the canvas (addView with upsertAndFocus). */
+  upsertView(view: ViewDataIn) {
+    this.addView(view, { ifPresent: "upsertAndFocus" });
   }
 
   /**
