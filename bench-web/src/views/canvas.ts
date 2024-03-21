@@ -30,16 +30,8 @@ import {
   watch,
   type ComponentInstance,
   type Ref,
+  onMounted,
 } from "vue";
-
-/** Finds the closest Vue component */
-export function findVueComponent(el: HTMLElement): ComponentInstance<any> | null {
-  while (el != null) {
-    if ((el as any).__vueParentComponent != null) return (el as any).__vueParentComponent;
-    else el = el.parentElement!;
-  }
-  return null;
-}
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
   return (component as any).type.__name;
@@ -54,6 +46,7 @@ export function isViewComponent(component: ComponentInstance<any>): component is
   return (component as any).exposed?.self != null || (component as any).exposed?.id != null;
 }
 
+/**  */
 export function isIdentifiedViewComponent(
   component: ComponentInstance<any>,
 ): component is ViewComponent & { exposed: { self: Ref<NodeReferenceData> } } {
@@ -67,18 +60,17 @@ export function getViewComponentId(component: ViewComponent): string {
 }
 
 /** Finds any closest ViewComponent ancestor. */
-export function findViewComponent(e: HTMLElement | ComponentInstance<any>): ViewComponent | null {
-  let vueComponent = e instanceof HTMLElement ? findVueComponent(e) : e;
-  while (vueComponent != null) {
-    if (isViewComponent(vueComponent)) return vueComponent;
-    vueComponent = vueComponent.parent;
+export function findViewComponent(el: HTMLElement | ComponentInstance<any>): ViewComponent | null {
+  while (el != null) {
+    if ((el as any).__viewComponent != null) return (el as any).__viewComponent;
+    else el = el.parentElement!;
   }
   return null;
 }
 
 /** Finds any closest identified (not anonymous) ViewComponent ancestor */
 export function findIdentifiedViewComponent(e: HTMLElement | ComponentInstance<any>): ViewComponent | null {
-  let vueComponent = e instanceof HTMLElement ? findVueComponent(e) : e;
+  let vueComponent = e instanceof HTMLElement ? findViewComponent(e) : e;
   while (vueComponent != null) {
     if (isIdentifiedViewComponent(vueComponent)) return vueComponent;
     vueComponent = vueComponent.parent;
@@ -88,7 +80,7 @@ export function findIdentifiedViewComponent(e: HTMLElement | ComponentInstance<a
 
 /** Collect all view components from the given component upwards (inclusive) */
 export function collectViewComponentsUp(componentOrEl: ComponentInstance<any> | HTMLElement): ViewComponent[] {
-  let component = componentOrEl instanceof HTMLElement ? findVueComponent(componentOrEl) : componentOrEl;
+  let component = componentOrEl instanceof HTMLElement ? findViewComponent(componentOrEl) : componentOrEl;
   const components = [];
   while (component != null) {
     if (isViewComponent(component)) components.push(component);
@@ -110,8 +102,8 @@ export function getViewComponentChildren(instance: ComponentInstance<any>): View
     const el = elements.pop()!;
     for (const child of el.children) {
       if (child instanceof HTMLElement) {
-        const component = (child as any).__vueParentComponent as ComponentInstance<any> | null;
-        if (component != null && component !== instance) components.push(component);
+        const component = (child as any).__viewComponent as ComponentInstance<any> | null;
+        if (component != null && component !== instance && isViewComponent(component)) components.push(component);
         else elements.push(child);
       }
     }
@@ -165,7 +157,7 @@ export class ViewCanvas {
       if (activeElement.value != null && activeElement.value !== document.body && !isOutsideView(activeElement.value))
         this.onComponentFocused(activeElement.value);
     });
-    // and any other element
+    // and 'focus' on any other element
     useEventListener(document, "mousedown", (e) => {
       if (e.target != null && e.target != activeElement.value && !isOutsideView(e.target as HTMLElement))
         this.onComponentFocused(e.target as HTMLElement);
@@ -340,8 +332,15 @@ export class ViewCanvas {
   registerCurrent(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
-    let oldComponentId: string | null = null;
+
+    // mark element with component
+    onMounted(() => {
+      if ((instance as any).vnode.el == null) console.warn("canvas.missingEl", instance);
+      else (instance as any).vnode.el.__viewComponent = instance;
+    });
+
     // register
+    let oldComponentId: string | null = null;
     watch(
       [() => self.value?.id, () => id?.value],
       () => {

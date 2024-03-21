@@ -426,6 +426,8 @@ export function useAggregateNodes(params: MaybeRef<AggregateNodesParams>): {
 
 /**
  * Gets the currently loaded graph for the given scope. Does not acquire any new connections.
+ * NOTE: for performance the graph/connection proxies are 'lazy' (batched per tick as regular refs).
+ *  That means changing 'node' will change connection/graph only on the next tick.
  */
 export function useLoadedGraph(node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>): {
   graph: ReadNodeGraph;
@@ -435,17 +437,17 @@ export function useLoadedGraph(node: MaybeRef<NodeReferenceData | TypedNodeRefer
   const graphProxy = new ProxyNodeGraph(null);
   const connectionProxy = new ProxyGraphConnection(null);
 
-  // route to the relevant graph connection
+  // route to the appropriate graph connection
   watch(
     toValueRef(nodeRef),
-    async () => {
-      const connection = findGetConnection({ roots: [nodeRef.value] });
-      if (connection != null) {
-        connectionProxy.connection.value = connection;
-        graphProxy.graph = connection.graph;
-      } else {
+    () => {
+      if (nodeRef.value == null) {
         connectionProxy.connection.value = null;
         graphProxy.graph = null;
+      } else {
+        const connection = findGetConnection({ roots: [nodeRef.value] });
+        if (connection !== connectionProxy.connection.value) connectionProxy.connection.value = connection;
+        if (connection?.graph !== graphProxy.graph) graphProxy.graph = connection?.graph ?? null;
       }
     },
     { immediate: true },

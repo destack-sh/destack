@@ -51,6 +51,7 @@ async function init() {
 
   await registerViewComponents();
 
+  // set vue stuff
   if (IS_DEBUG) {
     app.config.performance = true;
   }
@@ -59,6 +60,7 @@ async function init() {
     toaster.error({ title: "Internal error", text: (err as any).message ?? info });
   };
 
+  // start our own stuff
   toaster.run();
   keytrap.track(document); // ensure it's always running
   // suppress save everywhere

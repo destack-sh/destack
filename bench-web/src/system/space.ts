@@ -1,25 +1,12 @@
-import {
-  BenchType,
-  NodeReferenceData,
-  NodeType,
-  Orientation,
-  SpaceData,
-  StructType,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { copyNode, makeNode, makeStruct, toNodeReference } from "@/proto/wiring";
+import { BenchType, NodeType, SpaceData } from "@/proto/wire";
+import { toNodeReference } from "@/proto/wiring";
 import { spaceGraphLocal, useGetNodes, useLoadedGraph } from "@/system/connection";
-import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph } from "@/system/graph";
-import { makeIcon } from "@/system/icon";
-import { LOADED_SOURCE_NODE_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
+import { ProxyNodeGraph } from "@/system/graph";
+import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, spacePtr } from "@/system/local";
-import type { Transaction } from "@/system/transaction";
-import type { SplitAnchor } from "@/utils/drag";
-import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { ViewCanvas, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
-import { computed, watch } from "vue";
+import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
+import { computed, nextTick, watch } from "vue";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
@@ -41,7 +28,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 );
 export const pkg = pkgGraph.getRef(packagePtr);
 
-// space (local if we don't have a bench or a space in that bench, otherwise from the current package)
+// space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceRemote = pkgGraph.getRef(spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(spacePtr);
@@ -57,12 +44,14 @@ watch(
       spaceGraph.graph = spaceGraphLocal;
       if (spaceGraphLocal.size == 0) {
         const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
-        const tx = spaceConnection.connection.sideTx;
-        tx.create(space);
+        spaceGraphLocal.add(space);
         spacePtr.value = toNodeReference(space);
-        setupEmptyCanvas(spaceConnection.connection.sideTx, space);
+        log.debug("space.setupEmptyCanvas", { space });
+        nextTick(() => setupEmptyCanvas(spaceConnection.connection.sideTx, space)); // spaceConnection is prepared lazily
       }
     } else {
+      // remote
+      log.debug("space.useRemoteCanvas", { space: spaceRemote.value });
       spaceGraph.graph = pkgGraph;
     }
     canvas.restoreComponentFocus();

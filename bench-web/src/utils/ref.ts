@@ -9,6 +9,7 @@ import {
   type ComputedGetter,
   getCurrentInstance,
   computed,
+  type WatchOptions,
 } from "vue";
 
 /**
@@ -53,11 +54,15 @@ export function valueRef<T>(value: T) {
   });
 }
 
-export function toValueRef<T>(value: Ref<T>) {
+export function toValueRef<T>(value: Ref<T>, options?: WatchOptions) {
   const ref = valueRef(value.value);
-  watch(value, (newValue) => {
-    ref.value = newValue;
-  });
+  watch(
+    value,
+    (newValue) => {
+      ref.value = newValue;
+    },
+    options,
+  );
   return ref;
 }
 
