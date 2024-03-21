@@ -20,6 +20,7 @@ import {
 import { makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
+import { Casing, toCasing } from "@/utils/string";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
@@ -159,6 +160,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
 export const DEFAULT_MISSING_ICON = makeIcon({ name: "fas fa-question" });
 
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];
+export const ROOT_VIEW_COMPONENT_NAMES = ROOT_VIEW_TYPES.map((t) => toCasing(ViewType[t], Casing.CAMEL));
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
   return Object.fromEntries(

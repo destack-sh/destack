@@ -13,7 +13,7 @@ import {
 import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { makeIcon, toIconMaybe } from "@/system/icon";
-import { ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
+import { ROOT_VIEW_COMPONENT_NAMES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -48,11 +48,14 @@ export function isViewComponent(component: ComponentInstance<any>): component is
   return (component as any).exposed?.self != null || (component as any).exposed?.id != null;
 }
 
-/**  */
 export function isIdentifiedViewComponent(
   component: ComponentInstance<any>,
 ): component is ViewComponent & { exposed: { self: Ref<NodeReferenceData> } } {
   return (component as any).exposed?.self?.value != null;
+}
+
+export function isRootViewComponent(component: ComponentInstance<any>): boolean {
+  return ROOT_VIEW_COMPONENT_NAMES.includes(getVueComponentType(component));
 }
 
 export function getViewComponentId(component: ViewComponent): string {
@@ -61,21 +64,15 @@ export function getViewComponentId(component: ViewComponent): string {
   else throw new Error(`no id on component ${getVueComponentType(component)}: ${component}`);
 }
 
-/** Finds any closest ViewComponent ancestor. */
-export function findViewComponent(el: HTMLElement | ComponentInstance<any>): ViewComponent | null {
+/** Finds the closest ViewComponent ancestor. */
+export function findViewComponent(
+  el: HTMLElement | ComponentInstance<any>,
+  where?: (component: ViewComponent) => boolean,
+): ViewComponent | null {
   while (el != null) {
-    if ((el as any).__viewComponent != null) return (el as any).__viewComponent;
+    if ((el as any).__viewComponent != null && (where == null || where((el as any).__viewComponent)))
+      return (el as any).__viewComponent;
     else el = el.parentElement!;
-  }
-  return null;
-}
-
-/** Finds any closest identified (not anonymous) ViewComponent ancestor */
-export function findIdentifiedViewComponent(e: HTMLElement | ComponentInstance<any>): ViewComponent | null {
-  let vueComponent = e instanceof HTMLElement ? findViewComponent(e) : e;
-  while (vueComponent != null) {
-    if (isIdentifiedViewComponent(vueComponent)) return vueComponent;
-    vueComponent = vueComponent.parent;
   }
   return null;
 }
@@ -184,7 +181,7 @@ export class ViewCanvas {
         componentsById[getViewComponentId(c)] = c;
       });
       this.focusedViewComponentsById.value = componentsById;
-      this.focusedViewPtr.value = (findIdentifiedViewComponent(component)?.exposed.self?.value ??
+      this.focusedViewPtr.value = (findViewComponent(component, isIdentifiedViewComponent)?.exposed.self?.value ??
         null) as TypedNodeReferenceData<NodeType.VIEW> | null;
     }
 

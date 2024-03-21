@@ -1,8 +1,8 @@
 <script lang="tsx" setup>
-import { DECLARED_ACTIONS_BY_ID, type Action, type ActionBuiltinId, fireAction } from "@/system/action";
-import { IconInline } from "@/system/icon";
-import { Tooltip } from "@/utils/tooltip";
-import { computed, type Ref } from "vue";
+import { DECLARED_ACTIONS_BY_ID, fireAction, type Action, type ActionBuiltinId } from "@/system/action";
+import { tooltipFromAction } from "@/utils/tooltip";
+import Button from "@/views/controls/Button.vue";
+import { computed, ref, type Component, type Ref } from "vue";
 
 const actions: Ref<Action[]> = computed(
   () =>
@@ -19,27 +19,17 @@ const actions: Ref<Action[]> = computed(
       .map((id) => DECLARED_ACTIONS_BY_ID.value[id])
       .filter((a) => a != null) as Action[],
 );
+const actionRefs: Ref<Record<string, Component<typeof Button>>> = ref({});
 </script>
 <template>
   <div class="flex flex-row items-center gap-x-2">
-    <component
-      :is="action.url ? 'a' : 'button'"
-      v-for="action in actions"
-      :key="action.id"
-      class="group relative rounded-md border border-gray-900 bg-primary-300 px-1 py-0.5 text-gray-900 shadow-sm shadow-gray-900 hover:cursor-pointer hover:bg-primary-400"
-      @click="fireAction(action)"
-      :href="action.url"
-      target="_blank"
-    >
-      <IconInline v-bind="action.icon" />
-      <!-- nocheckin: (detached) tooltips & floating shit -->
-      <Tooltip
+    <template v-for="action in actions" :key="action.id">
+      <Button
+        :ref="(ref?: any) => (ref != null ? (actionRefs[action.id] = ref) : (delete actionRefs[action.id]))"
         :icon="action.icon"
-        :title="action.title"
-        :text="action.text as string"
-        :shortcut="action.shortcuts?.[0]"
-        position="top-7 -left-3"
+        @click="fireAction(action)"
+        v-tooltip="tooltipFromAction(action)"
       />
-    </component>
+    </template>
   </div>
 </template>

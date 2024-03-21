@@ -1,4 +1,4 @@
-import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
+import { ViewType, type IconData, type NodeReferenceData, type TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
@@ -24,8 +24,12 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
   "bench",
 ];
 
-export type ActionCategory = "space" | "common" | "view" | "user";
+export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
+  // bench
+  // ...
+  // package
+  // ...
   // space
   // (:OmnibarModes)
   "space.omnibar.everywhere",
@@ -98,8 +102,10 @@ export const ACTION_BUILTIN_IDS = [
   "user.logout",
   "user.activate",
   "user.goToHome",
+  // organization
   "organization.create",
-  "bench.create",
+  // debug/developer
+  "developer.addView",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -125,7 +131,7 @@ export type Action = {
   id: ActionBuiltinId;
   icon?: IconData;
   title: string;
-  text?: string | TextData;
+  text: string | TextData;
   shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
   enabled?: Ref<boolean>;
   source: ActionSource;
@@ -611,5 +617,15 @@ declareActionMap<"view">({
     icon: "fas fa-reflect-horizontal",
     title: "Split Horizontal",
     text: "Split the current window horizontally",
+  },
+});
+
+// developer actions
+contributeActionMap<"developer">({
+  "developer.addView": {
+    icon: "fas fa-bug",
+    title: "Add Some View",
+    text: "?",
+    action: () => canvas.addView({ type: ViewType.PAGE }),
   },
 });

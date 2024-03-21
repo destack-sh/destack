@@ -209,6 +209,7 @@ defineExpose<ViewExposed>({ self, actions });
       ref="bodyRef"
       class="absolute"
       :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+      data-root-element="true"
     >
       <!-- Content -->
       <component
