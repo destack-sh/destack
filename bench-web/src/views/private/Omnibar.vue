@@ -5,6 +5,7 @@ import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type Omniba
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
 import { bench, spaceGraph, canvas } from "@/system/space";
+import { nextTickIf } from "@/utils/functools";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
 import { Shortcut } from "@/utils/tooltip";
@@ -59,7 +60,7 @@ async function fire(id: string) {
   }
   // refocus or close
   if (id.includes(".omnibar.")) nextTick(focus);
-  else close();
+  else close({ delayFocus: true }); // action may have just created a new view
 }
 
 /** Select absolute/relative result */
@@ -104,10 +105,10 @@ function focus() {
   }
 }
 
-function close() {
+function close(options?: { delayFocus: boolean }) {
   isActive.value = false;
   clear();
-  canvas.restoreComponentFocus();
+  nextTickIf(options?.delayFocus, () => canvas.restoreComponentFocus());
 }
 
 // auto-close when the box becomes too small
@@ -137,7 +138,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   space: "Search across your Space",
   views: "Search Views in your Space",
   view: "Search the focused View",
-  module: "Search the current Module", 
+  module: "Search the current Module",
   package: "Search the current Package",
   bench: "Search the current Bench",
 };
@@ -176,7 +177,7 @@ defineExpose({ isActive, open });
       v-if="isActive"
       class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700 bg-opacity-20"
       data-outside-view="true"
-      @keydown.esc.exact.prevent="close"
+      @keydown.esc.exact.prevent="() => close()"
       @click="isActive = false"
     >
       <!-- Modal -->
@@ -222,7 +223,7 @@ defineExpose({ isActive, open });
               @keydown.delete="query.length > 0 || (mode = 'everywhere')"
             />
             <!-- Close -->
-            <button class="ml-auto" @click="close">
+            <button class="ml-auto" @click="() => close()">
               <Shortcut shortcut="esc" />
             </button>
           </div>
