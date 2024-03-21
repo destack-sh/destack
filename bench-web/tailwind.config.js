@@ -25,6 +25,13 @@ export default {
       mono: ["Droid Sans Mono", "monospace"],
     },
     extend: {
+      zIndex: {
+        '60': '60',
+        '70': '70',
+        '80': '80',
+        '90': '90',
+        '100': '100',
+      },
       screens: {
         "-2xl": { max: "1535px" },
         "-xl": { max: "1279px" },

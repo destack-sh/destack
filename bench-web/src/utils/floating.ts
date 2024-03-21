@@ -18,72 +18,75 @@ export type FloatingPlacement =
 
 export type FloatingOptions = {
   placement: FloatingPlacement; // relative to the reference
-  margin?: number; // relative to the container and reference
+  containerMargin?: number; // margin around the container
+  referenceMargin?: number; // margin around the reference
 };
 
 /**
  * Gets the position of the floating element relative to the reference while staying in the container.
  * The arrow always points to the relative center of the reference (up to the floating size - margin).
  */
-export function getFloatingPosition(
-  floating: { width: number; height: number },
-  reference: { x: number; y: number; width: number; height: number },
-  container: { x: number; y: number; width: number; height: number },
-  options: FloatingOptions,
-): { x: number; y: number; placement: FloatingPlacement } {
+export function getFloatingPosition(float: {
+  floating: { width: number; height: number };
+  reference: { x: number; y: number; width: number; height: number };
+  container: { x: number; y: number; width: number; height: number };
+  options: FloatingOptions;
+}): { x: number; y: number; placement: FloatingPlacement } {
+  const { floating, reference, container, options } = float;
   let x = 0;
   let y = 0;
-  const margin = options.margin ?? 0;
+  const referenceMargin = options.referenceMargin ?? 0;
+  const containerMargin = options.containerMargin ?? 0;
   let placement = options.placement;
 
   const recomputePosition = () => {
     switch (placement) {
       case "top":
         x = reference.x + reference.width / 2 - floating.width / 2;
-        y = reference.y - floating.height - margin;
+        y = reference.y - floating.height - referenceMargin;
         break;
       case "top-left":
         x = reference.x;
-        y = reference.y - floating.height - margin;
+        y = reference.y - floating.height - referenceMargin;
         break;
       case "top-right":
         x = reference.x + reference.width - floating.width;
-        y = reference.y - floating.height - margin;
+        y = reference.y - floating.height - referenceMargin;
         break;
       case "right":
-        x = reference.x + reference.width + margin;
+        x = reference.x + reference.width + referenceMargin;
         y = reference.y + reference.height / 2 - floating.height / 2;
         break;
       case "right-top":
-        x = reference.x + reference.width + margin;
+        x = reference.x + reference.width + referenceMargin;
         y = reference.y;
         break;
       case "right-bottom":
-        x = reference.x + reference.width + margin;
+        x = reference.x + reference.width + referenceMargin;
         y = reference.y + reference.height - floating.height;
         break;
       case "bottom":
         x = reference.x + reference.width / 2 - floating.width / 2;
-        y = reference.y + reference.height + margin;
+        y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-left":
         x = reference.x;
-        y = reference.y + reference.height + margin;
+        y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-right":
         x = reference.x + reference.width - floating.width;
-        y = reference.y + reference.height + margin;
+        y = reference.y + reference.height + referenceMargin;
         break;
       case "left":
-        x = reference.x - floating.width - margin;
+        x = reference.x - floating.width - referenceMargin;
         y = reference.y + reference.height / 2 - floating.height / 2;
         break;
       case "left-top":
-        x = reference.x - floating.width - margin;
+        x = reference.x - floating.width - referenceMargin;
         y = reference.y;
         break;
       case "left-bottom":
-        x = reference.x - floating.width - margin;
+        x = reference.x - floating.width - referenceMargin;
         y = reference.y + reference.height - floating.height;
         break;
     }
@@ -112,10 +115,25 @@ export function getFloatingPosition(
   }
 
   // fit floating to container bounds
-  x = Math.max(container.x + margin, Math.min(container.x + container.width - floating.width - margin, x));
-  y = Math.max(container.y + margin, Math.min(container.y + container.height - floating.height - margin, y));
+  x = Math.max(
+    container.x + containerMargin,
+    Math.min(container.x + container.width - floating.width - containerMargin, x),
+  );
+  y = Math.max(
+    container.y + containerMargin,
+    Math.min(container.y + container.height - floating.height - containerMargin, y),
+  );
 
   return { x, y, placement };
+}
+
+/** Finds the closest floating container */
+export function findFloatingContainer(el: HTMLElement | SVGElement | null): HTMLElement | SVGElement | null {
+  while (el != null) {
+    if (el.hasAttribute("data-root-element")) return el;
+    el = el.parentElement;
+  }
+  return null;
 }
 
 /**
@@ -139,15 +157,6 @@ export function useFloating(float: {
   const arrowPosition = shallowRef({ x: 0, y: 0 } as { x: number; y: number } | null);
   const foundContainer = shallowRef<HTMLElement | SVGElement | null | undefined>(unrefElement(float.container));
 
-  // finds the closest annotated root container
-  const findContainer = (el: HTMLElement | SVGElement | null) => {
-    while (el != null) {
-      if (el.hasAttribute("data-root-element")) return el as HTMLElement;
-      el = el.parentElement;
-    }
-    return null;
-  };
-
   // recomputes & applies the floating (and arrow) position
   const recompute = () => {
     // get elements bounding
@@ -156,19 +165,19 @@ export function useFloating(float: {
     const floatingRect = floating.getBoundingClientRect();
     const referenceRect = reference.getBoundingClientRect();
     if (foundContainer.value === undefined) {
-      foundContainer.value = findContainer(floating);
+      foundContainer.value = findFloatingContainer(floating);
     }
     const containerRect =
       foundContainer.value?.getBoundingClientRect() ?? document.documentElement.getBoundingClientRect();
 
     // recompute positions in fixed coordinate space
-    const options = { placement: "top", margin: 0, arrow: false, ...optionsRef.value } as FloatingOptions;
-    const { x, y } = getFloatingPosition(
-      { width: floatingRect.width, height: floatingRect.height },
-      { x: referenceRect.x, y: referenceRect.y, width: referenceRect.width, height: referenceRect.height },
-      { x: containerRect.x, y: containerRect.y, width: containerRect.width, height: containerRect.height },
+    const options = { placement: "top", arrow: false, ...optionsRef.value } as FloatingOptions;
+    const { x, y } = getFloatingPosition({
+      floating: { width: floatingRect.width, height: floatingRect.height },
+      reference: referenceRect,
+      container: containerRect,
       options,
-    );
+    });
     floatingPosition.value = { x, y };
 
     // apply positions (fixed)
