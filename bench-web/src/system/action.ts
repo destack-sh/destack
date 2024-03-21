@@ -97,7 +97,7 @@ export const ACTION_BUILTIN_IDS = [
   "user.login",
   "user.logout",
   "user.activate",
-  "user.goHome",
+  "user.goToHome",
   "organization.create",
   "bench.create",
 ] as const;

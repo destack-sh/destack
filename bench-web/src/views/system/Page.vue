@@ -26,7 +26,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 );
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
-canvas.registerCurrent(self);
+canvas.registerSelf(self);
 defineExpose({ self });
 </script>
 <template>

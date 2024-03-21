@@ -162,7 +162,7 @@ contributeActionMap<"user">({
     action: () =>
       canvas.upsertView({ type: ViewType.BENCH_WIZARD, icon: "fas fa-rocket-launch", title: "Activate Bench" }),
   },
-  "user.goHome": {
+  "user.goToHome": {
     icon: "fas fa-home",
     enabled: isActivated,
     title: "Go to My Bench",

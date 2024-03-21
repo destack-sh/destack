@@ -42,6 +42,7 @@ watch(
 
 async function submit() {
   isActive.value = true;
+  lastError.value = null;
   try {
     if (!user.value) throw new Error("no active user");
     await createBench({ owner: toNodeReference(user.value), slug: slug.value, region: region.value, isMain: true });
@@ -52,7 +53,7 @@ async function submit() {
   }
 }
 
-const instance = canvas.registerCurrent(self);
+const instance = canvas.registerSelf(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {

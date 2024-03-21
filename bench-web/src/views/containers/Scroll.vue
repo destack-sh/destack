@@ -3,7 +3,7 @@ import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { makeViewId } from "@/views";
-import { type ViewExposed, viewEmits } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, ref, toRef, watch } from "vue";
 
@@ -44,7 +44,7 @@ watch([isManualScrolling, isNativeScrolling], () => {
 });
 
 const id = makeViewId(props);
-canvas.registerCurrent(self, id);
+canvas.registerSelf(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>

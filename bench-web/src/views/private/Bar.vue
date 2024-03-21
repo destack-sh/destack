@@ -20,10 +20,10 @@ const props = defineProps<{
     <div class="flex flex-shrink-0">
       <!-- Bench -->
       <button class="rounded-md border border-gray-300 bg-white px-2 py-1" v-if="bench">Bench</button>
-      <button v-else class="rounded-md border border-gray-300 bg-white px-2 py-1">
+      <div v-else class="select-none rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300">
         <span class="font-semibold">Bench</span>
         <span class="ml-1 pl-0.5 font-semibold underline decoration-primary-400 decoration-2">Beta</span>
-      </button>
+      </div>
       <!-- Status -->
       <!-- ... -->
     </div>

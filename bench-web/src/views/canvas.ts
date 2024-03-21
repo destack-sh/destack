@@ -331,14 +331,15 @@ export class ViewCanvas {
     return computed(() => this.isFocusedAbsolute(view.value));
   }
 
-  /** Registers the current Vue instance as the given identity */
-  registerCurrent(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
+  /** Registers the current Vue instance in the canvas with some identity */
+  registerSelf(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
     // mark element with component
     onMounted(() => {
-      if ((instance as any).vnode.el == null) console.warn("canvas.missingEl", instance);
+      // we enforce that el must be a single element
+      if ((instance as any).vnode.el == null) console.warn("canvas.missingEl", getVueComponentType(instance), instance);
       else (instance as any).vnode.el.__viewComponent = instance;
     });
 

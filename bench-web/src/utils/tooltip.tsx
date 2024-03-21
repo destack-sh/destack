@@ -27,7 +27,7 @@ const KEY_ICONS_FA: Record<string, string | undefined> = {
 const KEY_ICONS_TEXT: Record<string, string> = {
   shift: "⇧",
 };
-export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props, context) => {
+export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
   const parsed = computed(() => parseKeymapSignature(props.shortcut));
   return (
     // Shortcut
@@ -64,7 +64,7 @@ export const Tooltip: FunctionalComponent<{
   text: string;
   shortcut?: string;
   position: string;
-}> = (props, context) => {
+}> = (props) => {
   const icon = typeof props.icon === "string" ? makeIcon({ name: props.icon }) : props.icon;
   const element = (
     <div

@@ -43,14 +43,16 @@ function setState(newState: State) {
   canvas.focusInComponent(self.value);
 }
 
-// sync state with user
+// sync state from user & title
 watch(
-  user,
+  [user, () => props.title],
   () => {
     if (user.value) {
       setState("all-set");
     } else if (state.value == "all-set") {
       setState("log-in");
+    } else if (STATE_BY_TITLE[props.title ?? ""] != null) {
+      setState(STATE_BY_TITLE[props.title ?? ""]!);
     }
   },
   { immediate: true },
@@ -58,6 +60,7 @@ watch(
 
 async function submit() {
   isActive.value = true;
+  lastError.value = null;
   try {
     if (state.value == "sign-up") {
       await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
@@ -73,7 +76,7 @@ async function submit() {
   }
 }
 
-const instance = canvas.registerCurrent(self);
+const instance = canvas.registerSelf(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {

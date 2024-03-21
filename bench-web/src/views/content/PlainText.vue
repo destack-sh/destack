@@ -18,7 +18,7 @@ const modelValue = defineModel<string>();
 const inputRef = ref<HTMLInputElement | null>(null);
 
 const id = makeViewId(props);
-canvas.registerCurrent(self, id);
+canvas.registerSelf(self, id);
 defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
 </script>
 <template>
