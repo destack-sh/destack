@@ -2,6 +2,7 @@
 import { NodeReferenceData, Variant, ViewData } from "@/proto/wire";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
+import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, toRef, type Ref, ref } from "vue";

@@ -2,11 +2,12 @@ import type { IconData, TextData } from "@/proto/wire";
 import type { Action } from "@/system/action";
 import { makeIcon, toIconMaybe } from "@/system/icon";
 import { isOnMac } from "@/utils/browser";
-import type { FloatingOptions } from "@/utils/floating";
+import type { FloatingOptions, FloatingPlacement } from "@/utils/floating";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
+import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
-import { computed, type FunctionalComponent, type Directive } from "vue";
+import { computed, type FunctionalComponent, type Directive, type Component, shallowRef, type Ref } from "vue";
 
 const IS_ON_MAC = isOnMac(window);
 const KEY_ICONS_FA: Record<string, string | undefined> = {
@@ -62,19 +63,20 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
 const DEFAULT_SHOW_DELAY = 500;
 const DEFAULT_HIDE_DELAY = 300;
 
-export type TooltipInfo = FloatingOptions & {
-  icon?: string | IconData;
+export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
+  icon?: string;
   title?: string;
   text: string | TextData;
   arrow?: boolean;
   shortcuts?: string[];
   showDelay?: number;
   hideDelay?: number;
+  placement?: FloatingPlacement;
 };
 
 export function tooltipFromAction(action: Action): TooltipInfo {
   return {
-    icon: action.icon,
+    icon: action.icon?.name,
     title: action.title,
     text: action.text,
     shortcuts: action.shortcuts,
@@ -83,36 +85,76 @@ export function tooltipFromAction(action: Action): TooltipInfo {
   };
 }
 
-// <!-- nocheckin: (detached) tooltips & floating shit -->
-export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
+/** Store state on the triggering element */
+interface TooltipElement extends HTMLElement {
+  tooltipInstance?: TooltipInstance;
+  tooltipShowTimeout?: number;
+  tooltipHideTimeout?: number;
+  tooltipEventListeners?: { [event: string]: EventListener };
+}
 
+/** An active instance of a tooltip */
+export type TooltipInstance = {
+  id: number;
+  info: TooltipInfo;
+  reference: HTMLElement;
 };
 
-// TODO :UI: position & animate tooltips better
-// TODO :UI :Performance: create (and destroy) tooltip element on the fly
-export const Tooltip: FunctionalComponent<
-  TooltipInfo & {
-    reference: MaybeElement;
-  }
-> = (props) => {
-  const icon = toIconMaybe(props.icon);
-  const element = (
-    <div
-      class={
-        "z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-md shadow-gray-300 transition-opacity group-hover:opacity-100"
-      }
-    >
-      {/* Header */}
-      {props.icon || props.title ? (
-        <p class="mb-0.5 flex flex-row items-center gap-x-1.5">
-          {icon?.name ? <i class={`text-gray-600 ${icon.name}`} /> : null}
-          {props.title ? <h3 class="font-semibold">{props.title}</h3> : null}
-          <span class="ml-auto">{props.shortcuts ? <Shortcut shortcut={props.shortcuts[0]} /> : null}</span>
-        </p>
-      ) : null}
-      {/* Content */}
-      <p>{props.text}</p>
-    </div>
-  );
-  return element;
+let tooltipId = 0;
+function createTooltipInstance(reference: TooltipElement, info: TooltipInfo): TooltipInstance {
+  const instance = { id: tooltipId++, info, reference };
+  activeTooltips.value = [...activeTooltips.value, instance];
+  return instance;
+}
+
+function destroyTooltipInstance(instance: TooltipInstance) {
+  activeTooltips.value = activeTooltips.value.filter((t) => t !== instance);
+}
+
+export const activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
+
+/** Simple tooltip directive that shows/hides itself on hover with a delay*/
+export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
+  mounted(el, binding) {
+    const tooltipEl = el as TooltipElement;
+    const showDelay = binding.value.showDelay ?? DEFAULT_SHOW_DELAY;
+    const hideDelay = binding.value.hideDelay ?? DEFAULT_HIDE_DELAY;
+
+    // create a new tooltip instance if hovered for a while
+    const onMouseEnter = () => {
+      if (tooltipEl.tooltipShowTimeout != null) clearTimeout(tooltipEl.tooltipShowTimeout);
+      tooltipEl.tooltipShowTimeout = window.setTimeout(() => {
+        tooltipEl.tooltipInstance = createTooltipInstance(tooltipEl, binding.value);
+      }, showDelay);
+    };
+    const onMouseLeave = () => {
+      if (tooltipEl.tooltipShowTimeout != null) clearTimeout(tooltipEl.tooltipShowTimeout);
+      tooltipEl.tooltipHideTimeout = window.setTimeout(() => {
+        destroyTooltipInstance(tooltipEl.tooltipInstance!);
+      }, hideDelay);
+    };
+    tooltipEl.tooltipEventListeners = { mouseenter: onMouseEnter, mouseleave: onMouseLeave };
+    tooltipEl.addEventListener("mouseenter", onMouseEnter);
+    tooltipEl.addEventListener("mouseleave", onMouseLeave);
+  },
+
+  updated(el, binding) {
+    const tooltipEl = el as TooltipElement;
+    if (tooltipEl.tooltipInstance != null) {
+      tooltipEl.tooltipInstance.info = binding.value;
+    }
+  },
+
+  unmounted(el) {
+    const tooltipEl = el as TooltipElement;
+    if (tooltipEl.tooltipShowTimeout != null) {
+      clearTimeout(tooltipEl.tooltipShowTimeout);
+    }
+    if (tooltipEl.tooltipHideTimeout != null) {
+      clearTimeout(tooltipEl.tooltipHideTimeout);
+    }
+    if (tooltipEl.tooltipInstance != null) {
+      activeTooltips.value = activeTooltips.value.filter((t) => t !== tooltipEl.tooltipInstance);
+    }
+  },
 };
