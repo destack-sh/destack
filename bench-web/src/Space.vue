@@ -8,6 +8,7 @@ import Windowed from "@/views/containers/Windowed.vue";
 import Bar from "@/views/private/Bar.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
+import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -34,7 +35,7 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDragging ? 'pointer-events-none yselect-none' : '']"
+    :class="[isDragging ? 'yselect-none pointer-events-none' : '']"
   >
     <!-- Bar -->
     <Bar
@@ -59,6 +60,7 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
     />
     <!-- Overlays -->
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
+    <TooltipOverlay />
     <Omnibar ref="omnibarRef" :box="mainBox" />
   </div>
 </template>

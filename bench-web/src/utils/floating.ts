@@ -19,8 +19,6 @@ export type FloatingPlacement =
 export type FloatingOptions = {
   placement: FloatingPlacement; // relative to the reference
   margin?: number; // relative to the container and reference
-  arrow?: boolean; // whether to include an arrow pointing to the reference
-  arrowMargin?: number; // relative to the floating element
 };
 
 /**
@@ -32,8 +30,7 @@ export function getFloatingPosition(
   reference: { x: number; y: number; width: number; height: number },
   container: { x: number; y: number; width: number; height: number },
   options: FloatingOptions,
-  arrow?: { width: number; height: number },
-): { x: number; y: number; placement: FloatingPlacement; arrow?: { x: number; y: number } } {
+): { x: number; y: number; placement: FloatingPlacement } {
   let x = 0;
   let y = 0;
   const margin = options.margin ?? 0;
@@ -118,35 +115,7 @@ export function getFloatingPosition(
   x = Math.max(container.x + margin, Math.min(container.x + container.width - floating.width - margin, x));
   y = Math.max(container.y + margin, Math.min(container.y + container.height - floating.height - margin, y));
 
-  // calculate arrow position
-  // (relative to new placement's center of reference, up to the floating bounds - margin)
-  let arrowPosition: { x: number; y: number } | undefined;
-  if (options.arrow) {
-    if (arrow == null) throw new Error("arrow is required for arrow placement");
-    // get target reference center
-    let referenceCenter: { x: number; y: number };
-    if (placement.startsWith("top")) {
-      referenceCenter = { x: reference.x + reference.width / 2, y: reference.y };
-    } else if (placement.startsWith("right")) {
-      referenceCenter = { x: reference.x + reference.width, y: reference.y + reference.height / 2 };
-    } else if (placement.startsWith("bottom")) {
-      referenceCenter = { x: reference.x + reference.width / 2, y: reference.y + reference.height };
-    } /* left */ else {
-      referenceCenter = { x: reference.x, y: reference.y + reference.height / 2 };
-    }
-    arrowPosition = { x: referenceCenter.x, y: referenceCenter.y };
-
-    // bound arrow to floating bounds
-    const arrowMargin = options.arrowMargin ?? 0;
-    arrowPosition.x = Math.max(x + arrowMargin, Math.min(x + floating.width - arrowMargin, arrowPosition.x));
-    arrowPosition.y = Math.max(y + arrowMargin, Math.min(y + floating.height - arrowMargin, arrowPosition.y));
-
-    // subtract arrow size
-    arrowPosition.y -= arrow.height / 2;
-    arrowPosition.x -= arrow.width / 2;
-  }
-
-  return { x, y, placement, arrow: arrowPosition };
+  return { x, y, placement };
 }
 
 /**
@@ -156,7 +125,7 @@ export function getFloatingPosition(
 export function useFloating(float: {
   floating: Ref<MaybeElement>;
   reference: Ref<MaybeElement>;
-  arrow?: Ref<MaybeElement>;
+  container?: MaybeElement;
   options?: MaybeRef<Partial<FloatingOptions>>;
   enabled?: Ref<boolean>;
   watchElements?: boolean;
@@ -168,7 +137,7 @@ export function useFloating(float: {
   const optionsRef = toRef(float.options ?? shallowRef({})) as Ref<Partial<FloatingOptions>>;
   const floatingPosition = shallowRef({ x: 0, y: 0 });
   const arrowPosition = shallowRef({ x: 0, y: 0 } as { x: number; y: number } | null);
-  const foundContainer = shallowRef<HTMLElement | null | undefined>(undefined);
+  const foundContainer = shallowRef<HTMLElement | SVGElement | null | undefined>(unrefElement(float.container));
 
   // finds the closest annotated root container
   const findContainer = (el: HTMLElement | SVGElement | null) => {
@@ -184,10 +153,8 @@ export function useFloating(float: {
     // get elements bounding
     const floating = getElement(float.floating.value);
     const reference = getElement(float.reference.value);
-    const arrow = float.arrow?.value != null ? getElement(float.arrow.value) : null;
     const floatingRect = floating.getBoundingClientRect();
     const referenceRect = reference.getBoundingClientRect();
-    const arrowRect = arrow?.getBoundingClientRect();
     if (foundContainer.value === undefined) {
       foundContainer.value = findContainer(floating);
     }
@@ -196,34 +163,19 @@ export function useFloating(float: {
 
     // recompute positions in fixed coordinate space
     const options = { placement: "top", margin: 0, arrow: false, ...optionsRef.value } as FloatingOptions;
-    if (float.arrow != null) options.arrow = true;
-    const {
-      x,
-      y,
-      arrow: newArrowPosition,
-    } = getFloatingPosition(
+    const { x, y } = getFloatingPosition(
       { width: floatingRect.width, height: floatingRect.height },
       { x: referenceRect.x, y: referenceRect.y, width: referenceRect.width, height: referenceRect.height },
       { x: containerRect.x, y: containerRect.y, width: containerRect.width, height: containerRect.height },
       options,
-      arrowRect,
     );
     floatingPosition.value = { x, y };
-    arrowPosition.value = newArrowPosition ?? null;
 
     // apply positions (fixed)
     // TODO :Robustness: :UI: use absolute positioning for floating elements
     floating.style.position = "fixed";
     floating.style.left = `${x}px`;
     floating.style.top = `${y}px`;
-    if (arrow != null && arrowPosition.value != null) {
-      const arrowElement = unrefElement(float.arrow);
-      if (arrowElement != null) {
-        arrowElement.style.position = "fixed";
-        arrowElement.style.left = `${arrowPosition.value.x}px`;
-        arrowElement.style.top = `${arrowPosition.value.y}px`;
-      }
-    }
   };
 
   // recompute if the refs change (ignore element positions/size changes by default)
