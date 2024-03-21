@@ -96,6 +96,10 @@ export const ACTION_BUILTIN_IDS = [
   "user.signup",
   "user.login",
   "user.logout",
+  "user.activate",
+  "user.goHome",
+  "organization.create",
+  "bench.create",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -442,7 +446,7 @@ declareActionMap<"common">({
     icon: "fas fa-square-right",
     title: "Move Right",
     text: "Move right",
-    shortcuts: ["mod+right", "tab"], // :TabKey
+    shortcuts: ["mod+right", "tab"],
   },
   // sense
   "common.sense.goToDefinition": {

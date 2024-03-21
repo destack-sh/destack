@@ -4,7 +4,7 @@ import type { FunctionalComponent } from "vue";
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "name">> = (props) => {
   if (props.name) {
     // font awesome
-    return <i class={props.name + ' w-[18px] text-center'} />;
+    return <i class={props.name + " w-[18px] text-center"} />;
   } else if (props.emoji) {
     return <span>{props.emoji}</span>;
   } else {
@@ -12,9 +12,12 @@ export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "
   }
 };
 
-export function makeIcon(icon: Pick<IconData, "emoji" | "file" | "name">): IconData {
+type IconIn = string | Pick<IconData, "emoji" | "file" | "name">;
+export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
-  if (icon.emoji) {
+  if (typeof icon == "string") {
+    return { metatype: BenchType.ICON, kind: IconKind.FONT_AWESOME, name: icon, setProperties: [] };
+  } else if (icon.emoji) {
     kind = IconKind.EMOJI;
   } else if (icon.file) {
     kind = IconKind.FILE;
@@ -29,4 +32,9 @@ export function makeIcon(icon: Pick<IconData, "emoji" | "file" | "name">): IconD
     ...icon,
     setProperties: [],
   };
+}
+
+export function toIconMaybe(icon?: IconIn | null): IconData | undefined {
+  if (icon == null) return undefined;
+  return makeIcon(icon);
 }

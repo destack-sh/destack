@@ -1,7 +1,16 @@
 import { supervisor } from "@/proto/services";
-import { ClientData, NodeReferenceData, NodeType, Region, UserData, ViewData, ViewType } from "@/proto/wire";
+import {
+  ClientData,
+  NodeReferenceData,
+  NodeType,
+  Region,
+  UserData,
+  UserStatus,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
-import { contributeActionMap } from "@/system/action";
+import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { clientInfo, clientMeta, userInfo } from "@/system/local";
@@ -33,6 +42,7 @@ export const client = userGraph.getRef(
   computed(() => (clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: clientInfo.value.id })),
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
+export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 
 function makeCurrentClient(): ClientData {
   return makeNode({
@@ -52,7 +62,6 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
     id: info.client.id,
     accessToken: info.accessToken,
   };
-  toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged in" });
 }
 
 /**
@@ -69,6 +78,7 @@ export async function signUp(userIn: { name?: string; slug: string; email: strin
   });
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
+  toaster.info({ icon: "fas fa-right-from-bracket", title: "Signed Up", text: `Welcome, ${user.slug}.` });
 }
 
 /**
@@ -81,6 +91,7 @@ export async function logIn(userIn: { slug: string } | { email: string }, passwo
   } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() });
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
+  toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged In", text: `Welcome back, ${user.slug}.` });
 }
 
 /**
@@ -97,7 +108,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
     log.info("user.logout", options);
     userInfo.value = null;
     clientInfo.value = null;
-    toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out" });
+    toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
 
@@ -122,11 +133,7 @@ export async function createBench(benchIn: {
 }
 
 function userWizardView(view: { title: string }): ViewDataIn {
-  return {
-    type: ViewType.USER_WIZARD,
-    icon: makeIcon({ name: "fas fa-right-from-bracket" }),
-    ...view,
-  };
+  return { type: ViewType.USER_WIZARD, icon: "fas fa-right-from-bracket", ...view };
 }
 
 contributeActionMap<"user">({
@@ -134,20 +141,31 @@ contributeActionMap<"user">({
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     enabled: isUnauthenticated,
-    action: () => canvas.addView(userWizardView({ title: "Sign Up" }), { ifPresent: "upsertAndFocus" }),
+    action: () => canvas.upsertView(userWizardView({ title: "Sign Up" })),
   },
   "user.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     enabled: isUnauthenticated,
-    action: () => {
-      canvas.addView(userWizardView({ title: "Log In" }), { ifPresent: "upsertAndFocus" });
-    },
+    action: () => canvas.upsertView(userWizardView({ title: "Log In" })),
   },
   "user.logout": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out",
     enabled: isAuthenticated,
     action: () => logOut(),
+  },
+  "user.activate": {
+    icon: "fas fa-rocket-launch",
+    enabled: computed(() => isAuthenticated.value && !isActivated.value),
+    title: "Activate Bench",
+    action: () =>
+      canvas.upsertView({ type: ViewType.BENCH_WIZARD, icon: "fas fa-rocket-launch", title: "Activate Bench" }),
+  },
+  "user.goHome": {
+    icon: "fas fa-home",
+    enabled: isActivated,
+    title: "Go to My Bench",
+    action: ACTION_COMING_SOON,
   },
 });
