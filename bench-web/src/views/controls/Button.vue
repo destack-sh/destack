@@ -20,14 +20,16 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({
   // prominent filled button
   [Variant.V1]: [
-    "rounded-md border border-gray-900 px-2 py-1 shadow-sm shadow-gray-900",
+    "rounded-md border border-gray-900 shadow-sm shadow-gray-900",
+    props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-600 bg-primary-200 hover:cursor-not-allowed"
       : "text-gray-900 bg-primary-300 hover:bg-primary-400 focus:shadow-primary-600",
   ],
   // outline button
   [Variant.V2]: [
-    "rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300",
+    "rounded-md border border-gray-300 bg-white shadow-sm shadow-gray-300",
+    props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-700 bg-gray-50 hover:cursor-not-allowed"
       : "text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600",

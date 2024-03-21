@@ -5,14 +5,13 @@ import Space from "./Space.vue";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
-import { createHead } from "@unhead/vue";
 import { registerViewComponents } from "@/views";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
+import { TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
 
 async function init() {
   const app = createApp(Space);
-  app.use(createHead());
 
   // sentry / posthog instrumentation
   posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
@@ -49,8 +48,6 @@ async function init() {
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
-  await registerViewComponents();
-
   // set vue stuff
   if (IS_DEBUG) {
     app.config.performance = true;
@@ -59,8 +56,10 @@ async function init() {
     console.error(err);
     toaster.error({ title: "Internal error", text: (err as any).message ?? info });
   };
+  app.directive("tooltip", TOOLTIP_DIRECTIVE)
 
   // start our own stuff
+  await registerViewComponents();
   toaster.run();
   keytrap.track(document); // ensure it's always running
   // suppress save everywhere

@@ -1,9 +1,12 @@
-import type { IconData } from "@/proto/wire";
-import { makeIcon } from "@/system/icon";
+import type { IconData, TextData } from "@/proto/wire";
+import type { Action } from "@/system/action";
+import { makeIcon, toIconMaybe } from "@/system/icon";
 import { isOnMac } from "@/utils/browser";
+import type { FloatingOptions } from "@/utils/floating";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
 import { Casing, toCasing } from "@/utils/string";
-import { computed, type FunctionalComponent } from "vue";
+import type { MaybeElement } from "@vueuse/core";
+import { computed, type FunctionalComponent, type Directive } from "vue";
 
 const IS_ON_MAC = isOnMac(window);
 const KEY_ICONS_FA: Record<string, string | undefined> = {
@@ -56,30 +59,58 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
   );
 };
 
-// TODO :UI: position & animate tooltips better
-// TODO :UI :Performance: create (and destroy) tooltip element on the fly
-export const Tooltip: FunctionalComponent<{
+const DEFAULT_SHOW_DELAY = 500;
+const DEFAULT_HIDE_DELAY = 300;
+
+export type TooltipInfo = FloatingOptions & {
   icon?: string | IconData;
   title?: string;
-  text: string;
-  shortcut?: string;
-  position: string;
-}> = (props) => {
-  const icon = typeof props.icon === "string" ? makeIcon({ name: props.icon }) : props.icon;
+  text: string | TextData;
+  arrow?: boolean;
+  shortcuts?: string[];
+  showDelay?: number;
+  hideDelay?: number;
+};
+
+export function tooltipFromAction(action: Action): TooltipInfo {
+  return {
+    icon: action.icon,
+    title: action.title,
+    text: action.text,
+    shortcuts: action.shortcuts,
+    arrow: true,
+    placement: "top",
+  };
+}
+
+// <!-- nocheckin: (detached) tooltips & floating shit -->
+export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
+
+};
+
+// TODO :UI: position & animate tooltips better
+// TODO :UI :Performance: create (and destroy) tooltip element on the fly
+export const Tooltip: FunctionalComponent<
+  TooltipInfo & {
+    reference: MaybeElement;
+  }
+> = (props) => {
+  const icon = toIconMaybe(props.icon);
   const element = (
     <div
       class={
-        props.position +
-        " pointer-events-none absolute z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-md shadow-gray-300 transition-opacity group-hover:opacity-100"
+        "z-30 min-w-fit max-w-60 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-left text-gray-700 opacity-0 shadow-md shadow-gray-300 transition-opacity group-hover:opacity-100"
       }
     >
+      {/* Header */}
       {props.icon || props.title ? (
         <p class="mb-0.5 flex flex-row items-center gap-x-1.5">
           {icon?.name ? <i class={`text-gray-600 ${icon.name}`} /> : null}
           {props.title ? <h3 class="font-semibold">{props.title}</h3> : null}
-          <span class="ml-auto">{props.shortcut ? <Shortcut shortcut={props.shortcut} /> : null}</span>
+          <span class="ml-auto">{props.shortcuts ? <Shortcut shortcut={props.shortcuts[0]} /> : null}</span>
         </p>
       ) : null}
+      {/* Content */}
       <p>{props.text}</p>
     </div>
   );

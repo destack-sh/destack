@@ -1,5 +1,18 @@
-import { unrefElement, type MaybeComputedElementRef } from "@vueuse/core";
-import { onUpdated, ref, watch, type Ref, inject, computed } from "vue";
+import {
+  unrefElement,
+  type MaybeComputedElementRef,
+  type MaybeElement,
+  useResizeObserver,
+  useMutationObserver,
+  useEventListener,
+  tryOnMounted,
+} from "@vueuse/core";
+import { onUpdated, ref, watch, type Ref, inject, computed, type Component, type ComponentInstance } from "vue";
+
+export function getElement(el: MaybeElement) {
+  if (el instanceof HTMLElement || el instanceof SVGElement) return el;
+  else return (el as ComponentInstance<any>).subTree?.el as HTMLElement;
+}
 
 export function useElementSize(target: MaybeComputedElementRef) {
   /* 
@@ -31,77 +44,51 @@ export function useElementSize(target: MaybeComputedElementRef) {
   };
 }
 
-export const VIEW_MARGIN = 8;
+export interface UseElementBoundingOptions {
+  windowResize?: boolean;
+  /**
+   * Listen to window scroll event
+   *
+   * @default true
+   */
+  windowScroll?: boolean;
 
-export function pinAbsoluteElement(
-  target: Ref<HTMLElement | any | null>,
-  fix: {
-    pos?: boolean;
-    width?: boolean;
-    height?: boolean;
-    keepInView?: boolean;
-    sourcePos?: Ref<{ x: number; y: number } | null>;
-  },
+  /**
+   * Immediately call update on component mounted
+   *
+   * @default true
+   */
+  immediate?: boolean;
+}
+
+/**
+ * React to an element's bounding rect changes.
+ */
+export function watchElementBounding(
+  target: MaybeComputedElementRef,
+  callback: (el: HTMLElement | SVGElement) => void,
+  options: {
+    windowResize?: boolean;
+    windowScroll?: boolean;
+  } = {},
 ) {
-  // fixes the element at the first available position
-  const fixed: Ref<{ x: number; y: number; width: number; height: number } | null> = ref(null);
-  // const panelContext = inject<PanelContext<any> | null>(PANEL_CONTEXT, null);
-  const view: any = () => {
-    throw new Error("not yet implemented - where to get view context?");
-    return {} as any;
-  };
-  if (fix.keepInView && view == null) {
-    throw new Error("keepInView requires editor context");
-  }
-  if (fix.keepInView && !fix.pos) {
-    throw new Error("keepInView requires pos");
-  }
+  const { windowResize = true, windowScroll = true } = options;
 
-  watch([target, () => fix.sourcePos?.value, () => view?.pos.value, () => view?.size.value], () => {
+  function trigger() {
     const el = unrefElement(target);
-    if (el == null && fixed.value != null) fixed.value = null; // reset
-    if (el == null) return; // no element
-    if (fixed.value != null && !fix.keepInView) return; // already fixed
-    // (re)fix element in view
-    const rect = el.getBoundingClientRect();
-    if (fix.sourcePos?.value != null) {
-      // use given pos
-      rect.x = fix.sourcePos.value.x;
-      rect.y = fix.sourcePos.value.y;
-    }
-    fixed.value = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-    if (fix.keepInView && view != null) {
-      const cpos = view.pos.value;
-      const crect = view.size.value;
-      if (rect.x + rect.width > cpos.left + crect.width - VIEW_MARGIN) {
-        // crosses on the right, move left
-        fixed.value.x -= rect.right - (cpos.left + crect.width - VIEW_MARGIN);
-      }
-      if (rect.y + rect.height > cpos.top + crect.height - VIEW_MARGIN) {
-        // crosses on the bottom, move up
-        fixed.value.y -= rect.bottom - (cpos.top + crect.height - VIEW_MARGIN);
-      }
-      if (rect.left < cpos.left + VIEW_MARGIN) {
-        // crosses on the left, move right
-        fixed.value.x += cpos.left + VIEW_MARGIN - rect.left;
-      }
-      if (rect.top < cpos.top + VIEW_MARGIN) {
-        // crosses on the top, move down
-        fixed.value.y += cpos.top + VIEW_MARGIN - rect.top;
-      }
-    }
+    if (el != null) callback(el);
+  }
 
-    if (fix.pos) {
-      el.style.position = "fixed";
-      el.style.left = `${fixed.value.x}px`;
-      el.style.top = `${fixed.value.y}px`;
-    }
-    if (fix.width) el.style.width = `${rect.width}px`;
-    if (fix.height) el.style.height = `${rect.height}px`;
+  useResizeObserver(target, trigger);
+  watch(
+    () => unrefElement(target),
+    (ele) => !ele && trigger(),
+  );
+  // trigger by css or style
+  useMutationObserver(target, trigger, {
+    attributeFilter: ["style", "class"],
   });
 
-  return {
-    fixed,
-    pinned: computed(() => fixed.value != null),
-  };
+  if (windowScroll) useEventListener("scroll", trigger, { capture: true, passive: true });
+  if (windowResize) useEventListener("resize", trigger, { passive: true });
 }

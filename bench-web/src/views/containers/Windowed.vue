@@ -97,6 +97,7 @@ defineExpose<ViewExposed>({ self, actions });
           width: width + 'px',
           height: height + 'px',
         }"
+        data-root-element="true"
       >
         <!-- Frame content -->
         <component

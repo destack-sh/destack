@@ -70,6 +70,9 @@ export function toCasing(name: string, casing: Casing, allowWhitespace: boolean 
       return name;
     }
     name = name.replace(/[^a-zA-Z0-9]/g, " ");
+    if (/^[A-Z ]+$/.test(name)) {
+      name = name.toLowerCase();
+    }
     name = name.split(/(?<=[a-z])(?=[A-Z0-9])/g).join(" ");
     name = stripAlphaNum(name).replace(/\b\w/g, (char) => char.toUpperCase());
     if (allowWhitespace) {
