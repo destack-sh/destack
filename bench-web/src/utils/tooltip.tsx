@@ -1,8 +1,8 @@
-import type { IconData, TextData } from "@/proto/wire";
+import type { IconData, LogLevel, TextData } from "@/proto/wire";
 import type { Action } from "@/system/action";
 import { makeIcon, toIconMaybe } from "@/system/icon";
 import { isOnMac } from "@/utils/browser";
-import type { FloatingOptions, FloatingPlacement } from "@/utils/floating";
+import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
@@ -97,11 +97,16 @@ interface TooltipElement extends HTMLElement {
 export type TooltipInstance = {
   id: number;
   info: TooltipInfo;
-  reference: HTMLElement;
+  reference: HTMLElement | SVGElement;
+  container?: HTMLElement | SVGElement;
 };
 
 let tooltipId = 0;
-function createTooltipInstance(reference: TooltipElement, info: TooltipInfo): TooltipInstance {
+function createTooltipInstance(
+  reference: TooltipElement,
+  container: HTMLElement | SVGElement | undefined,
+  info: TooltipInfo,
+): TooltipInstance {
   const instance = { id: tooltipId++, info, reference };
   activeTooltips.value = [...activeTooltips.value, instance];
   return instance;
@@ -122,9 +127,10 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
 
     // create a new tooltip instance if hovered for a while
     const onMouseEnter = () => {
+      const container = findFloatingContainer(tooltipEl) ?? undefined;
       if (tooltipEl.tooltipShowTimeout != null) clearTimeout(tooltipEl.tooltipShowTimeout);
       tooltipEl.tooltipShowTimeout = window.setTimeout(() => {
-        tooltipEl.tooltipInstance = createTooltipInstance(tooltipEl, binding.value);
+        tooltipEl.tooltipInstance = createTooltipInstance(tooltipEl, container, binding.value);
       }, showDelay);
     };
     const onMouseLeave = () => {

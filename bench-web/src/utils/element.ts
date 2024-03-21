@@ -1,13 +1,12 @@
 import {
   unrefElement,
+  useEventListener,
+  useMutationObserver,
+  useResizeObserver,
   type MaybeComputedElementRef,
   type MaybeElement,
-  useResizeObserver,
-  useMutationObserver,
-  useEventListener,
-  tryOnMounted,
 } from "@vueuse/core";
-import { onUpdated, ref, watch, type Ref, inject, computed, type Component, type ComponentInstance } from "vue";
+import { onUpdated, ref, watch, type ComponentInstance } from "vue";
 
 export function getElement(el: MaybeElement) {
   if (el instanceof HTMLElement || el instanceof SVGElement) return el;
