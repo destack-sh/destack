@@ -1,4 +1,11 @@
-export type FIlterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
+import { nextTick } from "vue";
+
+export type FilterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
+
+export function nextTickIf(delay: boolean | undefined, fn: () => void) {
+  if (delay) nextTick(() => fn());
+  else fn();
+}
 
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;

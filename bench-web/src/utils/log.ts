@@ -69,5 +69,5 @@ export class Logger {
   }
 }
 
-Logger.globalInstance = new Logger("global", IS_DEBUG ? LogLevel.TRACE : LogLevel.DEBUG);
+Logger.globalInstance = new Logger("global", IS_DEBUG ? LogLevel.TRACE : LogLevel.TRACE);
 export const log = Logger.globalInstance;

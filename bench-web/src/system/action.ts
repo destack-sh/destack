@@ -2,7 +2,7 @@ import type { IconData, NodeReferenceData, TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
-import type { FIlterPrefix as FilterPrefix } from "@/utils/functools";
+import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";

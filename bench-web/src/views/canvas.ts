@@ -166,7 +166,7 @@ export class ViewCanvas {
         this.onComponentFocused(activeElement.value);
     });
     // and any other element
-    useEventListener("mousedown", (e) => {
+    useEventListener(document, "mousedown", (e) => {
       if (e.target != null && e.target != activeElement.value && !isOutsideView(e.target as HTMLElement))
         this.onComponentFocused(e.target as HTMLElement);
     });
