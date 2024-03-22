@@ -54,7 +54,7 @@ async function init() {
   }
   app.config.errorHandler = (err, instance, info) => {
     console.error(err);
-    toaster.error({ title: "Internal error", text: (err as any).message ?? info });
+    toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE)
 

@@ -103,16 +103,16 @@ class ViewType(IdEnum):
     # selection
     TOGGLE = 650
     PICKER = 653
-    DATE = 654
-    TIME = 655
-    CALENDAR = 656
-    COLOR = 657
+    DATE = 656
+    TIME = 658
+    CALENDAR = 660
+    COLOR = 663
     # file
-    FILE = 660
-    ICON = 662
-    IMAGE = 663
-    VIDEO = 664
-    AUDIO = 665
+    FILE = 670
+    ICON = 672
+    IMAGE = 673
+    VIDEO = 674
+    AUDIO = 675
     ...
 
 
@@ -194,8 +194,8 @@ class Color(Struct):
 @_well_known_enum
 class FontType(IdEnum):
     SERIF = 1
-    SANS_SERIF = 2
-    MONOSPACE = 3
+    SANS = 2
+    MONO = 3
 
 
 @_well_known_enum

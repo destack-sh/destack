@@ -65,6 +65,7 @@ def on_invalid_raise(
 
 MAX_NAME_LENGTH = 128
 SLUG_REGEX = r"^[a-z0-9-]{3,}$"
+EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
 
 def validate_name(value: str, on_invalid: PropertyValidationHandler):
@@ -81,7 +82,14 @@ def validate_slug(value: str, on_invalid: PropertyValidationHandler):
         on_invalid(f"invalid slug ('{value}')")
 
 
-# TODO :Robustness: compile constraints into SQL
+def validate_email(value: str, on_invalid: PropertyValidationHandler):
+    if not isinstance(value, str):
+        on_invalid(f"not a string ({type(value)})")
+    if not re.match(EMAIL_REGEX, value):
+        on_invalid(f"invalid email ('{value}')")
+
+
+# TODO :Robustness: compile constraints into SQL?
 
 
 # NOTE: we cache these validators not for performance but for reference equality

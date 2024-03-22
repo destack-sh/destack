@@ -39,6 +39,32 @@ export type Operation<I extends object, O extends object> = {
 
 export type OperationError = RpcError | Error;
 
+export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
+  INVALID_ARGUMENT: "Invalid request",
+  OUT_OF_RANGE: "Invalid request",
+  NOT_FOUND: "Not found",
+  ALREADY_EXISTS: "Already exists",
+  UNAUTHENTICATED: "Not authenticated",
+  FAILED_PRECONDITION: "Cannot do this right now",
+  PERMISSION_DENIED: "Not allowed",
+  RESOURCE_EXHAUSTED: "Too many requests",
+  UNAVAILABLE: "Service unavailable",
+  NOT_IMPLEMENTED: "Not yet supported",
+  INTERNAL: "Internal server error",
+  CANCELLED: "Request cancelled",
+  DEADLINE_EXCEEDED: "Request timed out",
+};
+
+export function humanizeError(error: OperationError): { title: string, text: string} {
+  if (error instanceof RpcError) {
+    const title = HUMANIZED_OPERATION_STATUS[error.code] ?? "Server error";
+    return { title, text: error.message };
+  } else {
+    return { title: "Error", text: error.message };
+  }
+
+}
+
 const operationsTracker = {
   RECENT_BUFFER_SIZE: 1000,
 
@@ -79,7 +105,7 @@ const operationsTracker = {
         const { onAuthenticationError } = await import("@/system/user"); // recursive import
         onAuthenticationError(error);
       }
-      toaster.error({ title: "Server error", text: error.message })
+      toaster.error(humanizeError(error));
     };
 
     // subscribe to call events

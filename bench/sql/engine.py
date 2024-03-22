@@ -1992,7 +1992,7 @@ async def create_local_pg_store(store: Store) -> None:
         )
         await cur.connection.commit()
 
-    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start)
+    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start, store=store)
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
