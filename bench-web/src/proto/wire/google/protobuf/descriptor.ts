@@ -713,7 +713,7 @@ export interface MethodDescriptorProto {
 //   through 99999.  It is up to you to ensure that you do not use the
 //   same number for multiple options.
 // * For options which will be published and used publicly by multiple
-//   independent entities, e-mail protobuf-global-extension-canvas@google.com
+//   independent entities, e-mail protobuf-global-extension-registry@google.com
 //   to reserve extension numbers. Simply provide your project name (e.g.
 //   Objective-C plugin) and your project website (if available) -- there's no
 //   need to explain how you intend to use them. Usually you only need one

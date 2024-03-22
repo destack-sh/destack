@@ -53,9 +53,10 @@ export default {
       },
       colors: {
         primary: colors.amber,
-        secondary: colors.emerald,
+        secondary: colors.sky,
         accent: colors.amber,
         gray: colors.slate,
+        canvas: colors.slate,
         success: colors.lime,
         hint: colors.sky,
         warning: colors.yellow,

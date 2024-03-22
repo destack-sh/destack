@@ -4,8 +4,10 @@ import type { GraphConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { bench } from "@/system/space";
 import { user } from "@/system/user";
+import { menuItemFromAction } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
+import Menu from "@/views/private/Menu.vue";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;
@@ -19,7 +21,7 @@ const props = defineProps<{
     <!-- Left -->
     <div class="flex flex-shrink-0">
       <!-- Bench -->
-      <button v-if="bench" class="rounded-md border border-gray-300 bg-white px-2 py-1">Bench</button>
+      <button v-if="bench" class="rounded-md border border-gray-300 bg-white px-2 py-1">{{ bench.slug }}</button>
       <div
         v-else
         class="select-none rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm shadow-gray-300"
@@ -45,6 +47,56 @@ const props = defineProps<{
         <button class="rounded-md border border-gray-300 bg-white px-2 py-1 font-medium shadow-sm shadow-gray-300">
           {{ user.slug }}
         </button>
+        <Menu
+          class="absolute right-2 top-12 z-40"
+          title="User"
+          :items="[
+            menuItemFromAction('user.login'),
+            menuItemFromAction('user.logout'),
+            menuItemFromAction('common.edit.copy'),
+            {
+              id: 'common.navigate.nested',
+              category: 'Common',
+              icon: 'fas fa-user',
+              title: 'Nested Nav',
+              isDisabled: true,
+              action: {
+                title: 'Nested Navigation',
+                items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
+              },
+            },  menuItemFromAction('common.edit.paste'),
+            menuItemFromAction('common.navigate.down'),
+            menuItemFromAction('common.navigate.left'),
+            {
+              id: 'common.navigate.nested',
+              category: 'Common',
+              icon: 'fas fa-user',
+              title: 'Nested Nav',
+              action: {
+                title: 'Nested Navigation',
+                items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
+              },
+            },
+            { id: 'settings.something', category: 'Settings', title: 'Settings', action: () => {} },
+            {
+              id: 'settings.something.else',
+              category: 'Settings',
+              title: 'Settings with a really long title I do mean really long',
+              icon: 'fas fa-cog',
+              isDisabled: true,
+              shortcuts: ['meta+s'],
+              action: () => {},
+            },
+            {
+              id: 'some.other.thing',
+              category: 'Other',
+              title: 'Not ready yet',
+              isLoading: true,
+              isDisabled: true,
+              action: () => {},
+            },
+          ]"
+        />
       </template>
       <template v-else>
         <Button

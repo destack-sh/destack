@@ -38,18 +38,20 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
       v-for="tooltip in activeTooltips"
       v-bind="tooltip.info"
       :key="tooltip.id"
-      class="z-70 w-fit max-w-72 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-gray-700 shadow-md shadow-gray-300"
+      class="z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-gray-700 shadow-md shadow-gray-300"
+      @mouseenter="tooltip.reference.tooltipOnMouseEnter"
+      @mouseleave="tooltip.reference.tooltipOnMouseLeave"
     >
       <!-- Header -->
       <p v-if="tooltip.info.icon || tooltip.info.title" class="mb-0.5 flex flex-row items-center">
         <i v-if="tooltip.info.icon" class="mr-1.5 text-gray-600" :class="tooltip.info.icon" />
-        <span v-if="tooltip.info.title" class="font-semibold">{{ tooltip.info.title }}</span>
+        <span v-if="tooltip.info.title" class="truncate font-semibold">{{ tooltip.info.title }}</span>
         <span v-if="tooltip.info.shortcuts" class="ml-auto pl-4">
           <Shortcut :shortcut="tooltip.info.shortcuts[0]" />
         </span>
       </p>
       <!-- Content -->
-      <p>{{ tooltip.info.text }}</p>
+      <p class="max-h-20 max-w-full truncate whitespace-break-spaces">{{ tooltip.info.text }}</p>
     </div>
   </TransitionGroup>
 </template>

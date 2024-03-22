@@ -257,34 +257,27 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[result.id] = ref) : delete resultsRefs[result.id])"
                   role="button"
                   :data-selected="result.id === selectedResultId"
-                  :class="[
-                    'text my-0.5 flex w-full flex-row items-center rounded-md border border-transparent px-2 py-1',
-                    'hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300',
-                  ]"
+                  class="my-0.5 flex w-full flex-row items-center rounded-md border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
                   @click.stop.prevent="() => fire(result.id)"
                 >
                   <!-- Content -->
-                  <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-600" />
+                  <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-700" />
                   <!-- Content (Action) -->
                   <span v-if="result.metatype == 'action'" class="ml-2">
                     <!-- Name -->
-                    <span v-if="result.titleMarked" v-html="result.titleMarked" />
-                    <span v-else>{{ result.title }}</span>
+                    <span v-html="result.titleMarked ?? result.title" />
                     <!-- Path -->
                     <span v-if="!showResultCategory" class="ml-1.5 text-gray-500">
-                      <span v-if="result.pathMarked" v-html="result.pathMarked" />
-                      <template v-else>{{ result.path }}</template>
+                      <span v-html="result.pathMarked ?? result.path" />
                     </span>
                   </span>
                   <!-- Content (Node) -->
                   <span v-else-if="result.metatype == 'node'" class="ml-2">
                     <!-- Name -->
-                    <span v-if="result.titleMarked" v-html="result.titleMarked" />
-                    <template v-else>{{ result.title }}</template>
+                    <span v-html="result.titleMarked ?? result.title" />
                     <!-- Path -->
                     <span class="ml-1.5 text-gray-500">
-                      <span v-if="result.pathMarked" v-html="result.pathMarked" />
-                      <template v-else>{{ result.path }}</template>
+                      <span v-html="result.pathMarked ?? result.path" />
                     </span>
                   </span>
                   <!-- Metadata (shortcut, last edited, etc.) -->

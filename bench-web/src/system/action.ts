@@ -191,7 +191,7 @@ export function declareActionMap<T extends string>(map: Partial<ActionMapDeclara
 
 export function getAction(id: ActionBuiltinId): Action {
   const action = DECLARED_ACTIONS_BY_ID.value[id];
-  if (action == null) throw new Error(`no such action: ${id}`);
+  if (action == null) throw new Error(`action is not declared: ${id}`);
   return action;
 }
 
