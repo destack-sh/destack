@@ -188,8 +188,6 @@ export function useFloating(float: {
     floating.style.position = "fixed";
     floating.style.left = `${floatingPosition.value.x}px`;
     floating.style.top = `${floatingPosition.value.y}px`;
-
-    console.log("floating", { floating, floatingRect, reference, referenceRect, containerRect, newFloat })
   };
 
   // recompute if the refs change (ignore element positions/size changes by default)

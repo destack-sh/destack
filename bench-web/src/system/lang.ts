@@ -160,6 +160,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
 export const DEFAULT_MISSING_ICON = makeIcon({ name: "fas fa-question" });
 export const DEFAULT_VIEW_ICON = makeIcon({ name: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ name: "fas fa-user-tie" });
+export const DEFAULT_BENCH_ICON = makeIcon({ name: "fas fa-fort" });
 
 export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];
 export const ROOT_VIEW_COMPONENT_NAMES = ROOT_VIEW_TYPES.map((t) => toCasing(ViewType[t], Casing.CAMEL));
@@ -182,7 +183,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
   [NodeType.UPGRADE]: "fas fa-circle-up",
-  [NodeType.SPACE]: "fas fa-browser",
+  [NodeType.SPACE]: "fas fa-galaxy",
   [NodeType.LINK]: "fas fa-link",
   [NodeType.SKIP]: "fas fa-ban",
   [NodeType.NOTICE]: "fas fa-square-exclamation",
