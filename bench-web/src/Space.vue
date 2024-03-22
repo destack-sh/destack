@@ -44,6 +44,7 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
       :style="{ height: BAR_HEIGHT + 'px' }"
       :space-graph="spaceGraph"
       :space-connection="spaceConnection"
+      :box="{ x: 0, y: 0, width: spaceWidth, height: BAR_HEIGHT }"
     />
     <!-- Window root -->
     <Windowed

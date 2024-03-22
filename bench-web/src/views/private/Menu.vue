@@ -36,6 +36,7 @@ function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
  */
 
 function onMouseEnter(itemIdx: number) {
+  if (props.items[itemIdx].isDisabled) return;
   focusedItemIdx.value = itemIdx;
   if (hoverItemTimeout.value != null) {
     clearTimeout(hoverItemTimeout.value);
@@ -181,7 +182,7 @@ defineExpose({ focus });
 <template>
   <ul
     ref="menuRef"
-    class="flex w-64 flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
+    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"

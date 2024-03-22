@@ -27,7 +27,10 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
 export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
   // bench
-  // ...
+  "bench.goToBench",
+  "bench.goToEnvironment",
+  "bench.goToBranch",
+  "bench.goToPackage",
   // package
   // ...
   // space
@@ -57,6 +60,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.edit.cut",
   "common.edit.paste",
   "common.edit.duplicate",
+  "common.edit.rename",
   "common.navigate.up",
   "common.navigate.down",
   "common.navigate.left",
@@ -77,13 +81,13 @@ export const ACTION_BUILTIN_IDS = [
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
-  "common.sense.rename",
   "common.session.run",
   "common.session.debug",
   "common.session.pause",
   "common.session.resume",
   "common.session.stop",
   "common.session.kill",
+  "common.session.logs",
   // view
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
@@ -195,6 +199,10 @@ export function getAction(id: ActionBuiltinId): Action {
   const action = DECLARED_ACTIONS_BY_ID.value[id];
   if (action == null) throw new Error(`action is not declared: ${id}`);
   return action;
+}
+
+export function getActionsLike(like: { prefix: string }) {
+  return DECLARED_ACTIONS.value.filter((a) => a.id.startsWith(like.prefix));
 }
 
 /**
@@ -357,6 +365,12 @@ declareActionMap<"common">({
     text: "Duplicate the current item",
     shortcuts: ["mod+d"],
   },
+  "common.edit.rename": {
+    icon: "fas fa-pencil",
+    title: "Rename",
+    text: "Rename the current node",
+    shortcuts: ["f2"],
+  },
   // navigate
   "common.navigate.up": {
     icon: "fas fa-arrow-up",
@@ -480,12 +494,6 @@ declareActionMap<"common">({
     text: "Focus on the current node in a new view",
     shortcuts: ["mod+enter"],
   },
-  "common.sense.rename": {
-    icon: "fas fa-pencil",
-    title: "Rename",
-    text: "Rename the current node",
-    shortcuts: ["f2"],
-  },
   // session
   "common.session.run": {
     icon: "fas fa-play",
@@ -519,44 +527,10 @@ declareActionMap<"common">({
     title: "Kill",
     text: "Kill the current node",
   },
-});
-
-// space actions
-contributeActionMap<"space">({
-  "space.launch.inspector": {
-    title: "Inspect Node",
-    text: "Open the Inspector View",
-    icon: "fas fa-eye-dropper",
-    action: ACTION_COMING_SOON,
-  },
-  "space.launch.library": {
-    title: "Open Library",
-    text: "Get building blocks from the library",
-    icon: "fas fa-books",
-    action: ACTION_COMING_SOON,
-  },
-  "space.launch.docs": {
-    title: "Read the Docs",
-    text: "Get help from our examples and guides",
-    icon: "fas fa-book-open",
-    action: ACTION_COMING_SOON,
-  },
-  "space.launch.discord": {
-    title: "Discuss on Discord",
-    text: "Join the community on Discord",
-    icon: "fab fa-discord",
-    url: DISCORD_URL,
-    action: () => {
-      // open in new tab
-      window.open(DISCORD_URL, "_blank");
-    },
-  },
-  "space.launch.notifications": {
-    title: "Open Notifications",
-    text: "View your notifications",
-    icon: "fas fa-envelope",
-    enabled: ref(false),
-    action: ACTION_COMING_SOON,
+  "common.session.logs": {
+    icon: "fas fa-clipboard-list",
+    title: "View Logs",
+    text: "View the logs of the current run",
   },
 });
 
@@ -636,5 +610,72 @@ contributeActionMap<"developer">({
     title: "Add Some View",
     text: "?",
     action: () => canvas.addView({ type: ViewType.PAGE }),
+  },
+});
+
+// space actions
+contributeActionMap<"space">({
+  "space.launch.inspector": {
+    title: "Inspect Node",
+    text: "Open the Inspector View",
+    icon: "fas fa-eye-dropper",
+    action: ACTION_COMING_SOON,
+  },
+  "space.launch.library": {
+    title: "Open Library",
+    text: "Get building blocks from the library",
+    icon: "fas fa-books",
+    action: ACTION_COMING_SOON,
+  },
+  "space.launch.docs": {
+    title: "Read the Docs",
+    text: "Get help from our examples and guides",
+    icon: "fas fa-book-open",
+    action: ACTION_COMING_SOON,
+  },
+  "space.launch.discord": {
+    title: "Discuss on Discord",
+    text: "Join the community on Discord",
+    icon: "fab fa-discord",
+    url: DISCORD_URL,
+    action: () => {
+      // open in new tab
+      window.open(DISCORD_URL, "_blank");
+    },
+  },
+  "space.launch.notifications": {
+    title: "Open Notifications",
+    text: "View your notifications",
+    icon: "fas fa-envelope",
+    enabled: ref(false),
+    action: ACTION_COMING_SOON,
+  },
+});
+
+// bench actions
+contributeActionMap<"bench">({
+  "bench.goToBench": {
+    title: "Switch Bench",
+    text: "Open another Bench",
+    icon: "fas fa-fort",
+    action: ACTION_COMING_SOON,
+  },
+  "bench.goToBranch": {
+    title: "Switch Branch",
+    text: "Go to another Branch of this Bench",
+    icon: "fas fa-code-branch",
+    action: ACTION_COMING_SOON,
+  },
+  "bench.goToEnvironment": {
+    title: "Switch Environment",
+    text: "Go to another Environment of this Bench",
+    icon: "fas fa-cloud",
+    action: ACTION_COMING_SOON,
+  },
+  "bench.goToPackage": {
+    title: "Switch Package",
+    text: "Go to another Package of this Bench",
+    icon: "fas fa-box",
+    action: ACTION_COMING_SOON,
   },
 });

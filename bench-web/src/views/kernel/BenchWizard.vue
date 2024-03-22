@@ -47,6 +47,7 @@ async function submit() {
   } catch (e) {
     // already handled
   } finally {
+    state.value = "all-set";
     isActive.value = false;
   }
 }
@@ -89,7 +90,7 @@ defineExpose({ self, focus });
       <Button
         v-if="state == 'create-bench'"
         name="submit"
-        :icon="makeIcon({ name: 'fa-rock' })"
+        :icon="makeIcon({ name: 'fa-rocket-launch' })"
         title="Create Bench"
         class="w-full"
         :is-loading="isActive"
