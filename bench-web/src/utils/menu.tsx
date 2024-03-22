@@ -3,7 +3,7 @@ import { fireAction, getAction, type Action, type ActionBuiltinId } from "@/syst
 
 export type MenuInfo = {
   icon?: string | IconData;
-  title: string;
+  title?: string;
   text?: string;
   items: MenuItem[];
 };

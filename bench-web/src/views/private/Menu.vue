@@ -50,6 +50,7 @@ function onMouseLeave(itemIdx: number) {
 
 /** Focus the first available non-disabled item  */
 function focus(idx: number | "next" | "previous" | "top" | "bottom") {
+  queryRef.value?.focus();
   if (idx == "top") {
     idx = props.items.findIndex((item) => !item.isDisabled);
   } else if (idx == "bottom") {
@@ -117,28 +118,31 @@ function onNavigateHorizontal(direction: "left" | "right") {
   if (props.parent == null) {
     // in root menu
     if (!isNestedItem(item.action)) return;
-    if (direction == "right") {
-      openNestedMenu(focusedItemIdx.value);
-    }
+    openNestedMenu(focusedItemIdx.value);
   } else {
     // in nested menu
-    if (props.placement?.startsWith("left") && direction == "right") {
+    if (isNestedItem(item.action)) {
+      openNestedMenu(focusedItemIdx.value);
+    } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");
     } else if (props.placement?.startsWith("right") && direction == "left") {
       emit("close");
-    } else if (isNestedItem(item.action)) {
-      openNestedMenu(focusedItemIdx.value);
     }
   }
 }
 
-// auto-focus when created?
+// auto-focus when created
 onMounted(() => {
-  queryRef.value?.focus();
+  /* 
+  NOTE: We must focus in the *next* tick even though we're already mounted.
+    Chromium has a bug where it gets confused about the actual position of the containing elements
+     when this is used as part of a popover, which breaks our floating positioning. Ugh.
+   */
+  nextTick(() => queryRef.value?.focus());
 });
 
 // close when clicked outside of the menu
-useEventListener("click", (e) => {
+useEventListener("mousedown", (e) => {
   if (!menuRef.value?.contains(e.target as Node)) emit("close");
 });
 
@@ -147,18 +151,18 @@ defineExpose({ focus });
 <template>
   <ul
     ref="menuRef"
-    class="flex w-fit min-w-52 max-w-72 flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
+    class="flex w-64 flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
   >
     <!-- Magic floating query -->
     <!-- Captures focus for navigation, also enables search/highlight (not yet) -->
-    <div class="relative h-0">
+    <div class="relative">
       <div class="absolute -top-6 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="w-fit min-w-0 border-0 bg-transparent font-semibold text-gray-900 decoration-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="border-0 bg-transparent font-semibold text-gray-900 decoration-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
@@ -170,7 +174,7 @@ defineExpose({ focus });
     </div>
 
     <!-- Content -->
-    <slot name="header" />
+    <slot name="header" :focus="focus" />
     <!-- Items -->
     <template v-for="(item, i) in items" :key="item.id">
       <!-- Category -->
@@ -209,7 +213,7 @@ defineExpose({ focus });
         <Shortcut v-else-if="(item.shortcuts?.length ?? 0) > 0" class="ml-auto pl-4" :shortcut="item.shortcuts?.[0]!" />
       </li>
     </template>
-    <slot name="footer" />
+    <slot name="footer" :focus="focus" />
 
     <!-- Nested menu  -->
     <Transition
