@@ -8,6 +8,7 @@ import { menuItemFromAction } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
+import Popover from "@/views/private/Popover.vue";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;
@@ -44,73 +45,83 @@ const props = defineProps<{
     <div class="flex flex-shrink-0 flex-row">
       <!-- User -->
       <template v-if="user">
-        <button class="rounded-md border border-gray-300 bg-white px-2 py-1 font-medium shadow-sm shadow-gray-300">
-          {{ user.slug }}
-        </button>
-        <Menu
-          ref="menuRef"
-          class="absolute right-[300px] top-12 z-40"
-          title="User"
-          :items="[
-            menuItemFromAction('user.login'),
-            menuItemFromAction('user.logout'),
-            {
-              id: 'some.other.thing',
-              category: 'Other',
-              title: 'Not ready yet',
-              isLoading: true,
-              isDisabled: true,
-              action: () => {},
-            },
-            menuItemFromAction('common.edit.copy'),
-            {
-              id: 'common.navigate.nested',
-              category: 'Common',
-              icon: 'fas fa-user',
-              title: 'Nested Nav 1',
-              action: {
-                title: 'Nested Navigation',
-                items: [
-                  menuItemFromAction('common.navigate.right'),
-                  menuItemFromAction('common.navigate.up'),
-                  {
-                    id: 'common.navigate.nested',
-                    category: 'Common',
-                    icon: 'fas fa-user',
-                    title: 'Nested 1.1',
-                    action: {
-                      title: 'Nested 1.1.1',
-                      items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
-                    },
+        <Popover placement="bottom-right" :reference-margin="4">
+          <template v-slot:trigger="{ toggle }">
+            <button
+              class="rounded-md border border-gray-300 bg-white px-2 py-1 font-medium shadow-sm shadow-gray-300"
+              @click="toggle"
+            >
+              {{ user.slug }}
+            </button>
+          </template>
+          <template v-slot:content="{ close }">
+            <Menu
+              @close="close"
+              :items="[
+                menuItemFromAction('user.login'),
+                menuItemFromAction('user.logout'),
+                {
+                  id: 'some.other.thing',
+                  category: 'Other',
+                  title: 'Not ready yet',
+                  isLoading: true,
+                  isDisabled: true,
+                  action: () => {},
+                },
+                menuItemFromAction('common.edit.copy'),
+                {
+                  id: 'common.navigate.nested',
+                  category: 'Common',
+                  icon: 'fas fa-user',
+                  title: 'Nested Nav 1',
+                  action: {
+                    title: 'Nested Navigation',
+                    items: [
+                      menuItemFromAction('common.navigate.right'),
+                      menuItemFromAction('common.navigate.up'),
+                      {
+                        id: 'common.navigate.nested',
+                        category: 'Common',
+                        icon: 'fas fa-user',
+                        title: 'Nested 1.1',
+                        action: {
+                          title: 'Nested 1.1.1',
+                          items: [
+                            menuItemFromAction('common.navigate.right'),
+                            menuItemFromAction('common.navigate.up'),
+                          ],
+                        },
+                      },
+                    ],
                   },
-                ],
-              },
-            },
-            menuItemFromAction('common.edit.paste'),
-            menuItemFromAction('common.navigate.down'),
-            menuItemFromAction('common.navigate.left'),
-            {
-              id: 'common.navigate.nested',
-              category: 'Common',
-              icon: 'fas fa-user',
-              title: 'Nested Nav 2',
-              action: {
-                title: 'Nested Navigation',
-                items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
-              },
-            },
-            { id: 'settings.something', category: 'Settings', title: 'Settings', action: () => {} },
-            {
-              id: 'settings.something.else',
-              category: 'Settings',
-              title: 'Settings with a really long title I do mean really long',
-              icon: 'fas fa-cog',
-              isDisabled: true,
-              shortcuts: ['meta+s'],
-              action: () => {},
-            },
-          ]"
-        />
+                },
+                menuItemFromAction('common.edit.paste'),
+                menuItemFromAction('common.navigate.down'),
+                menuItemFromAction('common.navigate.left'),
+                {
+                  id: 'common.navigate.nested',
+                  category: 'Common',
+                  icon: 'fas fa-user',
+                  title: 'Nested Nav 2',
+                  action: {
+                    title: 'Nested Navigation',
+                    items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
+                  },
+                },
+                { id: 'settings.something', category: 'Settings', title: 'Settings', action: () => {} },
+                {
+                  id: 'settings.something.else',
+                  category: 'Settings',
+                  title: 'Settings with a really long title I do mean really long',
+                  icon: 'fas fa-cog',
+                  isDisabled: true,
+                  shortcuts: ['meta+s'],
+                  action: () => {},
+                },
+              ]"
+            />
+          </template>
+        </Popover>
       </template>
       <template v-else>
         <Button

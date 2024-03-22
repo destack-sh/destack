@@ -154,7 +154,6 @@ export function useFloating(float: {
 } {
   const optionsRef = toRef(float.options ?? shallowRef({})) as Ref<Partial<FloatingOptions>>;
   const floatingPosition = shallowRef({ x: 0, y: 0 });
-  const arrowPosition = shallowRef({ x: 0, y: 0 } as { x: number; y: number } | null);
   const placement: Ref<FloatingPlacement | null> = shallowRef(null);
   const foundContainer = shallowRef<HTMLElement | SVGElement | null | undefined>(unrefElement(float.container));
 
@@ -189,6 +188,8 @@ export function useFloating(float: {
     floating.style.position = "fixed";
     floating.style.left = `${floatingPosition.value.x}px`;
     floating.style.top = `${floatingPosition.value.y}px`;
+
+    console.log("floating", { floating, floatingRect, reference, referenceRect, containerRect, newFloat })
   };
 
   // recompute if the refs change (ignore element positions/size changes by default)
