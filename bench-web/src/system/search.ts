@@ -201,7 +201,7 @@ export function useSearch(search: {
 /**
  * Highlights a substring of a match. The offset is into the original search string (and thus also the ranges).
  */
-function highlight(
+export function highlight(
   substr: string,
   ranges: number[], // start0, end0, start1, end1, ...
   offset: { start: number; end: number },
@@ -220,4 +220,28 @@ function highlight(
   }
   marked += substr.slice(subLast); // remainder
   return marked;
+}
+
+/** Simple search and highlight in plain text haystack */
+export function highlightMatches(search: { uf: uFuzzy; query: string; candidates: string[] }): {
+  markedResults: (string | null)[];
+  bestMatches: number[];
+} {
+  const { uf, query, candidates } = search;
+  const [idxs, info, order] = uf.search(candidates, query);
+  const markedResults: (string | null)[] = candidates.map((c) => null);
+  let bestMatches: number[] = [];
+
+  if (idxs && order) {
+    for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
+      const infoIdx = order[orderIdx];
+      const candidate = candidates[idxs[infoIdx]];
+      const result = candidate as string;
+      const ranges = info.ranges[infoIdx] as number[];
+      markedResults[idxs[infoIdx]] = highlight(result, ranges, { start: 0, end: result.length });
+    }
+    bestMatches = order.map((orderIdx) => idxs[order[orderIdx]]);
+  }
+
+  return { markedResults, bestMatches };
 }
