@@ -20,7 +20,7 @@ import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { v4 } from "uuid";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 export const nonce = v4();
 
@@ -171,6 +171,13 @@ contributeActionMap<"user">({
     enabled: isActivated,
     title: "Go to My Bench",
     text: "Go back to your Bench.",
+    action: ACTION_COMING_SOON,
+  },
+  "user.editKeybindings": {
+    icon: "fas fa-keyboard",
+    enabled: ref(false),
+    title: "Edit Keybindings",
+    text: "Customize your keybindings everywhere.",
     action: ACTION_COMING_SOON,
   },
 });
