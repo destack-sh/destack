@@ -23,7 +23,6 @@ const state: Ref<State> = ref("create-bench");
 const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
-const lastError = ref<RpcError | null>(null);
 
 // sync user/bench state
 watch(
@@ -42,12 +41,11 @@ watch(
 
 async function submit() {
   isActive.value = true;
-  lastError.value = null;
   try {
     if (!user.value) throw new Error("no active user");
     await createBench({ owner: toNodeReference(user.value), slug: slug.value, region: region.value, isMain: true });
   } catch (e) {
-    lastError.value = e as RpcError;
+    // already handled
   } finally {
     isActive.value = false;
   }
@@ -107,10 +105,6 @@ defineExpose({ self, focus });
         :variant="Variant.V3"
         @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
-      <!-- Error -->
-      <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
-        {{ lastError.code }}: {{ lastError.message }}
-      </p>
     </div>
   </div>
 </template>

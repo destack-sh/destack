@@ -555,7 +555,7 @@ async def create_local_os_store(store: Store) -> None:
             documents=LOCAL_DOCUMENTS,
         )
 
-        # create write access role for bench owner
+        # create write access role
         owner_role_name = f"{store.database}-owner"
         rep = await os_client.security.create_role(
             role=owner_role_name,
@@ -591,7 +591,7 @@ async def create_local_os_store(store: Store) -> None:
         if rep.get("error"):
             raise RuntimeError(f"failed to create user {root.username}: {rep['error']}")
         log.info("os.create_user", username=root.username)
-    log.info("os.create_local_store", duration=asyncio.get_event_loop().time() - start)
+    log.info("os.create_local_store", duration=asyncio.get_event_loop().time() - start, store=store)
 
 
 async def os_write_edits(module: Package, edits: list[EditData]) -> None:

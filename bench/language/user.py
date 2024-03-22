@@ -21,7 +21,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import SLUG_REGEX, validate_name, validate_slug
+from bench.language.validation import SLUG_REGEX, validate_email, validate_name, validate_slug
 from bench.language.value import HasValues
 from bench.proto.wire import NodeReferenceData, NotificationData
 from bench.sql.core import Constraint, ConstraintType
@@ -75,7 +75,7 @@ class User(Node):
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: Optional[str] = p_regular(33, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    email: str = p_system(35, defer=True, unique=True, sensitive=True)
+    email: str = p_system(35, defer=True, unique=True, sensitive=True, validate=validate_email)
     icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
         37, array=False, require=False, references=NodeType.BENCH

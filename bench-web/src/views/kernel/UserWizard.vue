@@ -11,6 +11,7 @@ import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
 import { reverseRecord } from "@/utils/functools";
+import { humanizeError } from "@/proto/services";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());
@@ -34,7 +35,6 @@ const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
-const lastError = ref<RpcError | null>(null);
 
 function setState(newState: State) {
   if (newState == state.value) return;
@@ -60,7 +60,6 @@ watch(
 
 async function submit() {
   isActive.value = true;
-  lastError.value = null;
   try {
     if (state.value == "sign-up") {
       await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
@@ -70,7 +69,7 @@ async function submit() {
       throw new Error(`unexpected registration state: ${state.value}`);
     }
   } catch (e) {
-    lastError.value = e as RpcError;
+    // already handled
   } finally {
     isActive.value = false;
   }
@@ -161,10 +160,6 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.V3"
         @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
-      <!-- Error -->
-      <p v-if="lastError" class="mt-4 text-sm font-semibold text-danger-500">
-        {{ lastError.code }}: {{ lastError.message }}
-      </p>
     </div>
   </div>
 </template>
