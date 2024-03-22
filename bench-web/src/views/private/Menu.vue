@@ -5,7 +5,9 @@ import { log } from "@/utils/log";
 import type { MenuInfo, MenuItem } from "@/utils/menu";
 import { Shortcut } from "@/utils/tooltip";
 import { useEventListener } from "@vueuse/core";
-import { computed, onMounted, ref, type ComponentPublicInstance, type Ref, nextTick } from "vue";
+import { computed, onMounted, ref, type ComponentPublicInstance, type Ref, nextTick, shallowRef, watch } from "vue";
+import uFuzzy from "@leeoniya/ufuzzy";
+import { highlightMatches } from "@/system/search";
 
 const SHOW_NESTED_DELAY = 200;
 
@@ -13,13 +15,20 @@ const props = defineProps<MenuInfo & { parent?: MenuInfo; placement?: FloatingPl
 const emit = defineEmits(["close"]);
 
 const menuRef: Ref<HTMLUListElement | null> = ref(null);
-const query: Ref<string> = ref("some query");
+const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const itemRefs: Ref<Record<number, HTMLElement | null>> = ref({});
 const focusedItemIdx: Ref<number | null> = ref(null);
+
 const activeNestedItemIdx: Ref<number | null> = ref(null);
 const activeNestedItemRef: Ref<ComponentPublicInstance<any> | null> = ref(null);
 const hoverItemTimeout: Ref<any | null> = ref(null);
+
+const itemTitleMarked: Ref<(string | null)[]> = shallowRef([]);
+
+function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
+  return typeof item == "object";
+}
 
 /**
  * On hover we immediately focus the given element.
@@ -74,10 +83,6 @@ function focus(idx: number | "next" | "previous" | "top" | "bottom") {
   }
 }
 
-function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
-  return typeof item == "object";
-}
-
 /** Triggers the action for the given item */
 function fire(itemIdx: number) {
   const item = props.items[itemIdx];
@@ -101,14 +106,6 @@ function openNestedMenu(itemIdx: number) {
     activeNestedItemRef.value?.focus("top");
   });
 }
-
-// position the nested menu
-const { placement: nestedPlacement } = useFloating({
-  floating: activeNestedItemRef,
-  reference: computed(() => itemRefs.value[activeNestedItemIdx.value ?? 0]),
-  enabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
-  options: { placement: "right-top", referenceMargin: 4 },
-});
 
 /** Navigate horizontally to open/close nested menus if relevant */
 function onNavigateHorizontal(direction: "left" | "right") {
@@ -141,9 +138,42 @@ onMounted(() => {
   nextTick(() => queryRef.value?.focus());
 });
 
+// highlight and focus best match when typing
+const uf = new uFuzzy({ intraMode: 1 });
+watch(
+  [query],
+  () => {
+    itemTitleMarked.value = [];
+    if (!query.value) return;
+
+    // highlight
+    const { markedResults, bestMatches } = highlightMatches({
+      uf,
+      query: query.value,
+      candidates: props.items.map((item) => item.title),
+    });
+    itemTitleMarked.value = markedResults;
+
+    // auto-select best match
+    const bestMatch = bestMatches.find((i) => !props.items[i].isDisabled);
+    if (bestMatch != null) {
+      focus(bestMatch);
+    }
+  },
+  { immediate: true },
+);
+
 // close when clicked outside of the menu
 useEventListener("mousedown", (e) => {
   if (!menuRef.value?.contains(e.target as Node)) emit("close");
+});
+
+// position the nested menu
+const { placement: nestedPlacement } = useFloating({
+  floating: activeNestedItemRef,
+  reference: computed(() => itemRefs.value[activeNestedItemIdx.value ?? 0]),
+  enabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
+  options: { placement: "right-top", referenceMargin: 4 },
 });
 
 defineExpose({ focus });
@@ -157,7 +187,7 @@ defineExpose({ focus });
     @click.stop="queryRef?.focus()"
   >
     <!-- Magic floating query -->
-    <!-- Captures focus for navigation, also enables search/highlight (not yet) -->
+    <!-- Captures focus for navigation, also enables search/highlight -->
     <div class="relative">
       <div class="absolute -top-6 left-0 px-2 pl-4">
         <input
@@ -207,7 +237,7 @@ defineExpose({ focus });
         />
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>
         <!-- Title -->
-        <span class="truncate">{{ item.title }}</span>
+        <span class="truncate" v-html="itemTitleMarked[i] ?? item.title" />
         <!-- Shortcut or nested menu -->
         <i v-if="isNestedItem(item.action)" class="fas fa-chevron-right ml-auto pl-4 pr-1 text-gray-700" />
         <Shortcut v-else-if="(item.shortcuts?.length ?? 0) > 0" class="ml-auto pl-4" :shortcut="item.shortcuts?.[0]!" />
