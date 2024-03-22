@@ -85,6 +85,10 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
   background-color: #fcd34d;
 }
 
+.caret-transparent {
+  caret-color: transparent;
+}
+
 /* marks should be bold */
 mark {
   background-color: transparent;

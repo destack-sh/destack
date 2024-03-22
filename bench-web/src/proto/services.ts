@@ -62,7 +62,6 @@ export function humanizeError(error: OperationError): { title: string, text: str
   } else {
     return { title: "Error", text: error.message };
   }
-
 }
 
 const operationsTracker = {

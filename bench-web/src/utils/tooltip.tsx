@@ -35,7 +35,7 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
   const parsed = computed(() => parseKeymapSignature(props.shortcut));
   return (
     // Shortcut
-    <span class="flex flex-row gap-x-2">
+    <span class="flex select-none flex-row gap-x-2">
       {parsed.value.chords.map((chord) => {
         const keys = [...chord.modifiers, chord.key];
         return (
@@ -86,28 +86,29 @@ export function tooltipFromAction(action: Action): TooltipInfo {
 }
 
 /** Store state on the triggering element */
-interface TooltipElement extends HTMLElement {
+interface TriggerElement extends HTMLElement {
   tooltipInstance?: TooltipInstance;
   tooltipShowTimeout?: number;
   tooltipHideTimeout?: number;
-  tooltipEventListeners?: { [event: string]: EventListener };
+  tooltipOnMouseEnter?: (e: MouseEvent) => void;
+  tooltipOnMouseLeave?: (e: MouseEvent) => void;
 }
 
 /** An active instance of a tooltip */
 export type TooltipInstance = {
   id: number;
   info: TooltipInfo;
-  reference: HTMLElement | SVGElement;
+  reference: TriggerElement;
   container?: HTMLElement | SVGElement;
 };
 
 let tooltipId = 0;
 function createTooltipInstance(
-  reference: TooltipElement,
+  reference: TriggerElement,
   container: HTMLElement | SVGElement | undefined,
   info: TooltipInfo,
 ): TooltipInstance {
-  const instance = { id: tooltipId++, info, reference };
+  const instance = { id: tooltipId++, info, reference, container };
   activeTooltips.value = [...activeTooltips.value, instance];
   return instance;
 }
@@ -121,38 +122,42 @@ export const activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
 export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
-    const tooltipEl = el as TooltipElement;
+    const triggerEl = el as TriggerElement;
     const showDelay = binding.value.showDelay ?? DEFAULT_SHOW_DELAY;
     const hideDelay = binding.value.hideDelay ?? DEFAULT_HIDE_DELAY;
 
-    // create a new tooltip instance if hovered for a while
-    const onMouseEnter = () => {
-      const container = findFloatingContainer(tooltipEl) ?? undefined;
-      if (tooltipEl.tooltipShowTimeout != null) clearTimeout(tooltipEl.tooltipShowTimeout);
-      tooltipEl.tooltipShowTimeout = window.setTimeout(() => {
-        tooltipEl.tooltipInstance = createTooltipInstance(tooltipEl, container, binding.value);
-      }, showDelay);
+    triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
+      if (e.target == triggerEl) {
+        // create a new tooltip instance if trigger is hovered for a while
+        const container = findFloatingContainer(triggerEl) ?? undefined;
+        if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
+        triggerEl.tooltipShowTimeout = window.setTimeout(() => {
+          triggerEl.tooltipInstance = createTooltipInstance(triggerEl, container, binding.value);
+        }, showDelay);
+      } else if (triggerEl.tooltipInstance != null) {
+        // some part of the tooltip is hovered, so cancel the hide timeout
+        if (triggerEl.tooltipHideTimeout != null) clearTimeout(triggerEl.tooltipHideTimeout);
+      }
     };
-    const onMouseLeave = () => {
-      if (tooltipEl.tooltipShowTimeout != null) clearTimeout(tooltipEl.tooltipShowTimeout);
-      tooltipEl.tooltipHideTimeout = window.setTimeout(() => {
-        destroyTooltipInstance(tooltipEl.tooltipInstance!);
+    triggerEl.tooltipOnMouseLeave = (e: MouseEvent) => {
+      if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
+      triggerEl.tooltipHideTimeout = window.setTimeout(() => {
+        destroyTooltipInstance(triggerEl.tooltipInstance!);
       }, hideDelay);
     };
-    tooltipEl.tooltipEventListeners = { mouseenter: onMouseEnter, mouseleave: onMouseLeave };
-    tooltipEl.addEventListener("mouseenter", onMouseEnter);
-    tooltipEl.addEventListener("mouseleave", onMouseLeave);
+    triggerEl.addEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
+    triggerEl.addEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);
   },
 
   updated(el, binding) {
-    const tooltipEl = el as TooltipElement;
+    const tooltipEl = el as TriggerElement;
     if (tooltipEl.tooltipInstance != null) {
       tooltipEl.tooltipInstance.info = binding.value;
     }
   },
 
   unmounted(el) {
-    const tooltipEl = el as TooltipElement;
+    const tooltipEl = el as TriggerElement;
     if (tooltipEl.tooltipShowTimeout != null) {
       clearTimeout(tooltipEl.tooltipShowTimeout);
     }

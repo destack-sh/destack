@@ -6361,13 +6361,13 @@ export enum FontType {
      */
     SERIF = 1,
     /**
-     * @generated from protobuf enum value: FONT_TYPE_SANS_SERIF = 2;
+     * @generated from protobuf enum value: FONT_TYPE_SANS = 2;
      */
-    SANS_SERIF = 2,
+    SANS = 2,
     /**
-     * @generated from protobuf enum value: FONT_TYPE_MONOSPACE = 3;
+     * @generated from protobuf enum value: FONT_TYPE_MONO = 3;
      */
-    MONOSPACE = 3
+    MONO = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.FontWeight
@@ -7914,14 +7914,6 @@ export enum ViewType {
      */
     GROUP = 535,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FORM = 536;
-     */
-    FORM = 536,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_MENU = 537;
-     */
-    MENU = 537,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_SECTION = 538;
      */
     SECTION = 538,
@@ -8002,41 +7994,41 @@ export enum ViewType {
      */
     PICKER = 653,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATE = 654;
+     * @generated from protobuf enum value: VIEW_TYPE_DATE = 656;
      */
-    DATE = 654,
+    DATE = 656,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TIME = 655;
+     * @generated from protobuf enum value: VIEW_TYPE_TIME = 658;
      */
-    TIME = 655,
+    TIME = 658,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 656;
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 660;
      */
-    CALENDAR = 656,
+    CALENDAR = 660,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 657;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 663;
      */
-    COLOR = 657,
+    COLOR = 663,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 660;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 670;
      */
-    FILE = 660,
+    FILE = 670,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 662;
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 672;
      */
-    ICON = 662,
+    ICON = 672,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 663;
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 673;
      */
-    IMAGE = 663,
+    IMAGE = 673,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 664;
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 674;
      */
-    VIDEO = 664,
+    VIDEO = 674,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 665;
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 675;
      */
-    AUDIO = 665
+    AUDIO = 675
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
