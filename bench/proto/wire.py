@@ -342,8 +342,8 @@ class FontSize(betterproto.Enum):
 class FontType(betterproto.Enum):
     UNSPECIFIED = 0
     SERIF = 1
-    SANS_SERIF = 2
-    MONOSPACE = 3
+    SANS = 2
+    MONO = 3
 
 
 class FontWeight(betterproto.Enum):
@@ -826,8 +826,6 @@ class ViewType(betterproto.Enum):
     TABLE = 521
     FEED = 522
     GROUP = 535
-    FORM = 536
-    MENU = 537
     SECTION = 538
     SPACER = 540
     DIVIDER = 541
@@ -848,15 +846,15 @@ class ViewType(betterproto.Enum):
     JSON = 643
     TOGGLE = 650
     PICKER = 653
-    DATE = 654
-    TIME = 655
-    CALENDAR = 656
-    COLOR = 657
-    FILE = 660
-    ICON = 662
-    IMAGE = 663
-    VIDEO = 664
-    AUDIO = 665
+    DATE = 656
+    TIME = 658
+    CALENDAR = 660
+    COLOR = 663
+    FILE = 670
+    ICON = 672
+    IMAGE = 673
+    VIDEO = 674
+    AUDIO = 675
 
 
 @dataclass(eq=False, repr=False)
@@ -4453,7 +4451,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.20.0"
+VERSION = "2024.03.22.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

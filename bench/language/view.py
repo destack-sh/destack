@@ -72,8 +72,6 @@ class ViewType(IdEnum):
     FEED = 522
     # containers (group)
     GROUP = 535
-    FORM = 536
-    MENU = 537
     SECTION = 538
 
     # presentation
