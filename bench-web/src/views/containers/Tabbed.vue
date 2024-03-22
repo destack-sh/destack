@@ -4,6 +4,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useLoadedGraph } from "@/system/connection";
 import { IconInline } from "@/system/icon";
+import { ICON_BY_NODE_TYPE } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -175,8 +176,7 @@ defineExpose<ViewExposed>({ self, actions });
         "
       >
         <IconInline
-          v-if="tab.icon"
-          v-bind="tab.icon"
+          v-bind="tab.icon ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />

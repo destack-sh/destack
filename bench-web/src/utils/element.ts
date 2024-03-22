@@ -6,10 +6,12 @@ import {
   type MaybeComputedElementRef,
   type MaybeElement,
 } from "@vueuse/core";
-import { onUpdated, ref, watch, type ComponentInstance } from "vue";
+import { onUpdated, ref, watch, type ComponentInstance, type ComponentPublicInstance } from "vue";
 
+/** Gets the underlying HTML/SVG element of an HTML/SVG/Vue thing */
 export function getElement(el: MaybeElement) {
   if (el instanceof HTMLElement || el instanceof SVGElement) return el;
+  else if ((el as ComponentPublicInstance<any>).$el) return (el as ComponentPublicInstance<any>).$el;
   else return (el as ComponentInstance<any>).subTree?.el as HTMLElement;
 }
 

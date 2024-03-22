@@ -358,25 +358,25 @@ declareActionMap<"common">({
   // navigate
   "common.navigate.up": {
     icon: "fas fa-arrow-up",
-    title: "Up",
+    title: "Navigate Up",
     text: "Navigate up",
     shortcuts: ["up"],
   },
   "common.navigate.down": {
     icon: "fas fa-arrow-down",
-    title: "Down",
+    title: "Navigate Down",
     text: "Navigate down",
     shortcuts: ["down"],
   },
   "common.navigate.left": {
     icon: "fas fa-arrow-left",
-    title: "Left",
+    title: "Navigate Left",
     text: "Navigate left",
     shortcuts: ["left"],
   },
   "common.navigate.right": {
     icon: "fas fa-arrow-right",
-    title: "Right",
+    title: "Navigate Right",
     text: "Navigate right",
     shortcuts: ["right"],
   },
