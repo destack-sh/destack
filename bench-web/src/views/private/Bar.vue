@@ -1,9 +1,11 @@
 <script lang="tsx" setup>
 import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
-import { makeIcon } from "@/system/icon";
+import { IconInline, makeIcon } from "@/system/icon";
+import { DEFAULT_USER_ICON } from "@/system/lang";
+import { clientInfo, clientMeta } from "@/system/local";
 import { bench } from "@/system/space";
-import { user } from "@/system/user";
+import { client, user } from "@/system/user";
 import { menuItemFromAction } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
@@ -43,86 +45,63 @@ const props = defineProps<{
 
     <!-- Right -->
     <div class="flex flex-shrink-0 flex-row">
-      <!-- User -->
       <template v-if="user">
+        <!-- User (logged in) -->
         <Popover placement="bottom-right" :reference-margin="4">
           <template v-slot:trigger="{ toggle }">
             <button
-              class="rounded-md border border-gray-300 bg-white px-2 py-1 font-medium shadow-sm shadow-gray-300"
+              class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600"
               @click="toggle"
             >
-              {{ user.slug }}
+              <span class="mr-1.5 rounded-md border border-gray-300 bg-primary-300 px-0.5">
+                <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+              </span>
+              <span>{{ user.name ?? user.slug }}</span>
             </button>
           </template>
           <template v-slot:content="{ close }">
             <Menu
               @close="close"
               :items="[
-                menuItemFromAction('user.login'),
-                menuItemFromAction('user.logout'),
-                {
-                  id: 'some.other.thing',
-                  category: 'Other',
-                  title: 'Not ready yet',
-                  isLoading: true,
-                  isDisabled: true,
-                  action: () => {},
-                },
-                menuItemFromAction('common.edit.copy'),
-                {
-                  id: 'common.navigate.nested',
-                  category: 'Common',
-                  icon: 'fas fa-user',
-                  title: 'Nested Nav 1',
-                  action: {
-                    title: 'Nested Navigation',
-                    items: [
-                      menuItemFromAction('common.navigate.right'),
-                      menuItemFromAction('common.navigate.up'),
-                      {
-                        id: 'common.navigate.nested',
-                        category: 'Common',
-                        icon: 'fas fa-user',
-                        title: 'Nested 1.1',
-                        action: {
-                          title: 'Nested 1.1.1',
-                          items: [
-                            menuItemFromAction('common.navigate.right'),
-                            menuItemFromAction('common.navigate.up'),
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                menuItemFromAction('common.edit.paste'),
-                menuItemFromAction('common.navigate.down'),
-                menuItemFromAction('common.navigate.left'),
-                {
-                  id: 'common.navigate.nested',
-                  category: 'Common',
-                  icon: 'fas fa-user',
-                  title: 'Nested Nav 2',
-                  action: {
-                    title: 'Nested Navigation',
-                    items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
-                  },
-                },
-                { id: 'settings.something', category: 'Settings', title: 'Settings', action: () => {} },
-                {
-                  id: 'settings.something.else',
-                  category: 'Settings',
-                  title: 'Settings with a really long title I do mean really long',
-                  icon: 'fas fa-cog',
-                  isDisabled: true,
-                  shortcuts: ['meta+s'],
-                  action: () => {},
-                },
+                menuItemFromAction('user.goToHome', { category: 'primary' }),
+                menuItemFromAction('user.activate', { category: 'primary' }),
+                menuItemFromAction('space.launch.notifications', { category: 'primary' }),
+                menuItemFromAction('user.editKeybindings', { category: 'secondary' }),
+                menuItemFromAction('user.logout', { category: 'secondary' }),
               ]"
-            />
+            >
+              <!-- User Info -->
+              <template #header>
+                <div class="px-2.5 pb-2 pt-1.5">
+                  <div class="flex flex-row">
+                    <div class="mr-2 h-fit rounded-md border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
+                      <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+                    </div>
+                    <div class="flex flex-col leading-tight">
+                      <span class="font-medium">{{ user.name }}</span>
+                      <span class="text-gray-500">{{ user.slug }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <!-- Client Info -->
+              <template #footer>
+                <div class="px-2.5 pb-1.5 pt-2 text-gray-500">
+                  <div class="flex w-full flex-row">
+                    <span>{{ clientMeta.operatingSystem }}</span>
+                    <span class="ml-auto">{{ clientMeta.browserName }} {{ clientMeta.browserVersion }}</span>
+                  </div>
+                  <div class="flex w-full flex-row text-xs">
+                    <span>id:{{ client?.id.split("-")[0] }}</span>
+                    <span class="ml-auto">nonce:{{ clientMeta.nonce.split("-")[0] }}</span>
+                  </div>
+                </div>
+              </template>
+            </Menu>
           </template>
         </Popover>
       </template>
+      <!-- User (unauthenticated) -->
       <template v-else>
         <Button
           title="Log In"

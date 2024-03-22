@@ -192,7 +192,7 @@ defineExpose({ focus });
       <div class="absolute -top-6 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="border-0 bg-transparent font-semibold text-gray-900 decoration-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="w-fit min-w-0 border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
@@ -203,8 +203,10 @@ defineExpose({ focus });
       </div>
     </div>
 
-    <!-- Content -->
-    <slot name="header" :focus="focus" />
+    <!-- Header -->
+    <div v-if="$slots.header" class="mb-1 border-b border-gray-900">
+      <slot name="header" :focus="focus" />
+    </div>
     <!-- Items -->
     <template v-for="(item, i) in items" :key="item.id">
       <!-- Category -->
@@ -214,7 +216,7 @@ defineExpose({ focus });
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
         role="menuitem"
         :data-selected="focusedItemIdx === i"
-        class="mx-1 my-[1px] flex flex-row items-center rounded-md border border-transparent px-2 py-[3px]"
+        class="mx-1 my-0.5 flex flex-row items-center rounded-md border border-transparent px-2 py-[3px]"
         :class="[
           item.isDisabled
             ? 'text-gray-500'
@@ -243,7 +245,10 @@ defineExpose({ focus });
         <Shortcut v-else-if="(item.shortcuts?.length ?? 0) > 0" class="ml-auto pl-4" :shortcut="item.shortcuts?.[0]!" />
       </li>
     </template>
-    <slot name="footer" :focus="focus" />
+    <!-- Footer -->
+    <div v-if="$slots.footer" class="mt-1 border-t border-gray-900">
+      <slot name="footer" :focus="focus" />
+    </div>
 
     <!-- Nested menu  -->
     <Transition

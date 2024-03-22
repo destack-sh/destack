@@ -9,7 +9,7 @@ import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import { collectViewComponentsUp } from "@/views/canvas";
-import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref } from "vue";
+import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref, ref } from "vue";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -48,6 +48,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.docs",
   "space.launch.logs",
   "space.launch.discord",
+  "space.launch.notifications",
   // common
   "common.edit.undo",
   "common.edit.redo",
@@ -102,6 +103,7 @@ export const ACTION_BUILTIN_IDS = [
   "user.logout",
   "user.activate",
   "user.goToHome",
+  "user.editKeybindings",
   // organization
   "organization.create",
   // debug/developer
@@ -548,6 +550,13 @@ contributeActionMap<"space">({
       // open in new tab
       window.open(DISCORD_URL, "_blank");
     },
+  },
+  "space.launch.notifications": {
+    title: "Open Notifications",
+    text: "View your notifications",
+    icon: "fas fa-envelope",
+    enabled: ref(false),
+    action: ACTION_COMING_SOON,
   },
 });
 

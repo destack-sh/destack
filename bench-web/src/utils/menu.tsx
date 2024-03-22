@@ -19,7 +19,7 @@ export type MenuItem = {
   action: (() => void) | MenuInfo;
 };
 
-export function menuItemFromAction(actionOrId: Action | ActionBuiltinId): MenuItem {
+export function menuItemFromAction(actionOrId: Action | ActionBuiltinId, override?: Partial<MenuItem>): MenuItem {
   const action = typeof actionOrId === "string" ? getAction(actionOrId) : actionOrId;
   return {
     id: action.id,
@@ -29,5 +29,6 @@ export function menuItemFromAction(actionOrId: Action | ActionBuiltinId): MenuIt
     isDisabled: action.enabled != null && !action.enabled.value,
     category: action.category,
     action: () => fireAction(action),
+    ...override,
   };
 }
