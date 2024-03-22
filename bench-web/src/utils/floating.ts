@@ -150,11 +150,12 @@ export function useFloating(float: {
 }): {
   recompute: () => void;
   floatingPosition: Ref<{ x: number; y: number }>;
-  arrowPosition: Ref<{ x: number; y: number } | null>;
+  placement: Ref<FloatingPlacement | null>;
 } {
   const optionsRef = toRef(float.options ?? shallowRef({})) as Ref<Partial<FloatingOptions>>;
   const floatingPosition = shallowRef({ x: 0, y: 0 });
   const arrowPosition = shallowRef({ x: 0, y: 0 } as { x: number; y: number } | null);
+  const placement: Ref<FloatingPlacement | null> = shallowRef(null);
   const foundContainer = shallowRef<HTMLElement | SVGElement | null | undefined>(unrefElement(float.container));
 
   // recomputes & applies the floating (and arrow) position
@@ -162,6 +163,8 @@ export function useFloating(float: {
     // get elements bounding
     const floating = getElement(float.floating.value);
     const reference = getElement(float.reference.value);
+    if (floating == null) throw new Error("floating element does not exist");
+    if (reference == null) throw new Error("reference element does not exist");
     const floatingRect = floating.getBoundingClientRect();
     const referenceRect = reference.getBoundingClientRect();
     if (foundContainer.value === undefined) {
@@ -172,19 +175,20 @@ export function useFloating(float: {
 
     // recompute positions in fixed coordinate space
     const options = { placement: "top", arrow: false, ...optionsRef.value } as FloatingOptions;
-    const { x, y } = getFloatingPosition({
+    const newFloat = getFloatingPosition({
       floating: { width: floatingRect.width, height: floatingRect.height },
       reference: referenceRect,
       container: containerRect,
       options,
     });
-    floatingPosition.value = { x, y };
+    floatingPosition.value = { x: newFloat.x, y: newFloat.y };
+    placement.value = newFloat.placement;
 
     // apply positions (fixed)
-    // TODO :Robustness: :UI: use absolute positioning for floating elements
+    // TODO :Robustness: :UI: use absolute positioning for floating elements?
     floating.style.position = "fixed";
-    floating.style.left = `${x}px`;
-    floating.style.top = `${y}px`;
+    floating.style.left = `${floatingPosition.value.x}px`;
+    floating.style.top = `${floatingPosition.value.y}px`;
   };
 
   // recompute if the refs change (ignore element positions/size changes by default)
@@ -208,5 +212,5 @@ export function useFloating(float: {
     watchElementBounding(foundContainer, recompute, { windowResize: true, windowScroll: true });
   }
 
-  return { recompute, floatingPosition, arrowPosition };
+  return { recompute, floatingPosition, placement };
 }

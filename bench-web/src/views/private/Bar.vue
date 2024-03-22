@@ -48,30 +48,52 @@ const props = defineProps<{
           {{ user.slug }}
         </button>
         <Menu
-          class="absolute right-2 top-12 z-40"
+          ref="menuRef"
+          class="absolute right-[300px] top-12 z-40"
           title="User"
           :items="[
             menuItemFromAction('user.login'),
             menuItemFromAction('user.logout'),
+            {
+              id: 'some.other.thing',
+              category: 'Other',
+              title: 'Not ready yet',
+              isLoading: true,
+              isDisabled: true,
+              action: () => {},
+            },
             menuItemFromAction('common.edit.copy'),
             {
               id: 'common.navigate.nested',
               category: 'Common',
               icon: 'fas fa-user',
-              title: 'Nested Nav',
-              isDisabled: true,
+              title: 'Nested Nav 1',
               action: {
                 title: 'Nested Navigation',
-                items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
+                items: [
+                  menuItemFromAction('common.navigate.right'),
+                  menuItemFromAction('common.navigate.up'),
+                  {
+                    id: 'common.navigate.nested',
+                    category: 'Common',
+                    icon: 'fas fa-user',
+                    title: 'Nested 1.1',
+                    action: {
+                      title: 'Nested 1.1.1',
+                      items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
+                    },
+                  },
+                ],
               },
-            },  menuItemFromAction('common.edit.paste'),
+            },
+            menuItemFromAction('common.edit.paste'),
             menuItemFromAction('common.navigate.down'),
             menuItemFromAction('common.navigate.left'),
             {
               id: 'common.navigate.nested',
               category: 'Common',
               icon: 'fas fa-user',
-              title: 'Nested Nav',
+              title: 'Nested Nav 2',
               action: {
                 title: 'Nested Navigation',
                 items: [menuItemFromAction('common.navigate.right'), menuItemFromAction('common.navigate.up')],
@@ -85,14 +107,6 @@ const props = defineProps<{
               icon: 'fas fa-cog',
               isDisabled: true,
               shortcuts: ['meta+s'],
-              action: () => {},
-            },
-            {
-              id: 'some.other.thing',
-              category: 'Other',
-              title: 'Not ready yet',
-              isLoading: true,
-              isDisabled: true,
               action: () => {},
             },
           ]"
