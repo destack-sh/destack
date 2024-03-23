@@ -3,12 +3,12 @@ import { NodeType } from "@/proto/wire";
 import { getActionsLike, runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
-import { DEFAULT_BENCH_ICON, DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
+import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
 import { clientMeta, isDeveloperMode } from "@/system/local";
 import { bench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { useElementSize } from "@/utils/element";
-import { COMMIT, VERSION } from "@/utils/globals";
+import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { menuItemFromAction } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
@@ -153,9 +153,13 @@ const USER_MENU_ITEMS = computed(() => [
             </template>
             <!-- Build Info -->
             <template #footer>
-              <div class="flex w-full flex-row px-2.5 pb-1.5 pt-2 text-gray-500">
-                <span>Bench Web {{ VERSION }}</span>
-                <span class="ml-auto">{{ COMMIT }}</span>
+              <div class="flex w-full flex-row px-2.5 pt-2 text-gray-500">
+                <span>Bench Web</span>
+                <span class="ml-auto">{{ VERSION }}</span>
+              </div>
+              <div class="flex w-full flex-row px-2.5 pb-1.5 text-xs text-gray-500">
+                <span>build:{{ IS_DEBUG ? "dev" : "prod" }}</span>
+                <span class="ml-auto">#{{ COMMIT?.slice(0, 8) ?? "???" }}</span>
               </div>
             </template>
           </Menu>

@@ -3,7 +3,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getNodeTypeIcon } from "@/system/lang";
-import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef } from "vue";
+import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
@@ -16,7 +16,7 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   icon: IconData;
   title: string;
 };
-export type ActionItem = Action & { path?: string; pathIndexed?: string; metatype: "action" };
+export type ActionItem = Omit<Action, "title"> & { title: string, path?: string; pathIndexed?: string; metatype: "action" };
 export type SearchItem = (NodeItem | ActionItem) & { title: string; category?: string };
 
 export type SearchCandidate = SearchItem & { candidate: string; category: string };
@@ -109,7 +109,7 @@ export function actionIndex(): SearchIndex<ActionItem> {
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.enabled == null || a.enabled.value)
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
-        .map((a) => ({ ...a, metatype: "action" })),
+        .map((a) => ({ ...a, title: toValue(a.title), metatype: "action" }) as ActionItem),
   };
   return markRaw(index);
 }

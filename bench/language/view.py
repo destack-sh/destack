@@ -118,8 +118,8 @@ class ViewType(IdEnum):
 class Variant(IdEnum):
     """The style variant of a view."""
 
-    V1 = 1
-    V2 = 2
+    V1 = 1  # primary
+    V2 = 2  # secondary
     V3 = 3
     V4 = 4
     V5 = 5
