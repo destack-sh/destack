@@ -90,10 +90,12 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
   caret-color: transparent;
 }
 
-/* marks should be bold */
+/* marks shouldn't be ugly */
 mark {
   background-color: transparent;
   color: inherit;
   font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 </style>

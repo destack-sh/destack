@@ -28,7 +28,7 @@ const middlePosition = computed(() => ({
   y: props.box.y + props.box.height / 2 - middleSize.height.value / 2,
 }));
 
-const BENCH_MENU_ITEMS = [
+const BENCH_MENU_ITEMS = computed(() => [
   // bench
   menuItemFromAction("bench.goToBench", { category: "bench" }),
   menuItemFromAction("bench.goToEnvironment", { category: "bench" }),
@@ -91,15 +91,15 @@ const BENCH_MENU_ITEMS = [
       items: getActionsLike({ prefix: "common.session" }).map((action) => menuItemFromAction(action)),
     },
   },
-];
+]);
 
-const USER_MENU_ITEMS = [
-  menuItemFromAction("user.goToHome", { category: "primary" }),
+const USER_MENU_ITEMS = computed(() => [
+  menuItemFromAction("user.goToHome", { category: "primarys" }),
   menuItemFromAction("user.activate", { category: "primary" }),
   menuItemFromAction("space.launch.notifications", { category: "primary" }),
   menuItemFromAction("user.editKeybindings", { category: "secondary" }),
   menuItemFromAction("user.logout", { category: "secondary" }),
-];
+]);
 </script>
 <template>
   <div
@@ -115,9 +115,7 @@ const USER_MENU_ITEMS = [
             class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
             @click="toggle"
           >
-            <div class="mr-1.5 h-fit rounded-md border border-gray-300 bg-primary-300 px-0.5">
-              <IconInline v-bind="DEFAULT_BENCH_ICON" />
-            </div>
+            <div class="mr-1.5 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
             <span class="font-semibold">Bench</span>
             <span class="ml-1 pl-0.5 font-semibold underline decoration-primary-400 decoration-2">Beta</span>
           </button>
@@ -128,7 +126,7 @@ const USER_MENU_ITEMS = [
             <template v-if="bench" #header>
               <div class="px-2.5 pb-2 pt-1.5">
                 <div class="flex flex-row">
-                  <div class="mr-2 rounded-md border border-gray-700 bg-primary-300 w-10 text-center py-0.5 text-lg">
+                  <div class="mr-2 w-10 rounded-md border border-gray-700 bg-primary-300 py-0.5 text-center text-lg">
                     <IconInline v-if="bench?.icon" class="" v-bind="bench.icon" />
                   </div>
                   <div class="flex flex-col leading-tight">
