@@ -10,7 +10,21 @@ import {
   getCurrentInstance,
   computed,
   type WatchOptions,
+  watchEffect,
 } from "vue";
+
+/** A ref that pretends to be read-only but really isn't */
+export function fakeReadonly<T extends object>(value: T): Readonly<T> {
+  return value as Readonly<T>;
+}
+
+/** Get/set a property of an object behind a Ref */
+export function pickRef<T, K extends keyof T>(obj: Ref<T | null |undefined>, key: K, valueFallback: T[K], objFallback: T | {} = {}): Ref<T[K]> {
+  return computed({
+    get: () => obj.value?.[key] ?? valueFallback,
+    set: (value) => (obj.value = { ...obj.value ?? objFallback, [key]: value } as T),
+  });
+}
 
 /**
  * Checks whether two arbitrary JavaScript values are deeply equal.
@@ -37,6 +51,7 @@ export function deepValueEquals(a: any, b: any): boolean {
   return true;
 }
 
+/** A ref that only trigger if the value deeply changes */
 export function valueRef<T>(value: T) {
   return customRef<T>((track, trigger) => {
     return {
@@ -54,6 +69,7 @@ export function valueRef<T>(value: T) {
   });
 }
 
+/** A ref that only triggers if the value deeply changes */
 export function toValueRef<T>(value: Ref<T>, options?: WatchOptions) {
   const ref = valueRef(value.value);
   watch(
@@ -70,6 +86,7 @@ type RefsToValueRefs<T> = {
   [K in keyof T]: T[K] extends Ref<infer U> ? Ref<U> : T[K];
 };
 
+/** Wrap all refs in an object to value refs */
 export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToValueRefs<T> {
   if (obj == null) {
     return {} as RefsToValueRefs<T>;
@@ -86,13 +103,17 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   return result as RefsToValueRefs<T>;
 }
 
+/** A computed value ref that only triggers when the value deeply changes */
+export function valueComputed<T>(get: ComputedGetter<T>) {
+  throw new Error("not implemented");
+}
+
+/** A computed ref with a manual trigger. */
 export type ManualComputedRef<T> = Ref<T> & {
   trigger: () => void;
 };
 
-/**
- * A computed ref that is only triggered manually.
- */
+/** A computed ref that is only triggered manually. */
 export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> {
   let value: T = undefined!;
   let track: Fn;
@@ -126,15 +147,6 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
   if (Object.isExtensible(result)) result.trigger = update;
 
   return result;
-}
-
-/**
- * Run a callback when the component is unmounted (only if we're in a component).
- */
-export function onUnmountedIfComponent(callback: () => void) {
-  if (getCurrentInstance()) {
-    onUnmounted(callback);
-  }
 }
 
 /**

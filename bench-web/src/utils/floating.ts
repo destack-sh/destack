@@ -20,6 +20,7 @@ export type FloatingOptions = {
   placement: FloatingPlacement; // relative to the reference
   containerMargin?: number; // margin around the container
   referenceMargin?: number; // margin around the reference
+  referenceOffset?: { x: number; y: number }; // offset the reference position
 };
 
 /**
@@ -38,6 +39,12 @@ export function getFloatingPosition(float: {
   const referenceMargin = options.referenceMargin ?? 0;
   const containerMargin = options.containerMargin ?? 0;
   let placement = options.placement;
+
+  // convenience offset the reference via options
+  if (options.referenceOffset != null) {
+    reference.x += options.referenceOffset.x;
+    reference.y += options.referenceOffset.y;
+  }
 
   const recomputePosition = () => {
     switch (placement) {

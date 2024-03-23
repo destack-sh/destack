@@ -4,7 +4,7 @@ import { getActionsLike, runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_BENCH_ICON, DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { clientMeta } from "@/system/local";
+import { clientMeta, isDeveloperMode } from "@/system/local";
 import { bench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { useElementSize } from "@/utils/element";
@@ -28,73 +28,90 @@ const middlePosition = computed(() => ({
   y: props.box.y + props.box.height / 2 - middleSize.height.value / 2,
 }));
 
-const BENCH_MENU_ITEMS = computed(() => [
-  // bench
-  menuItemFromAction("bench.goToBench", { category: "bench" }),
-  menuItemFromAction("bench.goToEnvironment", { category: "bench" }),
-  menuItemFromAction("bench.goToBranch", { category: "bench" }),
-  menuItemFromAction("bench.goToPackage", { category: "bench" }),
-  // shortcuts
-  {
-    id: "omnibar",
-    category: "shortcuts",
-    icon: "fas fa-magnifying-glass",
-    title: "Search",
-    action: {
-      items: [...getActionsLike({ prefix: "space.omnibar" })].map((action) => menuItemFromAction(action)),
+const BENCH_MENU_ITEMS = computed(() => {
+  const items = [
+    // bench
+    menuItemFromAction("bench.goToBench", { category: "bench" }),
+    menuItemFromAction("bench.goToEnvironment", { category: "bench" }),
+    menuItemFromAction("bench.goToBranch", { category: "bench" }),
+    menuItemFromAction("bench.goToPackage", { category: "bench" }),
+    menuItemFromAction("bench.goToSpace", { category: "bench" }),
+    // main
+    {
+      id: "omnibar",
+      category: "main",
+      icon: "fas fa-magnifying-glass",
+      title: "Search",
+      action: {
+        items: [...getActionsLike({ prefix: "space.omnibar" })].map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-  {
-    id: "space",
-    category: "shortcuts",
-    icon: ICON_BY_NODE_TYPE[NodeType.SPACE],
-    title: "Space",
-    action: {
-      items: [...getActionsLike({ prefix: "space.launch" })].map((action) => menuItemFromAction(action)),
+    {
+      id: "space",
+      category: "main",
+      icon: ICON_BY_NODE_TYPE[NodeType.SPACE],
+      title: "Space",
+      action: {
+        items: [...getActionsLike({ prefix: "space.launch" })].map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-  {
-    id: "view",
-    category: "shortcuts",
-    icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
-    title: "View",
-    action: {
-      items: getActionsLike({ prefix: "view" }).map((action) => menuItemFromAction(action)),
+    {
+      id: "view",
+      category: "main",
+      icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
+      title: "View",
+      action: {
+        items: getActionsLike({ prefix: "view" }).map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-  {
-    id: "edit",
-    category: "shortcuts",
-    icon: "fas fa-hammer",
-    title: "Edit",
-    action: {
-      items: [...getActionsLike({ prefix: "common.edit" }), ...getActionsLike({ prefix: "common.move" })].map(
-        (action) => menuItemFromAction(action),
-      ),
+    {
+      id: "edit",
+      category: "main",
+      icon: "fas fa-hammer",
+      title: "Edit",
+      action: {
+        items: ["common.edit", "common.move", "common.select"]
+          .flatMap((prefix) => getActionsLike({ prefix }))
+          .map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-  {
-    id: "sense",
-    category: "shortcuts",
-    icon: "fas fa-telescope",
-    title: "Analyze",
-    action: {
-      items: [...getActionsLike({ prefix: "common.sense" })].map((action) => menuItemFromAction(action)),
+    {
+      id: "sense",
+      category: "main",
+      icon: "fas fa-telescope",
+      title: "Analyze",
+      action: {
+        items: [...getActionsLike({ prefix: "common.sense" })].map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-  {
-    id: "session",
-    category: "shortcuts",
-    icon: "fas fa-play",
-    title: "Run",
-    action: {
-      items: getActionsLike({ prefix: "common.session" }).map((action) => menuItemFromAction(action)),
+    {
+      id: "session",
+      category: "main",
+      icon: "fas fa-play",
+      title: "Run",
+      action: {
+        items: getActionsLike({ prefix: "common.session" }).map((action) => menuItemFromAction(action)),
+      },
     },
-  },
-]);
+  ];
+
+  if (isDeveloperMode.value) {
+    items.push({
+      id: "developer",
+      category: "developer",
+      icon: "fas fa-bug",
+      title: "Developer",
+      action: {
+        items: getActionsLike({ prefix: "developer" }).map((action) => menuItemFromAction(action)),
+      },
+    });
+  }
+
+  return items;
+});
 
 const USER_MENU_ITEMS = computed(() => [
-  menuItemFromAction("user.goToHome", { category: "primarys" }),
+  menuItemFromAction("user.goToHome", { category: "primary" }),
   menuItemFromAction("user.activate", { category: "primary" }),
   menuItemFromAction("space.launch.notifications", { category: "primary" }),
   menuItemFromAction("user.editKeybindings", { category: "secondary" }),
@@ -115,7 +132,7 @@ const USER_MENU_ITEMS = computed(() => [
             class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
             @click="toggle"
           >
-            <div class="mr-1.5 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
+            <div class="mr-2 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
             <span class="font-semibold">Bench</span>
             <span class="ml-1 pl-0.5 font-semibold underline decoration-primary-400 decoration-2">Beta</span>
           </button>
@@ -124,25 +141,21 @@ const USER_MENU_ITEMS = computed(() => [
           <Menu @close="close" :items="BENCH_MENU_ITEMS">
             <!-- Bench Info -->
             <template v-if="bench" #header>
-              <div class="px-2.5 pb-2 pt-1.5">
-                <div class="flex flex-row">
-                  <div class="mr-2 w-10 rounded-md border border-gray-700 bg-primary-300 py-0.5 text-center text-lg">
-                    <IconInline v-if="bench?.icon" class="" v-bind="bench.icon" />
-                  </div>
-                  <div class="flex flex-col leading-tight">
-                    <span class="font-medium">{{ bench?.name ?? "???" }}</span>
-                    <span class="text-gray-500">{{ bench?.slug ?? "???" }}</span>
-                  </div>
+              <div class="flex flex-row px-2.5 pb-2 pt-1.5">
+                <div class="mr-2 w-10 rounded-md border border-gray-700 bg-primary-300 py-0.5 text-center text-lg">
+                  <IconInline v-if="bench?.icon" class="" v-bind="bench.icon" />
+                </div>
+                <div class="flex flex-col leading-tight">
+                  <span class="font-medium">{{ bench?.name ?? "???" }}</span>
+                  <span class="text-gray-500">{{ bench?.slug ?? "???" }}</span>
                 </div>
               </div>
             </template>
             <!-- Build Info -->
             <template #footer>
-              <div class="px-2.5 pb-1.5 pt-2 text-gray-500">
-                <div class="flex w-full flex-row">
-                  <span>Bench Web {{ VERSION }}</span>
-                  <span class="ml-auto">{{ COMMIT }}</span>
-                </div>
+              <div class="flex w-full flex-row px-2.5 pb-1.5 pt-2 text-gray-500">
+                <span>Bench Web {{ VERSION }}</span>
+                <span class="ml-auto">{{ COMMIT }}</span>
               </div>
             </template>
           </Menu>
@@ -178,7 +191,7 @@ const USER_MENU_ITEMS = computed(() => [
               class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
               @click="toggle"
             >
-              <span class="mr-1.5 rounded-md border border-gray-300 bg-primary-300 px-0.5">
+              <span class="mr-2 rounded-md border border-gray-300 bg-primary-300 px-0.5">
                 <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
               </span>
               <span>{{ user.name ?? user.slug }}</span>
@@ -188,15 +201,13 @@ const USER_MENU_ITEMS = computed(() => [
             <Menu @close="close" :items="USER_MENU_ITEMS">
               <!-- User Info -->
               <template #header>
-                <div class="px-2.5 pb-2 pt-1.5">
-                  <div class="flex flex-row">
-                    <div class="mr-2 rounded-md border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
-                      <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
-                    </div>
-                    <div class="flex flex-col leading-tight">
-                      <span class="font-medium">{{ user.name }}</span>
-                      <span class="text-gray-500">{{ user.slug }}</span>
-                    </div>
+                <div class="flex flex-row px-2.5 pb-2 pt-1.5">
+                  <div class="mr-2 rounded-md border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
+                    <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+                  </div>
+                  <div class="flex flex-col leading-tight">
+                    <span class="font-medium">{{ user.name }}</span>
+                    <span class="text-gray-500">{{ user.slug }}</span>
                   </div>
                 </div>
               </template>

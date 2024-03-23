@@ -1,9 +1,10 @@
 import { LocalStorage, NodeType } from "@/proto/wire";
 import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
+import { fakeReadonly, pickRef } from "@/utils/ref";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
-import { computed, shallowRef, type Ref } from "vue";
+import { computed, shallowRef, type Ref, readonly, toRef } from "vue";
 
 const BENCH_LOCAL_STORAGE_PREFIX = "bench-";
 
@@ -45,33 +46,95 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
   });
 }
 
-// user
-export const userInfo = useLocal("userInfo");
-export const clientInfo = useLocal("clientInfo");
-const isOpera = !!(window as any).opera;
-export const clientMeta = shallowRef({
-  deviceType: getDeviceType(window.navigator.userAgent),
-  operatingSystem: getOperatingSystem(window),
-  browserName: getBrowserName(window.navigator.userAgent, window.navigator.vendor, isOpera),
-  browserVersion: getBrowserVersion(window.navigator.userAgent, window.navigator.vendor, isOpera)?.toString(),
-  nonce: v4(),
-});
+//
+// NOTE: local storage is mostly just pointers to the currently active X.
+// So 'benchPtr' is the current Bench, 'packagePtr', is the current main Package in that Bench, etc.
+// Other stuff may be loaded as well, we just need one main Bench/Package/Space/....
+// For consistency we type these refs as readonly and mutate them only in specific places.
+//
 
-// space
-export const spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
-export const packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
+//
+// Auth
+//
+
+const _userInfo = useLocal("userInfo");
+const _clientInfo = useLocal("clientInfo");
+export const userInfo = fakeReadonly(_userInfo);
+export const clientInfo = fakeReadonly(_clientInfo);
+const isOpera = !!(window as any).opera;
+export const clientMeta = readonly(
+  shallowRef({
+    deviceType: getDeviceType(window.navigator.userAgent),
+    operatingSystem: getOperatingSystem(window),
+    browserName: getBrowserName(window.navigator.userAgent, window.navigator.vendor, isOpera),
+    browserVersion: getBrowserVersion(window.navigator.userAgent, window.navigator.vendor, isOpera)?.toString(),
+    nonce: v4(),
+  }),
+);
+
+export function setUser(info: {
+  user: Required<LocalStorage>["userInfo"];
+  client: Required<LocalStorage>["clientInfo"];
+}) {
+  _userInfo.value = info.user;
+  _clientInfo.value = info.client;
+}
+
+export function clearUser() {
+  _userInfo.value = null;
+  _clientInfo.value = null;
+}
+
+//
+// Space
+//
+
+// space/package/bench are derived from spacePtr and packagePtrs (which )
+const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
+const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
+export const spacePtr = fakeReadonly(_spacePtr);
 export const packageIdByBenchId = computed(() => {
   const packageIdByBenchId: Record<string, string> = {};
-  for (const pkg of packagePtrs.value) {
+  for (const pkg of _packagePtrs.value) {
+    if (packageIdByBenchId[pkg.benchId!] != null) continue; // ignore duplicates
     packageIdByBenchId[pkg.benchId!] = pkg.id!;
   }
   return packageIdByBenchId;
 });
-export const benchPtr: Ref<TypedNodeReferenceData<NodeType.BENCH> | null> = computed(() => {
-  if (spacePtr.value == null || spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
-  else return nodeReference(NodeType.BENCH, spacePtr.value.benchId!);
-});
-export const packagePtr: Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null> = computed(() => {
-  if (spacePtr.value?.benchId == null || spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
-  else return nodeReference(NodeType.PACKAGE, packageIdByBenchId.value[spacePtr.value.benchId], spacePtr.value.benchId);
-});
+export const benchPtr = computed(() => {
+  if (_spacePtr.value == null || _spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
+  else return nodeReference(NodeType.BENCH, _spacePtr.value.benchId!);
+}) as Readonly<Ref<TypedNodeReferenceData<NodeType.BENCH> | null>>;
+export const packagePtr = computed(() => {
+  if (_spacePtr.value?.benchId == null || _spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
+  else
+    return nodeReference(NodeType.PACKAGE, packageIdByBenchId.value[_spacePtr.value.benchId], _spacePtr.value.benchId);
+}) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
+
+/** Sets the active space. Must be local or from the current package. */
+export function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
+  if (space.benchId != LOCAL_BENCH_ID && packageIdByBenchId.value[space.benchId!] == null) {
+    throw new Error(`space ${space.id} is not in the active Package ${packageIdByBenchId.value[space.benchId!]}`);
+  }
+  _spacePtr.value = space;
+}
+
+/** Resets the space to the local space. */
+export function setSpaceToLocal() {
+  _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
+}
+
+/** Sets the current Bench & Package. If it doesn't match the current space, the space is reset to local. */
+export function setBench(
+  bench: TypedNodeReferenceData<NodeType.BENCH>,
+  pkg: TypedNodeReferenceData<NodeType.PACKAGE>,
+) {
+  throw new Error("not implemented");
+}
+
+//
+// Developer stuff
+//
+
+const developerSettings = useLocal("developerSettings");
+export const isDeveloperMode = pickRef(developerSettings, "isDeveloperMode", false);
