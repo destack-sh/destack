@@ -1,5 +1,6 @@
 import type { IconData } from "@/proto/wire";
 import { fireAction, getAction, type Action, type ActionBuiltinId } from "@/system/action";
+import { toValue } from "vue";
 
 export type MenuInfo = {
   icon?: string | IconData;
@@ -24,7 +25,7 @@ export function menuItemFromAction(actionOrId: Action | ActionBuiltinId, overrid
   return {
     id: action.id,
     icon: action.icon?.name,
-    title: action.title,
+    title: toValue(action.title),
     shortcuts: action.shortcuts,
     isDisabled: action.enabled != null && !action.enabled.value,
     category: action.category,

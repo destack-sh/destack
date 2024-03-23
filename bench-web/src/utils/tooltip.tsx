@@ -7,7 +7,7 @@ import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
-import { computed, type FunctionalComponent, type Directive, type Component, shallowRef, type Ref } from "vue";
+import { computed, type FunctionalComponent, type Directive, type Component, shallowRef, type Ref, toValue } from "vue";
 
 const IS_ON_MAC = isOnMac(window);
 const KEY_ICONS_FA: Record<string, string | undefined> = {
@@ -77,7 +77,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
 export function tooltipFromAction(action: Action): TooltipInfo {
   return {
     icon: action.icon?.name,
-    title: action.title,
+    title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,
     arrow: true,

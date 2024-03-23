@@ -10,7 +10,17 @@ import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import { collectViewComponentsUp } from "@/views/canvas";
-import { computed, getCurrentInstance, shallowRef, triggerRef, watch, type Ref, ref } from "vue";
+import {
+  computed,
+  getCurrentInstance,
+  shallowRef,
+  triggerRef,
+  watch,
+  type Ref,
+  ref,
+  type MaybeRef,
+  toValue,
+} from "vue";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -126,7 +136,7 @@ export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "b
 export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
 export type ActionKind = "static" | "virtual";
 export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
-  toaster.debug({ title: "Coming soon", text: `"${action.title}" is not yet available.`, icon: action.icon });
+  toaster.debug({ title: "Coming soon", text: `"${toValue(action.title)}" is not yet available.`, icon: action.icon });
 
 /**
  * An Action that can be performed by the user in the space.
@@ -139,7 +149,7 @@ export type Action = {
   kind: ActionKind;
   id: ActionBuiltinId;
   icon?: IconData;
-  title: string;
+  title: MaybeRef<string>;
   text: string | TextData;
   shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
   enabled?: Ref<boolean>;
@@ -275,7 +285,7 @@ export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null
       }
     }
     log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
-    toaster.debug({ title: "Action not available", text: `No active view supports "${action.title}".` });
+    toaster.debug({ title: "Action not available", text: `No active view supports "${toValue(action.title)}".` });
     return false; // no action found
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -610,8 +620,8 @@ declareActionMap<"view">({
 contributeActionMap<"developer">({
   "developer.toggleDeveloperMode": {
     icon: "fas fa-bug",
-    title: "Toggle Developer Mode",
-    text: "Toggle Developer Mode",
+    title: computed(() => (isDeveloperMode.value ? "Disable Developer Mode" : "Enable Developer Mode")),
+    text: "Developer Mode enables some advanced and some weird features.",
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.info({

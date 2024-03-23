@@ -1,16 +1,15 @@
 import type { Fn } from "@vueuse/core";
 import {
+  computed,
   customRef,
-  type Ref,
-  watch,
+  getCurrentInstance,
   isRef,
   onUnmounted,
   ref,
+  watch,
   type ComputedGetter,
-  getCurrentInstance,
-  computed,
-  type WatchOptions,
-  watchEffect,
+  type Ref,
+  type WatchOptions
 } from "vue";
 
 /** A ref that pretends to be read-only but really isn't */
