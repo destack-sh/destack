@@ -32,16 +32,18 @@ function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
 
 /**
  * On hover we immediately focus the given element.
- * After SHOW_NESTED_DELAY we open the nested menu if any.
+ * Then we transition nested menus as needed.
  */
 
 function onMouseEnter(itemIdx: number) {
   if (props.items[itemIdx].isDisabled) return;
+
+  // immediately focus
   focusedItemIdx.value = itemIdx;
-  if (hoverItemTimeout.value != null) {
-    clearTimeout(hoverItemTimeout.value);
-  }
-  hoverItemTimeout.value = setTimeout(() => {
+
+  if (hoverItemTimeout.value != null) clearTimeout(hoverItemTimeout.value);
+  /**  */
+  const openOrCloseFocused = () => {
     if (itemIdx == focusedItemIdx.value) {
       if (isNestedItem(props.items[itemIdx].action)) {
         openNestedMenu(itemIdx);
@@ -49,7 +51,13 @@ function onMouseEnter(itemIdx: number) {
         activeNestedItemIdx.value = null;
       }
     }
-  }, SHOW_NESTED_DELAY);
+  };
+  // wait to show/hide nested menu if we're transitioning between having it open vs closed
+  if ((activeNestedItemIdx.value != null) !== isNestedItem(props.items[itemIdx].action)) {
+    hoverItemTimeout.value = setTimeout(openOrCloseFocused, SHOW_NESTED_DELAY);
+  } else {
+    openOrCloseFocused();
+  }
 }
 
 function onMouseLeave(itemIdx: number) {
@@ -104,7 +112,8 @@ function fire(itemIdx: number) {
 function openNestedMenu(itemIdx: number) {
   activeNestedItemIdx.value = itemIdx;
   nextTick(() => {
-    activeNestedItemRef.value?.focus("top");
+    activeNestedItemRef.value.focus("top");
+    activeNestedItemRef.value.query = "";
   });
 }
 
@@ -131,11 +140,9 @@ function onNavigateHorizontal(direction: "left" | "right") {
 
 // auto-focus when created
 onMounted(() => {
-  /* 
-  NOTE: We must focus in the *next* tick even though we're already mounted.
-    Chromium has a bug where it gets confused about the actual position of the containing elements
-     when this is used as part of a popover, which breaks our floating positioning. Ugh.
-   */
+  // NOTE: We must focus in the *next* tick even though we're already mounted.
+  //  Chromium has a bug where it gets confused about the actual position of the containing elements (I think?)
+  //    when this is used as part of a popover, which breaks our floating positioning.
   nextTick(() => queryRef.value?.focus());
 });
 
@@ -177,7 +184,7 @@ const { placement: nestedPlacement } = useFloating({
   options: { placement: "right-top", referenceMargin: 4 },
 });
 
-defineExpose({ focus });
+defineExpose({ focus, query });
 </script>
 <template>
   <ul
@@ -188,13 +195,14 @@ defineExpose({ focus });
     @click.stop="queryRef?.focus()"
   >
     <!-- Magic floating query -->
-    <!-- Captures focus for navigation, also enables search/highlight -->
+    <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
       <div class="absolute -top-6 left-0 px-2 pl-4">
         <input
           ref="queryRef"
           class="w-fit min-w-0 border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
+          spellcheck="false"
           @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
@@ -240,12 +248,16 @@ defineExpose({ focus });
         />
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>
         <!-- Title -->
-        <span class="truncate" v-html="itemTitleMarked[i] ?? item.title" />
+        <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
         <!-- Shortcut or nested menu -->
         <i v-if="isNestedItem(item.action)" class="fas fa-chevron-right ml-auto pl-4 pr-1 text-gray-700" />
         <Shortcut v-else-if="(item.shortcuts?.length ?? 0) > 0" class="ml-auto pl-4" :shortcut="item.shortcuts?.[0]!" />
       </li>
     </template>
+    <!-- Filler -->
+    <div v-if="items.length == 0" class="px-2.5 py-1">
+      <span class="text-gray-500">Nothing here</span>
+    </div>
     <!-- Footer -->
     <div v-if="$slots.footer" class="mt-1 border-t border-gray-900">
       <slot name="footer" :focus="focus" />
@@ -263,6 +275,7 @@ defineExpose({ focus });
       <Menu
         v-if="activeNestedItemIdx != null"
         ref="activeNestedItemRef"
+        class="absolute"
         :parent="props"
         :placement="nestedPlacement ?? undefined"
         v-bind="(items[activeNestedItemIdx]!.action as MenuInfo)"
