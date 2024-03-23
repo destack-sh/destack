@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
-import { useLoadedGraph } from "@/system/connection";
+import { useActiveConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -17,7 +17,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
+const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
 const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 const focusedWindowIdx: Ref<number | null> = computed(() => {
   if (windows.value.length == 0) return null;

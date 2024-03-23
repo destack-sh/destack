@@ -1,6 +1,7 @@
 import { ViewType, type IconData, type NodeReferenceData, type TextData } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { canvas } from "@/system/space";
+import { isDeveloperMode } from "@/system/local";
+import { canvas, hasBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
@@ -31,6 +32,7 @@ export const ACTION_BUILTIN_IDS = [
   "bench.goToEnvironment",
   "bench.goToBranch",
   "bench.goToPackage",
+  "bench.goToSpace",
   // package
   // ...
   // space
@@ -110,7 +112,8 @@ export const ACTION_BUILTIN_IDS = [
   "user.editKeybindings",
   // organization
   "organization.create",
-  // debug/developer
+  // developer
+  "developer.toggleDeveloperMode",
   "developer.addView",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
@@ -605,7 +608,21 @@ declareActionMap<"view">({
 
 // developer actions
 contributeActionMap<"developer">({
+  "developer.toggleDeveloperMode": {
+    icon: "fas fa-bug",
+    title: "Toggle Developer Mode",
+    text: "Toggle Developer Mode",
+    action: () => {
+      isDeveloperMode.value = !isDeveloperMode.value;
+      toaster.info({
+        title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
+        text: "Developer features are now " + (isDeveloperMode.value ? "enabled" : "disabled") + ".",
+        icon: "fas fa-bug",
+      });
+    },
+  },
   "developer.addView": {
+    enabled: isDeveloperMode,
     icon: "fas fa-bug",
     title: "Add Some View",
     text: "?",
@@ -661,21 +678,31 @@ contributeActionMap<"bench">({
     action: ACTION_COMING_SOON,
   },
   "bench.goToBranch": {
+    enabled: ref(false), // not yet implemented
     title: "Switch Branch",
-    text: "Go to another Branch of this Bench",
+    text: "Go to another Branch in this Bench",
     icon: "fas fa-code-branch",
     action: ACTION_COMING_SOON,
   },
   "bench.goToEnvironment": {
+    enabled: hasBench,
     title: "Switch Environment",
-    text: "Go to another Environment of this Bench",
+    text: "Go to another Environment in this Bench",
     icon: "fas fa-cloud",
     action: ACTION_COMING_SOON,
   },
   "bench.goToPackage": {
+    enabled: hasBench,
     title: "Switch Package",
-    text: "Go to another Package of this Bench",
+    text: "Go to another Package in this Bench",
     icon: "fas fa-box",
+    action: ACTION_COMING_SOON,
+  },
+  "bench.goToSpace": {
+    enabled: hasBench,
+    title: "Switch Space",
+    text: "Go to another Space of this Bench",
+    icon: "fas fa-galaxy",
     action: ACTION_COMING_SOON,
   },
 });

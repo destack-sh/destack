@@ -28,12 +28,21 @@ message BadgeInfo {
   optional string password = 4;
 }
 
+// Web-local developer settings.
+message DeveloperSettings {
+  bool is_developer_mode = 1;
+}
+
 // All the locally stored data.
 // All fields must be messages (may be repeated). :LocalStorageEncoding
 message LocalStorage {
+  // auth
   optional UserInfo user_info = 1;
   optional ClientInfo client_info = 2;
   repeated BadgeInfo badges = 3;
-  optional NodeReferenceData space_ptr = 4;
-  repeated NodeReferenceData package_ptrs = 5;
+  // space/bench
+  optional NodeReferenceData space_ptr = 10;
+  repeated NodeReferenceData package_ptrs = 11;
+  // debug
+  optional DeveloperSettings developer_settings = 20;
 }

@@ -178,7 +178,7 @@ defineExpose({ isActive, open });
       class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700 bg-opacity-20"
       data-outside-view="true"
       @keydown.esc.exact.prevent="() => close()"
-      @click="isActive = false"
+      @click.stop.prevent="isActive = false"
     >
       <!-- Modal -->
       <Transition

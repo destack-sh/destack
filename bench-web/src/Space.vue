@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Orientation } from "@/proto/wire";
-import { useLoadedGraph } from "@/system/connection";
+import { useActiveConnection } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
 import { isDragging } from "@/utils/layout";
@@ -18,7 +18,7 @@ const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const windowRef = ref<InstanceType<typeof Windowed> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(
+const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
 

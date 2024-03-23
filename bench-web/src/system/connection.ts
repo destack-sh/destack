@@ -25,7 +25,8 @@ import {
   canonicalizeEdits,
 } from "@/system/transaction";
 import { log } from "@/utils/log";
-import { onUnmountedIfComponent, toValueRef, type SubRef } from "@/utils/ref";
+import { toValueRef, type SubRef } from "@/utils/ref";
+import { tryOnBeforeUnmount } from "@vueuse/core";
 import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, markRaw } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
@@ -252,14 +253,20 @@ export function addGraphConnection(connection: GraphConnection): void {
 
 export type PageInfo = { cursors: string[]; startCursor: string; size: number; total?: number };
 
-type GetNodesParams<T extends NodeType> = {
-  roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
-  options?: Partial<ReadOptionsData>;
+type NodeRequestParams = {
+  /** Identifies the request/connection for logging. Client side only. */
+  name: string;
   live?: boolean;
+  /** Whether  */
   enabled?: boolean;
 };
 
-type SearchNodesParams<T extends NodeType> = {
+type GetNodesParams<T extends NodeType> = NodeRequestParams & {
+  roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
+  options?: Partial<ReadOptionsData>;
+};
+
+type SearchNodesParams<T extends NodeType> = NodeRequestParams & {
   nodeType: T;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
@@ -269,24 +276,20 @@ type SearchNodesParams<T extends NodeType> = {
   after?: string | null;
   options?: Partial<ReadOptionsData>;
   count?: boolean;
-  live?: boolean;
-  enabled?: boolean;
 };
 
-type AggregateNodesParams = {
+type AggregateNodesParams = NodeRequestParams & {
   nodeType: NodeType;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
   sort?: ExpressionData[];
   aggregation: ExpressionData;
-  enabled?: boolean;
-  live?: boolean;
 };
 
 /**
  * Finds an existing connection to the relevant subgraph.
  */
-export function findGetConnection<T extends NodeType>(params: GetNodesParams<T>): GraphConnection | null {
+export function findGetConnection<T extends NodeType>(params: Omit<GetNodesParams<T>, "name">): GraphConnection | null {
   const connection = graphConnections.value.find((c) => {
     if (c.kind != "get") return false;
     if (params?.live && !c.isLive) return false;
@@ -303,7 +306,7 @@ export function findGetConnection<T extends NodeType>(params: GetNodesParams<T>)
 /**
  * Gets an existing or creates a new connection to the relevant subgraph.
  */
-export async function acquireGetConnection<T extends NodeType>(
+export async function connectGet<T extends NodeType>(
   params: Omit<GetNodesParams<T>, "enabled">,
 ): Promise<{ connection: GraphConnection }> {
   const existingConnection = findGetConnection(params);
@@ -312,7 +315,7 @@ export async function acquireGetConnection<T extends NodeType>(
     return { connection: existingConnection };
   }
 
-  log.info("acquireGetConnection", params);
+  log.info(`graph.get.${params.name}`, params);
   const benchId = params.roots[0]!.benchId;
   const client = benchId == null ? supervisor : await getHostClient({ id: benchId });
   const graph = new NodeGraph({ scope: { benchId } });
@@ -329,6 +332,7 @@ export async function acquireGetConnection<T extends NodeType>(
   );
   addGraphConnection(connection);
 
+  // fetch nodes
   let epoch: bigint;
   try {
     connection.isFetching = true;
@@ -341,6 +345,7 @@ export async function acquireGetConnection<T extends NodeType>(
     connection.isFetching = false;
   }
 
+  // watch edits if live
   if (params.live) {
     const allNodeTypes = [...params.roots.map((r) => r.type), ...options.ancestorTypes, ...options.descendantTypes];
     const editStream = client.watchEdits({
@@ -357,7 +362,7 @@ export async function acquireGetConnection<T extends NodeType>(
     });
   }
 
-  onUnmountedIfComponent(() => connection.referenceCount--);
+  tryOnBeforeUnmount(() => connection.referenceCount--);
   return { connection };
 }
 
@@ -380,8 +385,15 @@ export function useGetNodes<T extends NodeType>(
   watch(
     toValueRef(paramsRef),
     async () => {
-      if (!paramsRef.value.enabled) return;
-      const { connection } = await acquireGetConnection(paramsRef.value);
+      if (!paramsRef.value.enabled) {
+        const oldConnection = connectionProxy.connection.value;
+        if (oldConnection != null) {
+          // TODO :Broken: close connection
+        }
+        return;
+      }
+
+      const { connection } = await connectGet(paramsRef.value);
       if (connectionProxy.connection.value != null) {
         connectionProxy.connection.value.referenceCount -= 1;
       }
@@ -429,7 +441,7 @@ export function useAggregateNodes(params: MaybeRef<AggregateNodesParams>): {
  * NOTE: for performance the graph/connection proxies are 'lazy' (batched per tick as regular refs).
  *  That means changing 'node' will change connection/graph only on the next tick.
  */
-export function useLoadedGraph(node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>): {
+export function useActiveConnection(node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>): {
   graph: ReadNodeGraph;
   connection: GraphConnection;
 } {

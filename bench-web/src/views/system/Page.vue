@@ -1,12 +1,11 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
-import { useGetNodes, useLoadedGraph } from "@/system/connection";
+import { useActiveConnection, useGetNodes } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { useFloating } from "@/utils/floating";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import { computed, ref, toRef } from "vue";
+import { computed, toRef } from "vue";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -17,9 +16,10 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 
 const self = toRef(props, "self");
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);
+const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
   computed(() => ({
+    name: `page.${props.nodePtr?.id}`,
     roots: [props.nodePtr!],
     options: { descendantTypes: [NodeType.BLOCK] },
     enabled: props.nodePtr != null,

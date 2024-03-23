@@ -13,7 +13,7 @@ import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/pro
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { clientInfo, clientMeta, userInfo } from "@/system/local";
+import { clearUser, clientInfo, clientMeta, setUser, userInfo } from "@/system/local";
 import { canvas } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
@@ -29,6 +29,7 @@ export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
 export const { graph: userGraph, connection: userConnection } = useGetNodes(
   computed(() => ({
+    name: "user",
     roots: [nodeReference(NodeType.USER, userInfo.value?.id!)],
     options: { descendantTypes: [NodeType.CLIENT] },
     enabled: isAuthenticated.value,
@@ -52,16 +53,19 @@ function makeCurrentClient(): ClientData {
 }
 
 function onLogIn(info: { user: UserData; client: ClientData; accessToken: string }) {
-  userInfo.value = {
-    id: info.user.id,
-    email: info.user.email!,
-    name: info.user.name!,
-    slug: info.user.slug!,
-  };
-  clientInfo.value = {
-    id: info.client.id,
-    accessToken: info.accessToken,
-  };
+  setUser({
+    user: {
+      id: info.user.id,
+      email: info.user.email!,
+      name: info.user.name!,
+      slug: info.user.slug!,
+    },
+    client: {
+      id: info.client.id,
+      accessToken: info.accessToken,
+    },
+  });
+  log.info("user.login", userInfo.value);
 }
 
 /**
@@ -106,8 +110,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
   if (options == null || options?.all || options?.clients?.some((c) => c.id == clientInfo.value?.id)) {
     // logged out current client
     log.info("user.logout", options);
-    userInfo.value = null;
-    clientInfo.value = null;
+    clearUser();
     toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
@@ -116,8 +119,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
 export function onAuthenticationError(error: RpcError) {
   // TODO :Robustness: handle user auth error & badge auth error separately
   log.error("user.unauthenticated");
-  userInfo.value = null;
-  clientInfo.value = null;
+  clearUser();
 }
 
 export async function createBench(benchIn: {
@@ -171,7 +173,7 @@ contributeActionMap<"user">({
     enabled: isActivated,
     title: "Go to My Bench",
     text: "Go back to your Bench.",
-    action: ACTION_COMING_SOON,
+    action: () => {},
   },
   "user.editKeybindings": {
     icon: "fas fa-keyboard",

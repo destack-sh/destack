@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { Region, Variant, type NodeReferenceData, ViewData, NodeType } from "@/proto/wire";
-import { useLoadedGraph } from "@/system/connection";
+import { useActiveConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
@@ -17,7 +17,7 @@ const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(toRef(props, "self"));
+const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
 
 type State = "sign-up" | "log-in" | "all-set";
 const TITLE_BY_STATE: Record<State, string> = {

@@ -2,7 +2,7 @@
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
-import { useLoadedGraph } from "@/system/connection";
+import { useActiveConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { ICON_BY_NODE_TYPE } from "@/system/lang";
 import { canvas } from "@/system/space";
@@ -20,7 +20,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 // focus
-const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);
+const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW);
 
 const focusedTabIdx: Ref<number | null> = computed(() => {

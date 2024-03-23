@@ -8,7 +8,8 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { defaultSort } from "@/system/lang";
-import { manualSubRef, onUnmountedIfComponent, type SubRef } from "@/utils/ref";
+import { manualSubRef, type SubRef } from "@/utils/ref";
+import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 /** A NodeReference but with proper typing */
@@ -150,7 +151,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
       },
       { immediate: true },
     );
-    onUnmountedIfComponent(unsub);
+    tryOnBeforeUnmount(unsub);
     return ref;
   }
 
@@ -174,7 +175,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
       },
       { immediate: true },
     );
-    onUnmountedIfComponent(unsub);
+    tryOnBeforeUnmount(unsub);
     return ref;
   }
 
@@ -198,7 +199,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
       },
       { immediate: true },
     );
-    onUnmountedIfComponent(unsub);
+    tryOnBeforeUnmount(unsub);
     return ref;
   }
 }

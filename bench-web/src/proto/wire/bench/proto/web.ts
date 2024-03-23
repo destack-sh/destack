@@ -79,6 +79,17 @@ export interface BadgeInfo {
     password?: string;
 }
 /**
+ * Web-local developer settings.
+ *
+ * @generated from protobuf message symbolx.bench.DeveloperSettings
+ */
+export interface DeveloperSettings {
+    /**
+     * @generated from protobuf field: bool is_developer_mode = 1;
+     */
+    isDeveloperMode: boolean;
+}
+/**
  * All the locally stored data.
  * All fields must be messages (may be repeated). :LocalStorageEncoding
  *
@@ -86,6 +97,8 @@ export interface BadgeInfo {
  */
 export interface LocalStorage {
     /**
+     * auth
+     *
      * @generated from protobuf field: optional symbolx.bench.UserInfo user_info = 1;
      */
     userInfo?: UserInfo;
@@ -98,13 +111,21 @@ export interface LocalStorage {
      */
     badges: BadgeInfo[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData space_ptr = 4;
+     * space/bench
+     *
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData space_ptr = 10;
      */
     spacePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData package_ptrs = 5;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData package_ptrs = 11;
      */
     packagePtrs: NodeReferenceData[];
+    /**
+     * debug
+     *
+     * @generated from protobuf field: optional symbolx.bench.DeveloperSettings developer_settings = 20;
+     */
+    developerSettings?: DeveloperSettings;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class UserInfo$Type extends MessageType<UserInfo> {
@@ -309,14 +330,62 @@ class BadgeInfo$Type extends MessageType<BadgeInfo> {
  */
 export const BadgeInfo = new BadgeInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class DeveloperSettings$Type extends MessageType<DeveloperSettings> {
+    constructor() {
+        super("symbolx.bench.DeveloperSettings", [
+            { no: 1, name: "is_developer_mode", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<DeveloperSettings>): DeveloperSettings {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.isDeveloperMode = false;
+        if (value !== undefined)
+            reflectionMergePartial<DeveloperSettings>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DeveloperSettings): DeveloperSettings {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* bool is_developer_mode */ 1:
+                    message.isDeveloperMode = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DeveloperSettings, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* bool is_developer_mode = 1; */
+        if (message.isDeveloperMode !== false)
+            writer.tag(1, WireType.Varint).bool(message.isDeveloperMode);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DeveloperSettings
+ */
+export const DeveloperSettings = new DeveloperSettings$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class LocalStorage$Type extends MessageType<LocalStorage> {
     constructor() {
         super("symbolx.bench.LocalStorage", [
             { no: 1, name: "user_info", kind: "message", T: () => UserInfo },
             { no: 2, name: "client_info", kind: "message", T: () => ClientInfo },
             { no: 3, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BadgeInfo },
-            { no: 4, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 5, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 10, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 11, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 20, name: "developer_settings", kind: "message", T: () => DeveloperSettings }
         ]);
     }
     create(value?: PartialMessage<LocalStorage>): LocalStorage {
@@ -341,11 +410,14 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
                 case /* repeated symbolx.bench.BadgeInfo badges */ 3:
                     message.badges.push(BadgeInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData space_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData space_ptr */ 10:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData package_ptrs */ 5:
+                case /* repeated symbolx.bench.NodeReferenceData package_ptrs */ 11:
                     message.packagePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.DeveloperSettings developer_settings */ 20:
+                    message.developerSettings = DeveloperSettings.internalBinaryRead(reader, reader.uint32(), options, message.developerSettings);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -368,12 +440,15 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         /* repeated symbolx.bench.BadgeInfo badges = 3; */
         for (let i = 0; i < message.badges.length; i++)
             BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData space_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData space_ptr = 10; */
         if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData package_ptrs = 5; */
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData package_ptrs = 11; */
         for (let i = 0; i < message.packagePtrs.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.DeveloperSettings developer_settings = 20; */
+        if (message.developerSettings)
+            DeveloperSettings.internalBinaryWrite(message.developerSettings, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

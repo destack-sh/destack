@@ -12,7 +12,9 @@ import { highlightMatches } from "@/system/search";
 const SHOW_NESTED_DELAY = 200;
 
 const props = defineProps<MenuInfo & { parent?: MenuInfo; placement?: FloatingPlacement }>();
-const emit = defineEmits(["close"]);
+const emit = defineEmits<{
+  close: [bubble?: boolean];
+}>();
 
 const menuRef: Ref<HTMLUListElement | null> = ref(null);
 const query: Ref<string> = ref("");
@@ -105,7 +107,7 @@ function fire(itemIdx: number) {
     }
   } else {
     item.action();
-    emit("close");
+    emit("close", true);
   }
 }
 
@@ -181,8 +183,9 @@ const { placement: nestedPlacement } = useFloating({
   floating: activeNestedItemRef,
   reference: computed(() => itemRefs.value[activeNestedItemIdx.value ?? 0]),
   enabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
-  options: { placement: "right-top", referenceMargin: 4 },
+  options: { placement: "right-top", referenceMargin: 8, referenceOffset: { x: 0, y: -7 } },
 });
+
 
 defineExpose({ focus, query });
 </script>
@@ -200,7 +203,7 @@ defineExpose({ focus, query });
       <div class="absolute -top-6 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="w-fit min-w-0 border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="w-fit min-w-0 cursor-default border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
           @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
@@ -208,6 +211,7 @@ defineExpose({ focus, query });
           @keydown.down.stop.prevent="focus('next')"
           @keydown.right.stop.prevent="onNavigateHorizontal('right')"
           @keydown.left.stop.prevent="onNavigateHorizontal('left')"
+          @click.stop="/* not meant to be 'in' the menu */ emit('close')"
         />
       </div>
     </div>
@@ -225,7 +229,7 @@ defineExpose({ focus, query });
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
         role="menuitem"
         :data-selected="focusedItemIdx === i"
-        class="mx-1 my-0.5 flex flex-row items-center rounded-md border border-transparent px-2 py-[3px]"
+        class="mx-1 my-0.5 flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
         :class="[
           item.isDisabled
             ? 'text-gray-500'
@@ -269,8 +273,8 @@ defineExpose({ focus, query });
       enter-from-class="opacity-0 scale-95"
       enter-to-class="opacity-100 scale-100"
       leave-active-class="transition-all ease-out duration-75"
-      leave-from-class="opacity-100 scale-100"
-      leave-to-class="opacity-0 scale-95"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-[10px]"
     >
       <Menu
         v-if="activeNestedItemIdx != null"
@@ -279,7 +283,14 @@ defineExpose({ focus, query });
         :parent="props"
         :placement="nestedPlacement ?? undefined"
         v-bind="(items[activeNestedItemIdx]!.action as MenuInfo)"
-        @close="(queryRef?.focus(), focus(activeNestedItemIdx)), (activeNestedItemIdx = null)"
+        @close="
+          (bubble) => {
+            queryRef?.focus();
+            focus(activeNestedItemIdx!);
+            activeNestedItemIdx = null;
+            if (bubble) emit('close', true);
+          }
+        "
       />
     </Transition>
   </ul>
