@@ -16,7 +16,12 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   icon: IconData;
   title: string;
 };
-export type ActionItem = Omit<Action, "title"> & { title: string, path?: string; pathIndexed?: string; metatype: "action" };
+export type ActionItem = Omit<Action, "title"> & {
+  title: string;
+  path?: string;
+  pathIndexed?: string;
+  metatype: "action";
+};
 export type SearchItem = (NodeItem | ActionItem) & { title: string; category?: string };
 
 export type SearchCandidate = SearchItem & { candidate: string; category: string };
@@ -32,6 +37,15 @@ export type SearchIndex<T extends SearchItem> = {
   candidates: () => T[];
   /** Enrichs a lazy search item before we turn it into a candidate/result. */
   enrich?: (item: T) => T;
+};
+
+export type SearchOptions = {
+  /** Term permutations */
+  outOfOrder?: number;
+};
+
+const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
+  outOfOrder: 2,
 };
 
 const HIDDEN_SEPARATOR = ` ; `;
@@ -118,6 +132,7 @@ export function useSearch(search: {
   query: Ref<string>;
   enabled?: Ref<boolean>;
   indices: Ref<Record<string, SearchIndex<any>>>;
+  options?: SearchOptions;
 }): {
   candidates: Ref<SearchCandidate[]>;
   results: Ref<SearchResult[]>;
@@ -159,9 +174,11 @@ export function useSearch(search: {
 
       // update results
       if (search.query.value) {
+        const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
         const [idxs, info, order] = uf.search(
           candidates.map((c) => getIndexedStr(c).str),
           search.query.value,
+          options.outOfOrder,
         );
         const results: SearchResult[] = [];
         if (idxs && order) {
@@ -223,12 +240,18 @@ export function highlight(
 }
 
 /** Simple search and highlight in plain text haystack */
-export function highlightMatches(search: { uf: uFuzzy; query: string; candidates: string[] }): {
+export function highlightMatches(search: {
+  uf: uFuzzy;
+  query: string;
+  candidates: string[];
+  options?: SearchOptions;
+}): {
   markedResults: (string | null)[];
   bestMatches: number[];
 } {
+  const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
   const { uf, query, candidates } = search;
-  const [idxs, info, order] = uf.search(candidates, query);
+  const [idxs, info, order] = uf.search(candidates, query, options.outOfOrder);
   const markedResults: (string | null)[] = candidates.map((c) => null);
   let bestMatches: number[] = [];
 

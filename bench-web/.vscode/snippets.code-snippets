@@ -26,7 +26,7 @@
 			"",
 			"const { graph: spaceGraph, connection: spaceConnection } = useLoadedGraph(self);",
 			"",
-			"canvas.registerCurrent(id, self);",
+			"canvas.registerView(id, self);",
 			"defineExpose<ViewExposed>({ self });",
 			"</script>",
 			"<template>",

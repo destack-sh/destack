@@ -126,7 +126,7 @@ const USER_MENU_ITEMS = computed(() => [
     <!-- Left -->
     <div class="flex flex-shrink-0 flex-row items-center gap-x-4">
       <!-- Bench -->
-      <Popover placement="bottom-left" :reference-margin="4">
+      <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
         <template v-slot:trigger="{ toggle }">
           <button
             class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
@@ -189,7 +189,7 @@ const USER_MENU_ITEMS = computed(() => [
     <div class="flex flex-shrink-0 flex-row">
       <template v-if="user">
         <!-- User (logged in) -->
-        <Popover placement="bottom-right" :reference-margin="4">
+        <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle }">
             <button
               class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"

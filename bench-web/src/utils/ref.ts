@@ -13,7 +13,7 @@ import {
 } from "vue";
 
 /** A ref that pretends to be read-only but really isn't */
-export function fakeReadonly<T extends object>(value: T): Readonly<T> {
+export function pretendReadonly<T extends object>(value: T): Readonly<T> {
   return value as Readonly<T>;
 }
 

@@ -1,13 +1,16 @@
-import type { IconData, LogLevel, TextData } from "@/proto/wire";
+import type { TextData } from "@/proto/wire";
 import type { Action } from "@/system/action";
-import { makeIcon, toIconMaybe } from "@/system/icon";
 import { isOnMac } from "@/utils/browser";
 import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
-import { log } from "@/utils/log";
+import { pretendReadonly } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
-import { computed, type FunctionalComponent, type Directive, type Component, shallowRef, type Ref, toValue } from "vue";
+import { computed, shallowRef, toValue, type Directive, type FunctionalComponent, type Ref } from "vue";
+
+//
+// Shortcut
+//
 
 const IS_ON_MAC = isOnMac(window);
 const KEY_ICONS_FA: Record<string, string | undefined> = {
@@ -60,8 +63,12 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
   );
 };
 
-const DEFAULT_SHOW_DELAY = 500;
-const DEFAULT_HIDE_DELAY = 300;
+//
+// Tooltip
+//
+
+const DEFAULT_HOVER_SHOW_DELAY = 500;
+const DEFAULT_HOVER_HIDE_DELAY = 300;
 
 export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   icon?: string;
@@ -85,8 +92,8 @@ export function tooltipFromAction(action: Action): TooltipInfo {
   };
 }
 
-/** Store state on the triggering element */
-interface TriggerElement extends HTMLElement {
+/** The triggering element with some extra state */
+interface TooltipTriggerElement extends HTMLElement {
   tooltipInstance?: TooltipInstance;
   tooltipShowTimeout?: number;
   tooltipHideTimeout?: number;
@@ -98,33 +105,34 @@ interface TriggerElement extends HTMLElement {
 export type TooltipInstance = {
   id: number;
   info: TooltipInfo;
-  reference: TriggerElement;
+  reference: TooltipTriggerElement;
   container?: HTMLElement | SVGElement;
 };
 
+const _activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
+export const activeTooltips = pretendReadonly(_activeTooltips);
 let tooltipId = 0;
-function createTooltipInstance(
-  reference: TriggerElement,
-  container: HTMLElement | SVGElement | undefined,
+
+function createTooltip(
+  reference: TooltipTriggerElement,
   info: TooltipInfo,
+  container: HTMLElement | SVGElement | undefined,
 ): TooltipInstance {
   const instance = { id: tooltipId++, info, reference, container };
-  activeTooltips.value = [...activeTooltips.value, instance];
+  _activeTooltips.value = [..._activeTooltips.value, instance];
   return instance;
 }
 
-function destroyTooltipInstance(instance: TooltipInstance) {
-  activeTooltips.value = activeTooltips.value.filter((t) => t !== instance);
+function destroyTooltip(instance: TooltipInstance) {
+  _activeTooltips.value = _activeTooltips.value.filter((t) => t !== instance);
 }
-
-export const activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
 
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
 export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
-    const triggerEl = el as TriggerElement;
-    const showDelay = binding.value.showDelay ?? DEFAULT_SHOW_DELAY;
-    const hideDelay = binding.value.hideDelay ?? DEFAULT_HIDE_DELAY;
+    const triggerEl = el as TooltipTriggerElement;
+    const showDelay = binding.value.showDelay ?? DEFAULT_HOVER_SHOW_DELAY;
+    const hideDelay = binding.value.hideDelay ?? DEFAULT_HOVER_HIDE_DELAY;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
       if (e.target == triggerEl) {
@@ -132,7 +140,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
         const container = findFloatingContainer(triggerEl) ?? undefined;
         if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
         triggerEl.tooltipShowTimeout = window.setTimeout(() => {
-          triggerEl.tooltipInstance = createTooltipInstance(triggerEl, container, binding.value);
+          triggerEl.tooltipInstance = createTooltip(triggerEl, binding.value, container);
         }, showDelay);
       } else if (triggerEl.tooltipInstance != null) {
         // some part of the tooltip is hovered, so cancel the hide timeout
@@ -142,7 +150,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
     triggerEl.tooltipOnMouseLeave = (e: MouseEvent) => {
       if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
       triggerEl.tooltipHideTimeout = window.setTimeout(() => {
-        destroyTooltipInstance(triggerEl.tooltipInstance!);
+        destroyTooltip(triggerEl.tooltipInstance!);
       }, hideDelay);
     };
     triggerEl.addEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
@@ -150,22 +158,24 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   },
 
   updated(el, binding) {
-    const tooltipEl = el as TriggerElement;
+    const tooltipEl = el as TooltipTriggerElement;
     if (tooltipEl.tooltipInstance != null) {
       tooltipEl.tooltipInstance.info = binding.value;
     }
   },
 
   unmounted(el) {
-    const tooltipEl = el as TriggerElement;
-    if (tooltipEl.tooltipShowTimeout != null) {
-      clearTimeout(tooltipEl.tooltipShowTimeout);
+    const triggerEl = el as TooltipTriggerElement;
+    if (triggerEl.tooltipShowTimeout != null) {
+      clearTimeout(triggerEl.tooltipShowTimeout);
     }
-    if (tooltipEl.tooltipHideTimeout != null) {
-      clearTimeout(tooltipEl.tooltipHideTimeout);
+    if (triggerEl.tooltipHideTimeout != null) {
+      clearTimeout(triggerEl.tooltipHideTimeout);
     }
-    if (tooltipEl.tooltipInstance != null) {
-      activeTooltips.value = activeTooltips.value.filter((t) => t !== tooltipEl.tooltipInstance);
+    if (triggerEl.tooltipInstance != null) {
+      _activeTooltips.value = _activeTooltips.value.filter((t) => t !== triggerEl.tooltipInstance);
     }
+    if (triggerEl.tooltipOnMouseEnter) triggerEl.removeEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
+    if (triggerEl.tooltipOnMouseLeave) triggerEl.removeEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);
   },
 };

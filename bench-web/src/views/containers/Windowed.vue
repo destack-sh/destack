@@ -73,7 +73,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
 };
 
-canvas.registerSelf(self);
+canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>

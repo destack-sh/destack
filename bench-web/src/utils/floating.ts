@@ -53,7 +53,7 @@ export function getFloatingPosition(float: {
         y = reference.y - floating.height - referenceMargin;
         break;
       case "top-left":
-        x = reference.x;
+        x = reference.x + referenceMargin;
         y = reference.y - floating.height - referenceMargin;
         break;
       case "top-right":
@@ -77,11 +77,11 @@ export function getFloatingPosition(float: {
         y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-left":
-        x = reference.x;
+        x = reference.x - floating.width;
         y = reference.y + reference.height + referenceMargin;
         break;
       case "bottom-right":
-        x = reference.x + reference.width - floating.width;
+        x = reference.x + reference.width;
         y = reference.y + reference.height + referenceMargin;
         break;
       case "left":
@@ -90,7 +90,7 @@ export function getFloatingPosition(float: {
         break;
       case "left-top":
         x = reference.x - floating.width - referenceMargin;
-        y = reference.y;
+        y = reference.y + referenceMargin;
         break;
       case "left-bottom":
         x = reference.x - floating.width - referenceMargin;
@@ -103,19 +103,13 @@ export function getFloatingPosition(float: {
   recomputePosition();
 
   // flip and recompute if needed
-  const outOfBounds = {
-    top: y < container.y,
-    right: x + floating.width > container.x + container.width,
-    bottom: y + floating.height > container.y + container.height,
-    left: x < container.x,
-  };
-  if (outOfBounds.top && placement.startsWith("top"))
+  if (y < container.y && placement.startsWith("top"))
     placement = placement.replace("top", "bottom") as FloatingPlacement;
-  else if (outOfBounds.bottom && placement.startsWith("bottom"))
+  else if (y + floating.height > container.y + container.height && placement.startsWith("bottom"))
     placement = placement.replace("bottom", "top") as FloatingPlacement;
-  else if (outOfBounds.right && placement.startsWith("right"))
+  else if (x + floating.width > container.x + container.width && placement.startsWith("right"))
     placement = placement.replace("right", "left") as FloatingPlacement;
-  else if (outOfBounds.left && placement.startsWith("left"))
+  else if (x < container.x && placement.startsWith("left"))
     placement = placement.replace("left", "right") as FloatingPlacement;
   if (options.placement != placement) {
     recomputePosition();
@@ -199,7 +193,11 @@ export function useFloating(float: {
 
   // recompute if the refs change (ignore element positions/size changes by default)
   watch(
-    () => [float.floating.value, float.reference.value, optionsRef.value, float.enabled?.value],
+    () =>
+      // only get properties if enabled (enabled may guard some potentially expensive or unset properties)
+      float.enabled == null || float.enabled?.value
+        ? [float.floating.value, float.reference.value, optionsRef.value]
+        : [],
     () => {
       if (float.enabled != null && !float.enabled?.value) return;
       const floating = unrefElement(float.floating);

@@ -206,7 +206,7 @@ class BlockType(IdEnum):
     SINGLE_VARIABLE = 20  # define a single-value variable
     MULTI_VARIABLE = 21  # define a variable with (multiple) fields
 
-    MODEL_ROUTINE = 30  # define a model function with fields (incl. input/output)
+    NATURAL_ROUTINE = 30  # define a model function with fields (incl. input/output)
     CODE_ROUTINE = 31  # define a code function with fields (incl. input/output)
     SCRIPT = 32  # define a code script with fields
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)

@@ -214,8 +214,32 @@ export function getAction(id: ActionBuiltinId): Action {
   return action;
 }
 
-export function getActionsLike(like: { prefix: string }) {
-  return DECLARED_ACTIONS.value.filter((a) => a.id.startsWith(like.prefix));
+/** A simple OR filter for Actions */
+export type ActionFilter = {
+  // exact prefix match (lowercase)
+  prefix?: string | string[];
+  // wildcard match (lowercase, with '*' for variable length wildcard)
+  wildcard?: string | string[];
+  category?: ActionBuiltinCategory | ActionBuiltinCategory[];
+};
+
+/** Filters actions with a simple OR filter of clauses */
+export function getActionsLike(like: ActionFilter): Action[] {
+  const prefix = (like.prefix == null ? [] : Array.isArray(like.prefix) ? like.prefix : [like.prefix]).map((s) =>
+    s.toLowerCase(),
+  );
+  const wildcard = (like.wildcard == null ? [] : Array.isArray(like.wildcard) ? like.wildcard : [like.wildcard]).map(
+    (w) => new RegExp("^" + w.toLowerCase().replace(/\*/g, ".*") + "$"),
+  );
+  const category = like.category == null ? [] : Array.isArray(like.category) ? like.category : [like.category];
+  const filter = (action: Action) => {
+    // OR filter, any match is enough
+    const idNorm = action.id.toLowerCase();
+    if (prefix.some((p) => idNorm.startsWith(p))) return true;
+    if (wildcard.some((w) => w.test(idNorm))) return true;
+    if (category.length > 0 && !category.includes(action.category as ActionBuiltinCategory)) return false;
+  };
+  return DECLARED_ACTIONS.value.filter(filter);
 }
 
 /**
@@ -230,6 +254,7 @@ export const DEFAULT_SUPPRESSED_ACTIONS: Record<string, string[]> = {
   contenteditable: ["common.navigate", "common.select", "common.move"],
 };
 
+/** Finds an ancestor element suppressing the given action */
 function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement | null {
   while (el != null) {
     const elTag = el.tagName.toLowerCase();
@@ -267,7 +292,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
 }
 
 /** Triggers the bound action from a given view (as starting point). */
-export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null) {
+export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents) {
   if (action.enabled != null && !action.enabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly
@@ -292,7 +317,7 @@ export function fireAction(action: Action, viewsInOrder?: ViewComponent[] | null
   }
 }
 
-// track implemented actions (and register with keytrap)
+// track implemented actions & maintain keybindings
 // NOTE: implemented actions may contain disabled actions, we filter those at a later step to avoid updating this too often
 //  (we evaluate the actual action to call only when firing the callback anyway)
 export const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
@@ -302,7 +327,7 @@ watch(
   () => {
     const implemented: Record<string, Action> = {};
 
-    // all static actions
+    // static actions
     Object.values(DECLARED_ACTIONS.value)
       .filter((a) => a.kind == "static")
       .forEach((a) => (implemented[a.id] = a));
@@ -628,6 +653,14 @@ contributeActionMap<"developer">({
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: "Developer features are now " + (isDeveloperMode.value ? "enabled" : "disabled") + ".",
         icon: "fas fa-bug",
+        actions: [
+          {
+            title: isDeveloperMode.value ? "Disable" : "Enable",
+            action: () => {
+              isDeveloperMode.value = !isDeveloperMode.value;
+            },
+          },
+        ],
       });
     },
   },

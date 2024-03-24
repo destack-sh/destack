@@ -14,7 +14,7 @@ import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { clearUser, clientInfo, clientMeta, setUser, userInfo } from "@/system/local";
-import { canvas } from "@/system/space";
+import { canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
@@ -173,7 +173,9 @@ contributeActionMap<"user">({
     enabled: isActivated,
     title: "Go to My Bench",
     text: "Go back to your Bench.",
-    action: () => {},
+    action: async () => {
+      await goToBench(user.value!.mainBenchPtr!);
+    },
   },
   "user.editKeybindings": {
     icon: "fas fa-keyboard",
