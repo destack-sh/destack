@@ -5,7 +5,7 @@ import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type Omniba
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
 import { bench, spaceGraph, canvas } from "@/system/space";
-import { nextTickIf } from "@/utils/functools";
+import { nowOrNextTick } from "@/utils/functools";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
 import { Shortcut } from "@/utils/tooltip";
@@ -54,7 +54,7 @@ async function fire(id: string) {
   const result = candidates.value.find((r) => r.id === id);
   // fire
   if (result != null) {
-    if (result.metatype == "action") fireAction(result, canvas.focusedViewComponents);
+    if (result.metatype == "action") fireAction(result);
     else if (result.metatype == "node") canvas.goToNode(toNodeReference(result.node));
     else throw new Error(`unexpected result: ${result}`);
   }
@@ -108,7 +108,7 @@ function focus() {
 function close(options?: { delayFocus: boolean }) {
   isActive.value = false;
   clear();
-  nextTickIf(options?.delayFocus, () => canvas.restoreComponentFocus());
+  nowOrNextTick(options?.delayFocus, () => canvas.restoreComponentFocus());
 }
 
 // auto-close when the box becomes too small
@@ -133,11 +133,11 @@ const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   view: ["mod+f"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
-  everywhere: "Search anything",
+  everywhere: "Search (almost) anything",
   actions: "Find an action to run",
-  space: "Search across your Space",
-  views: "Search Views in your Space",
-  view: "Search the focused View",
+  space: "Search across this Space",
+  views: "Search active Views in this Space",
+  view: "Search the focused View in the Space",
   module: "Search the current Module",
   package: "Search the current Package",
   bench: "Search the current Bench",
@@ -308,3 +308,4 @@ defineExpose({ isActive, open });
     </div>
   </Transition>
 </template>
+@/utils/overlay@/utils/tooltip

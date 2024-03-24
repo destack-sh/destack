@@ -75,7 +75,7 @@ async function submit() {
   }
 }
 
-const instance = canvas.registerSelf(self);
+const instance = canvas.registerView(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {

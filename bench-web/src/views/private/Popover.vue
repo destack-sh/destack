@@ -8,10 +8,10 @@ const triggerRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 
 function getEnterFrom(placement: FloatingPlacement): string {
-  if (placement.startsWith("left")) return "translate-x-[5px]";
-  else if (placement.startsWith("top")) return "translate-y-[5px]";
-  else if (placement.startsWith("right")) return "translate-x-[-5px]";
-  /* bottom */ else return "translate-y-[-5px]";
+  if (placement.startsWith("left")) return "translate-x-[6px]";
+  else if (placement.startsWith("top")) return "translate-y-[6px]";
+  else if (placement.startsWith("right")) return "translate-x-[-6px]";
+  /* bottom */ else return "translate-y-[-6px]";
 }
 
 const isOpen = ref(false);

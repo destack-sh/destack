@@ -27,9 +27,10 @@ const actionRefs: Ref<Record<string, Component<typeof Button>>> = ref({});
       <Button
         :ref="(ref?: any) => (ref != null ? (actionRefs[action.id] = ref) : (delete actionRefs[action.id]))"
         :icon="action.icon"
-        @click="fireAction(action)"
+        @click="fireAction(action, null)"
         v-tooltip="tooltipFromAction(action)"
       />
     </template>
   </div>
 </template>
+@/utils/overlay@/utils/tooltip

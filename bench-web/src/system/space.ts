@@ -1,6 +1,5 @@
 import { BenchType, NodeReferenceData, NodeType, SpaceData } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
-import { spaceGraphLocal, useGetNodes, useActiveConnection } from "@/system/connection";
+import { spaceGraphLocal, useActiveConnection, useGetNodes } from "@/system/connection";
 import { ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID, benchPtr, packagePtr, setSpaceToLocal, spacePtr } from "@/system/local";
@@ -63,5 +62,5 @@ watch(
 );
 
 export async function goToBench(bench: NodeReferenceData) {
-  throw new Error("not implemented");
+  throw new Error("nocheckin: goToBench");
 }

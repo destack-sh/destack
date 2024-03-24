@@ -15,6 +15,7 @@ export type ToastAction = {
   action: () => void;
 };
 
+// how long toasts remain alive for animations after they expire
 const ZOMBIE_TOAST_DURATION = 1000; // ms
 
 /**
@@ -43,8 +44,9 @@ export enum ToastDuration {
 }
 
 export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
-  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & { icon?: string | IconData, debounce?: boolean };
+  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & { icon?: string | IconData; debounce?: boolean };
 
+/** The official container of Toasts */
 export class Toaster {
   toasts: Ref<Toast[]>;
 

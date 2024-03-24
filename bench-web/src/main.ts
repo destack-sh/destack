@@ -9,6 +9,7 @@ import { registerViewComponents } from "@/views";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
 import { TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
+import { CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
   const app = createApp(Space);
@@ -56,7 +57,8 @@ async function init() {
     console.error(err);
     toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
-  app.directive("tooltip", TOOLTIP_DIRECTIVE)
+  app.directive("tooltip", TOOLTIP_DIRECTIVE);
+  app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
 
   // start our own stuff
   await registerViewComponents();

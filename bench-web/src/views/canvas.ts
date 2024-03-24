@@ -307,7 +307,7 @@ export class ViewCanvas {
   /** Restores component focus to the currently absolutely focused element if possible. */
   restoreComponentFocus(): boolean {
     if (this.spacePtr.value == null) throw new Error("no current space");
-    log.debug("view.restoreComponentFocus", this.spacePtr.value);
+    log.trace("view.restoreComponentFocus", this.spacePtr.value);
     const space = this.graph.get(this.spacePtr.value);
     if ((space?.focus?.nodesPtr?.length ?? 0) > 0) {
       const view = this.getViewData(space!.focus!.nodesPtr[0]);
@@ -328,8 +328,8 @@ export class ViewCanvas {
     return computed(() => this.isFocusedAbsolute(view.value));
   }
 
-  /** Registers the current Vue instance in the canvas with some identity */
-  registerSelf(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
+  /** Registers the current Vue component instance in the canvas with some View identity */
+  registerView(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
@@ -601,7 +601,6 @@ export class ViewCanvas {
           reference: self,
         }),
       });
-      console.log(self.size, halfSize);
       tx.create(viewParent);
       tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
       tx.update({ ...child, metatype: NodeType.VIEW, size: halfSize, orderKey: "a0" });

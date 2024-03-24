@@ -44,7 +44,7 @@ watch([isManualScrolling, isNativeScrolling], () => {
 });
 
 const id = makeViewId(props);
-canvas.registerSelf(self, id);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>

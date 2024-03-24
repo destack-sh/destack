@@ -11,6 +11,7 @@ import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import { type ContextMenuInfo, menuActionsLike } from "@/utils/menu";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -140,7 +141,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
 };
 
-canvas.registerSelf(self);
+canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
@@ -154,6 +155,7 @@ defineExpose<ViewExposed>({ self, actions });
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
+      v-contextmenu="() => ({items: menuActionsLike({wildcard: ['view.navigate*window*', 'view.layout*']})}  as ContextMenuInfo) "
     >
       <!-- Tab button -->
       <button
@@ -174,6 +176,7 @@ defineExpose<ViewExposed>({ self, actions });
             e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
           }
         "
+        v-contextmenu="() => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']})} as ContextMenuInfo)"
       >
         <IconInline
           v-bind="tab.icon ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"

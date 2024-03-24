@@ -1,7 +1,7 @@
 import { LocalStorage, NodeType } from "@/proto/wire";
 import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
-import { fakeReadonly, pickRef } from "@/utils/ref";
+import { pretendReadonly, pickRef } from "@/utils/ref";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 import { computed, shallowRef, type Ref, readonly, toRef } from "vue";
@@ -59,8 +59,8 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 
 const _userInfo = useLocal("userInfo");
 const _clientInfo = useLocal("clientInfo");
-export const userInfo = fakeReadonly(_userInfo);
-export const clientInfo = fakeReadonly(_clientInfo);
+export const userInfo = pretendReadonly(_userInfo);
+export const clientInfo = pretendReadonly(_clientInfo);
 const isOpera = !!(window as any).opera;
 export const clientMeta = readonly(
   shallowRef({
@@ -92,7 +92,7 @@ export function clearUser() {
 // space/package/bench are derived from spacePtr and packagePtrs (which )
 const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
 const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
-export const spacePtr = fakeReadonly(_spacePtr);
+export const spacePtr = pretendReadonly(_spacePtr);
 export const packageIdByBenchId = computed(() => {
   const packageIdByBenchId: Record<string, string> = {};
   for (const pkg of _packagePtrs.value) {

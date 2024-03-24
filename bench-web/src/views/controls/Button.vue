@@ -48,7 +48,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
 }));
 
-canvas.registerSelf(self, id);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus: () => buttonRef.value });
 </script>
 <template>

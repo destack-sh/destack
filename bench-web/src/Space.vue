@@ -9,6 +9,7 @@ import Bar from "@/views/private/Bar.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
+import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -36,6 +37,7 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
     :class="[isDragging ? 'yselect-none pointer-events-none' : '']"
+    @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
     <!-- Bar -->
     <Bar
@@ -61,8 +63,9 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
     />
     <!-- Overlays -->
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
-    <TooltipOverlay />
     <Omnibar ref="omnibarRef" :box="mainBox" />
+    <TooltipOverlay />
+    <MenuOverlay />
   </div>
 </template>
 <style>
