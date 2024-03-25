@@ -89,6 +89,10 @@ export const ACTION_BUILTIN_IDS = [
   "common.move.down",
   "common.move.left",
   "common.move.right",
+  "common.search.findInView",
+  "common.search.replaceInView",
+  "common.search.findInSpace",
+  "common.search.replaceInSpace",
   "common.sense.focus",
   "common.sense.goToDefinition",
   "common.sense.findReferences",
@@ -111,8 +115,10 @@ export const ACTION_BUILTIN_IDS = [
   "view.navigate.closeWindow",
   "view.navigate.closeOtherWindows",
   "view.navigate.reopenClosedWindow",
-  "view.layout.splitHorizontal",
-  "view.layout.splitVertical",
+  "view.layout.splitUp",
+  "view.layout.splitDown",
+  "view.layout.splitLeft",
+  "view.layout.splitRight",
   // user
   "user.signup",
   "user.login",
@@ -155,6 +161,7 @@ export type Action = {
   enabled?: Ref<boolean>;
   source: ActionSource;
   category: string;
+  subcategory?: string;
   path: string;
   action: ActionCallable;
   url?: string; // for external URLs
@@ -174,10 +181,9 @@ export type ActionMapImplementation<T extends string> = Record<FilterPrefix<Acti
 export type ActionContribution = ActionDeclaration & ActionImplementation;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
 
-/** Adds an action directly to the map. */
+/** Adds an action (declaration or declaration+implementation) directly . */
 export function addAction(kind: ActionKind, in_: ActionIn) {
-  let idParts = in_.id.split(".").map((p) => toCasing(p, Casing.CAMEL));
-  if (idParts[0] == "common") idParts = idParts.slice(1);
+  const idParts = in_.id.split(".").map((p) => toCasing(p, Casing.CAMEL));
   const action: Action = {
     kind,
     ...in_,
@@ -185,6 +191,7 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
     source: { kind: "builtin", id: in_.id },
     id: in_.id,
     category: idParts[0],
+    subcategory: idParts[1],
     path: idParts.slice(0, -1).join(" / "),
   };
   if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
@@ -291,6 +298,19 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   return fireAction(action, chain);
 }
 
+/**
+ * Checks whether the context implements the action.
+ * NOTE: does not 'call' the action, so we can't know if the action is refused dynamically.
+ */
+export function isActionImplemented(action: Action, context: ViewComponent[]): boolean {
+  if (action.kind == "static") return action.enabled == null || action.enabled.value == true;
+  for (const view of context) {
+    const impl = view.exposed?.actions?.[action.id];
+    if (impl != null && (impl.enabled == null || impl.enabled.value == true)) return true;
+  }
+  return false;
+}
+
 /** Triggers the bound action from a given view (as starting point). */
 export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents) {
   if (action.enabled != null && !action.enabled.value) return false;
@@ -306,11 +326,12 @@ export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null 
       if (impl != null && (impl.enabled == null || impl.enabled.value == true)) {
         log.info("action.virtual", action.id);
         const ret = impl.action(action);
-        return typeof ret === "boolean" ? ret : true;
+        if (typeof ret != "boolean" || ret === true) return true;
+        /** else: keep searching up */
       }
     }
     log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
-    toaster.debug({ title: "Action not available", text: `No active view supports "${toValue(action.title)}".` });
+    toaster.debug({ title: "Action is unavailable", text: `No active view supports "${toValue(action.title)}".` });
     return false; // no action found
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -320,8 +341,8 @@ export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null 
 // track implemented actions & maintain keybindings
 // NOTE: implemented actions may contain disabled actions, we filter those at a later step to avoid updating this too often
 //  (we evaluate the actual action to call only when firing the callback anyway)
-export const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
-export const IMPLEMENTED_ACTIONS: Ref<Action[]> = computed(() => Object.values(IMPLEMENTED_ACTIONS_BY_ID.value));
+const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
+export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() => Object.values(IMPLEMENTED_ACTIONS_BY_ID.value));
 watch(
   [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
   () => {
@@ -508,6 +529,31 @@ declareActionMap<"common">({
     text: "Move right",
     shortcuts: ["mod+right", "tab"],
   },
+  // search
+  "common.search.findInView": {
+    icon: "fas fa-magnifying-glass",
+    title: "Search in View",
+    text: "Find in the current view",
+    shortcuts: ["mod+f"],
+  },
+  "common.search.replaceInView": {
+    icon: "fas fa-right-left",
+    title: "Replace in View",
+    text: "Replace in the current view",
+    shortcuts: ["mod+r"],
+  },
+  "common.search.findInSpace": {
+    icon: "fas fa-magnifying-glass",
+    title: "Search in Space",
+    text: "Find in the current space",
+    shortcuts: ["mod+shift+f"],
+  },
+  "common.search.replaceInSpace": {
+    icon: "fas fa-right-left",
+    title: "Replace in Space",
+    text: "Replace in the current space",
+    shortcuts: ["mod+shift+r"],
+  },
   // sense
   "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
@@ -629,15 +675,25 @@ declareActionMap<"view">({
     shortcuts: ["mod+shift+n"],
   },
   // layout
-  "view.layout.splitVertical": {
+  "view.layout.splitUp": {
     icon: "fas fa-reflect-vertical",
-    title: "Split Vertical",
-    text: "Split the current window vertically",
+    title: "Split Up",
+    text: "Split the current window vertically (new window above)",
   },
-  "view.layout.splitHorizontal": {
+  "view.layout.splitDown": {
+    icon: "fas fa-reflect-vertical",
+    title: "Split Down",
+    text: "Split the current window vertically (new window below)",
+  },
+  "view.layout.splitLeft": {
     icon: "fas fa-reflect-horizontal",
-    title: "Split Horizontal",
-    text: "Split the current window horizontally",
+    title: "Split Left",
+    text: "Split the current window horizontally (new window left)",
+  },
+  "view.layout.splitRight": {
+    icon: "fas fa-reflect-horizontal",
+    title: "Split Right",
+    text: "Split the current window horizontally (new window right)",
   },
 });
 

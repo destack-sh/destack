@@ -224,7 +224,7 @@ defineExpose({ isActive, open });
             />
             <!-- Close -->
             <button class="ml-auto" @click="() => close()">
-              <Shortcut shortcut="esc" />
+              <Shortcut class="text-gray-700" shortcut="esc" />
             </button>
           </div>
 
@@ -283,7 +283,7 @@ defineExpose({ isActive, open });
                   <!-- Metadata (shortcut, last edited, etc.) -->
                   <Shortcut
                     v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
-                    class="ml-auto"
+                    class="ml-auto text-gray-700"
                     :shortcut="result.shortcuts![0]"
                   />
                 </li>
@@ -308,4 +308,3 @@ defineExpose({ isActive, open });
     </div>
   </Transition>
 </template>
-@/utils/overlay@/utils/tooltip

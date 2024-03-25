@@ -6,13 +6,14 @@ import { useActiveConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { ICON_BY_NODE_TYPE } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { setDragData, useMultiDropZone, useSplitDropZone } from "@/utils/drag";
+import { setDragData, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import { type ContextMenuInfo, menuActionsLike } from "@/utils/menu";
+import { type ContextMenuInfo, type MenuContext, menuActionsLike } from "@/utils/menu";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { split } from "postcss/lib/list";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "focus">
@@ -73,7 +74,6 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 });
 
 // splitting body
-// TODO :Architecture: shouldn't window splitting be implemented in Windowed?
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
   container: bodyRef,
@@ -95,13 +95,23 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
 });
 
 // actions
+const hasMultipleTabs = computed(() => tabs.value.length > 1);
+const splitAction = (anchor: SplitAnchor) => ({
+  action: () => {
+    const focusedTab = tabs.value[focusedTabIdx.value!];
+    if (focusedTab == null) return false;
+    const selfData = spaceGraph.get(props.self) as ViewData;
+    canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, anchor);
+    return true;
+  },
+});
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
     enabled: computed(() => focusedTabIdx.value != null),
     action: () => remove(tabs.value[focusedTabIdx.value!]),
   },
   "view.navigate.closeOtherTabs": {
-    enabled: computed(() => tabs.value.length > 1),
+    enabled: hasMultipleTabs,
     action: () => {
       const focusedTab = tabs.value[focusedTabIdx.value!];
       for (const tab of tabs.value) {
@@ -110,35 +120,23 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusPreviousTab": {
-    enabled: computed(() => tabs.value.length > 1),
+    enabled: hasMultipleTabs,
     action: () => {
       const newIdx = focusedTabIdx.value == 0 ? tabs.value.length - 1 : (focusedTabIdx.value ?? 1) - 1;
       focus(tabs.value[newIdx]);
     },
   },
   "view.navigate.focusNextTab": {
-    enabled: computed(() => tabs.value.length > 1),
+    enabled: hasMultipleTabs,
     action: () => {
       const newIdx = focusedTabIdx.value == tabs.value.length - 1 ? 0 : (focusedTabIdx.value ?? -1) + 1;
       focus(tabs.value[newIdx]);
     },
   },
-  "view.layout.splitHorizontal": {
-    enabled: computed(() => focusedTabIdx.value != null),
-    action: () => {
-      const selfData = spaceGraph.get(props.self) as ViewData;
-      const focusedTab = tabs.value[focusedTabIdx.value!];
-      canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "right");
-    },
-  },
-  "view.layout.splitVertical": {
-    enabled: computed(() => focusedTabIdx.value != null),
-    action: () => {
-      const selfData = spaceGraph.get(props.self) as ViewData;
-      const focusedTab = tabs.value[focusedTabIdx.value!];
-      canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedTab, "bottom");
-    },
-  },
+  "view.layout.splitLeft": splitAction("left"),
+  "view.layout.splitRight": splitAction("right"),
+  "view.layout.splitUp": splitAction("top"),
+  "view.layout.splitDown": splitAction("bottom"),
 };
 
 canvas.registerView(self);
@@ -150,12 +148,12 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       ref="headerRef"
       class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
-      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
+      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200  data-[contextmenu=true]:bg-gray-100']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
-      v-contextmenu="() => ({items: menuActionsLike({wildcard: ['view.navigate*window*', 'view.layout*']})}  as ContextMenuInfo) "
+      v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*window*', 'view.layout*']}, {context})} as ContextMenuInfo) "
     >
       <!-- Tab button -->
       <button
@@ -176,7 +174,7 @@ defineExpose<ViewExposed>({ self, actions });
             e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
           }
         "
-        v-contextmenu="() => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']})} as ContextMenuInfo)"
+        v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context})} as ContextMenuInfo)"
       >
         <IconInline
           v-bind="tab.icon ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
@@ -189,8 +187,8 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- Close tab button -->
         <button
           class="ml-1.5 group-hover:text-gray-400"
-          :class="[i == focusedTabIdx ? (isFocusAbsolute ? 'text-gray-400' : 'text-gray-300') : 'text-transparent']"
-          @mousedown.stop="remove(tab)"
+          :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : ''"
+          @click.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />
         </button>
@@ -231,10 +229,10 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tab body split drop overlay -->
     <Transition
       appear
-      enter-active-class="transition-opacity duration-300"
+      enter-active-class="transition-opacity ease-in duration-300"
       enter-from-class="opacity-0"
       enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-300"
+      leave-active-class="transition-opacity ease-out duration-300"
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >

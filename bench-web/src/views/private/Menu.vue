@@ -106,11 +106,12 @@ function fire(itemIdx: number) {
       openNestedMenu(itemIdx);
     }
   } else {
-    item.action();
+    item.action(props);
     emit("close", true);
   }
 }
 
+/** Open and focus the nested menu at the given item */
 function openNestedMenu(itemIdx: number) {
   activeNestedItemIdx.value = itemIdx;
   nextTick(() => {
@@ -186,7 +187,6 @@ const { placement: nestedPlacement } = useFloating({
   options: { placement: "right-top", referenceMargin: 8, referenceOffset: { x: 0, y: -7 } },
 });
 
-
 defineExpose({ focus, query });
 </script>
 <template>
@@ -200,10 +200,10 @@ defineExpose({ focus, query });
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
-      <div class="absolute -top-6 left-0 px-2 pl-4">
+      <div class="absolute -top-5 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="w-fit min-w-0 cursor-default border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded-md border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
           @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
@@ -254,12 +254,21 @@ defineExpose({ focus, query });
         <!-- Title -->
         <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
         <!-- Shortcut or nested menu -->
-        <i v-if="isNestedItem(item.action)" class="fas fa-chevron-right ml-auto pl-4 pr-1 text-gray-700" />
-        <Shortcut v-else-if="(item.shortcuts?.length ?? 0) > 0" class="ml-auto pl-4" :shortcut="item.shortcuts?.[0]!" />
+        <i
+          v-if="isNestedItem(item.action)"
+          :class="['fas fa-chevron-right ml-auto pl-4 pr-1', item.isDisabled ? 'text-gray-400' : 'text-gray-700']"
+        />
+        <Shortcut
+          v-else-if="(item.shortcuts?.length ?? 0) > 0"
+          :class="['ml-auto pl-4', item.isDisabled ? 'text-gray-400' : 'text-gray-700']"
+          :shortcut="item.shortcuts?.[0]!"
+          :is-disabled="item.isDisabled"
+        />
       </li>
     </template>
     <!-- Filler -->
     <div v-if="items.length == 0" class="px-2.5 py-1">
+      <!-- Empty state -->
       <span class="text-gray-500">Nothing here</span>
     </div>
     <!-- Footer -->
@@ -295,4 +304,3 @@ defineExpose({ focus, query });
     </Transition>
   </ul>
 </template>
-@/utils/overlay@/utils/tooltip

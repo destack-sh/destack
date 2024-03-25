@@ -3,6 +3,7 @@ import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/p
 import type { ActionMapImplementation } from "@/system/action";
 import { useActiveConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
+import type { SplitAnchor } from "@/utils/drag";
 import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -48,6 +49,13 @@ const { sizedViews, draggingIdx } = useSplitView(
 );
 
 // actions
+const splitAction = (anchor: SplitAnchor) => ({
+  action: () => {
+    const selfData = spaceGraph.get(props.self) as ViewData;
+    const focusedWindow = windows.value[focusedWindowIdx.value!];
+    canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedWindow, anchor);
+  },
+});
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeWindow": {
     enabled: computed(() => focusedWindowIdx.value != null),
@@ -71,6 +79,10 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       canvas.focus(spaceConnection.sideTx, { view: allWindows[nextIdx] });
     },
   },
+  "view.layout.splitLeft": splitAction("left"),
+  "view.layout.splitRight": splitAction("right"),
+  "view.layout.splitUp": splitAction("top"),
+  "view.layout.splitDown": splitAction("bottom"),
 };
 
 canvas.registerView(self);
