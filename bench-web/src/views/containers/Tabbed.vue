@@ -148,7 +148,7 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       ref="headerRef"
       class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
-      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200  data-[contextmenu=true]:bg-gray-100']"
+      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -160,10 +160,10 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 transition-colors duration-75 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : ' hover:text-primary-900',
-          i == focusedTabIdx ? (isFocusAbsolute ? 'shadow-inset-md' : 'shadow-inset-sm') : '',
+          i == focusedTabIdx ? (isFocusAbsolute ? 'shadow-inset-md' : '') : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-500') : '',
         ]"
         @click="focus(tab)"
@@ -186,8 +186,8 @@ defineExpose<ViewExposed>({ self, actions });
         </span>
         <!-- Close tab button -->
         <button
-          class="ml-1.5 group-hover:text-gray-400"
-          :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : ''"
+          class="ml-1.5 transition-colors duration-75 group-hover:text-gray-400"
+          :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />

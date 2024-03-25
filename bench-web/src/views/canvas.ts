@@ -547,12 +547,12 @@ export class ViewCanvas {
     log.debug("view.split", { parent, child, anchor });
 
     // determine if we need a new split in the enclosing split view
-    let split: ViewData;
+    let split: ViewData | null = null;
     if (parent.type == ViewType.WINDOWED) split = parent;
     else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
-    else
+    if (split?.metatype != BenchType.VIEW)
       throw new Error(
-        `no enclosing split: [parent=${BenchType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
+        `no enclosing split view: [parent=${BenchType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
       );
     const isHorizontal = anchor == "left" || anchor == "right";
     const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
@@ -616,14 +616,34 @@ export class ViewCanvas {
   }
 }
 
+function makeMainWindowed(space: SpaceData, tx: Transaction): ViewData {
+  const main = makeNode({
+    metatype: NodeType.VIEW,
+    type: ViewType.WINDOWED,
+    parentPtr: toNodeReference(space),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Root",
+  });
+  tx.create(main);
+  return main;
+}
+
+/** Clears all views from canvas */
+export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceData) {
+  const roots = graph.getChildren(space, NodeType.VIEW);
+  for (const root of roots) {
+    tx.delete(root);
+  }
+}
+
 /** Sets up a minimal empty space with one root tabbed */
 export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { root: ViewData } {
-  // nocheckin: add 'Windowed' node between 'Space' and 'View'?
-  //  (for clarity so Views always have a parent View up to root, later to allow for multiple windows)
+  const windowed = makeMainWindowed(space, tx);
   const main = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TABBED,
-    parentPtr: toNodeReference(space),
+    parentPtr: toNodeReference(windowed),
     packagePtr: space.packagePtr,
     orderKey: "a0",
     name: "Main Window",
@@ -638,10 +658,11 @@ export function setupDefaultCanvas(
   tx: Transaction,
   space: SpaceData,
 ): { side: ViewData; primary: ViewData; secondary: ViewData } {
+  const windowed = makeMainWindowed(space, tx);
   const side = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TABBED,
-    parentPtr: toNodeReference(space),
+    parentPtr: toNodeReference(windowed),
     packagePtr: space.packagePtr,
     orderKey: "a0",
     name: "Side Window",
@@ -652,7 +673,7 @@ export function setupDefaultCanvas(
   const primary = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TABBED,
-    parentPtr: toNodeReference(space),
+    parentPtr: toNodeReference(windowed),
     packagePtr: space.packagePtr,
     orderKey: "a1",
     name: "Primary Window",
@@ -663,7 +684,7 @@ export function setupDefaultCanvas(
   const secondary = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TABBED,
-    parentPtr: toNodeReference(space),
+    parentPtr: toNodeReference(windowed),
     packagePtr: space.packagePtr,
     orderKey: "a2",
     name: "Secondary Window",

@@ -3,7 +3,7 @@
  */
 
 import { LogLevel } from "@/proto/wire";
-import { IS_DEBUG } from "@/utils/globals";
+import { isDeveloperMode } from "@/system/local";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.UNSPECIFIED]: "log",
@@ -28,16 +28,13 @@ const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
 export class Logger {
   public static globalInstance: Logger;
 
-  constructor(
-    readonly name: string,
-    readonly minLevel: LogLevel = LogLevel.DEBUG,
-  ) {
+  constructor(readonly name: string) {
     this.name = name;
-    this.minLevel = minLevel;
   }
 
   log(level: LogLevel, ...args: any[]) {
-    if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[this.minLevel]) return;
+    const minLevel = isDeveloperMode.value ? LogLevel.TRACE : LogLevel.DEBUG;
+    if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[minLevel]) return;
 
     const method = CONSOLE_METHOD_MAP[level];
     const levelName = LogLevel[level].toLowerCase();
@@ -69,5 +66,5 @@ export class Logger {
   }
 }
 
-Logger.globalInstance = new Logger("global", IS_DEBUG ? LogLevel.TRACE : LogLevel.TRACE);
+Logger.globalInstance = new Logger("global");
 export const log = Logger.globalInstance;
