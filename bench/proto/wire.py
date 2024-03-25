@@ -167,7 +167,7 @@ class BlockType(betterproto.Enum):
     PROTOCOL = 14
     SINGLE_VARIABLE = 20
     MULTI_VARIABLE = 21
-    MODEL_ROUTINE = 30
+    NATURAL_ROUTINE = 30
     CODE_ROUTINE = 31
     SCRIPT = 32
     FLOW = 33
@@ -799,6 +799,7 @@ class ViewType(betterproto.Enum):
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
     KEYMAP = 40
+    MOCK = 70
     PAGE = 101
     BLOCK = 102
     FIELD = 103
@@ -811,12 +812,11 @@ class ViewType(betterproto.Enum):
     LOG = 125
     ACCESS = 126
     CLIENT = 127
-    WINDOWED = 500
-    WINDOW = 501
-    TABBED = 502
+    WINDOW = 500
+    TAB = 502
     SPLIT = 503
     SPLIT_COLLAPSIBLE = 504
-    STEPPED = 505
+    WIZARD = 505
     STACK = 510
     COLLAPSIBLE = 511
     GRID = 512
@@ -4451,7 +4451,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.23.0"
+VERSION = "2024.03.25.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject

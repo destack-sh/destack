@@ -107,14 +107,17 @@ export const ACTION_BUILTIN_IDS = [
   // view
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
-  "view.navigate.focusPreviousWindow",
-  "view.navigate.focusNextWindow",
   "view.navigate.closeTab",
   "view.navigate.closeOtherTabs",
   "view.navigate.reopenClosedTab",
-  "view.navigate.closeWindow",
-  "view.navigate.closeOtherWindows",
-  "view.navigate.reopenClosedWindow",
+  "view.navigate.closeFrame",
+  "view.navigate.focusPreviousFrame",
+  "view.navigate.focusNextFrame",
+  "view.navigate.reopenClosedFrame",
+  "view.navigate.focusPreviousSplit",
+  "view.navigate.focusNextSplit",
+  "view.navigate.closeSplit",
+  "view.navigate.reopenClosedSplit",
   "view.layout.splitUp",
   "view.layout.splitDown",
   "view.layout.splitLeft",
@@ -130,7 +133,7 @@ export const ACTION_BUILTIN_IDS = [
   "organization.create",
   // developer
   "developer.misc.toggleDeveloperMode",
-  "developer.view.addDebugView",
+  "developer.view.addMockView",
   "developer.view.resetCanvasEmpty",
   "developer.view.resetCanvasDefault",
 ] as const;
@@ -637,18 +640,6 @@ declareActionMap<"view">({
     text: "Navigate to the next tab",
     shortcuts: ["alt+tab", "ctrl+tab"],
   },
-  "view.navigate.focusPreviousWindow": {
-    icon: "fas fa-chevrons-left",
-    title: "Focus Previous Window",
-    text: "Navigate to the previous window",
-    shortcuts: ["ctrl+mod+shift+space"],
-  },
-  "view.navigate.focusNextWindow": {
-    icon: "fas fa-chevrons-right",
-    title: "Focus Next Window",
-    text: "Navigate to the next window",
-    shortcuts: ["shift+mod+space"],
-  },
   "view.navigate.closeTab": {
     icon: "fas fa-xmark",
     title: "Close Tab",
@@ -666,38 +657,67 @@ declareActionMap<"view">({
     text: "Reopen the last closed tab",
     shortcuts: ["mod+shift+t", "ctrl+shift+t"],
   },
-  "view.navigate.closeWindow": {
+  "view.navigate.focusPreviousFrame": {
+    icon: "fas fa-chevrons-left",
+    title: "Focus Previous Frame",
+    text: "Navigate to the previous frame",
+    shortcuts: ["ctrl+mod+shift+space"],
+  },
+  "view.navigate.focusNextFrame": {
+    icon: "fas fa-chevrons-right",
+    title: "Focus Next Frame",
+    text: "Navigate to the next frame",
+    shortcuts: ["shift+mod+space"],
+  },
+  "view.navigate.closeFrame": {
     icon: "fas fa-xmark",
     title: "Close Window",
-    text: "Close the current window",
+    text: "Close the current frame",
     shortcuts: ["mod+shift+w"],
   },
-  "view.navigate.reopenClosedWindow": {
+  "view.navigate.reopenClosedFrame": {
     icon: "fas fa-arrow-rotate-left",
-    title: "Reopen Closed Window",
-    text: "Reopen the last closed window",
+    title: "Reopen Closed Frame",
+    text: "Reopen the last closed Frame",
     shortcuts: ["mod+shift+n"],
+  },
+  "view.navigate.focusPreviousSplit": {
+    icon: "fas fa-chevron-up",
+    title: "Focus Previous Split",
+    text: "Navigate to the previous split",
+    shortcuts: ["ctrl+shift+up", "ctrl+shift+left"],
+  },
+  "view.navigate.focusNextSplit": {
+    icon: "fas fa-chevron-down",
+    title: "Focus Next Split",
+    text: "Navigate to the next split",
+    shortcuts: ["ctrl+shift+down", "ctrl+shift+right"],
+  },
+  "view.navigate.closeSplit": {
+    icon: "fas fa-xmark",
+    title: "Close Split",
+    text: "Close the current split",
   },
   // layout
   "view.layout.splitUp": {
     icon: "fas fa-reflect-vertical",
     title: "Split Up",
-    text: "Split the current window vertically (new window above)",
+    text: "Split the current view vertically (new split above)",
   },
   "view.layout.splitDown": {
     icon: "fas fa-reflect-vertical",
     title: "Split Down",
-    text: "Split the current window vertically (new window below)",
+    text: "Split the current view vertically (new split below)",
   },
   "view.layout.splitLeft": {
     icon: "fas fa-reflect-horizontal",
     title: "Split Left",
-    text: "Split the current window horizontally (new window left)",
+    text: "Split the current view horizontally (new split left)",
   },
   "view.layout.splitRight": {
     icon: "fas fa-reflect-horizontal",
     title: "Split Right",
-    text: "Split the current window horizontally (new window right)",
+    text: "Split the current view horizontally (new split right)",
   },
 });
 
@@ -727,12 +747,12 @@ contributeActionMap<"developer">({
     },
     shortcuts: ["alt+f12", "f12"],
   },
-  "developer.view.addDebugView": {
+  "developer.view.addMockView": {
     enabled: isDeveloperMode,
     icon: "fas fa-bug",
-    title: "Add Debug View",
+    title: "Add Mock View",
     text: "Adds a debug view to the current root",
-    action: () => canvas.addView({ type: ViewType.PAGE }),
+    action: () => canvas.addView({ type: ViewType.MOCK }),
   },
   "developer.view.resetCanvasEmpty": {
     enabled: computed(() => isDeveloperMode.value && space.value != null),

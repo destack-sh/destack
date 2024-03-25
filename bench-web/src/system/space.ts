@@ -61,6 +61,6 @@ watch(
   { immediate: true },
 );
 
-export async function goToBench(bench: NodeReferenceData) {
+export async function goToBench(go: { bench: NodeReferenceData }) {
   throw new Error("nocheckin: goToBench");
 }

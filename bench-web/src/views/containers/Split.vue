@@ -1,47 +1,48 @@
 <script lang="tsx" setup>
-import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
 import { useActiveConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { SplitAnchor } from "@/utils/drag";
-import { DEFAULT_ORIENTATION, MIN_WINDOW_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
+import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
-import { type ViewExposed, viewEmits } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   {
     self: NodeReferenceData;
     size: Required<Pick<BoxData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "title" | "text" | "icon" | "orientation" | "focus">
+  } & Pick<ViewData, "type" | "name" | "title" | "text" | "icon" | "orientation" | "focus">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
-const windows = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
-const focusedWindowIdx: Ref<number | null> = computed(() => {
-  if (windows.value.length == 0) return null;
+const splits = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
+const focusedSplitIdx: Ref<number | null> = computed(() => {
+  if (splits.value.length == 0) return null;
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
-    const focusedWindowIdx = windows.value.findIndex((window) => window.id == focusedId);
-    return focusedWindowIdx >= 0 ? focusedWindowIdx : 0;
+    const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedId);
+    return focusedSplitIdx >= 0 ? focusedSplitIdx : 0;
   } else {
     return 0;
   }
 });
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
+const isWindow = computed(() => props.type == ViewType.WINDOW);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
+const hasFocusedSplit = computed(() => focusedSplitIdx.value != null);
 
 const BORDER_SIZE = 2;
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: orientation.value,
-  minPx: MIN_WINDOW_SIZE,
+  minPx: MIN_SPLIT_SIZE,
   dividerSize: BORDER_SIZE,
 }));
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const { sizedViews, draggingIdx } = useSplitView(
-  windows,
+  splits,
   toRef(props, "size"),
   containerRef,
   splitLayout,
@@ -50,26 +51,48 @@ const { sizedViews, draggingIdx } = useSplitView(
 
 // actions
 const actions: Partial<ActionMapImplementation<"view">> = {
-  "view.navigate.closeWindow": {
-    enabled: computed(() => focusedWindowIdx.value != null),
+  "view.navigate.focusPreviousFrame": {
+    enabled: isWindow,
     action: () => {
-      canvas.removeView(spaceConnection.sideTx, spaceGraph, windows.value[focusedWindowIdx.value!]);
-    },
-  },
-  "view.navigate.focusPreviousWindow": {
-    action: () => {
-      const allWindows = canvas.currentWindows;
-      const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);
+      const allWindows = canvas.currentFrames;
+      const currentIdx = allWindows.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allWindows.length) % allWindows.length;
       canvas.focus(spaceConnection.sideTx, { view: allWindows[prevIdx] });
     },
   },
-  "view.navigate.focusNextWindow": {
+  "view.navigate.focusNextFrame": {
+    enabled: isWindow,
     action: () => {
-      const allWindows = canvas.currentWindows;
-      const currentIdx = allWindows.findIndex((window) => window.id == windows.value[focusedWindowIdx.value!].id);
-      const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentWindows.length;
+      const allWindows = canvas.currentFrames;
+      const currentIdx = allWindows.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
+      const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentFrames.length;
       canvas.focus(spaceConnection.sideTx, { view: allWindows[nextIdx] });
+    },
+  },
+  "view.navigate.closeFrame": {
+    enabled: computed(() => hasFocusedSplit.value && isWindow.value),
+    action: () => {
+      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+    },
+  },
+  "view.navigate.closeSplit": {
+    enabled: computed(() => hasFocusedSplit.value && !isWindow.value),
+    action: () => {
+      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+    },
+  },
+  "view.navigate.focusNextSplit": {
+    enabled: hasFocusedSplit,
+    action: () => {
+      const nextIdx = (focusedSplitIdx.value! + 1) % splits.value.length;
+      canvas.focus(spaceConnection.sideTx, { view: splits.value[nextIdx] });
+    },
+  },
+  "view.navigate.focusPreviousSplit": {
+    enabled: hasFocusedSplit,
+    action: () => {
+      const prevIdx = (focusedSplitIdx.value! - 1 + splits.value.length) % splits.value.length;
+      canvas.focus(spaceConnection.sideTx, { view: splits.value[prevIdx] });
     },
   },
 };

@@ -127,7 +127,7 @@ export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
   Pick<ViewData, "type"> & { icon?: string | IconData };
 
 /**
- * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements.
+ * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements in a Space.
  * Some of our View components may not have an associated View, so we track them with a derived id.
  * NOTE: ViewCanvas is effectively a global singleton (currently).
  */
@@ -388,11 +388,11 @@ export class ViewCanvas {
     return null; // not found
   }
 
-  /** Gets all the open windows (direct children of Windowed views) */
-  get currentWindows(): ViewData[] {
+  /** Gets all the open windows (direct children of WINDOW views) */
+  get currentFrames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
     const getWindows = (view: ViewData): ViewData[] => {
-      if (view.type == ViewType.WINDOWED) {
+      if (view.type == ViewType.WINDOW) {
         return this.graph.getChildren(view, NodeType.VIEW).flatMap(getWindows);
       } else {
         return [view];
@@ -430,7 +430,7 @@ export class ViewCanvas {
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
-      let root = this.focusedRoot ?? this.currentWindows[0];
+      let root = this.focusedRoot ?? this.currentFrames[0];
       if (root == null) {
         // no root, reset space
         log.info("view.repair", this.spacePtr.value);
@@ -548,7 +548,7 @@ export class ViewCanvas {
 
     // determine if we need a new split in the enclosing split view
     let split: ViewData | null = null;
-    if (parent.type == ViewType.WINDOWED) split = parent;
+    if (parent.type == ViewType.WINDOW) split = parent;
     else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
     if (split?.metatype != BenchType.VIEW)
       throw new Error(
@@ -569,7 +569,7 @@ export class ViewCanvas {
       // insert a new split in place of 'self'
       const split = makeNode({
         metatype: NodeType.VIEW,
-        type: ViewType.WINDOWED,
+        type: ViewType.WINDOW,
         parentPtr: parent.parentPtr,
         packagePtr: parent.packagePtr,
         orderKey: parent.orderKey,
@@ -581,10 +581,10 @@ export class ViewCanvas {
       tx.move({ ...parent, parentPtr: toNodeReference(split) });
       tx.update({ ...parent, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
 
-      // and a new tabbed wrapper
+      // and a new tab wrapper
       const viewParent = makeNode({
         metatype: NodeType.VIEW,
-        type: ViewType.TABBED,
+        type: ViewType.TAB,
         parentPtr: toNodeReference(split),
         packagePtr: parent.packagePtr,
         orderKey: isOrderFlipped ? "a1" : "a0",
@@ -593,11 +593,11 @@ export class ViewCanvas {
       tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
       tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
     } else {
-      // 'split' size between self and child with a new tabbed wrapper
+      // 'split' size between self and child with a new tab wrapper
       const halfSize = splitBox(parent.size!);
       const newSplitParent = makeNode({
         metatype: NodeType.VIEW,
-        type: ViewType.TABBED,
+        type: ViewType.TAB,
         parentPtr: parent.parentPtr,
         packagePtr: parent.packagePtr,
         size: halfSize,
@@ -616,10 +616,10 @@ export class ViewCanvas {
   }
 }
 
-function makeMainWindowed(space: SpaceData, tx: Transaction): ViewData {
+function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
   const main = makeNode({
     metatype: NodeType.VIEW,
-    type: ViewType.WINDOWED,
+    type: ViewType.WINDOW,
     parentPtr: toNodeReference(space),
     packagePtr: space.packagePtr,
     orderKey: "a0",
@@ -637,17 +637,17 @@ export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceD
   }
 }
 
-/** Sets up a minimal empty space with one root tabbed */
+/** Sets up a minimal empty space with one root tab */
 export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { root: ViewData } {
-  const windowed = makeMainWindowed(space, tx);
+  const window = makeMainWindow(space, tx);
   const main = makeNode({
     metatype: NodeType.VIEW,
-    type: ViewType.TABBED,
-    parentPtr: toNodeReference(windowed),
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Main Window",
-    title: "Main Window",
+    name: "Window",
+    title: "Window",
   });
   tx.create(main);
   return { root: main };
@@ -658,37 +658,37 @@ export function setupDefaultCanvas(
   tx: Transaction,
   space: SpaceData,
 ): { side: ViewData; primary: ViewData; secondary: ViewData } {
-  const windowed = makeMainWindowed(space, tx);
+  const window = makeMainWindow(space, tx);
   const side = makeNode({
     metatype: NodeType.VIEW,
-    type: ViewType.TABBED,
-    parentPtr: toNodeReference(windowed),
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Side Window",
-    title: "Side Window",
+    name: "Side",
+    title: "Side",
     size: makeStruct({ metatype: StructType.BOX, width: 300 }),
   });
   tx.create(side);
   const primary = makeNode({
     metatype: NodeType.VIEW,
-    type: ViewType.TABBED,
-    parentPtr: toNodeReference(windowed),
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
     orderKey: "a1",
-    name: "Primary Window",
-    title: "Primary Window",
+    name: "Primary",
+    title: "Primary",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
   });
   tx.create(primary);
   const secondary = makeNode({
     metatype: NodeType.VIEW,
-    type: ViewType.TABBED,
-    parentPtr: toNodeReference(windowed),
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
     orderKey: "a2",
-    name: "Secondary Window",
-    title: "Secondary Window",
+    name: "Secondary",
+    title: "Secondary",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
   });
   tx.create(secondary);

@@ -1,5 +1,6 @@
 import { supervisor } from "@/proto/services";
 import {
+  BenchData,
   ClientData,
   NodeReferenceData,
   NodeType,
@@ -127,11 +128,13 @@ export async function createBench(benchIn: {
   slug: string;
   region: Region;
   isMain: boolean;
-}) {
+}): Promise<{ bench: BenchData }> {
   if (clientInfo.value == null) throw new Error("not logged in");
   const {
     response: { bench },
   } = await supervisor.createBench({ ...benchIn });
+  if (bench == null) throw new Error("failed to create bench");
+  return { bench };
 }
 
 function userWizardView(view: { title: string }): ViewDataIn {
@@ -174,7 +177,7 @@ contributeActionMap<"user">({
     title: "Go to My Bench",
     text: "Go back to your Bench.",
     action: async () => {
-      await goToBench(user.value!.mainBenchPtr!);
+      await goToBench({ bench: user.value!.mainBenchPtr! });
     },
   },
   "user.editKeybindings": {

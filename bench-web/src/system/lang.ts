@@ -162,7 +162,7 @@ export const DEFAULT_VIEW_ICON = makeIcon({ name: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ name: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ name: "fas fa-fort" });
 
-export const ROOT_VIEW_TYPES = [ViewType.WINDOWED, ViewType.WINDOW, ViewType.TABBED, ViewType.SPLIT];
+export const ROOT_VIEW_TYPES = [ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT];
 export const ROOT_VIEW_COMPONENT_NAMES = ROOT_VIEW_TYPES.map((t) => toCasing(ViewType[t], Casing.CAMEL));
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
@@ -237,7 +237,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SINGLE_VARIABLE]: "fas fa-columns-3",
   [BlockType.MULTI_VARIABLE]: "fas fa-columns-3",
 
-  [BlockType.MODEL_ROUTINE]: "fas fa-function",
+  [BlockType.NATURAL_ROUTINE]: "fas fa-text",
   [BlockType.CODE_ROUTINE]: "fas fa-code",
   [BlockType.SCRIPT]: "fas fa-file-code",
   [BlockType.FLOW]: "fas fa-diagram-project",

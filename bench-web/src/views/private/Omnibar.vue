@@ -35,7 +35,7 @@ const indices = computed(() => {
     indices["views"] = graphIndex(
       spaceGraph,
       [NodeType.VIEW],
-      (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TABBED,
+      (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
     );
   return indices;
 });

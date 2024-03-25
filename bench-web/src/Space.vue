@@ -1,10 +1,8 @@
 <script lang="ts" setup>
-import { NodeType, Orientation } from "@/proto/wire";
+import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { useActiveConnection } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
-import { space } from "@/system/space";
 import { isDragging } from "@/utils/layout";
-import Windowed from "@/views/containers/Windowed.vue";
 import Bar from "@/views/private/Bar.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
@@ -13,6 +11,7 @@ import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 import { toNodeReference } from "@/proto/wiring";
+import Split from "@/views/containers/Split.vue";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -22,8 +21,8 @@ const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space mus
 const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
-const windoweds = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
-const mainWindowed = computed(() => windoweds.value[0]);
+const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
+const window = computed(() => windows.value[0]); // assumes at :OneRootWindow for now
 
 const mainBox = computed(() => ({
   left: 0,
@@ -52,14 +51,15 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
       :box="{ x: 0, y: 0, width: spaceWidth, height: BAR_HEIGHT }"
     />
     <!-- Window root -->
-    <Windowed
-      v-if="mainWindowed"
-      :self="toNodeReference(mainWindowed)"
+    <Split
+      v-if="window"
+      :type="ViewType.WINDOW"
+      :self="toNodeReference(window)"
       :size="mainBox"
-      :focus="mainWindowed.focus"
-      :name="mainWindowed.name"
-      :title="mainWindowed.name"
-      :text="mainWindowed.text"
+      :focus="window.focus"
+      :name="window.name"
+      :title="window.name"
+      :text="window.text"
       :orientation="Orientation.HORIZONTAL"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />

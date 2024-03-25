@@ -9,7 +9,7 @@ import { toRef, type Ref, ref, watch } from "vue";
 import Button from "@/views/controls/Button.vue";
 import PlainText from "@/views/content/PlainText.vue";
 import { toNodeReference } from "@/proto/wiring";
-import { canvas } from "@/system/space";
+import { canvas, goToBench } from "@/system/space";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
@@ -43,7 +43,13 @@ async function submit() {
   isActive.value = true;
   try {
     if (!user.value) throw new Error("no active user");
-    await createBench({ owner: toNodeReference(user.value), slug: slug.value, region: region.value, isMain: true });
+    const { bench } = await createBench({
+      owner: toNodeReference(user.value),
+      slug: slug.value,
+      region: region.value,
+      isMain: true,
+    });
+    await goToBench({ bench: toNodeReference(bench) });
   } catch (e) {
     // already handled
   } finally {

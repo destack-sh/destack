@@ -19,9 +19,11 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.BENCH_WIZARD]: import("@/views/kernel/BenchWizard.vue"),
   // system
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
+  [ViewType.MOCK]: import("@/views/system/Mock.vue"),
   // containers
-  [ViewType.WINDOWED]: import("@/views/containers/Windowed.vue"),
-  [ViewType.TABBED]: import("@/views/containers/Tabbed.vue"),
+  [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
+  [ViewType.TAB]: import("@/views/containers/Tab.vue"),
+  [ViewType.SPLIT]: import("@/views/containers/Split.vue"),
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
   // content
@@ -80,7 +82,7 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
         return deriveViewId(exposed.id.value, props.name ?? instanceInternalId.toString());
       parent = parent.parent;
     }
-    // this is a component outside of parent view, just use a random id 
-    return v4(); 
+    // this is a component outside of parent view, just use a random id
+    return v4();
   });
 }

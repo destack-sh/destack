@@ -34,6 +34,7 @@ class ViewType(IdEnum):
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
     KEYMAP = 40
+    MOCK = 70
 
     # 'system'
     PAGE = 101
@@ -54,13 +55,12 @@ class ViewType(IdEnum):
     #
 
     # containers (root)
-    WINDOWED = 500
-    WINDOW = 501  # (force window appearance)
-    TABBED = 502
+    WINDOW = 500
+    TAB = 502
     SPLIT = 503
     SPLIT_COLLAPSIBLE = 504
     # containers (layout)
-    STEPPED = 505
+    WIZARD = 505
     STACK = 510
     COLLAPSIBLE = 511
     GRID = 512
