@@ -4,7 +4,6 @@ import { useActiveConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { createBench, user } from "@/system/user";
 import { viewEmits, type FocusAnchor } from "@/views/common";
-import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { toRef, type Ref, ref, watch } from "vue";
 import Button from "@/views/controls/Button.vue";
 import PlainText from "@/views/content/PlainText.vue";
@@ -115,4 +114,3 @@ defineExpose({ self, focus });
     </div>
   </div>
 </template>
-@/views/canvas

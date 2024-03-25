@@ -4,8 +4,8 @@ import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { clientMeta, isDeveloperMode } from "@/system/local";
-import { bench, hasBench } from "@/system/space";
+import { clientMeta, isDeveloperMode } from "@/system/client";
+import { bench, hasLocalBench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
@@ -16,6 +16,7 @@ import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref } from "vue";
+import { isAuthenticated } from "@/system/user";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;
@@ -95,13 +96,22 @@ const BENCH_MENU_ITEMS = computed(() => {
   return items;
 });
 
-const USER_MENU_ITEMS = computed(() => [
-  menuItemFromAction("user.goToHome", { category: "primary" }),
-  menuItemFromAction("user.activate", { category: "primary" }),
-  menuItemFromAction("space.launch.notifications", { category: "primary" }),
-  menuItemFromAction("user.editKeybindings", { category: "secondary" }),
-  menuItemFromAction("user.logout", { category: "secondary" }),
-]);
+const USER_MENU_ITEMS = computed(() => {
+  const items = [
+    menuItemFromAction("user.misc.goToHome", { category: "primary" }),
+    menuItemFromAction("space.launch.notifications", { category: "primary" }),
+  ];
+  if (isAuthenticated.value && !hasLocalBench.value) {
+    items.push(menuItemFromAction("user.auth.activate", { category: "primary" }));
+  }
+  items.push(
+    ...[
+      menuItemFromAction("user.settings.editKeybindings", { category: "primary" }),
+      menuItemFromAction("user.auth.logout", { category: "secondary" }),
+    ],
+  );
+  return items;
+});
 </script>
 <template>
   <div
@@ -153,7 +163,7 @@ const USER_MENU_ITEMS = computed(() => [
       <!-- Status -->
       <div class="flex flex-row gap-x-3">
         <!-- Connection -->
-        <div v-if="hasBench">
+        <div v-if="hasLocalBench">
           <span class="select-none text-success-600">
             <i class="fas fa-wifi" />
           </span>
@@ -233,7 +243,7 @@ const USER_MENU_ITEMS = computed(() => [
         <Button
           title="Log In"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
-          @click="() => runAction('user.login')"
+          @click="() => runAction('user.auth.login')"
         />
       </template>
     </div>

@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.03.12. Edit as needed.
+# This migration was automatically generated on 2024.03.25. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.03.12.0"
+VERSION = "2024.03.25.8"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -36,16 +36,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         slug varchar NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         icon jsonb,
+        owner_user_id uuid,
         region smallint NOT NULL,
         encryption_key bytea NOT NULL,
-        policies jsonb[]
+        policies jsonb[] NOT NULL
     )
     """
     )
@@ -55,12 +58,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_environment (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
@@ -76,19 +82,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_branch (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
         slug varchar,
         text jsonb,
         icon jsonb,
-        policies jsonb[]
+        policies jsonb[] NOT NULL,
+        main_package_id uuid
     )
     """
     )
@@ -98,18 +108,21 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_package (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         slug varchar,
         text jsonb,
         icon jsonb,
-        policies jsonb[],
+        policies jsonb[] NOT NULL,
         paused_at timestamp,
         bases_package_id uuid[]
     )
@@ -122,16 +135,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_dependency (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
-        scopes_ck uuid NOT NULL,
-        dependency_scopes_ck uuid NOT NULL
+        scopes_ck uuid[] NOT NULL,
+        scopes_bench_id uuid[] NOT NULL,
+        dependency_package_id uuid NOT NULL,
+        dependency_scopes_ck uuid[] NOT NULL,
+        dependency_scopes_bench_id uuid[] NOT NULL
     )
     """
     )
@@ -142,12 +162,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_upgrade (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
@@ -163,18 +187,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_space (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar NOT NULL,
         text jsonb,
         order_key varchar NOT NULL,
-        policies jsonb[]
+        policies jsonb[],
+        focus jsonb
     )
     """
     )
@@ -185,17 +214,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_link (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         reference_ck uuid,
         reference_type smallint,
+        reference_bench_id uuid,
         reference_base_ck uuid,
+        reference_base_bench_id uuid,
         order_key varchar
     )
     """
@@ -207,12 +242,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_notice (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         kind smallint NOT NULL,
@@ -230,20 +269,25 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_block (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         type smallint NOT NULL DEFAULT 2,
         name varchar,
-        order_key varchar,
+        order_key varchar NOT NULL DEFAULT 'a0'::character varying,
         visibility smallint NOT NULL DEFAULT 10,
-        policies jsonb[],
-        bases_ck uuid,
+        policies jsonb[] NOT NULL,
+        bases_ck uuid[],
+        bases_bench_id uuid[],
         builtin_base jsonb,
         dynamic_key varchar,
         text jsonb,
@@ -252,7 +296,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         code jsonb,
         icon jsonb,
         reference_ck uuid,
-        delegated_policies jsonb[],
+        reference_bench_id uuid,
+        delegated_policies jsonb[] NOT NULL,
         is_page boolean NOT NULL DEFAULT false,
         is_module boolean NOT NULL DEFAULT false,
         is_unique boolean NOT NULL DEFAULT false,
@@ -270,19 +315,24 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_trigger (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         type smallint NOT NULL,
         name varchar,
         active boolean NOT NULL DEFAULT true,
         schedule jsonb,
-        signal_ck uuid
+        signal_ck uuid,
+        signal_bench_id uuid
     )
     """
     )
@@ -293,16 +343,20 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_field (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
-        order_key varchar,
+        order_key varchar NOT NULL DEFAULT 'a0'::character varying,
         dynamic_key varchar,
         text jsonb,
         icon jsonb,
@@ -310,6 +364,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         primitive_type smallint,
         bench_type smallint,
         base_type_ck uuid,
+        base_type_bench_id uuid,
         visibility smallint NOT NULL DEFAULT 10,
         format_hint smallint,
         condition jsonb,
@@ -333,18 +388,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_query (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
-        order_key varchar,
+        order_key varchar NOT NULL DEFAULT 'a0'::character varying,
         node_type smallint NOT NULL,
         base_ck uuid,
+        base_bench_id uuid,
         filter jsonb,
         sort jsonb[]
     )
@@ -357,23 +417,30 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_view (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         type smallint NOT NULL,
         name varchar,
         title varchar,
         text jsonb,
+        order_key varchar NOT NULL DEFAULT 'a0'::character varying,
         icon jsonb,
         value_packed jsonb,
         node_ck uuid,
         node_type smallint,
+        node_bench_id uuid,
         node_base_ck uuid,
+        node_base_bench_id uuid,
         variant smallint,
         font jsonb,
         position jsonb,
@@ -383,6 +450,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         orientation smallint,
         alignment smallint,
         selection jsonb,
+        focus jsonb,
         is_visible boolean DEFAULT true,
         is_disabled boolean DEFAULT false,
         is_loading boolean DEFAULT false,
@@ -398,12 +466,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_badge (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
@@ -423,15 +495,20 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_role (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
-        type_ck uuid NOT NULL
+        type_ck uuid NOT NULL,
+        type_bench_id uuid NOT NULL
     )
     """
     )
@@ -442,15 +519,20 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_identity (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
-        type_ck uuid NOT NULL
+        type_ck uuid NOT NULL,
+        type_bench_id uuid NOT NULL
     )
     """
     )
@@ -461,14 +543,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_membership (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
+        user_id uuid NOT NULL,
         is_owner boolean NOT NULL DEFAULT false
     )
     """
@@ -480,17 +567,23 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_invite (
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
+        package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
+        user_id uuid,
         user_email varchar,
         is_owner boolean NOT NULL DEFAULT false,
-        roles_ck uuid
+        roles_ck uuid[],
+        roles_bench_id uuid[]
     )
     """
     )
@@ -500,12 +593,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_server (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar NOT NULL,
@@ -529,12 +625,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_store (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar NOT NULL,
@@ -558,12 +657,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_drive (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar NOT NULL,
@@ -580,12 +682,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_cache (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar NOT NULL,
@@ -602,12 +707,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_filecontent (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         sha512 varchar NOT NULL,
@@ -625,12 +733,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_handle (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         slug varchar NOT NULL
@@ -648,7 +759,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         slug varchar,
@@ -656,6 +769,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         text jsonb,
         email varchar NOT NULL,
         icon jsonb,
+        main_bench_id uuid,
         status smallint NOT NULL,
         password_salt bytea,
         password_hash bytea,
@@ -675,13 +789,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         slug varchar,
         name varchar NOT NULL,
         text jsonb,
         icon jsonb,
+        main_bench_id uuid,
         status smallint NOT NULL
     )
     """
@@ -692,12 +809,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE bench_client (
         id uuid NOT NULL PRIMARY KEY,
+        bench_id uuid,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
         archived_at timestamp,
+        created_by_user_id uuid,
         created_by_run_id uuid,
+        updated_by_user_id uuid,
         updated_by_run_id uuid,
         set_properties integer[] NOT NULL,
         name varchar,
@@ -709,7 +829,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         access_token varchar,
         last_seen_at timestamp NOT NULL,
         logged_in_at timestamp,
-        main_space_ck uuid
+        main_space_ck uuid,
+        main_space_bench_id uuid
     )
     """
     )
@@ -718,10 +839,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_bench    
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
-        ADD COLUMN owner_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN owner_organization_id uuid REFERENCES bench_organization ON DELETE SET NULL,
         ADD COLUMN main_environment_id uuid REFERENCES bench_environment ON DELETE SET NULL,
         ADD COLUMN main_branch_id uuid REFERENCES bench_branch ON DELETE SET NULL,
@@ -749,8 +867,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_environment    
         ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN server_id uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL,
         ADD COLUMN store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN search_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
@@ -776,10 +892,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_branch    
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN main_package_id uuid REFERENCES bench_package ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -804,8 +917,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_package    
         ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
         ADD COLUMN environment_id uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL
     """
     )
@@ -831,13 +942,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_dependency    
         ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN scopes_bench_id uuid NOT NULL REFERENCES bench_bench ON DELETE SET NULL,
-        ADD COLUMN dependency_package_id uuid NOT NULL REFERENCES bench_package ON DELETE SET NULL,
-        ADD COLUMN dependency_scopes_bench_id uuid NOT NULL REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -857,10 +962,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_upgrade    
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -880,10 +982,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_space    
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -904,12 +1003,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_link    
         ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN reference_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL,
-        ADD COLUMN reference_base_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -930,10 +1024,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_notice    
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -954,12 +1045,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_block    
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN bases_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL,
-        ADD COLUMN reference_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -979,11 +1065,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_trigger    
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN signal_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1003,11 +1085,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_field    
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN base_type_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1027,11 +1105,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_query    
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN base_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1053,12 +1127,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ALTER TABLE bench_view    
         ADD COLUMN parent_space_id uuid REFERENCES bench_space ON DELETE CASCADE,
         ADD COLUMN parent_view_id uuid REFERENCES bench_view ON DELETE CASCADE,
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN node_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL,
-        ADD COLUMN node_base_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1079,10 +1148,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_badge    
         ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1111,11 +1177,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_role    
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN parent_membership_id uuid REFERENCES bench_membership ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN type_bench_id uuid NOT NULL REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_membership_id uuid REFERENCES bench_membership ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1137,11 +1199,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ALTER TABLE bench_identity    
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
         ADD COLUMN parent_membership_id uuid REFERENCES bench_membership ON DELETE CASCADE,
-        ADD COLUMN parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN type_bench_id uuid NOT NULL REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1161,11 +1219,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_membership    
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN user_id uuid NOT NULL REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1185,12 +1239,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_invite    
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN package_id uuid NOT NULL REFERENCES bench_package ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN roles_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1210,9 +1259,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_server    
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1232,9 +1279,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_store    
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1254,9 +1299,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_drive    
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1276,9 +1319,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_cache    
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1298,9 +1339,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_filecontent    
-        ADD COLUMN parent_drive_id uuid REFERENCES bench_drive ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_drive_id uuid REFERENCES bench_drive ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1326,9 +1365,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ALTER TABLE bench_handle    
         ADD COLUMN parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE,
         ADD COLUMN parent_organization_id uuid REFERENCES bench_organization ON DELETE CASCADE,
-        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1353,10 +1390,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_user    
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
-        ADD COLUMN main_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL
     """
     )
     await cur.execute(
@@ -1383,10 +1417,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_organization    
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
-        ADD COLUMN main_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN main_handle_id uuid REFERENCES bench_handle ON DELETE SET NULL
     """
     )
     await cur.execute(
@@ -1410,10 +1441,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_client    
         ADD COLUMN parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE,
-        ADD COLUMN parent_server_id uuid REFERENCES bench_server ON DELETE CASCADE,
-        ADD COLUMN created_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN updated_by_user_id uuid REFERENCES bench_user ON DELETE SET NULL,
-        ADD COLUMN main_space_bench_id uuid REFERENCES bench_bench ON DELETE SET NULL
+        ADD COLUMN parent_server_id uuid REFERENCES bench_server ON DELETE CASCADE
     """
     )
     await cur.execute(

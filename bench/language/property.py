@@ -565,7 +565,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         extra_stored_props: dict[str, "Property"] = {}
         if is_stored and self.component.__is_node__:  # only nodes are stored
             stored_ptr_props = []
-            ck_ref_types: list[NodeType] = []
+            sub_package_ref_types: list[NodeType] = []
             for ref_type in self.reference_nodes:  # :RavelReferences
                 store_as_id = (
                     self.reference_force_by_id is True
@@ -574,7 +574,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     or ref_type not in SUB_PACKAGE_NODE_TYPES
                 )
                 if not store_as_id:
-                    ck_ref_types.append(ref_type)
+                    sub_package_ref_types.append(ref_type)
                     continue
                 if ref_type.name.lower() in self.name:  # reduce clutter if type is unambiguous
                     prop_name = f"{self.name}_id"
@@ -599,48 +599,48 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                 )
                 stored_ptr_props.append(id_ref_prop)
-            if ck_ref_types:
+            if sub_package_ref_types:
                 ck_ref_prop = Property(
                     id=self.id,
                     name=self.name + "_ck",
                     component=self.component,
-                    py_type_raw=UUID,
-                    reference_kind=self.reference_kind,
-                    reference_nodes=tuple(ck_ref_types),
+                    py_type_raw=list[UUID] if is_list else UUID,
+                    reference_nodes=tuple(sub_package_ref_types),
                     reference_source=self,
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
                     is_internal=is_internal,
-                    is_list=False,
+                    is_list=is_list,
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
                 stored_ptr_props.append(ck_ref_prop)
-                if len(ck_ref_types) > 1:
+                if len(sub_package_ref_types) > 1:
                     # disambiguate type for heterogeneous ck references :HomogeneousListCk
                     assert not is_list, f"cannot store heterogeneous types in list: {self!r}"
                     extra_stored_props["type"] = Property(
                         id=self.id,
                         name=self.name + "_type",
                         component=self.component,
-                        py_type_raw=NodeType,
+                        py_type_raw=list[NodeType] if is_list else NodeType,
                         reference_source=self,
                         is_runtime=False,
                         is_wired=False,
                         is_stored=True,
                         is_internal=is_internal,
-                        is_list=False,
+                        is_list=is_list,
                         is_required=is_required,
                         primitive_type=PrimitiveType.INT16,
                     )
-            is_ck_ref_in_bench = any(t in IN_BENCH_NODE_TYPES for t in ck_ref_types)
-            if is_ck_ref_in_bench:
+            is_ref_in_bench = any(t in IN_BENCH_NODE_TYPES for t in sub_package_ref_types)
+            if is_ref_in_bench:
                 extra_stored_props["bench_id"] = Property(
                     id=self.id,
                     name=self.name + "_bench_id",
                     component=self.component,
-                    py_type_raw=UUID,
+                    py_type_raw=list[UUID] if is_list else UUID,
+                    reference_kind=self.reference_kind,
                     reference_source=self,
                     reference_nodes=(NodeType.BENCH,),
                     reference_on_delete=CascadeAction.SET_NULL,
@@ -648,16 +648,17 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_wired=False,
                     is_stored=True,
                     is_internal=is_internal,
-                    is_list=False,
+                    is_list=is_list,
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
-            if any(t in BASED_NODE_TYPES for t in ck_ref_types):
+            if any(t in BASED_NODE_TYPES for t in sub_package_ref_types):
                 assert not is_list, f"cannot store based types in list: {self!r}"
                 extra_stored_props["base_ck"] = Property(
                     id=self.id,
                     name=self.name + "_base_ck",
                     component=self.component,
+                    reference_kind=self.reference_kind,
                     py_type_raw=UUID,
                     reference_source=self,
                     is_runtime=False,
@@ -668,7 +669,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
-                if is_ck_ref_in_bench:
+                if is_ref_in_bench:
                     stored_base_bench_id = extra_stored_props["bench_id"].clone()
                     stored_base_bench_id.name = self.name + "_base_bench_id"
                     extra_stored_props["base_bench_id"] = stored_base_bench_id

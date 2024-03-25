@@ -1,6 +1,6 @@
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Collection, Optional, Union, Iterable
+from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
@@ -26,12 +26,12 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         Region,
+        Resource,
         Server,
         Space,
         Store,
         Text,
         User,
-        Resource,
     )
 
 NodeT = Union[Node, "Node"]
@@ -59,7 +59,7 @@ class Bench(Node):
     )
     region: "Region" = p_regular(37, require=True, array=False)
     encryption_key: str = p_kernel(38, require=True, encrypt=True, defer=True, sensitive=True)
-    policies: list["Policy"] | None = p_regular(39, struct=StructType.POLICY, array=True)
+    policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
     # source
     main_environment: Optional["Environment"] = p_regular(
@@ -121,7 +121,7 @@ class Branch(Node):
     slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    policies: list["Policy"] | None = p_regular(36, struct=StructType.POLICY, array=True)
+    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
     main_package: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE
@@ -140,7 +140,7 @@ class Package(Node):
     slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    policies: list["Policy"] | None = p_regular(36, struct=StructType.POLICY, array=True)
+    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
     paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
 
     environment: Environment = p_system(

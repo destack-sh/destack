@@ -131,7 +131,7 @@ function onNavigateHorizontal(direction: "left" | "right") {
     openNestedMenu(focusedItemIdx.value!);
   } else {
     // in nested menu
-    if (item != null && isNestedItem(item.action)) {
+    if (item != null &&isNestedItem(item.action)) {
       openNestedMenu(focusedItemIdx.value!);
     } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");

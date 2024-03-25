@@ -1696,6 +1696,10 @@ export interface BadgeData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -1890,6 +1894,10 @@ export interface BlockData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2033,6 +2041,10 @@ export interface BranchData {
      */
     parentPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2112,6 +2124,10 @@ export interface CacheData {
      */
     parentPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2186,6 +2202,10 @@ export interface ClientData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -2291,6 +2311,10 @@ export interface DependencyData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2358,6 +2382,10 @@ export interface DriveData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -2433,6 +2461,10 @@ export interface EnvironmentData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -2536,6 +2568,10 @@ export interface FieldData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -2680,6 +2716,10 @@ export interface FileContentData {
      */
     parentPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2759,6 +2799,10 @@ export interface HandleData {
      */
     parentPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2828,6 +2872,10 @@ export interface IdentityData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -2894,6 +2942,10 @@ export interface InviteData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -2975,6 +3027,10 @@ export interface LinkData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -3151,6 +3207,10 @@ export interface MembershipData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3225,6 +3285,10 @@ export interface BaseNodeData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3287,6 +3351,10 @@ export interface NoticeData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -3547,6 +3615,10 @@ export interface PackageData {
      */
     parentPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3700,6 +3772,10 @@ export interface QueryData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -3860,6 +3936,10 @@ export interface RoleData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4048,6 +4128,10 @@ export interface ServerData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4326,6 +4410,10 @@ export interface SkipData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -4396,6 +4484,10 @@ export interface SpaceData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4472,6 +4564,10 @@ export interface StoreData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4584,6 +4680,10 @@ export interface TriggerData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -4666,6 +4766,10 @@ export interface UpgradeData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4844,6 +4948,10 @@ export interface ViewData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -12133,6 +12241,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -12183,6 +12292,9 @@ class BadgeData$Type extends MessageType<BadgeData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -12263,6 +12375,9 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -12558,6 +12673,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -12634,6 +12750,9 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -12759,6 +12878,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -12873,6 +12995,7 @@ class BranchData$Type extends MessageType<BranchData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -12915,6 +13038,9 @@ class BranchData$Type extends MessageType<BranchData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -12986,6 +13112,9 @@ class BranchData$Type extends MessageType<BranchData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13052,6 +13181,7 @@ class CacheData$Type extends MessageType<CacheData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -13096,6 +13226,9 @@ class CacheData$Type extends MessageType<CacheData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -13164,6 +13297,9 @@ class CacheData$Type extends MessageType<CacheData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13227,6 +13363,7 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -13272,6 +13409,9 @@ class ClientData$Type extends MessageType<ClientData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -13355,6 +13495,9 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13435,6 +13578,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -13482,6 +13626,9 @@ class DependencyData$Type extends MessageType<DependencyData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -13550,6 +13697,9 @@ class DependencyData$Type extends MessageType<DependencyData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13607,6 +13757,7 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -13651,6 +13802,9 @@ class DriveData$Type extends MessageType<DriveData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -13719,6 +13873,9 @@ class DriveData$Type extends MessageType<DriveData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13782,6 +13939,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -13828,6 +13986,9 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -13911,6 +14072,9 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -13991,6 +14155,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -14063,6 +14228,9 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -14188,6 +14356,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -14302,6 +14473,7 @@ class FileContentData$Type extends MessageType<FileContentData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -14348,6 +14520,9 @@ class FileContentData$Type extends MessageType<FileContentData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -14419,6 +14594,9 @@ class FileContentData$Type extends MessageType<FileContentData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -14485,6 +14663,7 @@ class HandleData$Type extends MessageType<HandleData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -14522,6 +14701,9 @@ class HandleData$Type extends MessageType<HandleData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -14578,6 +14760,9 @@ class HandleData$Type extends MessageType<HandleData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -14631,6 +14816,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -14674,6 +14860,9 @@ class IdentityData$Type extends MessageType<IdentityData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -14736,6 +14925,9 @@ class IdentityData$Type extends MessageType<IdentityData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -14789,6 +14981,7 @@ class InviteData$Type extends MessageType<InviteData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -14837,6 +15030,9 @@ class InviteData$Type extends MessageType<InviteData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -14908,6 +15104,9 @@ class InviteData$Type extends MessageType<InviteData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -14970,6 +15169,7 @@ class LinkData$Type extends MessageType<LinkData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -15014,6 +15214,9 @@ class LinkData$Type extends MessageType<LinkData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -15079,6 +15282,9 @@ class LinkData$Type extends MessageType<LinkData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -15357,6 +15563,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -15402,6 +15609,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -15467,6 +15677,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -15523,6 +15736,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -15565,6 +15779,9 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -15624,6 +15841,9 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -15674,6 +15894,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -15724,6 +15945,9 @@ class NoticeData$Type extends MessageType<NoticeData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -15798,6 +16022,9 @@ class NoticeData$Type extends MessageType<NoticeData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -16263,6 +16490,7 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -16307,6 +16535,9 @@ class PackageData$Type extends MessageType<PackageData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -16381,6 +16612,9 @@ class PackageData$Type extends MessageType<PackageData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -16603,6 +16837,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -16654,6 +16889,9 @@ class QueryData$Type extends MessageType<QueryData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -16731,6 +16969,9 @@ class QueryData$Type extends MessageType<QueryData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -16964,6 +17205,7 @@ class RoleData$Type extends MessageType<RoleData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -17007,6 +17249,9 @@ class RoleData$Type extends MessageType<RoleData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -17069,6 +17314,9 @@ class RoleData$Type extends MessageType<RoleData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -17385,6 +17633,7 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -17438,6 +17687,9 @@ class ServerData$Type extends MessageType<ServerData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -17527,6 +17779,9 @@ class ServerData$Type extends MessageType<ServerData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -17987,6 +18242,7 @@ class SkipData$Type extends MessageType<SkipData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18031,6 +18287,9 @@ class SkipData$Type extends MessageType<SkipData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18096,6 +18355,9 @@ class SkipData$Type extends MessageType<SkipData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -18152,6 +18414,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18202,6 +18465,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18276,6 +18542,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -18339,6 +18608,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18392,6 +18662,9 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18481,6 +18754,9 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -18567,6 +18843,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18616,6 +18893,9 @@ class TriggerData$Type extends MessageType<TriggerData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18690,6 +18970,9 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -18755,6 +19038,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18800,6 +19084,9 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18868,6 +19155,9 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -19149,6 +19439,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -19216,6 +19507,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -19344,6 +19638,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -20210,6 +20507,7 @@ export enum EnvironmentProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20235,6 +20533,7 @@ export enum BranchProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20256,6 +20555,7 @@ export enum PackageProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20280,6 +20580,7 @@ export enum DependencyProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20300,6 +20601,7 @@ export enum UpgradeProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20320,6 +20622,7 @@ export enum SpaceProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20342,6 +20645,7 @@ export enum LinkProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20361,6 +20665,7 @@ export enum SkipProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20380,6 +20685,7 @@ export enum NoticeProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20402,6 +20708,7 @@ export enum BlockProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20441,6 +20748,7 @@ export enum TriggerProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20463,6 +20771,7 @@ export enum FieldProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20521,6 +20830,7 @@ export enum QueryProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20544,6 +20854,7 @@ export enum ViewProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20584,6 +20895,7 @@ export enum BadgeProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20608,6 +20920,7 @@ export enum RoleProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20626,6 +20939,7 @@ export enum IdentityProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20644,6 +20958,7 @@ export enum MembershipProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20663,6 +20978,7 @@ export enum InviteProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20829,6 +21145,7 @@ export enum ServerProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20856,6 +21173,7 @@ export enum StoreProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20883,6 +21201,7 @@ export enum DriveProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20903,6 +21222,7 @@ export enum CacheProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20923,6 +21243,7 @@ export enum FileContentProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -20944,6 +21265,7 @@ export enum HandleProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21009,6 +21331,7 @@ export enum ClientProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,

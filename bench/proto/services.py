@@ -115,10 +115,13 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(message.__class__)
         if struct_cls is not None:
             if message.metatype is None:
-                raise ValidationError(message, f"missing metatype for {message.__class__.__name__}")
+                raise ValidationError(
+                    message, f"missing metatype for {message.__class__.__name__} at {path}"
+                )
             if message.metatype != struct_cls.metatype:
                 raise ValidationError(
-                    message, f"invalid metatype {message.metatype} for {message.__class__.__name__}"
+                    message,
+                    f"invalid metatype {message.metatype} for {message.__class__.__name__} at {path}",
                 )
 
         # walk message recursively

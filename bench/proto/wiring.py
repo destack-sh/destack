@@ -132,11 +132,11 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             # struct references are just integers
             return NodeReference(
                 type=unpack_enum(NodeType, value.type),
-                id=to_uuid(value.id),
-                ck=to_uuid(value.ck) if value.ck else None,
+                id=UUID(value.id),
+                ck=UUID(value.ck) if value.ck else None,
             )
         elif prop.primitive_type == PrimitiveType.UUID:
-            return to_uuid(value)  # uuids are wired as strings
+            return UUID(value)  # uuids are wired as strings
         elif prop.primitive_type == PrimitiveType.JSON:
             return value.to_dict()
         else:
@@ -192,6 +192,7 @@ def unpack_struct_interp(
     scope: Node | None = None,
     on_notice: NoticeHandler = on_warning_raise,
 ) -> StructT:
+    """Unpack, interpret and validate a Struct."""
     struct = unpack_struct(struct_data)
     struct._interp_rec(scope=scope, on_notice=on_notice)
     struct._validate_rec(properties=(), on_invalid=on_invalid_raise)
@@ -235,7 +236,7 @@ def unpack_node(
 
 
 def pack_node_graph(root: Node, exclude: set[NodeType] = None) -> tuple[NodeDataT, list[NodeDataT]]:
-    """Pack a node and all its inline descendants"""
+    """Pack a node and all its descendants"""
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
