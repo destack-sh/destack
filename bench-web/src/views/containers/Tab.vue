@@ -13,7 +13,6 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { type ContextMenuInfo, type MenuContext, menuActionsLike } from "@/utils/menu";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { split } from "postcss/lib/list";
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "focus">
@@ -144,7 +143,7 @@ defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
   <div class="relative select-none" :style="{ width: size.width + 'px', height: size.height + 'px' }">
-    <!-- Tab header -->
+    <!-- Tabs header -->
     <Scroll
       ref="headerRef"
       class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
@@ -176,15 +175,16 @@ defineExpose<ViewExposed>({ self, actions });
         "
         v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context})} as ContextMenuInfo)"
       >
+        <!-- Tab header  -->
         <IconInline
           v-bind="tab.icon ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
-        <span class="truncate" :class="[tab.title ? '' : 'italic', i == focusedTabIdx ? '' : '']">
+        <span class="truncate" :class="[tab.title ? '' : 'italic']">
           {{ tab.title ?? `Tab ${i + 1}` }}
         </span>
-        <!-- Close tab button -->
+        <!-- Close tab -->
         <button
           class="ml-1.5 transition-colors duration-75 group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"

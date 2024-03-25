@@ -5749,9 +5749,9 @@ export enum BlockType {
      */
     MULTI_VARIABLE = 21,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_MODEL_ROUTINE = 30;
+     * @generated from protobuf enum value: BLOCK_TYPE_NATURAL_ROUTINE = 30;
      */
-    MODEL_ROUTINE = 30,
+    NATURAL_ROUTINE = 30,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_CODE_ROUTINE = 31;
      */
@@ -7806,6 +7806,10 @@ export enum ViewType {
      */
     KEYMAP = 40,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_MOCK = 70;
+     */
+    MOCK = 70,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_PAGE = 101;
      */
     PAGE = 101,
@@ -7854,17 +7858,13 @@ export enum ViewType {
      */
     CLIENT = 127,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOWED = 500;
+     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */
-    WINDOWED = 500,
+    WINDOW = 500,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 501;
+     * @generated from protobuf enum value: VIEW_TYPE_TAB = 502;
      */
-    WINDOW = 501,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABBED = 502;
-     */
-    TABBED = 502,
+    TAB = 502,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 503;
      */
@@ -7874,9 +7874,9 @@ export enum ViewType {
      */
     SPLIT_COLLAPSIBLE = 504,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STEPPED = 505;
+     * @generated from protobuf enum value: VIEW_TYPE_WIZARD = 505;
      */
-    STEPPED = 505,
+    WIZARD = 505,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_STACK = 510;
      */

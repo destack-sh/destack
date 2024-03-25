@@ -8,7 +8,7 @@ import { computed, ref, watch, type Ref, type MaybeRef, toRef } from "vue";
 const _isDragging = ref(false);
 export const isDragging = computed(() => _isDragging.value);
 
-export const MIN_WINDOW_SIZE = 200;
+export const MIN_SPLIT_SIZE = 200;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
 export const DEFAULT_RELATIVE_UNITS = 1;
 
@@ -113,12 +113,12 @@ export function splitView(
     let aTargetPx = sepAtPx - (isHorizontal ? a.left : a.top);
     let bTargetPx = isHorizontal ? b.left + b.width - sepAtPx : b.top + b.height - sepAtPx;
     // clamp target sizes
-    if (aTargetPx < MIN_WINDOW_SIZE) {
-      bTargetPx += aTargetPx - MIN_WINDOW_SIZE;
-      aTargetPx = MIN_WINDOW_SIZE;
-    } else if (bTargetPx < MIN_WINDOW_SIZE) {
-      aTargetPx += bTargetPx - MIN_WINDOW_SIZE;
-      bTargetPx = MIN_WINDOW_SIZE;
+    if (aTargetPx < MIN_SPLIT_SIZE) {
+      bTargetPx += aTargetPx - MIN_SPLIT_SIZE;
+      aTargetPx = MIN_SPLIT_SIZE;
+    } else if (bTargetPx < MIN_SPLIT_SIZE) {
+      aTargetPx += bTargetPx - MIN_SPLIT_SIZE;
+      bTargetPx = MIN_SPLIT_SIZE;
     }
 
     // create a partial view update to set the view to a specific size in pixels (relative or absolute)
