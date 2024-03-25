@@ -8,7 +8,14 @@ from typing import TypeVar, cast
 import pytz
 
 from bench.language import NodeReference, Property
-from bench.language.const import NODE_TYPES, BenchType, PrimitiveType, ReferenceKind, StructType
+from bench.language.const import (
+    EMPTY_DICT,
+    NODE_TYPES,
+    BenchType,
+    PrimitiveType,
+    ReferenceKind,
+    StructType,
+)
 from bench.language.node import Node, Struct
 from bench.language.setup import BENCH_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
@@ -55,8 +62,11 @@ class Fabricator:
         else:
             raise ValueError(f"cannot fabricate {prop!r}")
 
-    def fabricate(self, bench_type: BenchType, path: tuple[BenchType, ...] = ()) -> NodeT | StructT:
+    def fabricate(
+        self, bench_type: BenchType, path: tuple[BenchType, ...] = (), **override
+    ) -> NodeT | StructT:
         path = path + (bench_type,)
+        override = override or EMPTY_DICT
 
         # special cases for semantic correctness
         if bench_type == StructType.NODE_REFERENCE:
@@ -74,10 +84,12 @@ class Fabricator:
             )
             return prop.to_ref()
         else:  # default unconstrained random jumble of properties
-            kwargs = {}
+            kwargs = {**override}
             bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
             for prop in bench_cls.__wired_properties__.values():
-                if prop.is_ephemeral or prop.is_computed:
+                if prop.name in override:
+                    continue
+                elif prop.is_ephemeral or prop.is_computed:
                     continue
                 elif prop.reference_kind == ReferenceKind.STRUCT_PARENT or (
                     prop.reference_kind
@@ -93,4 +105,5 @@ class Fabricator:
                 else:
                     kwargs[prop.name] = self.fabricate_prop_scalar(prop, path)
             fabricated = bench_cls(**kwargs)
+            assert fabricated.metatype == bench_type, f"{fabricated!r}.metatype is not {bench_type}"
             return fabricated

@@ -240,7 +240,7 @@ class Block(Node, HasValues):
         # add runtime properties from dynamic components
         for component in self._dynamic_components:
             for prop in component.__properties__.values():
-                if prop.is_ephemeral and prop.name not in self.__dict__:
+                if not prop.is_computed and prop.is_ephemeral and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
     def morph(self, to_type: BlockType):

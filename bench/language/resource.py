@@ -9,14 +9,22 @@ from bench.language.const import (
     StoreKind,
     StructType,
 )
+from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, node_component, struct
-from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
+from bench.language.property import (
+    p_internal,
+    p_kernel,
+    p_node_child,
+    p_node_parent,
+    p_regular,
+    p_system,
+)
 from bench.language.setup import _well_known_enum
 from bench.language.text import Text
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Bench
+    from bench.language import Bench, Client
 
 
 @_well_known_enum
@@ -88,6 +96,8 @@ class Server(Resource):
     current_version: Optional[str] = p_system(53, default=None)
     last_active_at: Optional[datetime] = p_internal(54, default=None)
     last_bumped_at: Optional[datetime] = p_internal(55, default=None)
+
+    clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
 
     def __content_str__(self):
         return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"

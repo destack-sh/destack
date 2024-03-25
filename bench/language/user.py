@@ -100,6 +100,8 @@ class User(Node):
     # flags
     is_staff: bool = p_system(90, default=False)
 
+    clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
+
     @property
     def bench(self) -> "Bench":
         assert self.main_bench is not None, f"{self!r} is not activated"
