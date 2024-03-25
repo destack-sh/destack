@@ -4,12 +4,13 @@ import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { clientMeta, isDeveloperMode } from "@/system/local";
-import { bench } from "@/system/space";
+import { benchPtr, clientMeta, isDeveloperMode } from "@/system/local";
+import { bench, hasBench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { useElementSize } from "@/utils/element";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
+import type { TooltipInfo } from "@/utils/tooltip";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
@@ -150,11 +151,22 @@ const USER_MENU_ITEMS = computed(() => [
         </template>
       </Popover>
       <!-- Status -->
-      <div>
+      <div class="flex flex-row gap-x-3">
         <!-- Connection -->
-        <span class="select-none text-success-600">
-          <i class="fas fa-wifi mr-1.5" />
-        </span>
+        <div v-if="hasBench">
+          <span class="select-none text-success-600">
+            <i class="fas fa-wifi" />
+          </span>
+        </div>
+        <!-- Developer mode -->
+        <div v-if="isDeveloperMode">
+          <span
+            class="select-none text-hint-600"
+            v-tooltip="{icon: 'fas fa-bug', title: 'Developer Mode Enabled'} as TooltipInfo"
+          >
+            <i class="fas fa-bug" />
+          </span>
+        </div>
       </div>
       <!-- ... -->
     </div>

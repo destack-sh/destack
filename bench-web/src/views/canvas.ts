@@ -550,7 +550,10 @@ export class ViewCanvas {
     let split: ViewData;
     if (parent.type == ViewType.WINDOWED) split = parent;
     else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
-    else throw new Error("no split view to split");
+    else
+      throw new Error(
+        `no enclosing split: [parent=${BenchType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
+      );
     const isHorizontal = anchor == "left" || anchor == "right";
     const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
     const isOrderFlipped = anchor == "right" || anchor == "bottom";
@@ -615,6 +618,8 @@ export class ViewCanvas {
 
 /** Sets up a minimal empty space with one root tabbed */
 export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { root: ViewData } {
+  // nocheckin: add 'Windowed' node between 'Space' and 'View'?
+  //  (for clarity so Views always have a parent View up to root, later to allow for multiple windows)
   const main = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TABBED,
