@@ -131,8 +131,7 @@ function destroyTooltip(instance: TooltipInstance) {
 export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
     const triggerEl = el as TooltipTriggerElement;
-    const showDelay = binding.value.showDelay ?? DEFAULT_HOVER_SHOW_DELAY;
-    const hideDelay = binding.value.hideDelay ?? DEFAULT_HOVER_HIDE_DELAY;
+    const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = binding.value;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
       if (e.target == triggerEl) {
@@ -177,5 +176,46 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
     }
     if (triggerEl.tooltipOnMouseEnter) triggerEl.removeEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
     if (triggerEl.tooltipOnMouseLeave) triggerEl.removeEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);
+  },
+};
+
+//
+// Hover directive
+//
+
+export type HoverInfo = {
+  show?: (e: MouseEvent) => void;
+  hide?: (e: MouseEvent) => void;
+  showDelay?: number;
+  hideDelay?: number;
+};
+
+type HoverTriggerElement = {
+  hoverShowTimeout?: number;
+  hoverHideTimeout?: number;
+  hoverOnMouseEnter?: (e: MouseEvent) => void;
+  hoverOnMouseLeave?: (e: MouseEvent) => void;
+} & HTMLElement;
+
+/** Convenience hover directive to perform arbitrary actions */
+export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
+  mounted(el, binding) {
+    const triggerEl = el as HoverTriggerElement;
+    const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = binding.value;
+
+    triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
+      if (e.target == triggerEl) {
+        if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
+        triggerEl.hoverShowTimeout = window.setTimeout(() => binding.value.show?.(e), showDelay);
+      } else {
+        if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
+      }
+    };
+    triggerEl.hoverOnMouseLeave = (e: MouseEvent) => {
+      if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
+      triggerEl.hoverHideTimeout = window.setTimeout(() => {
+        binding.value.hide?.(e);
+      }, hideDelay);
+    };
   },
 };

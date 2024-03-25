@@ -80,7 +80,8 @@ function focus(idx: number | "next" | "previous" | "top" | "bottom") {
       .findIndex((item) => !item.isDisabled);
   } else if (idx == "next") {
     const offset = (focusedItemIdx.value ?? 0) + 1;
-    idx = props.items.slice(offset).findIndex((item) => !item.isDisabled) + offset;
+    const forwardIdx = props.items.slice(offset).findIndex((item) => !item.isDisabled);
+    idx = forwardIdx == -1 ? -1 : offset + forwardIdx;
   } else if (idx == "previous") {
     const offset = focusedItemIdx.value ?? 1;
     const reverseIdx = props.items
@@ -122,17 +123,16 @@ function openNestedMenu(itemIdx: number) {
 
 /** Navigate horizontally to open/close nested menus if relevant */
 function onNavigateHorizontal(direction: "left" | "right") {
-  if (focusedItemIdx.value == null) return;
-  const item = props.items[focusedItemIdx.value];
+  const item = focusedItemIdx.value != null ? props.items[focusedItemIdx.value] : null;
 
   if (props.parent == null) {
     // in root menu
-    if (!isNestedItem(item.action)) return;
-    openNestedMenu(focusedItemIdx.value);
+    if (item != null && !isNestedItem(item.action)) return;
+    openNestedMenu(focusedItemIdx.value!);
   } else {
     // in nested menu
-    if (isNestedItem(item.action)) {
-      openNestedMenu(focusedItemIdx.value);
+    if (item != null && isNestedItem(item.action)) {
+      openNestedMenu(focusedItemIdx.value!);
     } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");
     } else if (props.placement?.startsWith("right") && direction == "left") {

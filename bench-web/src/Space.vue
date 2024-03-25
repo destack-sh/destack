@@ -37,6 +37,7 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
     :class="[isDragging ? 'yselect-none pointer-events-none' : '']"
+    :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
     <!-- Bar -->
