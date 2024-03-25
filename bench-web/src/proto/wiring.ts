@@ -28,6 +28,7 @@ export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(Struct
 export const BENCH_TYPE_NAME: Record<BenchType, string> = reverseRecord(BenchType);
 
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
+export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 
 export function newStructId(): number {
   /** Generates a positive 32-bit random integer */

@@ -36,7 +36,15 @@ from bench.language import (
     TypeInfo,
 )
 from bench.language.access import ReadOptions
-from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
+from bench.language.const import (
+    EMPTY_DICT,
+    NODE_TYPES,
+    BenchError,
+    EditType,
+    NodeType,
+    ReferenceKind,
+    SortOp,
+)
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
@@ -216,6 +224,14 @@ def get_bench_table_name(node_type: NodeType) -> str:
     return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
+# node types we reference *everywhere* so FKs would kill us
+BLOCK_FOREIGN_KEYS: dict[ReferenceKind, set[NodeType]] = {
+    ReferenceKind.NODE_REGULAR: {NodeType.BENCH, NodeType.PACKAGE, NodeType.USER},
+    ReferenceKind.NODE_ANCESTOR_ROOT: {NodeType.BENCH, NodeType.PACKAGE},
+    ReferenceKind.NODE_ANCESTOR_FIRST: {NodeType.BENCH, NodeType.PACKAGE},
+}
+
+
 def map_node_class_to_pg_table(node: type[Node]) -> Table:
     # TODO :Robustness: add Bench check constraints in Postgres
     table_name = get_bench_table_name(node.metatype)
@@ -257,6 +273,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             and prop.name.endswith("_id")
             and not prop.is_list  # foreign keys must be scalar
             and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
+            and prop.reference_nodes[0] not in BLOCK_FOREIGN_KEYS.get(prop.reference_kind, ())
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
@@ -568,9 +585,6 @@ async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composed) -> list[d
     logger.trace("pg.select_raw", query=sql_to_str(cur, query))
     await cur.execute(query)
     return await cur.fetchall()
-
-
-# TODO :Cleanup :Security: parameterize pg crypto key per database & pass more selectively
 
 
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:

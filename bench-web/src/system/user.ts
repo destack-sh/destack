@@ -14,7 +14,7 @@ import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/pro
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { clearUser, clientInfo, clientMeta, setUser, userInfo } from "@/system/local";
+import local from "@/system/client";
 import { canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
@@ -25,23 +25,25 @@ import { computed, ref } from "vue";
 
 export const nonce = v4();
 
-export const isAuthenticated = computed(() => clientInfo.value?.accessToken != null);
+export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
 export const { graph: userGraph, connection: userConnection } = useGetNodes(
   computed(() => ({
     name: "user",
-    roots: [nodeReference(NodeType.USER, userInfo.value?.id!)],
+    roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: { descendantTypes: [NodeType.CLIENT] },
     enabled: isAuthenticated.value,
     watch: true,
   })),
 );
 export const user = userGraph.getRef(
-  computed(() => (isAuthenticated.value ? { type: NodeType.USER, id: userInfo.value?.id! } : null)),
+  computed(() => (isAuthenticated.value ? { type: NodeType.USER, id: local.userInfo.value?.id! } : null)),
 );
 export const client = userGraph.getRef(
-  computed(() => (clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: clientInfo.value.id })),
+  computed(() =>
+    local.clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: local.clientInfo.value.id },
+  ),
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
@@ -49,12 +51,12 @@ export const isActivated = computed(() => user.value?.status == UserStatus.ACTIV
 function makeCurrentClient(): ClientData {
   return makeNode({
     metatype: NodeType.CLIENT,
-    ...clientMeta.value,
+    ...local.clientMeta.value,
   });
 }
 
 function onLogIn(info: { user: UserData; client: ClientData; accessToken: string }) {
-  setUser({
+  local.setUser({
     user: {
       id: info.user.id,
       email: info.user.email!,
@@ -66,7 +68,7 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
       accessToken: info.accessToken,
     },
   });
-  log.info("user.login", userInfo.value);
+  log.info("user.login", local.userInfo.value);
 }
 
 /**
@@ -89,29 +91,37 @@ export async function signUp(userIn: { name?: string; slug: string; email: strin
 /**
  * Log in a user as the current client.
  */
-export async function logIn(userIn: { slug: string } | { email: string }, password: string) {
-  if (clientInfo.value != null) throw new Error("already logged in");
+export async function logIn(
+  userIn: { slug: string } | { email: string },
+  password: string,
+): Promise<{ user: UserData; client: ClientData }> {
+  if (local.clientInfo.value != null) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
   } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() });
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged In", text: `Welcome back, ${user.slug}.` });
+  return { user, client };
 }
 
 /**
  * Logs out clients (may include current).
  */
 export async function logOut(options?: { all?: boolean; clients?: { id: string }[] }) {
-  if (clientInfo.value == null) throw new Error("not logged in");
+  if (local.clientInfo.value == null) throw new Error("not logged in");
   await supervisor.logoutUser({
     clients: options?.clients?.map((c) => nodeReference(NodeType.CLIENT, c.id!)) ?? [],
     logoutAll: options?.all,
   });
-  if (options == null || options?.all || options?.clients?.some((c) => c.id == clientInfo.value?.id)) {
+  if (options == null || options?.all || options?.clients?.some((c) => c.id == local.clientInfo.value?.id)) {
     // logged out current client
     log.info("user.logout", options);
-    clearUser();
+    local.clearUser();
+    if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
+      // reset local space
+      local.clearPackage();
+    }
     toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
@@ -120,7 +130,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
 export function onAuthenticationError(error: RpcError) {
   // TODO :Robustness: handle user auth error & badge auth error separately
   log.error("user.unauthenticated");
-  clearUser();
+  local.clearUser();
 }
 
 export async function createBench(benchIn: {
@@ -129,7 +139,7 @@ export async function createBench(benchIn: {
   region: Region;
   isMain: boolean;
 }): Promise<{ bench: BenchData }> {
-  if (clientInfo.value == null) throw new Error("not logged in");
+  if (local.clientInfo.value == null) throw new Error("not logged in");
   const {
     response: { bench },
   } = await supervisor.createBench({ ...benchIn });
@@ -142,28 +152,28 @@ function userWizardView(view: { title: string }): ViewDataIn {
 }
 
 contributeActionMap<"user">({
-  "user.signup": {
+  "user.auth.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     text: "Create a new account.",
     enabled: isUnauthenticated,
     action: () => canvas.upsertView(userWizardView({ title: "Sign Up" })),
   },
-  "user.login": {
+  "user.auth.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     text: "Log in to an existing account.",
     enabled: isUnauthenticated,
     action: () => canvas.upsertView(userWizardView({ title: "Log In" })),
   },
-  "user.logout": {
+  "user.auth.logout": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out",
     text: "Log out of the current client.",
     enabled: isAuthenticated,
     action: () => logOut(),
   },
-  "user.activate": {
+  "user.auth.activate": {
     icon: "fas fa-rocket-launch",
     enabled: computed(() => isAuthenticated.value && !isActivated.value),
     title: "Activate Bench",
@@ -171,7 +181,7 @@ contributeActionMap<"user">({
     action: () =>
       canvas.upsertView({ type: ViewType.BENCH_WIZARD, icon: "fas fa-rocket-launch", title: "Activate Bench" }),
   },
-  "user.goToHome": {
+  "user.misc.goToHome": {
     icon: "fas fa-home",
     enabled: isActivated,
     title: "Go to My Bench",
@@ -180,7 +190,7 @@ contributeActionMap<"user">({
       await goToBench({ bench: user.value!.mainBenchPtr! });
     },
   },
-  "user.editKeybindings": {
+  "user.settings.editKeybindings": {
     icon: "fas fa-keyboard",
     enabled: ref(false),
     title: "Edit Keybindings",

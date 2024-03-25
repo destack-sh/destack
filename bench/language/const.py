@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.03.25.4"
+VERSION = "2024.03.25.8"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -108,9 +108,6 @@ SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 )
 PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGANIZATION))
 USER_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
-HIGH_VOLUME_NODE_TYPES = bytetuple(
-    (NodeType.RUN, NodeType.LOG, NodeType.SIGNAL, NodeType.FILE_CONTENT)
-)
 
 
 class StructType(IdEnum):

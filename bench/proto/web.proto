@@ -28,6 +28,11 @@ message BadgeInfo {
   optional string password = 4;
 }
 
+message LocalNodeGraph {
+  SomeNodeData root = 1;
+  repeated SomeNodeData nodes = 2;
+}
+
 // Web-local developer settings.
 message DeveloperSettings {
   bool is_developer_mode = 1;
@@ -42,7 +47,9 @@ message LocalStorage {
   repeated BadgeInfo badges = 3;
   // space/bench
   optional NodeReferenceData space_ptr = 10;
-  repeated NodeReferenceData package_ptrs = 11;
+  optional NodeReferenceData bench_ptr = 11;
+  repeated NodeReferenceData package_ptrs = 12;
+  repeated LocalNodeGraph local_graphs = 13;
   // debug
   optional DeveloperSettings developer_settings = 20;
 }

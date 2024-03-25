@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { useActiveConnection } from "@/system/connection";
-import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
+import { LOCAL_SPACE_PTR, spacePtr } from "@/system/client";
 import { isDragging } from "@/utils/layout";
 import Bar from "@/views/private/Bar.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
@@ -104,3 +104,4 @@ mark {
   text-underline-offset: 2px;
 }
 </style>
+@/system/client

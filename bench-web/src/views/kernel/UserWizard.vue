@@ -1,8 +1,8 @@
 <script lang="tsx" setup>
-import { Region, Variant, type NodeReferenceData, ViewData, NodeType } from "@/proto/wire";
+import { Region, Variant, type NodeReferenceData, ViewData, NodeType, UserStatus } from "@/proto/wire";
 import { useActiveConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { canvas } from "@/system/space";
+import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
@@ -12,6 +12,7 @@ import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { watch, ref, toRef, type Ref } from "vue";
 import { reverseRecord } from "@/utils/functools";
 import { humanizeError } from "@/proto/services";
+import { benchPtr } from "@/system/client";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());
@@ -64,7 +65,11 @@ async function submit() {
     if (state.value == "sign-up") {
       await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
     } else if (state.value == "log-in") {
-      await logIn({ slug: slug.value }, password.value);
+      const { user } = await logIn({ slug: slug.value }, password.value);
+      // if we're outside a Bench and have a Bench, go home
+      if (user.mainBenchPtr != null && benchPtr.value == null) {
+        await goToBench({ bench: user.mainBenchPtr });
+      }
     } else {
       throw new Error(`unexpected registration state: ${state.value}`);
     }
@@ -163,3 +168,4 @@ defineExpose<ViewExposed>({ self, focus });
     </div>
   </div>
 </template>
+@/system/client

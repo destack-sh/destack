@@ -1,7 +1,7 @@
 import { ViewType, type IconData, type NodeReferenceData, type TextData, LogLevel } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { isDeveloperMode } from "@/system/local";
-import { canvas, hasBench, space } from "@/system/space";
+import { isDeveloperMode } from "@/system/client";
+import { canvas, hasLocalBench, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
@@ -123,12 +123,12 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitLeft",
   "view.layout.splitRight",
   // user
-  "user.signup",
-  "user.login",
-  "user.logout",
-  "user.activate",
-  "user.goToHome",
-  "user.editKeybindings",
+  "user.auth.signup",
+  "user.auth.login",
+  "user.auth.logout",
+  "user.auth.activate",
+  "user.misc.goToHome",
+  "user.settings.editKeybindings",
   // organization
   "organization.create",
   // developer
@@ -833,21 +833,21 @@ contributeActionMap<"bench">({
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToEnvironment": {
-    enabled: hasBench,
+    enabled: hasLocalBench,
     title: "Switch Environment",
     text: "Go to another Environment in this Bench",
     icon: "fas fa-cloud",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToPackage": {
-    enabled: hasBench,
+    enabled: hasLocalBench,
     title: "Switch Package",
     text: "Go to another Package in this Bench",
     icon: "fas fa-box",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToSpace": {
-    enabled: hasBench,
+    enabled: hasLocalBench,
     title: "Switch Space",
     text: "Go to another Space of this Bench",
     icon: "fas fa-galaxy",

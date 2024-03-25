@@ -1387,6 +1387,7 @@ message BadgeData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1440,6 +1441,7 @@ message BlockData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1478,6 +1480,7 @@ message BranchData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1500,6 +1503,7 @@ message CacheData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1521,6 +1525,7 @@ message ClientData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1550,6 +1555,7 @@ message DependencyData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1570,6 +1576,7 @@ message DriveData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1591,6 +1598,7 @@ message EnvironmentData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1619,6 +1627,7 @@ message FieldData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1657,6 +1666,7 @@ message FileContentData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1679,6 +1689,7 @@ message HandleData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1700,6 +1711,7 @@ message IdentityData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1719,6 +1731,7 @@ message InviteData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1743,6 +1756,7 @@ message LinkData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1792,6 +1806,7 @@ message MembershipData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1815,6 +1830,7 @@ message BaseNodeData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1833,6 +1849,7 @@ message NoticeData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1906,6 +1923,7 @@ message PackageData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1949,6 +1967,7 @@ message QueryData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1995,6 +2014,7 @@ message RoleData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2048,6 +2068,7 @@ message ServerData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2124,6 +2145,7 @@ message SkipData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2144,6 +2166,7 @@ message SpaceData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2166,6 +2189,7 @@ message StoreData {
   BenchType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2196,6 +2220,7 @@ message TriggerData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2219,6 +2244,7 @@ message UpgradeData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2268,6 +2294,7 @@ message ViewData {
   string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
   NodeSource source = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;

@@ -197,11 +197,15 @@ def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
+    # for nodes only
+    is_final: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
-    is_final: bool = False,
-    is_inlined: bool = False,  # for structs only
+    is_variable_root: bool = False,
+    is_local: bool = False,
     no_ck: bool = False,
+    # for structs only
+    is_inlined: bool = False,
 ) -> tuple[type["Node"], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
     is_node_base = cls.__name__ in "Node"
@@ -295,6 +299,10 @@ def _process_struct_base_cls(
         reserved_properties.update(component.__reserved_properties__)
     cls.__reserved_properties__ = frozenset(reserved_properties)
 
+    if is_node and is_variable_root:
+        # bench is optional in variable root types (since they can have other roots)
+        properties_by_name["bench"].is_required = False
+
     # contribute extra properties
     for prop in tuple(properties_by_name.values()):
         prop: Property
@@ -328,8 +336,8 @@ def _process_struct_base_cls(
             for name in prop.contributed_props:
                 _remove_prop(name.name)
 
-    if is_final:
-        if is_node and not is_sub_bench:
+    if is_final:  # :MagicProps
+        if is_node and (not is_sub_bench or is_local):
             _remove_prop("bench")
         if is_node and not is_sub_package:
             _remove_prop("package")
@@ -525,9 +533,11 @@ def node_component(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
+    is_variable_root: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
     is_final: bool = False,
+    is_local: bool = False,
     no_ck: bool = False,
 ):
     """
@@ -540,12 +550,15 @@ def node_component(
             cls=cls,
             dynamic_components=dynamic_components,
             reserved=reserved,
+            is_variable_root=is_variable_root,
             is_sub_bench=is_sub_bench,
             is_sub_package=is_sub_package,
             is_final=is_final,
+            is_local=is_local,
             no_ck=no_ck,
         )
         cls.__passthrough_targets__ = passthrough
+
         # register node properties
         props = properties.values()
         list_properties: dict[str, Property] = {}
@@ -612,10 +625,12 @@ def node(
             passthrough=passthrough,
             dynamic_components=dynamic_components,
             reserved=reserved,
+            is_variable_root=len(roots) > 1,
             is_sub_bench=sub_bench,
             is_sub_package=sub_package,
             no_ck=no_ck,
             is_final=True,
+            is_local=local,
         )
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
@@ -1318,7 +1333,9 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     parent: Optional["Node"] = p_node_parent(4)
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_node_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
-    bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=False, wire=False)
+    # TODO :Performance: only encode bench_ptr for wiring if needed
+    #  (we should be able to derive that from package_ptr if that's also present)
+    bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=True, wire=True)
     source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
@@ -1349,7 +1366,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         references=(NodeType.USER, NodeType.RUN),
         reference_force_by_id=True,
     )
-    # changed_by (19), active_by (20), ...
+    # changed_by (19)?, active_by (20)?, ...
     # from Struct: computed_properties (21), set_properties (22)
 
     # 30+ for 'user' node/struct properties

@@ -15,7 +15,7 @@ import {
 import { makeDefaultProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { accessAsOwner, type AccessArbiter } from "@/system/access";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
-import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/local";
+import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID } from "@/system/client";
 import {
   ImmediateTransactionBuffer,
   SwapTransactionBuffer,

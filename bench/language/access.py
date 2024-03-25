@@ -267,9 +267,7 @@ class Policy(Struct):
     name: Optional[str] = p_regular(30, default=None)
     text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
     rules: list["PolicyRule"] = p_regular(32, array=True, struct=StructType.POLICY_RULE)
-    scopes: list["Block"] | None = p_regular(
-        33, require=False, array=True, references=NodeType.BLOCK
-    )
+    scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
 
     def __content_str__(self) -> str:
         if self.scopes:
@@ -307,20 +305,20 @@ class PolicyRule(Struct):
 
     # verb
     effect: PolicyEffect = p_regular(60, default=PolicyEffect.DENY)
-    verbs: list[AccessType] | None = p_regular(61, array=True)
-    verb_kinds: list[AccessKind] | None = p_regular(62, array=True)
+    verbs: list[AccessType] = p_regular(61, array=True)
+    verb_kinds: list[AccessKind] = p_regular(62, array=True)
     _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard, except for _properties_is_<...>)
     object_node_types: Optional[list[NodeType]] = p_regular(80, array=True)
     _object_node_types_mask: bitarray | None = p_runtime(default=None)
-    object_properties: list[Property] | None = p_regular(
+    object_properties: list[Property] = p_regular(
         81, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     object_properties_is_system: Optional[bool] = p_regular(82, default=None)
     object_properties_is_sensitive: Optional[bool] = p_regular(83, default=None)
     object_properties_is_kernel: Optional[bool] = p_regular(84, default=None)
-    _object_properties_masks: dict[NodeType, bitarray] | None = p_runtime(default=None)
+    _object_properties_masks: dict[NodeType, bitarray] = p_runtime(default=None)
 
     # object_properties, object_nodes, object_fields, ...
 
@@ -643,7 +641,7 @@ class Access(Struct):
     decision: PolicyEffect = p_system(31, require=True)
     verb: AccessType = p_system(32, require=True)
     object_type: BenchType = p_system(33, require=True)
-    object_properties: list[Property] | None = p_system(
+    object_properties: list[Property] = p_system(
         34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 

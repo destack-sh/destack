@@ -195,7 +195,7 @@ class Invite(Node):
 
     # membership properties once accepted
     is_owner: bool = p_regular(32, default=False)
-    roles: list["Role"] | None = p_regular(33, require=False, array=True, references=NodeType.ROLE)
+    roles: list["Role"] = p_regular(33, require=False, array=True, references=NodeType.ROLE)
 
 
 @node(

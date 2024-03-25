@@ -11,6 +11,7 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
+import { SomeNodeData } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { IconData } from "./lang";
 /**
@@ -79,6 +80,19 @@ export interface BadgeInfo {
     password?: string;
 }
 /**
+ * @generated from protobuf message symbolx.bench.LocalNodeGraph
+ */
+export interface LocalNodeGraph {
+    /**
+     * @generated from protobuf field: symbolx.bench.SomeNodeData root = 1;
+     */
+    root?: SomeNodeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 2;
+     */
+    nodes: SomeNodeData[];
+}
+/**
  * Web-local developer settings.
  *
  * @generated from protobuf message symbolx.bench.DeveloperSettings
@@ -117,9 +131,17 @@ export interface LocalStorage {
      */
     spacePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData package_ptrs = 11;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 11;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData package_ptrs = 12;
      */
     packagePtrs: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.LocalNodeGraph local_graphs = 13;
+     */
+    localGraphs: LocalNodeGraph[];
     /**
      * debug
      *
@@ -330,6 +352,60 @@ class BadgeInfo$Type extends MessageType<BadgeInfo> {
  */
 export const BadgeInfo = new BadgeInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class LocalNodeGraph$Type extends MessageType<LocalNodeGraph> {
+    constructor() {
+        super("symbolx.bench.LocalNodeGraph", [
+            { no: 1, name: "root", kind: "message", T: () => SomeNodeData },
+            { no: 2, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+        ]);
+    }
+    create(value?: PartialMessage<LocalNodeGraph>): LocalNodeGraph {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<LocalNodeGraph>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LocalNodeGraph): LocalNodeGraph {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.SomeNodeData root */ 1:
+                    message.root = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.root);
+                    break;
+                case /* repeated symbolx.bench.SomeNodeData nodes */ 2:
+                    message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LocalNodeGraph, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.SomeNodeData root = 1; */
+        if (message.root)
+            SomeNodeData.internalBinaryWrite(message.root, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.SomeNodeData nodes = 2; */
+        for (let i = 0; i < message.nodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LocalNodeGraph
+ */
+export const LocalNodeGraph = new LocalNodeGraph$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class DeveloperSettings$Type extends MessageType<DeveloperSettings> {
     constructor() {
         super("symbolx.bench.DeveloperSettings", [
@@ -384,7 +460,9 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
             { no: 2, name: "client_info", kind: "message", T: () => ClientInfo },
             { no: 3, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BadgeInfo },
             { no: 10, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 11, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 11, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 13, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalNodeGraph },
             { no: 20, name: "developer_settings", kind: "message", T: () => DeveloperSettings }
         ]);
     }
@@ -392,6 +470,7 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.badges = [];
         message.packagePtrs = [];
+        message.localGraphs = [];
         if (value !== undefined)
             reflectionMergePartial<LocalStorage>(this, message, value);
         return message;
@@ -413,8 +492,14 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
                 case /* optional symbolx.bench.NodeReferenceData space_ptr */ 10:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData package_ptrs */ 11:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 11:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData package_ptrs */ 12:
                     message.packagePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.LocalNodeGraph local_graphs */ 13:
+                    message.localGraphs.push(LocalNodeGraph.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.DeveloperSettings developer_settings */ 20:
                     message.developerSettings = DeveloperSettings.internalBinaryRead(reader, reader.uint32(), options, message.developerSettings);
@@ -443,9 +528,15 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         /* optional symbolx.bench.NodeReferenceData space_ptr = 10; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData package_ptrs = 11; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 11; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData package_ptrs = 12; */
         for (let i = 0; i < message.packagePtrs.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.LocalNodeGraph local_graphs = 13; */
+        for (let i = 0; i < message.localGraphs.length; i++)
+            LocalNodeGraph.internalBinaryWrite(message.localGraphs[i], writer.tag(13, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.DeveloperSettings developer_settings = 20; */
         if (message.developerSettings)
             DeveloperSettings.internalBinaryWrite(message.developerSettings, writer.tag(20, WireType.LengthDelimited).fork(), options).join();

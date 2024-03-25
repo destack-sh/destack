@@ -1,6 +1,7 @@
 import { LocalStorage, NodeType } from "@/proto/wire";
 import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
+import { log } from "@/utils/log";
 import { pretendReadonly, pickRef } from "@/utils/ref";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
@@ -72,15 +73,12 @@ export const clientMeta = readonly(
   }),
 );
 
-export function setUser(info: {
-  user: Required<LocalStorage>["userInfo"];
-  client: Required<LocalStorage>["clientInfo"];
-}) {
+function setUser(info: { user: Required<LocalStorage>["userInfo"]; client: Required<LocalStorage>["clientInfo"] }) {
   _userInfo.value = info.user;
   _clientInfo.value = info.client;
 }
 
-export function clearUser() {
+function clearUser() {
   _userInfo.value = null;
   _clientInfo.value = null;
 }
@@ -91,9 +89,11 @@ export function clearUser() {
 
 // space/package/bench are derived from spacePtr and packagePtrs (which )
 const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
+const _benchPtr = useLocal("benchPtr") as Ref<TypedNodeReferenceData<NodeType.BENCH> | null>;
 const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
 export const spacePtr = pretendReadonly(_spacePtr);
-export const packageIdByBenchId = computed(() => {
+export const benchPtr = pretendReadonly(_benchPtr);
+const packageIdByBenchId = computed(() => {
   const packageIdByBenchId: Record<string, string> = {};
   for (const pkg of _packagePtrs.value) {
     if (packageIdByBenchId[pkg.benchId!] != null) continue; // ignore duplicates
@@ -101,10 +101,6 @@ export const packageIdByBenchId = computed(() => {
   }
   return packageIdByBenchId;
 });
-export const benchPtr = computed(() => {
-  if (_spacePtr.value == null || _spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
-  else return nodeReference(NodeType.BENCH, _spacePtr.value.benchId!);
-}) as Readonly<Ref<TypedNodeReferenceData<NodeType.BENCH> | null>>;
 export const packagePtr = computed(() => {
   if (_spacePtr.value?.benchId == null || _spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
   else
@@ -112,24 +108,46 @@ export const packagePtr = computed(() => {
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
 
 /** Sets the active space. Must be local or from the current package. */
-export function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
+function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
   if (space.benchId != LOCAL_BENCH_ID && packageIdByBenchId.value[space.benchId!] == null) {
     throw new Error(`space ${space.id} is not in the active Package ${packageIdByBenchId.value[space.benchId!]}`);
   }
+  log.trace("local.setSpace", space);
   _spacePtr.value = space;
 }
 
-/** Resets the space to the local space. */
-export function setSpaceToLocal() {
+/** Resets the space to the local space. Does not affect the Bench. */
+function setSpaceToLocal() {
+  log.trace("local.setSpaceToLocal");
   _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
 }
 
 /** Sets the current Bench & Package. If it doesn't match the current space, the space is reset to local. */
-export function setBench(
-  bench: TypedNodeReferenceData<NodeType.BENCH>,
-  pkg: TypedNodeReferenceData<NodeType.PACKAGE>,
-) {
-  throw new Error("not implemented");
+function setPackage(set: {
+  pkg: TypedNodeReferenceData<NodeType.PACKAGE>;
+  space?: TypedNodeReferenceData<NodeType.SPACE>;
+}) {
+  log.trace("local.setPackage", set);
+  if (set.pkg.benchId == null || set.pkg.benchId == LOCAL_BENCH_ID)
+    throw new Error(`package ${set.pkg?.id} is not in a real Bench?`);
+  const bench = nodeReference(NodeType.BENCH, set.pkg.benchId!);
+  _benchPtr.value = bench;
+  if (_packagePtrs.value == null) _packagePtrs.value = [];
+  _packagePtrs.value = _packagePtrs.value.filter((p) => p.benchId != bench.id).concat(set.pkg);
+  if (set.space != null) {
+    if (set.space.benchId != bench.id) throw new Error(`space ${set.space.id} is not in the active Bench ${bench.id}`);
+    setSpace(set.space);
+  } else {
+    setSpaceToLocal();
+  }
+}
+
+function clearPackage() {
+  if (_benchPtr.value != null) {
+    _benchPtr.value = null;
+    _packagePtrs.value = (_packagePtrs.value ?? []).filter((p) => p.benchId != _benchPtr.value!.id);
+    setSpaceToLocal();
+  }
 }
 
 //
@@ -138,3 +156,23 @@ export function setBench(
 
 const developerSettings = useLocal("developerSettings");
 export const isDeveloperMode = pickRef(developerSettings, "isDeveloperMode", false);
+
+// (re-)export some stuff in a wrapper for clarity
+
+const local = {
+  userInfo,
+  clientInfo,
+  clientMeta,
+  setUser,
+  clearUser,
+  spacePtr,
+  benchPtr,
+  packagePtr,
+  setSpace,
+  setSpaceToLocal,
+  setPackage,
+  clearPackage,
+  isDeveloperMode,
+} as const;
+
+export default local;

@@ -388,18 +388,18 @@ export class ViewCanvas {
     return null; // not found
   }
 
-  /** Gets all the open windows (direct children of WINDOW views) */
+  /** Gets all the open frames (direct children of Window views) */
   get currentFrames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
-    const getWindows = (view: ViewData): ViewData[] => {
+    const getFrames = (view: ViewData): ViewData[] => {
       if (view.type == ViewType.WINDOW) {
-        return this.graph.getChildren(view, NodeType.VIEW).flatMap(getWindows);
+        return this.graph.getChildren(view, NodeType.VIEW).flatMap(getFrames);
       } else {
         return [view];
       }
     };
-    const windows = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getWindows);
-    return windows;
+    const frames = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getFrames);
+    return frames;
   }
 
   /** Finds a view with properties exactly like the criteria */

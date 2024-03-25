@@ -1,5 +1,5 @@
 import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
-import { clientInfo, clientMeta } from "@/system/local";
+import { clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
