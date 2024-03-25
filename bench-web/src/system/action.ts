@@ -1,7 +1,7 @@
-import { ViewType, type IconData, type NodeReferenceData, type TextData } from "@/proto/wire";
+import { ViewType, type IconData, type NodeReferenceData, type TextData, LogLevel } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { isDeveloperMode } from "@/system/local";
-import { canvas, hasBench } from "@/system/space";
+import { canvas, hasBench, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
@@ -9,7 +9,7 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp } from "@/views/canvas";
+import { clearCanvas, collectViewComponentsUp, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
 import {
   computed,
   getCurrentInstance,
@@ -38,11 +38,11 @@ export const OMNIBAR_MODES: OmnibarMode[] = [
 export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
   // bench
-  "bench.goToBench",
-  "bench.goToEnvironment",
-  "bench.goToBranch",
-  "bench.goToPackage",
-  "bench.goToSpace",
+  "bench.go.goToBench",
+  "bench.go.goToEnvironment",
+  "bench.go.goToBranch",
+  "bench.go.goToPackage",
+  "bench.go.goToSpace",
   // package
   // ...
   // space
@@ -129,8 +129,10 @@ export const ACTION_BUILTIN_IDS = [
   // organization
   "organization.create",
   // developer
-  "developer.toggleDeveloperMode",
-  "developer.addView",
+  "developer.misc.toggleDeveloperMode",
+  "developer.view.addDebugView",
+  "developer.view.resetCanvasEmpty",
+  "developer.view.resetCanvasDefault",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -342,7 +344,9 @@ export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null 
 // NOTE: implemented actions may contain disabled actions, we filter those at a later step to avoid updating this too often
 //  (we evaluate the actual action to call only when firing the callback anyway)
 const IMPLEMENTED_ACTIONS_BY_ID: Ref<Record<string, Action>> = shallowRef({});
-export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() => Object.values(IMPLEMENTED_ACTIONS_BY_ID.value));
+export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() =>
+  Object.values(IMPLEMENTED_ACTIONS_BY_ID.value),
+);
 watch(
   [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
   () => {
@@ -699,15 +703,17 @@ declareActionMap<"view">({
 
 // developer actions
 contributeActionMap<"developer">({
-  "developer.toggleDeveloperMode": {
+  "developer.misc.toggleDeveloperMode": {
     icon: "fas fa-bug",
     title: computed(() => (isDeveloperMode.value ? "Disable Developer Mode" : "Enable Developer Mode")),
     text: "Developer Mode enables some advanced and some weird features.",
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.info({
+        key: "developer.toggleDeveloperMode",
+        override: true,
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
-        text: "Developer features are now " + (isDeveloperMode.value ? "enabled" : "disabled") + ".",
+        text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
         icon: "fas fa-bug",
         actions: [
           {
@@ -719,13 +725,36 @@ contributeActionMap<"developer">({
         ],
       });
     },
+    shortcuts: ["alt+f12", "f12"],
   },
-  "developer.addView": {
+  "developer.view.addDebugView": {
     enabled: isDeveloperMode,
     icon: "fas fa-bug",
-    title: "Add Some View",
-    text: "?",
+    title: "Add Debug View",
+    text: "Adds a debug view to the current root",
     action: () => canvas.addView({ type: ViewType.PAGE }),
+  },
+  "developer.view.resetCanvasEmpty": {
+    enabled: computed(() => isDeveloperMode.value && space.value != null),
+    icon: "fas fa-bug",
+    title: "Reset Canvas (Empty)",
+    text: "Clear the canvas and start blank",
+    action: () => {
+      const tx = canvas.txFactory();
+      clearCanvas(tx, canvas.graph, space.value!);
+      setupEmptyCanvas(tx, space.value!);
+    },
+  },
+  "developer.view.resetCanvasDefault": {
+    enabled: computed(() => isDeveloperMode.value && space.value != null),
+    icon: "fas fa-bug",
+    title: "Reset Canvas (Default)",
+    text: "Reset the canvas to the default state",
+    action: () => {
+      const tx = canvas.txFactory();
+      clearCanvas(tx, canvas.graph, space.value!);
+      setupDefaultCanvas(tx, space.value!);
+    },
   },
 });
 
@@ -770,34 +799,34 @@ contributeActionMap<"space">({
 
 // bench actions
 contributeActionMap<"bench">({
-  "bench.goToBench": {
+  "bench.go.goToBench": {
     title: "Switch Bench",
     text: "Open another Bench",
     icon: "fas fa-fort",
     action: ACTION_COMING_SOON,
   },
-  "bench.goToBranch": {
+  "bench.go.goToBranch": {
     enabled: ref(false), // not yet implemented
     title: "Switch Branch",
     text: "Go to another Branch in this Bench",
     icon: "fas fa-code-branch",
     action: ACTION_COMING_SOON,
   },
-  "bench.goToEnvironment": {
+  "bench.go.goToEnvironment": {
     enabled: hasBench,
     title: "Switch Environment",
     text: "Go to another Environment in this Bench",
     icon: "fas fa-cloud",
     action: ACTION_COMING_SOON,
   },
-  "bench.goToPackage": {
+  "bench.go.goToPackage": {
     enabled: hasBench,
     title: "Switch Package",
     text: "Go to another Package in this Bench",
     icon: "fas fa-box",
     action: ACTION_COMING_SOON,
   },
-  "bench.goToSpace": {
+  "bench.go.goToSpace": {
     enabled: hasBench,
     title: "Switch Space",
     text: "Go to another Space of this Bench",

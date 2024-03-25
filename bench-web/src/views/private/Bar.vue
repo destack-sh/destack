@@ -4,10 +4,9 @@ import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { benchPtr, clientMeta, isDeveloperMode } from "@/system/local";
+import { clientMeta, isDeveloperMode } from "@/system/local";
 import { bench, hasBench } from "@/system/space";
 import { client, user } from "@/system/user";
-import { useElementSize } from "@/utils/element";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
@@ -15,6 +14,7 @@ import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
@@ -32,11 +32,11 @@ const middlePosition = computed(() => ({
 const BENCH_MENU_ITEMS = computed(() => {
   const items = [
     // bench
-    menuItemFromAction("bench.goToBench", { category: "bench" }),
-    menuItemFromAction("bench.goToEnvironment", { category: "bench" }),
-    menuItemFromAction("bench.goToBranch", { category: "bench" }),
-    menuItemFromAction("bench.goToPackage", { category: "bench" }),
-    menuItemFromAction("bench.goToSpace", { category: "bench" }),
+    menuItemFromAction("bench.go.goToBench", { category: "bench" }),
+    menuItemFromAction("bench.go.goToEnvironment", { category: "bench" }),
+    menuItemFromAction("bench.go.goToBranch", { category: "bench" }),
+    menuItemFromAction("bench.go.goToPackage", { category: "bench" }),
+    menuItemFromAction("bench.go.goToSpace", { category: "bench" }),
     // main
     {
       id: "omnibar",

@@ -44,7 +44,11 @@ export enum ToastDuration {
 }
 
 export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
-  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & { icon?: string | IconData; debounce?: boolean };
+  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & {
+    icon?: string | IconData;
+    debounce?: boolean;
+    override?: boolean;
+  };
 
 /** The official container of Toasts */
 export class Toaster {
@@ -64,6 +68,7 @@ export class Toaster {
 
   add(toast: ToastIn) {
     if (toast.debounce && this.hasActiveKey(toast.key!)) return;
+    else if (toast.override) this.toasts.value = this.toasts.value.filter((t) => t.key !== toast.key);
     const id = Math.random().toString(36).substring(2);
     const createdAt = DateTime.now();
     const durationMs = toast.durationMs ?? ToastDuration.md;

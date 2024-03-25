@@ -49,13 +49,6 @@ const { sizedViews, draggingIdx } = useSplitView(
 );
 
 // actions
-const splitAction = (anchor: SplitAnchor) => ({
-  action: () => {
-    const selfData = spaceGraph.get(props.self) as ViewData;
-    const focusedWindow = windows.value[focusedWindowIdx.value!];
-    canvas.splitView(spaceConnection.sideTx, spaceGraph, selfData, focusedWindow, anchor);
-  },
-});
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeWindow": {
     enabled: computed(() => focusedWindowIdx.value != null),
@@ -79,10 +72,6 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       canvas.focus(spaceConnection.sideTx, { view: allWindows[nextIdx] });
     },
   },
-  "view.layout.splitLeft": splitAction("left"),
-  "view.layout.splitRight": splitAction("right"),
-  "view.layout.splitUp": splitAction("top"),
-  "view.layout.splitDown": splitAction("bottom"),
 };
 
 canvas.registerView(self);

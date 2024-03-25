@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Orientation } from "@/proto/wire";
+import { NodeType, Orientation } from "@/proto/wire";
 import { useActiveConnection } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/local";
 import { space } from "@/system/space";
@@ -12,16 +12,18 @@ import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import { useWindowSize } from "@vueuse/core";
 import { computed, ref } from "vue";
+import { toNodeReference } from "@/proto/wiring";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
-const windowRef = ref<InstanceType<typeof Windowed> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
 const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
+const windoweds = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
+const mainWindowed = computed(() => windoweds.value[0]);
 
 const mainBox = computed(() => ({
   left: 0,
@@ -51,14 +53,13 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
     />
     <!-- Window root -->
     <Windowed
-      ref="windowRef"
-      v-if="spacePtr && space"
-      :self="spacePtr"
+      v-if="mainWindowed"
+      :self="toNodeReference(mainWindowed)"
       :size="mainBox"
-      :focus="space.focus"
-      :name="space.name"
-      :title="space.name"
-      :text="space.text"
+      :focus="mainWindowed.focus"
+      :name="mainWindowed.name"
+      :title="mainWindowed.name"
+      :text="mainWindowed.text"
       :orientation="Orientation.HORIZONTAL"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />

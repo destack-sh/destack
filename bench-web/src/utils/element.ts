@@ -15,7 +15,7 @@ export function getElement(el: MaybeElement) {
   else return (el as ComponentInstance<any>).subTree?.el as HTMLElement;
 }
 
-export function useElementSize(target: MaybeComputedElementRef) {
+export function useElementSizeOnUpdateOnly(target: MaybeComputedElementRef) {
   /* 
   A very efficient and simple element size observer
   The default useElementSize by vueuse is based on ResizeObserver + watch,
