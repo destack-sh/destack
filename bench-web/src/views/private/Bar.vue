@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { NodeType } from "@/proto/wire";
-import { getActionsLike, runAction } from "@/system/action";
+import { runAction } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
@@ -9,7 +9,7 @@ import { bench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { useElementSize } from "@/utils/element";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
-import { menuItemFromAction } from "@/utils/menu";
+import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
@@ -42,56 +42,42 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: {
-        items: [...getActionsLike({ prefix: "space.omnibar" })].map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["space.omnibar"] }) },
     },
     {
       id: "space",
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.SPACE],
       title: "Space",
-      action: {
-        items: [...getActionsLike({ prefix: "space.launch" })].map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["space.launch"] }) },
     },
     {
       id: "view",
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: {
-        items: getActionsLike({ prefix: "view" }).map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["view"] }) },
     },
     {
       id: "edit",
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
-      action: {
-        items: ["common.edit", "common.move", "common.select"]
-          .flatMap((prefix) => getActionsLike({ prefix }))
-          .map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["common.edit", "common.move", "common.search"] }) },
     },
     {
       id: "sense",
       category: "main",
       icon: "fas fa-telescope",
       title: "Analyze",
-      action: {
-        items: [...getActionsLike({ prefix: "common.sense" })].map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["common.sense"] }) },
     },
     {
       id: "session",
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: {
-        items: getActionsLike({ prefix: "common.session" }).map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["common.session"] }) },
     },
   ];
 
@@ -101,9 +87,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "developer",
       icon: "fas fa-bug",
       title: "Developer",
-      action: {
-        items: getActionsLike({ prefix: "developer" }).map((action) => menuItemFromAction(action)),
-      },
+      action: { items: menuActionsLike({ prefix: ["developer"] }) },
     });
   }
 

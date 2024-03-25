@@ -55,6 +55,7 @@ watch([menuRef, activeContextMenu], () => {
       v-if="activeContextMenu"
       :key="activeContextMenu.id"
       class="absolute z-70"
+      data-outside-view="true"
       v-bind="activeContextMenu.info"
       @close="() => (destroyContextMenu(), canvas.restoreComponentFocus())"
     />

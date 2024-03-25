@@ -12,7 +12,7 @@ import {
 } from "@/proto/wire";
 import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
-import { makeIcon, toIconMaybe } from "@/system/icon";
+import { toIconMaybe } from "@/system/icon";
 import { ROOT_VIEW_COMPONENT_NAMES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
@@ -27,12 +27,12 @@ import {
   getCurrentInstance,
   nextTick,
   onBeforeUnmount,
+  onMounted,
   shallowRef,
   triggerRef,
   watch,
   type ComponentInstance,
   type Ref,
-  onMounted,
 } from "vue";
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
@@ -516,7 +516,7 @@ export class ViewCanvas {
     anchor: "start" | "end",
     referenceId: string | null,
   ) {
-    log.debug("view.add", self, child, anchor, referenceId);
+    log.debug("view.add", { self, child, anchor, referenceId });
     // move & update order
     if (child.id != referenceId) {
       updateOrderKey({
@@ -534,27 +534,30 @@ export class ViewCanvas {
   }
 
   /**
-   * 'Splits' the 'self' view to accomodate a new equally sized subview 'seed' (at the anchor).
-   * If we're already split alongside the given orientation, the seed is added to the existing split.
+   * 'Splits' the 'parent' view to accomodate a new equally sized subview 'child' (at the anchor).
+   * If we're already split alongside the given orientation, the child is added to the existing split.
    */
   splitView(
     tx: Transaction,
     graph: ReadNodeGraph,
-    self: ViewData,
+    parent: ViewData,
     child: ViewData,
     anchor: Omit<SplitAnchor, "center">,
   ) {
-    log.debug("view.split", self, child, anchor);
+    log.debug("view.split", { parent, child, anchor });
 
-    // determine if we need a new split
-    const parent = graph.get(self.parentPtr!) as ViewData;
+    // determine if we need a new split in the enclosing split view
+    let split: ViewData;
+    if (parent.type == ViewType.WINDOWED) split = parent;
+    else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
+    else throw new Error("no split view to split");
     const isHorizontal = anchor == "left" || anchor == "right";
     const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
     const isOrderFlipped = anchor == "right" || anchor == "bottom";
-    const needsNewSplit = (parent.orientation ?? DEFAULT_ORIENTATION) != orientation;
+    const needsNewSplit = (split.orientation ?? DEFAULT_ORIENTATION) != orientation;
 
-    // duplicate seed if it belongs to self
-    if (child.parentPtr?.id == self.id) {
+    // duplicate child if it belongs to self
+    if (child.parentPtr?.id == parent.id) {
       child = copyNode(child);
       tx.create(child);
     }
@@ -564,23 +567,23 @@ export class ViewCanvas {
       const split = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.WINDOWED,
-        parentPtr: self.parentPtr,
-        packagePtr: self.packagePtr,
-        orderKey: self.orderKey,
-        size: self.size,
+        parentPtr: parent.parentPtr,
+        packagePtr: parent.packagePtr,
+        orderKey: parent.orderKey,
+        size: parent.size,
         name: "Split",
         orientation,
       });
       tx.create(split);
-      tx.move({ ...self, parentPtr: toNodeReference(split) });
-      tx.update({ ...self, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
+      tx.move({ ...parent, parentPtr: toNodeReference(split) });
+      tx.update({ ...parent, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
 
       // and a new tabbed wrapper
       const viewParent = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.TABBED,
         parentPtr: toNodeReference(split),
-        packagePtr: self.packagePtr,
+        packagePtr: parent.packagePtr,
         orderKey: isOrderFlipped ? "a1" : "a0",
       });
       tx.create(viewParent);
@@ -588,23 +591,23 @@ export class ViewCanvas {
       tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
     } else {
       // 'split' size between self and child with a new tabbed wrapper
-      const halfSize = splitBox(self.size!);
-      const viewParent = makeNode({
+      const halfSize = splitBox(parent.size!);
+      const newSplitParent = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.TABBED,
-        parentPtr: self.parentPtr,
-        packagePtr: self.packagePtr,
+        parentPtr: parent.parentPtr,
+        packagePtr: parent.packagePtr,
         size: halfSize,
         orderKey: getOrderKey({
-          nodes: graph.getChildren(parent, NodeType.VIEW),
+          nodes: graph.getChildren(split, NodeType.VIEW),
           position: isOrderFlipped ? "after" : "before",
-          reference: self,
+          reference: parent,
         }),
       });
-      tx.create(viewParent);
-      tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+      tx.create(newSplitParent);
+      tx.move({ ...child, parentPtr: toNodeReference(newSplitParent) });
       tx.update({ ...child, metatype: NodeType.VIEW, size: halfSize, orderKey: "a0" });
-      tx.update({ ...self, metatype: NodeType.VIEW, size: halfSize });
+      tx.update({ ...parent, metatype: NodeType.VIEW, size: halfSize });
     }
     this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }

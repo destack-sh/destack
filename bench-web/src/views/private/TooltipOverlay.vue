@@ -49,7 +49,7 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
           <i v-if="tooltip.info.icon" class="mr-1.5 text-gray-600" :class="tooltip.info.icon" />
           <span v-if="tooltip.info.title" class="truncate font-semibold">{{ tooltip.info.title }}</span>
           <span v-if="tooltip.info.shortcuts" class="ml-auto pl-4">
-            <Shortcut :shortcut="tooltip.info.shortcuts[0]" />
+            <Shortcut class="text-gray-700" :shortcut="tooltip.info.shortcuts[0]" />
           </span>
         </p>
         <!-- Content -->
