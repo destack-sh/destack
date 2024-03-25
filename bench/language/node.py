@@ -325,22 +325,31 @@ def _process_struct_base_cls(
                     setattr(cls, p.name, p)
 
     # remove :MagicProps if not needed
-    def _remove_prop(name: str):
+    def _remove_prop(name: str, delete: bool = True):
         prop = properties_by_name.pop(name, None)
         if prop is not None:
-            try:
-                delattr(cls, name)
-            except AttributeError:
-                pass
+            if delete:
+                try:
+                    delattr(cls, name)
+                except AttributeError:
+                    pass
             cls.__annotations__.pop(name, None)
             for name in prop.contributed_props:
                 _remove_prop(name.name)
 
     if is_final:  # :MagicProps
         if is_node and (not is_sub_bench or is_local):
-            _remove_prop("bench")
+            if cls.__name__ == "Bench":
+                cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])
+                _remove_prop("bench", delete=False)
+            else:
+                _remove_prop("bench")
         if is_node and not is_sub_package:
-            _remove_prop("package")
+            if cls.__name__ == "Package":
+                cls.package = _node_computed_ancestor_prop(properties_by_name["package"])
+                _remove_prop("package", delete=False)
+            else:
+                _remove_prop("package")
         if is_node and (no_ck or not is_sub_package):
             _remove_prop("ck")
             setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
@@ -361,8 +370,10 @@ def _process_struct_base_cls(
         ) and not is_node_base:
             if prop.reference_source is None:  # actual ancestor property
                 attr = _node_computed_ancestor_prop(prop)
-            else:  # wired pointer to ancestor property
+            elif prop.name.endswith("_ptr"):  # wired pointer to ancestor property
                 attr = _node_computed_ancestor_ptr_prop(prop)
+            else:
+                attr = UNSET  # will be set as extra computed property below
         elif prop.is_computed or not prop.is_runtime:
             attr = UNSET
         elif prop.default_factory is not None:
@@ -1482,7 +1493,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
 
     @property
     def is_attached(self) -> bool:
-        if self.__is_in_package__:
+        if self.__is_sub_package__:
             return self.parent is not None and self.package is not None
         elif self.__is_sub_bench__:
             return self.parent is not None and self.bench is not None

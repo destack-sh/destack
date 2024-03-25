@@ -440,7 +440,7 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
     ) -> list["NodeT"]:
         assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
         if not CHILD_NODE_TYPES[node.metatype]:
-            return EMPTY_LIST
+            return []
         node_ck = node.ck
         if not recursive:
             if child_node_type is not None:
@@ -562,7 +562,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             raise ValueError(f"cannot attach {n!r} to {self!r}: attached to {n.parent!r}")
 
         # assign ids if newly attached to the package (ids are derived from ck + package)
-        if not n.is_attached and self._parent.package:
+        if "ck" in n.__properties__ and not n.is_attached and self._parent.is_attached:
             package_id = self._parent.package.id
             for n in n._walk_rec():
                 if n.id is None:

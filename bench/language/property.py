@@ -222,6 +222,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if (
                 self.reference_kind
                 and self.reference_kind.is_node
+                and self.reference_nodes is not None
                 and len(self.reference_nodes) == 1
             ):
                 references_type = self.reference_nodes[0]
