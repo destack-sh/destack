@@ -36,15 +36,7 @@ from bench.language import (
     TypeInfo,
 )
 from bench.language.access import ReadOptions
-from bench.language.const import (
-    EMPTY_DICT,
-    NODE_TYPES,
-    BenchError,
-    EditType,
-    NodeType,
-    ReferenceKind,
-    SortOp,
-)
+from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
@@ -224,14 +216,6 @@ def get_bench_table_name(node_type: NodeType) -> str:
     return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
-# node types we reference *everywhere* so FKs would kill us
-BLOCK_FOREIGN_KEYS: dict[ReferenceKind, set[NodeType]] = {
-    ReferenceKind.NODE_REGULAR: {NodeType.BENCH, NodeType.PACKAGE, NodeType.USER},
-    ReferenceKind.NODE_ANCESTOR_ROOT: {NodeType.BENCH, NodeType.PACKAGE},
-    ReferenceKind.NODE_ANCESTOR_FIRST: {NodeType.BENCH, NodeType.PACKAGE},
-}
-
-
 def map_node_class_to_pg_table(node: type[Node]) -> Table:
     # TODO :Robustness: add Bench check constraints in Postgres
     table_name = get_bench_table_name(node.metatype)
@@ -273,7 +257,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             and prop.name.endswith("_id")
             and not prop.is_list  # foreign keys must be scalar
             and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
-            and prop.reference_nodes[0] not in BLOCK_FOREIGN_KEYS.get(prop.reference_kind, ())
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
@@ -1047,62 +1030,86 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
 def _pg_pack_node_reference_into_row(
     prop: Property, row: RowIn, value: NodeReferenceData | list[NodeReferenceData] | None
 ) -> None:
-    """'Unravels' a wired pointer into stored columns."""
+    """
+    'Unravels' a wired pointer into (one or more) stored columns as needed.
+    pack/unpacking pointers into rows is a bit gnarly, see :StoredPointers
+    """
     if prop.is_list:
         value = value or ()
+        # pointer id/ck
         for stored_prop in prop.reference_stored_ptrs:
             row[stored_prop.name] = []
         for v in value:
             stored_prop = prop.reference_stored_ptrs_by_type[v.type]
             row[stored_prop.name].append(v.id)
+        # additional pointer metadata
         for extra_key, p in prop.reference_stored_extras.items():
             row[p.name] = [getattr(v, extra_key) for v in value]
     else:
+        # pointer id/ck
         for stored_prop in prop.reference_stored_ptrs:
             if value is not None and value.type in stored_prop.reference_nodes:
                 row[stored_prop.name] = value.id
             else:
                 row[stored_prop.name] = None
+        # additional pointer metadata
         for extra_key, p in prop.reference_stored_extras.items():
             row[p.name] = getattr(value, extra_key) if value is not None else None
 
 
 def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
-    """'Ravels' a wired pointer from stored columns."""
+    """
+    'Ravels' a wired pointer from (one or more) stored columns.
+    See above and :StoredPointers
+    """
+    bench_id = row.get("bench_ck")
+    if bench_id is not None:
+        bench_id = str(bench_id)
     if prop.is_list:
         # can only be a a set of id props + a single ck prop (:HomogeneousListCk)
         ptrs = []
+        # pointer id/cks
         for stored_prop in prop.reference_stored_ptrs:
             ids = row.get(stored_prop.name)
-            if ids:
-                for id in ids:
-                    ptr = NodeReferenceData(
-                        metatype=wire.StructType.NODE_REFERENCE,
-                        id=str(id),
-                        type=stored_prop.reference_nodes[0],
-                    )
-                    ptrs.append(ptr)
+            for id in ids:
+                ptr = NodeReferenceData(
+                    metatype=wire.StructType.NODE_REFERENCE,
+                    id=str(id),
+                    type=stored_prop.reference_nodes[0],
+                )
+                ptrs.append(ptr)
         setattr(node, prop.reference_wired_ptr.name, ptrs)
+        # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for extra_key, p in prop.reference_stored_extras.items():
                 setattr(ptr, extra_key, row.get(p.name)[i])
+            if prop.reference_is_bench_implicit:
+                ptr.bench_id = bench_id
+                if ptr.base_ck:
+                    ptr.base_bench_id = ptr.bench_id
     else:
+        # pointer id/ck
         for stored_prop in prop.reference_stored_ptrs:
             value: UUID | None = row.get(stored_prop.name)
             if value is not None:
                 ptr = NodeReferenceData(
                     metatype=wire.StructType.NODE_REFERENCE,
                     id=str(value),
-                    # if this is a heterogeneous ck pointer type will be overwritten below
+                    # if this is a heterogeneous ck pointer, type will be overwritten from extras
                     type=stored_prop.reference_nodes[0],
                 )
                 setattr(node, prop.reference_wired_ptr.name, ptr)
                 break
         else:
             ptr = None
+        # additional pointer metadata
         if ptr is not None:
             for extra_key, p in prop.reference_stored_extras.items():
                 setattr(ptr, extra_key, row.get(p.name))
+            if prop.reference_is_bench_implicit:
+                ptr.bench_id = bench_id
+                if ptr.base_ck:
+                    ptr.base_bench_id = ptr.bench_id
 
 
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
@@ -1117,7 +1124,7 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
                 value = _pack_struct_data_prop(prop, value, ignore_array=False)
                 row[name] = value
             else:
-                # unravel stored node reference :RavelReferences
+                # unravel stored node reference :StoredPointers
                 value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
                     node, prop.reference_source.reference_wired_ptr.name
                 )
@@ -1142,7 +1149,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                     value = _unpack_struct_data_prop(prop, value, ignore_array=False)
                     setattr(data, name, value)
             else:
-                # ravel stored node reference :RavelReferences
+                # ravel stored node reference :StoredPointers
                 _pg_unpack_node_reference_from_row(prop.reference_source, row, data)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:

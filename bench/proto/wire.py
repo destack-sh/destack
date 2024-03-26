@@ -2110,7 +2110,7 @@ class NoticeData(betterproto.Message):
 class NotificationData(betterproto.Message):
     """
     A notification for the Bench's owner.
-     As with all owner Bench stuff, the main Bench's main package is the 'truth'.
+     As with most Bench stuff, the main Bench's main package is the 'truth'.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -4487,7 +4487,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.26.0"
+VERSION = "2024.03.26.7"
 
 if TYPE_CHECKING:
     from bench.language import Subject

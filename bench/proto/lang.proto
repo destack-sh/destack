@@ -1870,7 +1870,7 @@ message NoticeData {
 }
 
 // A notification for the Bench's owner.
-// As with all owner Bench stuff, the main Bench's main package is the 'truth'.
+// As with most Bench stuff, the main Bench's main package is the 'truth'.
 message NotificationData {
   BenchType metatype = 1;
   string id = 2;

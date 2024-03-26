@@ -3426,7 +3426,7 @@ export interface NoticeData {
 }
 /**
  * A notification for the Bench's owner.
- * As with all owner Bench stuff, the main Bench's main package is the 'truth'.
+ * As with most Bench stuff, the main Bench's main package is the 'truth'.
  *
  * @generated from protobuf message symbolx.bench.NotificationData
  */
