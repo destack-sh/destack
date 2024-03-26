@@ -1055,16 +1055,16 @@ def _pg_pack_node_reference_into_row(
         for v in value:
             stored_prop = prop.reference_stored_ptrs_by_type[v.type]
             row[stored_prop.name].append(v.id)
-        for extra_key in prop.reference_stored_extras.keys():
-            row[extra_key] = [getattr(v, extra_key) for v in value]
+        for extra_key, p in prop.reference_stored_extras.items():
+            row[p.name] = [getattr(v, extra_key) for v in value]
     else:
         for stored_prop in prop.reference_stored_ptrs:
             if value is not None and value.type in stored_prop.reference_nodes:
                 row[stored_prop.name] = value.id
             else:
                 row[stored_prop.name] = None
-        for extra_key, prop in prop.reference_stored_extras.items():
-            row[prop.name] = getattr(value, extra_key) if value is not None else None
+        for extra_key, p in prop.reference_stored_extras.items():
+            row[p.name] = getattr(value, extra_key) if value is not None else None
 
 
 def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
@@ -1084,8 +1084,8 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     ptrs.append(ptr)
         setattr(node, prop.reference_wired_ptr.name, ptrs)
         for i, ptr in enumerate(ptrs):
-            for extra_key, prop in prop.reference_stored_extras.items():
-                setattr(ptr, extra_key, row.get(prop.name)[i])
+            for extra_key, p in prop.reference_stored_extras.items():
+                setattr(ptr, extra_key, row.get(p.name)[i])
     else:
         for stored_prop in prop.reference_stored_ptrs:
             value: UUID | None = row.get(stored_prop.name)
@@ -1101,8 +1101,8 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         else:
             ptr = None
         if ptr is not None:
-            for extra_key, prop in prop.reference_stored_extras.items():
-                setattr(ptr, extra_key, row.get(prop.name))
+            for extra_key, p in prop.reference_stored_extras.items():
+                setattr(ptr, extra_key, row.get(p.name))
 
 
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:

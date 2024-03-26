@@ -91,6 +91,8 @@ class NodeReference(Struct):
             selector_str_parts.append(f"bench_id={self.bench_id}")
         if self.base_ck is not None:
             selector_str_parts.append(f"base_ck={self.base_ck}")
+        if self.base_bench_id is not None:
+            selector_str_parts.append(f"base_bench_id={self.base_bench_id}")
         selector_str = ", ".join(selector_str_parts)
         return f"{self.type.bench_name}:[{selector_str}]"
 
@@ -116,8 +118,8 @@ class NodeReference(Struct):
             reference.ck = node.ck
             if node.metatype in BASED_NODE_TYPES:
                 node: HasBase
-                reference.base_ck = node.base
-                reference.base_bench_id = node.base_ck
+                reference.base_ck = node.base.ck
+                reference.base_bench_id = node.base.bench_id
         return reference
 
     @staticmethod
@@ -145,7 +147,7 @@ class NodeReference(Struct):
 
 @struct(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(Struct):
-    type: BenchType = p_regular(30, require=True)
+    type: Optional[BenchType] = p_regular(30, require=False)
     id: int = p_regular(31)
     # to disambiguate contributed properties
     references_type: Optional[NodeType] = p_regular(32)
@@ -154,8 +156,11 @@ class PropertyReference(Struct):
         return f"{self.type.bench_name}.[id={self.id}]"
 
     def resolve(self) -> Property:
-        bench_cls = BENCH_CLASS_BY_TYPE[self.type]
-        return bench_cls._resolve_property(self)
+        if self.type is not None:
+            bench_cls = BENCH_CLASS_BY_TYPE[self.type]
+            return bench_cls._resolve_property(self)
+        else:
+            return Node._resolve_property(self)
 
 
 @struct(StructType.VALUE_REFERENCE)
@@ -530,7 +535,7 @@ def _check_field_supports(type: "TypeInfo", op: ExpressionOp):
             type.primitive_type, _EMPTY_SET
         ):
             return True
-        elif type.bench_type is not None and op in SUPPORTED_NODE_OPS:
+        elif type.node_type is not None and op in SUPPORTED_NODE_OPS:
             return True
     raise UnsupportedExpressionError(type, op)
 
@@ -768,6 +773,10 @@ class _NodeQueryBuilder:
         cls: type["Node"], *properties: FieldOrProperty
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().related(*properties)
+
+    @classmethod
+    def include_ancestors(cls) -> "QueryBuilder[NodeT, NodeDataT]":
+        return cls.query().include_ancestors()
 
     @classmethod
     def ancestors(

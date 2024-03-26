@@ -259,6 +259,7 @@ def unpack_nodes_graph(
 ) -> tuple[Node, ...] | list[Node]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
+    parent_id = parent.id if parent is not None else None
     exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
     source_roots = data_graph.find_roots()
@@ -266,23 +267,27 @@ def unpack_nodes_graph(
         root_data_graph = NodeDataGraph()
         unpacked_graph = NodeGraph()
         # unpack all nodes top down (breadth first)
-        for node_data in chain((root_data,), data_graph.iter_descendants(root_data)):
+        for node_data in chain(
+            (root_data,), data_graph.iter_descendants(root_data, recursive=True)
+        ):
             if node_data.metatype in exclude:
                 continue
             root_data_graph.add(node_data)
             node_parent_id: UUID | None = (
                 to_uuid(node_data.parent_ptr.id) if node_data.parent_ptr is not None else None
             )
-            if node_parent_id is None or parent is not None and node_parent_id == parent.id:
+            if node_parent_id is None or node_parent_id == parent_id:
                 node_parent = parent
             else:
                 node_parent = unpacked_graph.get(node_parent_id)
-                if node_parent is None:
-                    raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
+                # TODO @Architecture: enable loading nodes without ancestors :LoadOrphanNode
+                #  (this errors as below, but sometimes we just want a node without ancestors)
+                # if node_parent is None:
+                #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_node(node_data, node_parent, session=session)
 
             # keep parent instance if it was passed (update in place)
-            if parent is not None and node.id == parent.id:
+            if node.id == parent_id:
                 for prop in parent.__properties__.values():
                     if not prop.is_ephemeral and not prop.is_tree_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))

@@ -5,7 +5,6 @@ import structlog
 
 from bench.language.const import (
     BenchError,
-    BenchType,
     BlockType,
     FormatHint,
     NodeType,
@@ -76,11 +75,11 @@ class TypeInfoBase(HasValues):
        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
-          [bench_type = StructType] | [base_type is newtype with bench_type]
+          [struct_type] | [base_type is newtype with bench_type]
        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [bench_type = NodeType] | [base_type = Block aliased to bench_type]
+          [node_type] | [base_type = Block aliased to bench_type]
        4. reference to a block (value is NodeReference that is an 'instance' of the block)
-          [bench_type = NodeType & base_type = Block]
+          [node_type & base_type = Block]
            type = Record, base = DatabaseBlock -> values must be Records in that database
            type = Run, base = Block -> values must be Runs of that block
            type = Field, base = Block -> values must be a Field in that block
@@ -99,28 +98,29 @@ class TypeInfoBase(HasValues):
 
     # type identity (must set at least one of these)
     primitive_type: Optional[PrimitiveType] = p_regular(40, default=None)
-    bench_type: Optional[BenchType] = p_regular(41, default=None)
+    node_type: Optional[NodeType] = p_regular(41, default=None)
+    struct_type: Optional[StructType] = p_regular(42, default=None)
     base_type: Optional["Block"] = p_regular(
-        42, array=False, require=False, default=None, references=NodeType.BLOCK
+        43, array=False, require=False, default=None, references=NodeType.BLOCK
     )
 
     # + bonus info/constraints
-    visibility: NodeVisibility = p_regular(43, default=NodeVisibility.ALL)
-    format_hint: Optional[FormatHint] = p_regular(44, default=None)
+    visibility: NodeVisibility = p_regular(44, default=NodeVisibility.ALL)
+    format_hint: Optional[FormatHint] = p_regular(45, default=None)
     condition: Optional["Expression"] = p_regular(
-        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        46, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = p_regular(46, require=False, default=None)
-    precision: Optional[int] = p_regular(47, require=False, default=None)
-    scale: Optional[int] = p_regular(48, require=False, default=None)
+    length: Optional[int] = p_regular(47, require=False, default=None)
+    precision: Optional[int] = p_regular(48, require=False, default=None)
+    scale: Optional[int] = p_regular(49, require=False, default=None)
     # default for this type :GeneralizeHasValue
-    default_packed: Optional[Any] = p_value_packed(49)
-    default = p_value_runtime(packed=49)
+    default_packed: Optional[Any] = p_value_packed(50)
+    default = p_value_runtime(packed=50)
 
     # flags
-    is_list: bool = p_regular(50, default=False)
-    is_required: bool = p_regular(51, default=False)
-    is_secret: bool = p_regular(52, default=False)
+    is_list: bool = p_regular(53, default=False)
+    is_required: bool = p_regular(54, default=False)
+    is_secret: bool = p_regular(55, default=False)
     # is_instance to disambiguate?
 
     # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
@@ -130,8 +130,10 @@ class TypeInfoBase(HasValues):
     def __content_str__(self) -> str:
         if self.base_type is not None:
             info_str = self.base_type.absolute_path
-        elif self.bench_type is not None:
-            info_str = self.bench_type.bench_name
+        elif self.node_type is not None:
+            info_str = self.node_type.bench_name
+        elif self.struct_type is not None:
+            info_str = self.struct_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:
@@ -232,8 +234,10 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     def __content_str__(self) -> str:
         if self.base_type is not None:
             info_str = self.base_type.absolute_path
-        elif self.bench_type is not None:
-            info_str = self.bench_type.bench_name
+        elif self.node_type is not None:
+            info_str = self.node_type.bench_name
+        elif self.struct_type is not None:
+            info_str = self.struct_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:

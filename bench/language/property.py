@@ -188,17 +188,17 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             if self.reference_kind:
                 # don't have unions yet, doesn't matter
-                bench_type = (
+                node_type = (
                     self.reference_nodes[0] if self.reference_nodes else self.reference_struct
                 )
                 self._cached_as_type = TypeInfo(
-                    bench_type=bench_type,
+                    node_type=node_type,
                     is_list=self.is_list,
                     is_required=self.is_required,
                 )
             elif self.is_struct:
                 self._cached_as_type = TypeInfo(
-                    bench_type=self.reference_struct,
+                    struct_type=self.reference_struct,
                     is_list=self.is_list,
                     is_required=self.is_required,
                 )
@@ -229,7 +229,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             else:
                 references_type = None
             ref = PropertyReference(
-                type=self.component.metatype, id=self.id, references_type=references_type
+                type=getattr(self.component, "metatype", None),
+                id=self.id,
+                references_type=references_type,
             )
             self._cached_as_ref = ref
         return self._cached_as_ref

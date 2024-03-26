@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 import os
+from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING
 
 import grpclib
@@ -8,6 +8,7 @@ import pytest
 from pytest_asyncio import is_async_test
 
 if TYPE_CHECKING:
+    from bench.language import Session
     from bench.language.test.fabricator import Fabricator
 
 
@@ -36,14 +37,14 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True, scope="session")
 async def prepared_test_db():
     from bench.language.setup import NODE_CLASSES
+    from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.sql.migration import (
         EXTENSIONS,
         apply_migration_ops,
         generate_migration_ops,
         introspect_tables_from_pg,
     )
-    from bench.system.client import GLOBAL_STORE, GLOBAL_PG_NAME, global_pg_cursor
-    from bench.sql.client import pg_cursor, get_pg_connection_str
+    from bench.system.client import GLOBAL_PG_NAME, GLOBAL_STORE, global_pg_cursor
 
     # ensure that default global_db_cursor points to test
     #  (means environment info was set up correctly)
@@ -69,12 +70,24 @@ async def prepared_test_db():
 
 @pytest.fixture(scope="function")
 async def test_cur() -> psycopg.AsyncCursor:
-    from bench.sql.client import pg_cursor
-    from bench.sql.client import get_pg_connection_str
+    from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.system.client import GLOBAL_STORE
 
     async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
         yield cur
+
+
+@asynccontextmanager
+async def test_session() -> "Session":
+    from bench.language import Session
+    from bench.system.client import GLOBAL_POSTGRES_ENGINE
+
+    session = Session(
+        parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
+    )
+    await session.open()
+    yield session
+    await session.close()
 
 
 @pytest.fixture(scope="function")

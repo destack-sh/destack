@@ -13,7 +13,7 @@ from bench.language.const import (
     NodeType,
     StructType,
 )
-from bench.utils.func import IdEnum, bytetuple, check_collections_equal, get_subclasses
+from bench.utils.func import IdEnum, assert_collections_equal, bytetuple, get_subclasses
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
@@ -191,17 +191,17 @@ def _complete_bench_setup():
             raise ValueError(
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
-    check_collections_equal(
+    assert_collections_equal(
         IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
     )
-    check_collections_equal(
+    assert_collections_equal(
         IN_PACKAGE_NODE_TYPES,
         [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
     )
 
     # check that BASED_NODE_TYPES is consistent with HasBase
-    base_node_types = [n.metatype for n in get_subclasses(HasBase) if n.metatype]
-    check_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
+    base_node_types = [n.metatype for n in get_subclasses(HasBase) if hasattr(n, "metatype")]
+    assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
 
     # check that all enum types are valid proto-able enums
     for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
