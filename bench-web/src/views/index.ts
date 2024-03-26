@@ -1,9 +1,8 @@
 import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import type { ViewExposed } from "@/views/common";
-import { getVueComponentType } from "@/views/canvas";
 import { v4 } from "uuid";
-import { computed, type ComponentInstance, type Ref, getCurrentInstance } from "vue";
+import { computed, getCurrentInstance, type ComponentInstance, type Ref } from "vue";
 
 export type ViewComponent = {
   new (): ComponentInstance<any>;
@@ -24,6 +23,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),
   [ViewType.SPLIT]: import("@/views/containers/Split.vue"),
+  [ViewType.GROUP]: import("@/views/containers/Group.vue"),
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
   // content

@@ -8,8 +8,8 @@ import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { registerViewComponents } from "@/views";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
-import { TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
-import { CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
+import { CLICK_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
+import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
   const app = createApp(Space);
@@ -58,7 +58,9 @@ async function init() {
     toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
-  app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
+  app.directive("contextmenu", CONTEXTMENU_DIRECTIVE);
+  app.directive("hover", HOVER_DIRECTIVE);
+  app.directive("clickoutside", CLICK_OUTSIDE_DIRECTIVE);
 
   // start our own stuff
   await registerViewComponents();

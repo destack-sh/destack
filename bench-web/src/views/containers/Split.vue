@@ -51,28 +51,28 @@ const { sizedViews, draggingIdx } = useSplitView(
 
 // actions
 const actions: Partial<ActionMapImplementation<"view">> = {
+  "view.navigate.closeFrame": {
+    enabled: computed(() => hasFocusedSplit.value && isWindow.value),
+    action: () => {
+      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+    },
+  },
   "view.navigate.focusPreviousFrame": {
     enabled: isWindow,
     action: () => {
-      const allWindows = canvas.currentFrames;
-      const currentIdx = allWindows.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
-      const prevIdx = ((currentIdx ?? 0) - 1 + allWindows.length) % allWindows.length;
-      canvas.focus(spaceConnection.sideTx, { view: allWindows[prevIdx] });
+      const allFrames = canvas.currentFrames;
+      const currentIdx = allFrames.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
+      const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
+      canvas.focus(spaceConnection.sideTx, { view: allFrames[prevIdx] });
     },
   },
   "view.navigate.focusNextFrame": {
     enabled: isWindow,
     action: () => {
-      const allWindows = canvas.currentFrames;
-      const currentIdx = allWindows.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
+      const allFrames = canvas.currentFrames;
+      const currentIdx = allFrames.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentFrames.length;
-      canvas.focus(spaceConnection.sideTx, { view: allWindows[nextIdx] });
-    },
-  },
-  "view.navigate.closeFrame": {
-    enabled: computed(() => hasFocusedSplit.value && isWindow.value),
-    action: () => {
-      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+      canvas.focus(spaceConnection.sideTx, { view: allFrames[nextIdx] });
     },
   },
   "view.navigate.closeSplit": {

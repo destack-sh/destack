@@ -148,7 +148,7 @@ export function destroyContextMenu(instance?: ContextMenuInstance) {
 }
 
 /** Simple context menu directive that creates a context menu on the element on click */
-export const CONTEXT_MENU_DIRECTIVE: Directive<
+export const CONTEXTMENU_DIRECTIVE: Directive<
   MaybeElement,
   ContextMenuInfo | ((ctx: MenuContext) => ContextMenuInfo)
 > = {

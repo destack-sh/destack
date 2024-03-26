@@ -206,7 +206,9 @@ export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
     triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
       if (e.target == triggerEl) {
         if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
-        triggerEl.hoverShowTimeout = window.setTimeout(() => binding.value.show?.(e), showDelay);
+        triggerEl.hoverShowTimeout = window.setTimeout(() => {
+          binding.value.show?.(e);
+        }, showDelay);
       } else {
         if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
       }
@@ -217,5 +219,52 @@ export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
         binding.value.hide?.(e);
       }, hideDelay);
     };
+    triggerEl.addEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
+    triggerEl.addEventListener("mouseleave", triggerEl.hoverOnMouseLeave);
+  },
+
+  updated(el, binding) {
+    const triggerEl = el as HoverTriggerElement;
+    if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
+    if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
+  },
+
+  unmounted(el) {
+    const triggerEl = el as HoverTriggerElement;
+    if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
+    if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
+    if (triggerEl.hoverOnMouseEnter) triggerEl.removeEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
+    if (triggerEl.hoverOnMouseLeave) triggerEl.removeEventListener("mouseleave", triggerEl.hoverOnMouseLeave);
+  },
+};
+
+//
+// Click outside directive
+//
+
+type ClickOutsideCallback = (e: MouseEvent) => void;
+
+type ClickOutsideTriggerElement = {
+  clickOutsideOnClick?: (e: MouseEvent) => void;
+} & HTMLElement;
+
+/** Convenience click outside directive to perform arbitrary actions */
+export const CLICK_OUTSIDE_DIRECTIVE: Directive<MaybeElement, ClickOutsideCallback> = {
+  mounted(el, binding) {
+    const triggerEl = el as ClickOutsideTriggerElement;
+
+    triggerEl.clickOutsideOnClick = (e: MouseEvent) => {
+      if (!triggerEl.contains(e.target as Node)) {
+        binding.value?.(e);
+        if (binding.modifiers.stop) e.stopPropagation();
+        if (binding.modifiers.prevent) e.preventDefault();
+      }
+    };
+    document.addEventListener("click", triggerEl.clickOutsideOnClick);
+  },
+
+  unmounted(el) {
+    const triggerEl = el as ClickOutsideTriggerElement;
+    if (triggerEl.clickOutsideOnClick) document.removeEventListener("click", triggerEl.clickOutsideOnClick);
   },
 };

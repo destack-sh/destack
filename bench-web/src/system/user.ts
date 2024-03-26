@@ -34,7 +34,7 @@ export const { graph: userGraph, connection: userConnection } = useGetNodes(
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: { descendantTypes: [NodeType.CLIENT] },
     enabled: isAuthenticated.value,
-    watch: true,
+    live: true,
   })),
 );
 export const user = userGraph.getRef(

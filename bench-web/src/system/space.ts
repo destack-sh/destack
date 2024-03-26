@@ -15,7 +15,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
     roots: [local.benchPtr.value!],
     options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
     enabled: local.benchPtr.value != null,
-    watch: true,
+    live: true,
   })),
 );
 export const bench = benchGraph.getRef(local.benchPtr);
@@ -25,7 +25,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
     roots: [local.packagePtr.value!],
     options: { descendantTypes: LOADED_SOURCE_NODE_TYPES },
     enabled: local.packagePtr.value != null,
-    watch: true,
+    live: true,
   })),
 );
 export const pkg = pkgGraph.getRef(local.packagePtr);
