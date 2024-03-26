@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.03.25.8"
+VERSION = "2024.03.26.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -654,7 +654,8 @@ FIELD_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_type", PrimitiveType.INT16, is_nullable=True),
+        Column("node_type", PrimitiveType.INT16, is_nullable=True),
+        Column("struct_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("visibility", PrimitiveType.INT16, default="10"),
@@ -1062,6 +1063,7 @@ SESSION_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1124,6 +1126,7 @@ RUN_TABLE = Table(
             is_nullable=True,
         ),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1200,6 +1203,7 @@ PAUSE_TABLE = Table(
             is_nullable=True,
         ),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1247,6 +1251,7 @@ SIGNAL_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1295,6 +1300,7 @@ LOG_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),
@@ -1354,6 +1360,7 @@ NOTIFICATION_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
         Column("created_at", PrimitiveType.DATETIME),
         Column("updated_at", PrimitiveType.DATETIME),

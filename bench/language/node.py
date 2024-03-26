@@ -243,7 +243,7 @@ def _process_struct_base_cls(
             continue  # ignore base classes
         if is_node and component.__is_struct_inlined__:
             raise ValueError(f"node {cls} has inlined struct {component}")
-        if is_inlined and component.metatype and not component.__is_struct_inlined__:
+        if is_inlined and hasattr(component, "metatype") and not component.__is_struct_inlined__:
             raise ValueError(f"struct {cls} has non-inlined struct {component}")
 
     # collect properties from this
@@ -324,21 +324,21 @@ def _process_struct_base_cls(
                 if not p.is_computed:  # why is this needed?
                     setattr(cls, p.name, p)
 
-    # remove :MagicProps if not needed
-    def _remove_prop(name: str, delete: bool = True):
-        prop = properties_by_name.pop(name, None)
-        if prop is not None:
-            if delete:
-                try:
-                    delattr(cls, name)
-                except AttributeError:
-                    pass
-            cls.__annotations__.pop(name, None)
-            for name in prop.contributed_props:
-                _remove_prop(name.name)
+    if is_final:
+        # prune :MagicProps that shouldn't exist on this node type
+        def _remove_prop(name: str, delete: bool = True):
+            prop = properties_by_name.pop(name, None)
+            if prop is not None:
+                if delete:
+                    try:
+                        delattr(cls, name)
+                    except AttributeError:
+                        pass
+                cls.__annotations__.pop(name, None)
+                for name in prop.contributed_props:
+                    _remove_prop(name.name)
 
-    if is_final:  # :MagicProps
-        if is_node and (not is_sub_bench or is_local):
+        if is_node and not is_sub_bench:
             if cls.__name__ == "Bench":
                 cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])
                 _remove_prop("bench", delete=False)
@@ -362,7 +362,7 @@ def _process_struct_base_cls(
     for name, prop in list(properties_by_name.items()):
         # only set attributes in final class to prevent conflicts
         if not is_final:
-            attr = None
+            attr = UNSET
         # map property to class attribute or dataclass field
         elif (
             prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST

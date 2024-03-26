@@ -26,6 +26,7 @@ from bench.language.value import HasValues
 from bench.proto.wire import NodeReferenceData, NotificationData
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -154,7 +155,7 @@ class Client(Node):
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True
     )
-    last_seen_at: datetime = p_system(51)
+    last_seen_at: datetime = p_system(51, default_factory=utcnow_with_tz)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     # for user clients

@@ -80,27 +80,27 @@ async def create_default_bench(
         region=bench.region,
         tenancy=Tenancy.SHARED,
         profile=ServerProfile.SMALL,
-        name="Main Server",
+        name="Server",
     )
     store = bench.stores.create(
         region=bench.region,
         tenancy=Tenancy.DEDICATED,
         kind=StoreKind.RELATIONAL,
         engine=StoreEngineType.POSTGRES,
-        name="Main Store",
+        name="Store",
     )
     search = bench.stores.create(
         region=bench.region,
         tenancy=Tenancy.DEDICATED,
         kind=StoreKind.SEARCH,
         engine=StoreEngineType.OPENSEARCH,
-        name="Main Search",
+        name="Search",
     )
-    drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Main Drive")
+    drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
 
     # create main environment/branch/package
     environment = bench.environments.create(
-        name="Main Environment", store=store, search=search, drive=drive, server=server
+        name="Main", store=store, search=search, drive=drive, server=server
     )
     branch = bench.branches.create(name="Main", slug="main")
     package = bench.packages.create(environment=environment)

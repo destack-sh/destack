@@ -1,6 +1,7 @@
 import abc
 import functools
 from collections import defaultdict, deque
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -235,16 +236,16 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                 queue = deque()
                 for child in self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()):
                     queue.append(child)
-                    descendants.append(child)
             else:
-                queue = deque((node,))
+                queue = deque()
+                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                    children = self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
+                    queue.extend(children)
             while queue:
-                current_nodes = queue.popleft()
-                descendants.append(current_nodes)
-                for child_type in CHILD_NODE_TYPES[current_nodes.metatype]:
-                    children = self.nodes_by_parent_id_and_type.get(
-                        (current_nodes.id, child_type), ()
-                    )
+                cur = queue.popleft()
+                descendants.append(cur)
+                for child_type in CHILD_NODE_TYPES[cur.metatype]:
+                    children = self.nodes_by_parent_id_and_type.get((cur.id, child_type), ())
                     queue.extend(children)
             return descendants
 
@@ -349,14 +350,14 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             if child_node_type:
                 queue = deque(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()))
             else:
-                queue = deque((node,))
+                queue = deque()
+                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                    queue.extend(self.nodes_by_parent_id_and_type.get((node.id, child_type), ()))
             while queue:
-                current_nodes = queue.popleft()
-                descendants.append(current_nodes)
-                for child_type in CHILD_NODE_TYPES[current_nodes.metatype]:
-                    queue.extend(
-                        self.nodes_by_parent_id_and_type.get((current_nodes.id, child_type), ())
-                    )
+                cur = queue.popleft()
+                descendants.append(cur)
+                for child_type in CHILD_NODE_TYPES[cur.metatype]:
+                    queue.extend(self.nodes_by_parent_id_and_type.get((cur.id, child_type), ()))
             return descendants
 
     def get_root(self, node: NodeDataT) -> NodeDataT:
@@ -415,8 +416,8 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
 
     def remove(self, node: "Node"):
         """Remove a node from the graph (incl. all descendants if recursive)"""
-        descendants = self.collect_descendants(node, recursive=True, include_self=True)
-        for descendant in descendants:
+        descendants = self.collect_descendants(node, recursive=True)
+        for descendant in chain((node,), descendants):
             descendant_ck = descendant.ck
             if descendant_ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant_ck)

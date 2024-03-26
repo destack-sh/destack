@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.03.25. Edit as needed.
+# This migration was automatically generated on 2024.03.26. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.03.25.8"
+VERSION = "2024.03.26.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -362,7 +362,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         icon jsonb,
         value_packed jsonb,
         primitive_type smallint,
-        bench_type smallint,
+        node_type smallint,
+        struct_type smallint,
         base_type_ck uuid,
         base_type_bench_id uuid,
         visibility smallint NOT NULL DEFAULT 10,
@@ -1513,6 +1514,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_package_id uuid,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
@@ -1538,6 +1540,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
@@ -1576,6 +1579,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         id uuid NOT NULL PRIMARY KEY,
         ck uuid NOT NULL,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
@@ -1596,6 +1600,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_package_id uuid,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
@@ -1621,6 +1626,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         id uuid NOT NULL PRIMARY KEY,
         parent_package_id uuid,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
@@ -1657,6 +1663,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_package_id uuid,
         package_id uuid NOT NULL,
+        bench_id uuid NOT NULL,
         revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,

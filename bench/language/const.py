@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.03.25.8"
+VERSION = "2024.03.26.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -88,6 +88,12 @@ class NodeType(IdEnum):
 NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
 ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+)
+LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.RECORD, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.NOTIFICATION)
+)
+GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
 # based = instances are directly based on some other node
 # (e.g. Run.block->Block, Record.parent->Block)

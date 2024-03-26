@@ -1,17 +1,16 @@
 from contextlib import asynccontextmanager
 from typing import Any, AsyncContextManager
 
-from opensearchpy import AsyncOpenSearch
 import psycopg
 import structlog
+from opensearchpy import AsyncOpenSearch
 
 from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
-from bench.language.const import USER_NODE_TYPES, NodeType, VERSION
+from bench.language.const import GLOBAL_NODE_TYPES, VERSION
 from bench.language.query import PostgresEngine
-from bench.language.resource import ResourceCredential, Region
+from bench.language.resource import Region, ResourceCredential
 from bench.opensearch.client import os_client_to_store
 from bench.sql.client import _PgStoreConnection
-from bench.utils.func import bytetuple
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -44,9 +43,7 @@ GLOBAL_STORE = Store(
     database=GLOBAL_PG_NAME,
     main_credential=ResourceCredential(username=GLOBAL_PG_USERNAME, password=GLOBAL_PG_PASSWORD),
 )
-GLOBAL_POSTGRES_ENGINE = PostgresEngine(
-    GLOBAL_STORE, scope=None, node_types=bytetuple(USER_NODE_TYPES.tuple + (NodeType.BENCH,))
-)
+GLOBAL_POSTGRES_ENGINE = PostgresEngine(GLOBAL_STORE, scope=None, node_types=GLOBAL_NODE_TYPES)
 # TODO :Security :Scalability: route user Store hosts better :StoreRouting
 USER_STORE = Store(
     parent=SYSTEM_BENCH_STUB,

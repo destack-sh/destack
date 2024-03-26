@@ -32,6 +32,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
 from bench.language.property import p_node_parent, p_regular
+from bench.language.setup import ANCESTOR_NODE_TYPES
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
@@ -352,6 +353,11 @@ class QueryBuilder(
         copy._options = self._copy_options()
         copy._options.related_properties.extend(*properties)
         return copy
+
+    def include_ancestors(self) -> "QueryBuilder":
+        # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
+        ancestors = ANCESTOR_NODE_TYPES[self._node_type]
+        return self.ancestors(*ancestors)
 
     def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
         copy = self.copy()

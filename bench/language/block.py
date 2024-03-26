@@ -256,9 +256,7 @@ for _t in BlockType:
     method = staticmethod(
         lambda name=None, _type=_t, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
     )
-    method_name = _t.name.lower()
-    if method_name in Block.__properties__:
-        method_name += "_"
+    method_name = "new_" + _t.name.lower()
     setattr(Block, method_name, method)
 
 _ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node]]] = {

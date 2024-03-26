@@ -1012,7 +1012,7 @@ export interface ProjectionData {
     setProperties: number[];
 }
 /**
- * PropertyReference(type: bench.utils.func.BenchType = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * PropertyReference(type: Optional[bench.utils.func.BenchType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -1022,9 +1022,9 @@ export interface PropertyReferenceData {
      */
     metatype: BenchType;
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType type = 30;
+     * @generated from protobuf field: optional symbolx.bench.BenchType type = 30;
      */
-    type: BenchType;
+    type?: BenchType;
     /**
      * @generated from protobuf field: int32 id = 31;
      */
@@ -1550,7 +1550,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, node_type: Optional[bench.language.const.NodeType] = None, struct_type: Optional[bench.language.const.StructType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1584,51 +1584,55 @@ export interface TypeInfoData {
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 41;
      */
-    benchType?: BenchType;
+    nodeType?: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.StructType struct_type = 42;
+     */
+    structType?: StructType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 43;
+     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 44;
      */
     visibility: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 44;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 45;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 45;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 46;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional int32 length = 46;
+     * @generated from protobuf field: optional int32 length = 47;
      */
     length?: number;
     /**
-     * @generated from protobuf field: optional int32 precision = 47;
+     * @generated from protobuf field: optional int32 precision = 48;
      */
     precision?: number;
     /**
-     * @generated from protobuf field: optional int32 scale = 48;
+     * @generated from protobuf field: optional int32 scale = 49;
      */
     scale?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 49;
+     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 50;
+     * @generated from protobuf field: bool is_list = 53;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 51;
+     * @generated from protobuf field: bool is_required = 54;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 52;
+     * @generated from protobuf field: bool is_secret = 55;
      */
     isSecret: boolean;
 }
@@ -2637,51 +2641,55 @@ export interface FieldData {
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 41;
      */
-    benchType?: BenchType;
+    nodeType?: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.StructType struct_type = 42;
+     */
+    structType?: StructType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 43;
+     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 44;
      */
     visibility: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 44;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 45;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 45;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 46;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional int32 length = 46;
+     * @generated from protobuf field: optional int32 length = 47;
      */
     length?: number;
     /**
-     * @generated from protobuf field: optional int32 precision = 47;
+     * @generated from protobuf field: optional int32 precision = 48;
      */
     precision?: number;
     /**
-     * @generated from protobuf field: optional int32 scale = 48;
+     * @generated from protobuf field: optional int32 scale = 49;
      */
     scale?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 49;
+     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 50;
+     * @generated from protobuf field: bool is_list = 53;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 51;
+     * @generated from protobuf field: bool is_required = 54;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 52;
+     * @generated from protobuf field: bool is_secret = 55;
      */
     isSecret: boolean;
     /**
@@ -3100,6 +3108,10 @@ export interface LogData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3440,6 +3452,10 @@ export interface NotificationData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3710,6 +3726,10 @@ export interface PauseData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -3864,6 +3884,10 @@ export interface RecordData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -4007,6 +4031,10 @@ export interface RunData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -4244,6 +4272,10 @@ export interface SessionData {
      */
     packagePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
     source: NodeSource;
@@ -4330,6 +4362,10 @@ export interface SignalData {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 6;
      */
     packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
+     */
+    benchPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeSource source = 8;
      */
@@ -10565,7 +10601,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
     constructor() {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "references_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
@@ -10573,7 +10609,6 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.type = 0;
         message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<PropertyReferenceData>(this, message, value);
@@ -10587,7 +10622,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
                 case /* symbolx.bench.BenchType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.BenchType type */ 30:
+                case /* optional symbolx.bench.BenchType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* int32 id */ 31:
@@ -10611,8 +10646,8 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         /* symbolx.bench.BenchType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.BenchType type = 30; */
-        if (message.type !== 0)
+        /* optional symbolx.bench.BenchType type = 30; */
+        if (message.type !== undefined)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* int32 id = 31; */
         if (message.id !== 0)
@@ -11959,18 +11994,19 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 44, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 46, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 50, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 52, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 41, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 42, name: "struct_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 44, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 45, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 46, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 47, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 49, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 53, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 54, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 55, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
@@ -12015,40 +12051,43 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.BenchType bench_type */ 41:
-                    message.benchType = reader.int32();
+                case /* optional symbolx.bench.NodeType node_type */ 41:
+                    message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
+                case /* optional symbolx.bench.StructType struct_type */ 42:
+                    message.structType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* symbolx.bench.NodeVisibility visibility */ 43:
+                case /* symbolx.bench.NodeVisibility visibility */ 44:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 44:
+                case /* optional symbolx.bench.FormatHint format_hint */ 45:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 45:
+                case /* optional symbolx.bench.ExpressionData condition */ 46:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional int32 length */ 46:
+                case /* optional int32 length */ 47:
                     message.length = reader.int32();
                     break;
-                case /* optional int32 precision */ 47:
+                case /* optional int32 precision */ 48:
                     message.precision = reader.int32();
                     break;
-                case /* optional int32 scale */ 48:
+                case /* optional int32 scale */ 49:
                     message.scale = reader.int32();
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 49:
+                case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 50:
+                case /* bool is_list */ 53:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 51:
+                case /* bool is_required */ 54:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 52:
+                case /* bool is_secret */ 55:
                     message.isSecret = reader.bool();
                     break;
                 default:
@@ -12088,42 +12127,45 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
         if (message.primitiveType !== undefined)
             writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.BenchType bench_type = 41; */
-        if (message.benchType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.benchType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
+        /* optional symbolx.bench.NodeType node_type = 41; */
+        if (message.nodeType !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.StructType struct_type = 42; */
+        if (message.structType !== undefined)
+            writer.tag(42, WireType.Varint).int32(message.structType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeVisibility visibility = 43; */
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeVisibility visibility = 44; */
         if (message.visibility !== 0)
-            writer.tag(43, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 44; */
+            writer.tag(44, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 45; */
         if (message.formatHint !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 45; */
+            writer.tag(45, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 46; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 length = 46; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 length = 47; */
         if (message.length !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.length);
-        /* optional int32 precision = 47; */
+            writer.tag(47, WireType.Varint).int32(message.length);
+        /* optional int32 precision = 48; */
         if (message.precision !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.precision);
-        /* optional int32 scale = 48; */
+            writer.tag(48, WireType.Varint).int32(message.precision);
+        /* optional int32 scale = 49; */
         if (message.scale !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.scale);
-        /* optional google.protobuf.Struct default_packed = 49; */
+            writer.tag(49, WireType.Varint).int32(message.scale);
+        /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 50; */
+            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_list = 53; */
         if (message.isList !== false)
-            writer.tag(50, WireType.Varint).bool(message.isList);
-        /* bool is_required = 51; */
+            writer.tag(53, WireType.Varint).bool(message.isList);
+        /* bool is_required = 54; */
         if (message.isRequired !== false)
-            writer.tag(51, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 52; */
+            writer.tag(54, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 55; */
         if (message.isSecret !== false)
-            writer.tag(52, WireType.Varint).bool(message.isSecret);
+            writer.tag(55, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14172,18 +14214,19 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "value_packed", kind: "message", T: () => Struct },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 44, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 46, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 50, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 52, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 42, name: "struct_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 44, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 45, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 46, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 47, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 49, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 53, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 54, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 55, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_output", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_option", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
@@ -14284,40 +14327,43 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.BenchType bench_type */ 41:
-                    message.benchType = reader.int32();
+                case /* optional symbolx.bench.NodeType node_type */ 41:
+                    message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
+                case /* optional symbolx.bench.StructType struct_type */ 42:
+                    message.structType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* symbolx.bench.NodeVisibility visibility */ 43:
+                case /* symbolx.bench.NodeVisibility visibility */ 44:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 44:
+                case /* optional symbolx.bench.FormatHint format_hint */ 45:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 45:
+                case /* optional symbolx.bench.ExpressionData condition */ 46:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional int32 length */ 46:
+                case /* optional int32 length */ 47:
                     message.length = reader.int32();
                     break;
-                case /* optional int32 precision */ 47:
+                case /* optional int32 precision */ 48:
                     message.precision = reader.int32();
                     break;
-                case /* optional int32 scale */ 48:
+                case /* optional int32 scale */ 49:
                     message.scale = reader.int32();
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 49:
+                case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 50:
+                case /* bool is_list */ 53:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 51:
+                case /* bool is_required */ 54:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 52:
+                case /* bool is_secret */ 55:
                     message.isSecret = reader.bool();
                     break;
                 case /* bool is_input */ 60:
@@ -14411,42 +14457,45 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
         if (message.primitiveType !== undefined)
             writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.BenchType bench_type = 41; */
-        if (message.benchType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.benchType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
+        /* optional symbolx.bench.NodeType node_type = 41; */
+        if (message.nodeType !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.StructType struct_type = 42; */
+        if (message.structType !== undefined)
+            writer.tag(42, WireType.Varint).int32(message.structType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeVisibility visibility = 43; */
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeVisibility visibility = 44; */
         if (message.visibility !== 0)
-            writer.tag(43, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 44; */
+            writer.tag(44, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 45; */
         if (message.formatHint !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 45; */
+            writer.tag(45, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 46; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 length = 46; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 length = 47; */
         if (message.length !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.length);
-        /* optional int32 precision = 47; */
+            writer.tag(47, WireType.Varint).int32(message.length);
+        /* optional int32 precision = 48; */
         if (message.precision !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.precision);
-        /* optional int32 scale = 48; */
+            writer.tag(48, WireType.Varint).int32(message.precision);
+        /* optional int32 scale = 49; */
         if (message.scale !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.scale);
-        /* optional google.protobuf.Struct default_packed = 49; */
+            writer.tag(49, WireType.Varint).int32(message.scale);
+        /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 50; */
+            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_list = 53; */
         if (message.isList !== false)
-            writer.tag(50, WireType.Varint).bool(message.isList);
-        /* bool is_required = 51; */
+            writer.tag(53, WireType.Varint).bool(message.isList);
+        /* bool is_required = 54; */
         if (message.isRequired !== false)
-            writer.tag(51, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 52; */
+            writer.tag(54, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 55; */
         if (message.isSecret !== false)
-            writer.tag(52, WireType.Varint).bool(message.isSecret);
+            writer.tag(55, WireType.Varint).bool(message.isSecret);
         /* bool is_input = 60; */
         if (message.isInput !== false)
             writer.tag(60, WireType.Varint).bool(message.isInput);
@@ -15340,6 +15389,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -15391,6 +15441,9 @@ class LogData$Type extends MessageType<LogData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -15480,6 +15533,9 @@ class LogData$Type extends MessageType<LogData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -16090,6 +16146,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -16142,6 +16199,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -16228,6 +16288,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -16686,6 +16749,7 @@ class PauseData$Type extends MessageType<PauseData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -16728,6 +16792,9 @@ class PauseData$Type extends MessageType<PauseData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -16787,6 +16854,9 @@ class PauseData$Type extends MessageType<PauseData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -17040,6 +17110,7 @@ class RecordData$Type extends MessageType<RecordData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -17084,6 +17155,9 @@ class RecordData$Type extends MessageType<RecordData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -17149,6 +17223,9 @@ class RecordData$Type extends MessageType<RecordData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -17370,6 +17447,7 @@ class RunData$Type extends MessageType<RunData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -17430,6 +17508,9 @@ class RunData$Type extends MessageType<RunData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -17537,6 +17618,9 @@ class RunData$Type extends MessageType<RunData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -17868,6 +17952,7 @@ class SessionData$Type extends MessageType<SessionData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -17918,6 +18003,9 @@ class SessionData$Type extends MessageType<SessionData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -17995,6 +18083,9 @@ class SessionData$Type extends MessageType<SessionData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -18063,6 +18154,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
             { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
@@ -18109,6 +18201,9 @@ class SignalData$Type extends MessageType<SignalData> {
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 6:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* symbolx.bench.NodeSource source */ 8:
                     message.source = reader.int32();
@@ -18180,6 +18275,9 @@ class SignalData$Type extends MessageType<SignalData> {
         /* symbolx.bench.NodeReferenceData package_ptr = 6; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeSource source = 8; */
         if (message.source !== 0)
             writer.tag(8, WireType.Varint).int32(message.source);
@@ -20788,18 +20886,19 @@ export enum FieldProperty {
   icon = 34,
   valuePacked = 35,
   primitiveType = 40,
-  benchType = 41,
-  baseTypePtr = 42,
-  visibility = 43,
-  formatHint = 44,
-  condition = 45,
-  length = 46,
-  precision = 47,
-  scale = 48,
-  defaultPacked = 49,
-  isList = 50,
-  isRequired = 51,
-  isSecret = 52,
+  nodeType = 41,
+  structType = 42,
+  baseTypePtr = 43,
+  visibility = 44,
+  formatHint = 45,
+  condition = 46,
+  length = 47,
+  precision = 48,
+  scale = 49,
+  defaultPacked = 50,
+  isList = 53,
+  isRequired = 54,
+  isSecret = 55,
   isInput = 60,
   isOutput = 61,
   isOption = 62,
@@ -20811,6 +20910,7 @@ export enum RecordProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21000,6 +21100,7 @@ export enum SessionProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21023,6 +21124,7 @@ export enum RunProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21056,6 +21158,7 @@ export enum PauseProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21073,6 +21176,7 @@ export enum SignalProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21093,6 +21197,7 @@ export enum LogProperty {
   id = 2,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21121,6 +21226,7 @@ export enum NotificationProperty {
   ck = 3,
   parentPtr = 4,
   packagePtr = 6,
+  benchPtr = 7,
   source = 8,
   revision = 10,
   createdAt = 11,
@@ -21412,18 +21518,19 @@ export enum TypeInfoProperty {
   orderKey = 5,
   setProperties = 22,
   primitiveType = 40,
-  benchType = 41,
-  baseTypePtr = 42,
-  visibility = 43,
-  formatHint = 44,
-  condition = 45,
-  length = 46,
-  precision = 47,
-  scale = 48,
-  defaultPacked = 49,
-  isList = 50,
-  isRequired = 51,
-  isSecret = 52,
+  nodeType = 41,
+  structType = 42,
+  baseTypePtr = 43,
+  visibility = 44,
+  formatHint = 45,
+  condition = 46,
+  length = 47,
+  precision = 48,
+  scale = 49,
+  defaultPacked = 50,
+  isList = 53,
+  isRequired = 54,
+  isSecret = 55,
 }
 
 export enum ContextProperty {

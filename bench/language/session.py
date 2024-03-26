@@ -103,11 +103,11 @@ class Signal(HasBase, HasValues):
 
     @property
     def base(self) -> Optional["Block"]:
-        return self.block
+        return self.type
 
     @staticmethod
     def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return data.block_ptr
+        return data.type_ptr
 
 
 class LogKind(IdEnum):
@@ -210,6 +210,7 @@ class Transaction:
     async def connect_store(
         self, base: Node | GraphScope | None, node_type: NodeType, access_kind: AccessKind
     ) -> StoreConnection:
+        """Gets a connection to the Store for some access."""
         if isinstance(base, Node):
             scope = GraphScope(
                 bench_id=uuid_to_str(base.root.bench_id),
@@ -263,8 +264,8 @@ class Transaction:
             properties = None
         if n.__is_in_bench__:
             scope = GraphScope(
-                bench_id=uuid_to_str(n.bench.id) if n.bench is not None else None,
-                package_id=uuid_to_str(n.package_id) if n.package is not None else None,
+                bench_id=uuid_to_str(n.bench_id) if "bench" in n.__properties__ else None,
+                package_id=uuid_to_str(n.package_id) if "package" in n.__properties__ else None,
             )
         else:
             scope = EMPTY_SCOPE

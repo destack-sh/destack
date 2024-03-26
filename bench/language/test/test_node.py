@@ -57,16 +57,16 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
     # sub package nested pointers
     package_a = bench_a.packages.create(environment=environment_a)
     assert package_a.bench_id == bench_a.id
-    block_a = package_a.blocks.create(type=BlockType.CODE_ROUTINE)
-    assert block_a.bench_id == bench_a.id
-    assert block_a.to_ref().equals_content(
-        NodeReference(type=NodeType.BLOCK, ck=block_a.ck, id=block_a.id, bench_id=bench_a.id)
+    block_a_1 = package_a.blocks.create(type=BlockType.CODE_ROUTINE)
+    assert block_a_1.bench_id == bench_a.id
+    assert block_a_1.to_ref().equals_content(
+        NodeReference(type=NodeType.BLOCK, ck=block_a_1.ck, id=block_a_1.id, bench_id=bench_a.id)
     )
     block_a_2 = package_a.blocks.create(type=BlockType.CODE_ROUTINE)
-    block_a.reference = block_a_2
+    block_a_1.reference = block_a_2
 
     # based pointers
-    signal_a = Signal(parent=package_a, type=block_a)
+    signal_a = Signal(parent=package_a, type=block_a_1)
     assert signal_a.bench_id == bench_a.id
     assert signal_a.to_ref().equals_content(
         NodeReference(
@@ -74,7 +74,7 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
             id=signal_a.id,
             ck=signal_a.ck,
             bench_id=bench_a.id,
-            base_ck=block_a.ck,
+            base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
@@ -83,17 +83,18 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
     bench_b: Bench = fabricator.fabricate(NodeType.BENCH, slug="test_b", name="test_b")
     environment_b = Environment(parent=bench_b, name="Production B")
     package_b = bench_b.packages.create(environment=environment_b)
-    block_b = package_b.blocks.create(type=BlockType.CODE_ROUTINE, reference=block_a)
+    block_b = package_b.blocks.create(type=BlockType.CODE_ROUTINE, reference=block_a_1)
     assert block_b.bench_id == bench_b.id
-    assert block_b.reference_bench_id == bench_a.id
-    signal_b = Signal(parent=package_b, type=block_a)
+    assert block_b.reference.bench_id == bench_a.id
+    signal_b = Signal(parent=package_b, type=block_a_1)
     assert signal_b.bench_id == bench_b.id
     assert signal_b.to_ref().equals_content(
         NodeReference(
             type=NodeType.SIGNAL,
             id=signal_b.id,
+            ck=signal_b.ck,
             bench_id=bench_b.id,
-            base_ck=block_a.ck,
+            base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
