@@ -152,7 +152,7 @@ defineExpose<ViewExposed>({ self, actions });
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
-      v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*window*', 'view.layout*']}, {context})} as ContextMenuInfo) "
+      v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*frame*', 'view.layout*']}, {context})} as ContextMenuInfo) "
     >
       <!-- Tab button -->
       <button

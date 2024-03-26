@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
-import { NodeType } from "@/proto/wire";
-import { runAction } from "@/system/action";
+import { NodeType, Orientation } from "@/proto/wire";
+import { fireActionById } from "@/system/action";
 import type { GraphConnection } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
@@ -9,14 +9,18 @@ import { bench, hasLocalBench } from "@/system/space";
 import { client, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
-import type { TooltipInfo } from "@/utils/tooltip";
+import type { HoverInfo, TooltipInfo } from "@/utils/tooltip";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
-import { useElementSize } from "@vueuse/core";
+import { useElementSize, useFps, useMemory } from "@vueuse/core";
 import { computed, ref } from "vue";
 import { isAuthenticated } from "@/system/user";
+import { graphConnections } from "@/system/connection";
+import Scroll from "@/views/containers/Scroll.vue";
+import { ScrollbarWidth } from "@/utils/layout";
+import { humanizeBytes } from "@/utils/string";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;
@@ -29,6 +33,9 @@ const middlePosition = computed(() => ({
   x: props.box.x + props.box.width / 2 - middleSize.width.value / 2,
   y: props.box.y + props.box.height / 2 - middleSize.height.value / 2,
 }));
+
+const fps = useFps({ every: 8 });
+const memory = useMemory();
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items = [
@@ -124,15 +131,24 @@ const USER_MENU_ITEMS = computed(() => {
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
         <template v-slot:trigger="{ toggle }">
           <button
-            class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+            class="flex select-none flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
             @click="toggle"
           >
             <div class="mr-2 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
-            <span class="font-semibold">Bench</span>
-            <span class="ml-1 pl-0.5 font-semibold underline decoration-primary-400 decoration-2">Beta</span>
+            <template v-if="bench">
+              <span class="select-all font-semibold">{{ bench.slug }}</span>
+            </template>
+            <template v-else>
+              <span class="select-none font-semibold">Bench</span>
+              <span class="ml-1 select-none pl-0.5 font-semibold underline decoration-primary-400 decoration-2"
+                >Beta</span
+              >
+            </template>
           </button>
         </template>
+
         <template v-slot:content="{ close }">
+          <!-- Bench Menu -->
           <Menu @close="close" :items="BENCH_MENU_ITEMS">
             <!-- Bench Info -->
             <template v-if="bench" #header>
@@ -141,40 +157,97 @@ const USER_MENU_ITEMS = computed(() => {
                   <IconInline v-if="bench?.icon" class="" v-bind="bench.icon" />
                 </div>
                 <div class="flex flex-col leading-tight">
-                  <span class="font-medium">{{ bench?.name ?? "???" }}</span>
-                  <span class="text-gray-500">{{ bench?.slug ?? "???" }}</span>
+                  <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
+                  <span class="select-all text-gray-500">{{ bench?.slug ?? "???" }}</span>
                 </div>
               </div>
             </template>
             <!-- Build Info -->
             <template #footer>
               <div class="flex w-full flex-row px-2.5 pt-2 text-gray-500">
-                <span>Bench Web</span>
-                <span class="ml-auto">{{ VERSION }}</span>
+                <span class="select-all">Bench Web</span>
+                <span class="ml-auto select-all">{{ VERSION }}</span>
               </div>
               <div class="flex w-full flex-row px-2.5 pb-1.5 text-xs text-gray-500">
-                <span>build:{{ IS_DEBUG ? "dev" : "prod" }}</span>
-                <span class="ml-auto">#{{ COMMIT?.slice(0, 8) ?? "???" }}</span>
+                <span class="select-all">{{ IS_DEBUG ? "developmnet" : "production" }}</span>
+                <span class="ml-auto select-all">#{{ COMMIT?.slice(0, 8) ?? "???" }}</span>
               </div>
             </template>
           </Menu>
         </template>
       </Popover>
+
       <!-- Status -->
       <div class="flex flex-row gap-x-3">
         <!-- Connection -->
         <div v-if="hasLocalBench">
-          <span class="select-none text-success-600">
-            <i class="fas fa-wifi" />
-          </span>
+          <Popover placement="bottom" :reference-margin="8" :container-margin="4">
+            <template #trigger="{ toggle }">
+              <button class="select-none text-success-600 hover:text-success-700" @click.stop="toggle">
+                <i class="fas fa-signal" />
+              </button>
+            </template>
+            <template #content="{ close }">
+              <!-- Connection summary -->
+              <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
+              <div
+                class="p z-50 rounded-md border border-gray-700 bg-white text-gray-900 shadow-md shadow-gray-700"
+                v-clickoutside.stop="close"
+              >
+                <div class="my-1 border-b border-gray-700 px-3 py-1">
+                  <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
+                </div>
+                <Scroll
+                  :size="{ width: 320, height: 200 }"
+                  size-is-dynamic
+                  :orientation="Orientation.VERTICAL"
+                  :track-width="ScrollbarWidth.sm"
+                >
+                  <ul class="my-1.5 flex min-w-[280px] flex-col gap-y-1 px-3">
+                    <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
+                      <!-- Metadata -->
+                      <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
+                        {{ connection.kind }}
+                      </span>
+                      <span class="ml-2 font-semibold">{{ connection.name }}</span>
+                      <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
+                      <!-- Status -->
+                      <span class="ml-auto flex flex-row gap-x-2 pl-4">
+                        <span :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
+                          {{ connection.referenceCount }}
+                        </span>
+                        <span
+                          ><i
+                            :class="
+                              connection.isFetching
+                                ? 'fas fa-spinner-third animate-spin'
+                                : connection.isLive
+                                  ? 'fas fa-signal text-success-600'
+                                  : 'fas fa-signal-slash text-gray-500'
+                            "
+                        /></span>
+                      </span>
+                    </li>
+                  </ul>
+                </Scroll>
+              </div>
+            </template>
+          </Popover>
         </div>
+
         <!-- Developer mode -->
         <div v-if="isDeveloperMode">
           <span
             class="select-none text-hint-600"
             v-tooltip="{icon: 'fas fa-bug', title: 'Developer Mode Enabled'} as TooltipInfo"
           >
-            <i class="fas fa-bug" />
+            <button class="hover:text-hint-700" @click="fireActionById('developer.misc.toggleDeveloperMode')">
+              <i class="fas fa-bug" />
+            </button>
+            <span class="ml-1">{{ fps }}f</span>
+            <span v-if="memory.isSupported.value && memory.memory.value?.usedJSHeapSize" class="ml-1">
+              {{ humanizeBytes(memory.memory.value?.usedJSHeapSize, { cutoff: 1000 }) }}
+            </span>
           </span>
         </div>
       </div>
@@ -193,6 +266,7 @@ const USER_MENU_ITEMS = computed(() => {
 
     <!-- Right -->
     <div class="flex flex-shrink-0 flex-row">
+      <!-- User Menu -->
       <template v-if="user">
         <!-- User (logged in) -->
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
@@ -216,8 +290,8 @@ const USER_MENU_ITEMS = computed(() => {
                     <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">
-                    <span class="font-medium">{{ user.name }}</span>
-                    <span class="text-gray-500">{{ user.slug }}</span>
+                    <span class="select-all font-medium">{{ user.name }}</span>
+                    <span class="select-all text-gray-500">{{ user.slug }}</span>
                   </div>
                 </div>
               </template>
@@ -225,12 +299,12 @@ const USER_MENU_ITEMS = computed(() => {
               <template #footer>
                 <div class="px-2.5 pb-1.5 pt-2 text-gray-500">
                   <div class="flex w-full flex-row">
-                    <span>{{ clientMeta.operatingSystem }}</span>
-                    <span class="ml-auto">{{ clientMeta.browserName }} {{ clientMeta.browserVersion }}</span>
+                    <span class="select-all">{{ clientMeta.operatingSystem }}</span>
+                    <span class="ml-auto select-all">{{ clientMeta.browserName }} {{ clientMeta.browserVersion }}</span>
                   </div>
                   <div class="flex w-full flex-row text-xs">
-                    <span>id:{{ client?.id.split("-")[0] }}</span>
-                    <span class="ml-auto">nonce:{{ clientMeta.nonce.split("-")[0] }}</span>
+                    <span class="select-all">#{{ client?.id.split("-")[0] }}</span>
+                    <span class="ml-auto select-all">#{{ clientMeta.nonce.split("-")[0] }}</span>
                   </div>
                 </div>
               </template>
@@ -243,7 +317,7 @@ const USER_MENU_ITEMS = computed(() => {
         <Button
           title="Log In"
           :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
-          @click="() => runAction('user.auth.login')"
+          @click="() => fireActionById('user.auth.login')"
         />
       </template>
     </div>

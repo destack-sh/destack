@@ -72,7 +72,7 @@ export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
 export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMapping[T] {
   const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
   const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype as unknown as BenchType]!;
-  let ord = 0;
+  let ord = 1; // skip metatype
   const proto = { metatype } as AnyTypeMapping[T];
   for (const propName of Object.keys(allProperties)) {
     if (!isNaN(Number(propName))) continue; // skip numeric keys
@@ -84,6 +84,7 @@ export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMappi
   return proto;
 }
 
+/** Gets the default 'empty' value for the property of a proto message */
 export function getDefaultProtoValue(field: FieldInfo): any {
   if (field.repeat) {
     return [];

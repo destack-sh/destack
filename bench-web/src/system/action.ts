@@ -79,6 +79,8 @@ export const ACTION_BUILTIN_IDS = [
   "common.navigate.right",
   "common.navigate.pageUp",
   "common.navigate.pageDown",
+  "common.navigate.goBack",
+  "common.navigate.goForward",
   "common.select.all",
   "common.select.up",
   "common.select.down",
@@ -283,7 +285,7 @@ function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement 
   return null;
 }
 
-export function runAction(id: ActionBuiltinId) {
+export function fireActionById(id: ActionBuiltinId) {
   const action = getAction(id);
   fireAction(action);
 }
@@ -473,6 +475,17 @@ declareActionMap<"common">({
     title: "Page Down",
     text: "Page down",
     shortcuts: ["pagedown"],
+  },
+  "common.navigate.goBack": {
+    icon: "fas fa-arrow-turn-left",
+    title: "Go Back",
+    text: "Go back in view history",
+    shortcuts: ["mod+shift+delete"],
+  },
+  "common.navigate.goForward": {
+    icon: "fas fa-arrow-turn-right",
+    title: "Go Forward",
+    text: "Go forward in view history",
   },
   // select
   "common.select.all": {
@@ -671,7 +684,7 @@ declareActionMap<"view">({
   },
   "view.navigate.closeFrame": {
     icon: "fas fa-xmark",
-    title: "Close Window",
+    title: "Close Frame",
     text: "Close the current frame",
     shortcuts: ["mod+shift+w"],
   },
@@ -833,7 +846,7 @@ contributeActionMap<"bench">({
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToEnvironment": {
-    enabled: hasLocalBench,
+    enabled: ref(false), // not yet implemented
     title: "Switch Environment",
     text: "Go to another Environment in this Bench",
     icon: "fas fa-cloud",

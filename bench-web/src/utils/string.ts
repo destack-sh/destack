@@ -130,3 +130,24 @@ export function levenshteinDistance(a: string, b: string): number {
 
   return matrix[b.length][a.length];
 }
+
+/** Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits */
+export function humanizeBytes(bytes: number, options?: { cutoff?: number, round?: boolean }) {
+  const cutoff = options?.cutoff ?? 100;
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let unit = 0;
+  while (bytes >= cutoff && unit < units.length - 1) {
+    bytes /= 1024;
+    unit++;
+  }
+  if (options?.round) {
+    return `${Math.round(bytes)}${units[unit]}`;
+  }
+  if (unit == 0) {
+    return `${bytes.toFixed(0)}${units[unit]}`;
+  } else if (bytes < 10) {
+    return `${bytes.toFixed(1)}${units[unit]}`;
+  } else {
+    return `${bytes.toFixed(0)}${units[unit]}`;
+  }
+}

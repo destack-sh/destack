@@ -25,7 +25,7 @@ import {
   canonicalizeEdits,
 } from "@/system/transaction";
 import { log } from "@/utils/log";
-import { toValueRef, type SubRef } from "@/utils/ref";
+import { toValueRef, type SubRef, pretendReadonly } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, markRaw } from "vue";
 
@@ -46,6 +46,8 @@ export type GraphConnectionKind = "get" | "search" | "aggregate";
  * A connection to a subgraph for an overlapping set of read operations.
  */
 export type GraphConnection = {
+  id: number;
+  name: string;
   kind: GraphConnectionKind;
   scope: GraphScope;
   graph: ReadNodeGraph;
@@ -60,6 +62,8 @@ export type GraphConnection = {
 };
 
 export abstract class GraphConnectionBase implements GraphConnection {
+  readonly id: number;
+  readonly name: string;
   readonly kind: GraphConnectionKind;
   readonly scope: GraphScope;
   readonly graph: ReadNodeGraph;
@@ -73,12 +77,16 @@ export abstract class GraphConnectionBase implements GraphConnection {
   abstract readonly isFetching: boolean;
 
   constructor(
+    id: number,
+    name: string,
     kind: GraphConnectionKind,
     scope: GraphScope,
     graph: ReadNodeGraph,
     access: AccessArbiter,
     options: ReadOptionsData,
   ) {
+    this.id = id;
+    this.name = name;
     this.kind = kind;
     this.scope = scope;
     this.graph = graph;
@@ -100,12 +108,14 @@ export class LocalGraphConnection extends GraphConnectionBase {
   readonly sideTxBuffer: TransactionBuffer;
 
   constructor(
+    id: number,
+    name: string,
     kind: GraphConnectionKind,
     scope: GraphScope,
     graph: ReadNodeGraph & WriteNodeGraph,
     options: ReadOptionsData,
   ) {
-    super(kind, scope, graph, accessAsOwner(), options);
+    super(id, name, kind, scope, graph, accessAsOwner(), options);
     this.mainTxBuffer = new ImmediateTransactionBuffer(graph.scope, graph);
     this.sideTxBuffer = new ImmediateTransactionBuffer(graph.scope, graph);
   }
@@ -137,6 +147,8 @@ export class RemoteGraphConnection extends GraphConnectionBase {
   readonly sideTxBuffer: TransactionBuffer;
 
   constructor(
+    id: number,
+    name: string,
     kind: GraphConnectionKind,
     scope: GraphScope,
     graph: ReadNodeGraph,
@@ -145,7 +157,7 @@ export class RemoteGraphConnection extends GraphConnectionBase {
     options: ReadOptionsData,
     isLive: boolean,
   ) {
-    super(kind, scope, graph, access, options);
+    super(id, name, kind, scope, graph, access, options);
     this.client = client;
     this.isLive = isLive;
     this._isFetching = shallowRef(false);
@@ -183,6 +195,14 @@ export class ProxyGraphConnection implements GraphConnection {
   get activeConnection(): GraphConnection {
     if (this.connection.value == null) throw new Error("no current connection");
     return this.connection.value;
+  }
+
+  get id(): number {
+    return this.activeConnection.id;
+  }
+
+  get name(): string {
+    return this.activeConnection.name;
   }
 
   get kind(): GraphConnectionKind {
@@ -237,18 +257,26 @@ export class ProxyGraphConnection implements GraphConnection {
 // define local space graph here because we use it immediately
 export const spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
 
-const graphConnections: Ref<GraphConnection[]> = shallowRef([
+let connectionId = 0;
+function newConnectionId(): number {
+  return connectionId++;
+}
+
+const _graphConnections: Ref<GraphConnection[]> = shallowRef([
   // add local graph
   new LocalGraphConnection(
+    newConnectionId(),
+    "local.space",
     "get",
     spaceGraphLocal.scope,
     spaceGraphLocal,
     makeReadOptions({ descendantTypes: [NodeType.VIEW] }),
   ),
 ]);
+export const graphConnections = pretendReadonly(_graphConnections);
 
 export function addGraphConnection(connection: GraphConnection): void {
-  graphConnections.value = [...graphConnections.value, connection];
+  _graphConnections.value = [..._graphConnections.value, connection];
 }
 
 export type PageInfo = { cursors: string[]; startCursor: string; size: number; total?: number };
@@ -290,7 +318,7 @@ type AggregateNodesParams = NodeRequestParams & {
  * Finds an existing connection to the relevant subgraph.
  */
 export function findGetConnection<T extends NodeType>(params: Omit<GetNodesParams<T>, "name">): GraphConnection | null {
-  const connection = graphConnections.value.find((c) => {
+  const connection = _graphConnections.value.find((c) => {
     if (c.kind != "get") return false;
     if (params?.live && !c.isLive) return false;
     // scope included?
@@ -322,6 +350,8 @@ export async function connectGet<T extends NodeType>(
   const access = accessAsOwner(); // TODO :Broken: access control
   const options = makeReadOptions(params.options ?? {});
   const connection = new RemoteGraphConnection(
+    newConnectionId(),
+    params.name,
     "get",
     graph.scope,
     graph,
@@ -330,8 +360,10 @@ export async function connectGet<T extends NodeType>(
     options,
     params.live ?? false,
   );
+
   addGraphConnection(connection);
 
+  // TODO :Robusness: retry/resume watching connection on watch failure
   // fetch nodes
   let epoch: bigint;
   try {
@@ -362,6 +394,7 @@ export async function connectGet<T extends NodeType>(
     });
   }
 
+  connection.referenceCount += 1;
   tryOnBeforeUnmount(() => connection.referenceCount--);
   return { connection };
 }
@@ -458,7 +491,11 @@ export function useActiveConnection(node: MaybeRef<NodeReferenceData | TypedNode
         graphProxy.graph = null;
       } else {
         const connection = findGetConnection({ roots: [nodeRef.value] });
-        if (connection !== connectionProxy.connection.value) connectionProxy.connection.value = connection;
+        if (connection !== connectionProxy.connection.value) {
+          if (connectionProxy.connection.value) connectionProxy.connection.value.referenceCount -= 1;
+          connectionProxy.connection.value = connection;
+          if (connection) connection.referenceCount += 1;
+        }
         if (connection?.graph !== graphProxy.graph) graphProxy.graph = connection?.graph ?? null;
       }
     },
