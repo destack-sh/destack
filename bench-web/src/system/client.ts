@@ -2,10 +2,12 @@ import { LocalStorage, NodeType } from "@/proto/wire";
 import { nodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
-import { pretendReadonly, pickRef } from "@/utils/ref";
+import { pickRef, pretendReadonly } from "@/utils/ref";
+import { pseudoRandomNumber, xorString } from "@/utils/string";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
-import { computed, shallowRef, type Ref, readonly, toRef } from "vue";
+import { computed, readonly, shallowRef, type Ref } from "vue";
 
 const BENCH_LOCAL_STORAGE_PREFIX = "bench-";
 
@@ -17,6 +19,12 @@ export const LOCAL_BENCH_PTR = nodeReference(NodeType.BENCH, LOCAL_BENCH_ID);
 export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, LOCAL_BENCH_ID);
 export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
 
+//
+// NOTE: we use a simple semi-randomised XOR shift encoding for local storage.
+//  This isn't meant to be secure, just to make it annoying to read out & modify the data.
+//
+const ENCODE_LOCAL_STORAGE = true;
+
 /**
  * Uses a value in our web-local storage.
  * Each top-level key is a separate local storage property (key = field number), the value is base64 of the message bytes.
@@ -26,25 +34,51 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
   const field = LocalStorage.fields.find((f) => f.localName === key);
   if (field == null) throw new Error(`local field ${key} not found`);
   if (field.kind != "message") throw new Error(`local field ${key} is not a message`);
-  const localKey = BENCH_LOCAL_STORAGE_PREFIX + field.no;
-  const localValue = useLocalStorage<string | null>(localKey, null);
+  const localStorageKey = BENCH_LOCAL_STORAGE_PREFIX + field.no;
+  const localStorageValue = useLocalStorage<string | null>(localStorageKey, null);
+  const localEncodeKey = pseudoRandomNumber(field.no);
 
-  return computed({
+  const decodedValue = computed({
     get() {
-      const encodedValue = localValue.value;
-      if (encodedValue == null) return null;
-      const bytes = Uint8Array.from(atob(encodedValue), (c) => c.charCodeAt(0));
-      return field.T().fromBinary(bytes);
+      try {
+        // decode into binary parts
+        let encodedValue = localStorageValue.value;
+        if (encodedValue == null) return null;
+        if (ENCODE_LOCAL_STORAGE) encodedValue = xorString(encodedValue, localEncodeKey);
+        // decode into single/multiple values
+        const values: any[] = [];
+        const encodedParts = encodedValue.split("-");
+        for (const part of encodedParts) {
+          const bytes = Uint8Array.from(atob(part), (c) => c.charCodeAt(0));
+          values.push(field.T().fromBinary(bytes));
+        }
+        if (field.repeat) return values;
+        else return values[0];
+      } catch (e) {
+        log.error("local.decodeFailed", { key, error: e });
+        localStorageValue.value = null; // clear invalid value
+        return null;
+      }
     },
     set(value: LocalStorage[T] | null) {
       if (value == null) {
-        localValue.value = null;
+        localStorageValue.value = null;
       } else {
-        const bytes = field.T().toBinary(value);
-        localValue.value = btoa(String.fromCharCode(...bytes));
+        // encode into binary parts
+        const values = (Array.isArray(value) ? value : [value]) as any[];
+        const encodedParts: string[] = [];
+        for (const v of values) {
+          const part = btoa(String.fromCharCode(...field.T().toBinary(v)));
+          encodedParts.push(part);
+        }
+        // encode into local storage string
+        let encodedValue = encodedParts.join("-");
+        if (ENCODE_LOCAL_STORAGE) encodedValue = xorString(encodedValue, localEncodeKey);
+        localStorageValue.value = encodedValue;
       }
     },
   });
+  return decodedValue;
 }
 
 //
@@ -58,10 +92,18 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 // Auth
 //
 
+const _persistentInfo = useLocal("persistentInfo");
 const _userInfo = useLocal("userInfo");
 const _clientInfo = useLocal("clientInfo");
+export const persistentInfo = pretendReadonly(_persistentInfo);
 export const userInfo = pretendReadonly(_userInfo);
 export const clientInfo = pretendReadonly(_clientInfo);
+
+// ensure persistent info is set
+if (_persistentInfo.value?.placeId == null) {
+  _persistentInfo.value = { placeId: v4(), ..._persistentInfo.value };
+}
+
 const isOpera = !!(window as any).opera;
 export const clientMeta = readonly(
   shallowRef({
@@ -74,11 +116,13 @@ export const clientMeta = readonly(
 );
 
 function setUser(info: { user: Required<LocalStorage>["userInfo"]; client: Required<LocalStorage>["clientInfo"] }) {
+  log.trace("local.setUser", { user: info.user });
   _userInfo.value = info.user;
   _clientInfo.value = info.client;
 }
 
 function clearUser() {
+  log.trace("local.clearUser");
   _userInfo.value = null;
   _clientInfo.value = null;
 }
@@ -122,18 +166,18 @@ function setSpaceToLocal() {
   _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
 }
 
-/** Sets the current Bench & Package. If it doesn't match the current space, the space is reset to local. */
-function setPackage(set: {
+/** Sets the current Bench/Package. If it doesn't match the current space, the space is reset to local. */
+function setBench(set: {
   pkg: TypedNodeReferenceData<NodeType.PACKAGE>;
   space?: TypedNodeReferenceData<NodeType.SPACE>;
 }) {
-  log.trace("local.setPackage", set);
+  log.trace("local.setBench", set);
   if (set.pkg.benchId == null || set.pkg.benchId == LOCAL_BENCH_ID)
     throw new Error(`package ${set.pkg?.id} is not in a real Bench?`);
   const bench = nodeReference(NodeType.BENCH, set.pkg.benchId!);
   _benchPtr.value = bench;
   if (_packagePtrs.value == null) _packagePtrs.value = [];
-  _packagePtrs.value = _packagePtrs.value.filter((p) => p.benchId != bench.id).concat(set.pkg);
+  _packagePtrs.value = _packagePtrs.value.filter((p) => p.benchId != bench.id).concat([set.pkg]);
   if (set.space != null) {
     if (set.space.benchId != bench.id) throw new Error(`space ${set.space.id} is not in the active Bench ${bench.id}`);
     setSpace(set.space);
@@ -142,10 +186,11 @@ function setPackage(set: {
   }
 }
 
-function clearPackage() {
+function clearBench() {
+  log.trace("local.clearBench");
   if (_benchPtr.value != null) {
-    _benchPtr.value = null;
     _packagePtrs.value = (_packagePtrs.value ?? []).filter((p) => p.benchId != _benchPtr.value!.id);
+    _benchPtr.value = null;
     setSpaceToLocal();
   }
 }
@@ -170,8 +215,8 @@ const local = {
   packagePtr,
   setSpace,
   setSpaceToLocal,
-  setPackage,
-  clearPackage,
+  setPackage: setBench,
+  clearPackage: clearBench,
   isDeveloperMode,
 } as const;
 

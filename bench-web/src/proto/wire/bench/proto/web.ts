@@ -15,6 +15,18 @@ import { SomeNodeData } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { IconData } from "./lang";
 /**
+ * Persistent per client/place.
+ * NOTE: PersistentInfo is not cleared across user logouts.
+ *
+ * @generated from protobuf message symbolx.bench.PersistentInfo
+ */
+export interface PersistentInfo {
+    /**
+     * @generated from protobuf field: string placeId = 1;
+     */
+    placeId: string;
+}
+/**
  * Web-local information about the active User.
  *
  * @generated from protobuf message symbolx.bench.UserInfo
@@ -113,15 +125,19 @@ export interface LocalStorage {
     /**
      * auth
      *
-     * @generated from protobuf field: optional symbolx.bench.UserInfo user_info = 1;
+     * @generated from protobuf field: optional symbolx.bench.PersistentInfo persistent_info = 1;
+     */
+    persistentInfo?: PersistentInfo;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.UserInfo user_info = 3;
      */
     userInfo?: UserInfo;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ClientInfo client_info = 2;
+     * @generated from protobuf field: optional symbolx.bench.ClientInfo client_info = 4;
      */
     clientInfo?: ClientInfo;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.BadgeInfo badges = 3;
+     * @generated from protobuf field: repeated symbolx.bench.BadgeInfo badges = 5;
      */
     badges: BadgeInfo[];
     /**
@@ -149,6 +165,53 @@ export interface LocalStorage {
      */
     developerSettings?: DeveloperSettings;
 }
+// @generated message type with reflection information, may provide speed optimized methods
+class PersistentInfo$Type extends MessageType<PersistentInfo> {
+    constructor() {
+        super("symbolx.bench.PersistentInfo", [
+            { no: 1, name: "placeId", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PersistentInfo>): PersistentInfo {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.placeId = "";
+        if (value !== undefined)
+            reflectionMergePartial<PersistentInfo>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PersistentInfo): PersistentInfo {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string placeId */ 1:
+                    message.placeId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PersistentInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string placeId = 1; */
+        if (message.placeId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.placeId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PersistentInfo
+ */
+export const PersistentInfo = new PersistentInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UserInfo$Type extends MessageType<UserInfo> {
     constructor() {
@@ -456,9 +519,10 @@ export const DeveloperSettings = new DeveloperSettings$Type();
 class LocalStorage$Type extends MessageType<LocalStorage> {
     constructor() {
         super("symbolx.bench.LocalStorage", [
-            { no: 1, name: "user_info", kind: "message", T: () => UserInfo },
-            { no: 2, name: "client_info", kind: "message", T: () => ClientInfo },
-            { no: 3, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BadgeInfo },
+            { no: 1, name: "persistent_info", kind: "message", T: () => PersistentInfo },
+            { no: 3, name: "user_info", kind: "message", T: () => UserInfo },
+            { no: 4, name: "client_info", kind: "message", T: () => ClientInfo },
+            { no: 5, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BadgeInfo },
             { no: 10, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 11, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -480,13 +544,16 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.UserInfo user_info */ 1:
+                case /* optional symbolx.bench.PersistentInfo persistent_info */ 1:
+                    message.persistentInfo = PersistentInfo.internalBinaryRead(reader, reader.uint32(), options, message.persistentInfo);
+                    break;
+                case /* optional symbolx.bench.UserInfo user_info */ 3:
                     message.userInfo = UserInfo.internalBinaryRead(reader, reader.uint32(), options, message.userInfo);
                     break;
-                case /* optional symbolx.bench.ClientInfo client_info */ 2:
+                case /* optional symbolx.bench.ClientInfo client_info */ 4:
                     message.clientInfo = ClientInfo.internalBinaryRead(reader, reader.uint32(), options, message.clientInfo);
                     break;
-                case /* repeated symbolx.bench.BadgeInfo badges */ 3:
+                case /* repeated symbolx.bench.BadgeInfo badges */ 5:
                     message.badges.push(BadgeInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData space_ptr */ 10:
@@ -516,15 +583,18 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         return message;
     }
     internalBinaryWrite(message: LocalStorage, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.UserInfo user_info = 1; */
+        /* optional symbolx.bench.PersistentInfo persistent_info = 1; */
+        if (message.persistentInfo)
+            PersistentInfo.internalBinaryWrite(message.persistentInfo, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.UserInfo user_info = 3; */
         if (message.userInfo)
-            UserInfo.internalBinaryWrite(message.userInfo, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ClientInfo client_info = 2; */
+            UserInfo.internalBinaryWrite(message.userInfo, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ClientInfo client_info = 4; */
         if (message.clientInfo)
-            ClientInfo.internalBinaryWrite(message.clientInfo, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.BadgeInfo badges = 3; */
+            ClientInfo.internalBinaryWrite(message.clientInfo, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.BadgeInfo badges = 5; */
         for (let i = 0; i < message.badges.length; i++)
-            BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+            BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData space_ptr = 10; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();

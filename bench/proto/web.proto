@@ -5,6 +5,12 @@ package symbolx.bench;
 import "bench/proto/common.proto";
 import "bench/proto/lang.proto";
 
+// Persistent per client/place.
+// NOTE: PersistentInfo is not cleared across user logouts.
+message PersistentInfo {
+  string placeId = 1;
+}
+
 // Web-local information about the active User.
 message UserInfo {
   string id = 1;
@@ -42,9 +48,10 @@ message DeveloperSettings {
 // All fields must be messages (may be repeated). :LocalStorageEncoding
 message LocalStorage {
   // auth
-  optional UserInfo user_info = 1;
-  optional ClientInfo client_info = 2;
-  repeated BadgeInfo badges = 3;
+  optional PersistentInfo persistent_info = 1;
+  optional UserInfo user_info = 3;
+  optional ClientInfo client_info = 4;
+  repeated BadgeInfo badges = 5;
   // space/bench
   optional NodeReferenceData space_ptr = 10;
   optional NodeReferenceData bench_ptr = 11;

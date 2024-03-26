@@ -133,7 +133,7 @@ class ColorType(IdEnum):
     PRIMARY = 1
     SECONDARY = 2
     ACCENT = 3
-    BACKGROUND = 4
+    CANVAS = 4
     # semantic
     SUCCESS = 10
     HINT = 11

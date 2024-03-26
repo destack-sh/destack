@@ -8,6 +8,7 @@ import local, { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID } from "@/system/client";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, nextTick, watch } from "vue";
+
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
   computed(() => ({
