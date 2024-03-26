@@ -11,6 +11,10 @@ export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(inpu
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
 }
 
+export function reverseRecordToMap<T extends PropertyKey, U>(input: Partial<Record<T, U>>) {
+  return new Map(Object.entries(input).map(([key, value]) => [value, key]));
+}
+
 export function cyrb53a(str: string, seed = 0): number {
   // 53-bit cyrb53a hash
   // see https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js

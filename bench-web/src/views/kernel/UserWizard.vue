@@ -1,18 +1,16 @@
 <script lang="tsx" setup>
-import { Region, Variant, type NodeReferenceData, ViewData, NodeType, UserStatus } from "@/proto/wire";
+import { NodeType, Region, Variant, ViewData, type NodeReferenceData } from "@/proto/wire";
+import { benchPtr } from "@/system/client";
 import { useActiveConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
+import { reverseRecord } from "@/utils/functools";
+import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
-import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { watch, ref, toRef, type Ref } from "vue";
-import { reverseRecord } from "@/utils/functools";
-import { humanizeError } from "@/proto/services";
-import { benchPtr } from "@/system/client";
+import { ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());

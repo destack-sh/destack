@@ -6007,9 +6007,9 @@ export enum ColorType {
      */
     ACCENT = 3,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_BACKGROUND = 4;
+     * @generated from protobuf enum value: COLOR_TYPE_CANVAS = 4;
      */
-    BACKGROUND = 4,
+    CANVAS = 4,
     /**
      * @generated from protobuf enum value: COLOR_TYPE_SUCCESS = 10;
      */

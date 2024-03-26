@@ -202,7 +202,7 @@ class ColorType(betterproto.Enum):
     PRIMARY = 1
     SECONDARY = 2
     ACCENT = 3
-    BACKGROUND = 4
+    CANVAS = 4
     SUCCESS = 10
     HINT = 11
     WARNING = 12

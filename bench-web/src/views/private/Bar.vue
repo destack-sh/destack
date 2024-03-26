@@ -140,7 +140,7 @@ const USER_MENU_ITEMS = computed(() => {
             </template>
             <template v-else>
               <span class="select-none font-semibold">Bench</span>
-              <span class="ml-1 select-none pl-0.5 font-semibold underline decoration-primary-400 decoration-2"
+              <span class="ml-1 select-none pl-0.5 font-semibold italic underline decoration-primary-400 decoration-2"
                 >Beta</span
               >
             </template>
@@ -154,7 +154,7 @@ const USER_MENU_ITEMS = computed(() => {
             <template v-if="bench" #header>
               <div class="flex flex-row px-2.5 pb-2 pt-1.5">
                 <div class="mr-2 w-10 rounded-md border border-gray-700 bg-primary-300 py-0.5 text-center text-lg">
-                  <IconInline v-if="bench?.icon" class="" v-bind="bench.icon" />
+                  <IconInline v-if="bench.icon" class="" v-bind="bench.icon" />
                 </div>
                 <div class="flex flex-col leading-tight">
                   <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
@@ -183,7 +183,7 @@ const USER_MENU_ITEMS = computed(() => {
         <div v-if="hasLocalBench">
           <Popover placement="bottom" :reference-margin="8" :container-margin="4">
             <template #trigger="{ toggle }">
-              <button class="select-none text-success-600 hover:text-success-700" @click.stop="toggle">
+              <button class="select-none text-success-700 hover:text-success-800" @click.stop="toggle">
                 <i class="fas fa-signal" />
               </button>
             </template>
@@ -238,13 +238,13 @@ const USER_MENU_ITEMS = computed(() => {
         <!-- Developer mode -->
         <div v-if="isDeveloperMode">
           <span
-            class="select-none text-hint-600"
+            class="select-none text-hint-700"
             v-tooltip="{icon: 'fas fa-bug', title: 'Developer Mode Enabled'} as TooltipInfo"
           >
-            <button class="hover:text-hint-700" @click="fireActionById('developer.misc.toggleDeveloperMode')">
+            <button class="hover:text-hint-800" @click="fireActionById('developer.misc.toggleDeveloperMode')">
               <i class="fas fa-bug" />
             </button>
-            <span class="ml-1">{{ fps }}f</span>
+            <span class="ml-1">{{ fps }}fps</span>
             <span v-if="memory.isSupported.value && memory.memory.value?.usedJSHeapSize" class="ml-1">
               {{ humanizeBytes(memory.memory.value?.usedJSHeapSize, { cutoff: 1000 }) }}
             </span>

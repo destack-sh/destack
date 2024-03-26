@@ -164,7 +164,6 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
                 .include_all()
                 .get(id=self.bench_id)
             )
-            # provision any missing resources
             await provision_pending_resources(self._bench, session)
             await session.commit()
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)

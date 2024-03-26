@@ -15,6 +15,7 @@ import {
   type AnyTypeMapping,
   type NodeTypeMapping,
   type StructTypeMapping,
+  PropertyReferenceData,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
@@ -155,6 +156,10 @@ export function nodeReference<T extends NodeType>(
   benchId?: string,
 ): TypedNodeReferenceData<T> {
   return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id, benchId };
+}
+
+export function propertyReference<T extends BenchType>(metatype: T, id: number): PropertyReferenceData {
+  return { metatype: BenchType.PROPERTY_REFERENCE, type: metatype, id };
 }
 
 export function toNodeReference(node: null): null;

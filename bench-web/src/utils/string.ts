@@ -151,3 +151,32 @@ export function humanizeBytes(bytes: number, options?: { cutoff?: number, round?
     return `${bytes.toFixed(0)}${units[unit]}`;
   }
 }
+
+
+/** XOR encode a 'data' string with a key. */
+export function xorString(data: string, key: number): string {
+  // to bytes
+  const keyBytes: number[] = [];
+  while (key > 0) {
+    keyBytes.push(key & 0xff);
+    key = key >> 8;
+  }
+  keyBytes.reverse();
+
+  const result: number[] = [];
+  for (let i = 0; i < data.length; i++) {
+    // convert character to ASCII code, perform XOR with key, and convert back to character
+    const charCode = data.charCodeAt(i) ^ keyBytes[i % keyBytes.length];
+    result.push(charCode);
+  }
+
+  return String.fromCharCode(...result);
+}
+
+/** LCG number generator. Very not secure but fast. */
+export function pseudoRandomNumber(seed: number): number {
+  const a = 1664525;
+  const c = 1013904223;
+  const m = 2**32;
+  return (a * seed + c) % m;
+}

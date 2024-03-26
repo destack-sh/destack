@@ -169,7 +169,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
       (newKeys, oldKeys) => {
         if (newKeys != oldKeys) {
           if (oldKeys) unsub();
-          if (newKeys) newKeys.forEach((key) => subs.push(this.subscribe(key, trigger)));
+          if (newKeys) newKeys.filter((key) => key != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
         }
         trigger();
       },
@@ -672,7 +672,7 @@ export class FilterNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph
 
 /**
  * Creates a new node with the explicitly set properties from the overlay superimposed on the base.
- * NOTE: this specifically works for Node.setProperties, not a TS Partial.
+ * NOTE: this works specifically with Node.setProperties, not a TS Partial.
  */
 export function mergeNode<T extends NodeType>(
   base: NodeTypeMapping[T],

@@ -1,16 +1,18 @@
 import { supervisor } from "@/proto/services";
 import {
   BenchData,
+  BenchType,
   ClientData,
   NodeReferenceData,
   NodeType,
   Region,
   UserData,
+  UserProperty,
   UserStatus,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { makeNode, nodeReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
+import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import { useGetNodes } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
@@ -32,7 +34,10 @@ export const { graph: userGraph, connection: userConnection } = useGetNodes(
   computed(() => ({
     name: "user",
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
-    options: { descendantTypes: [NodeType.CLIENT] },
+    options: {
+      descendantTypes: [NodeType.CLIENT],
+      includePropertiesPtr: [propertyReference(BenchType.USER, UserProperty.email)],
+    },
     enabled: isAuthenticated.value,
     live: true,
   })),
