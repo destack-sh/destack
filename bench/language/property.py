@@ -4,12 +4,12 @@ import functools
 from dataclasses import dataclass
 from datetime import datetime
 from sys import intern
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
     BASED_NODE_TYPES,
-    IN_BENCH_NODE_TYPES,
+    SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
     BenchType,
@@ -41,6 +41,10 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     datetime: PrimitiveType.DATETIME,
     UUID: PrimitiveType.UUID,
 }
+
+PropertyReferenceMetadata = Union[
+    Literal["bench_id"], Literal["base_ck"], Literal["base_bench_id"], Literal["type"]
+]
 
 
 @dataclass(eq=False, slots=True)
@@ -97,13 +101,14 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_stored_ptrs: tuple["Property", ...] | None = None  # stored representation
     reference_stored_props: tuple["Property", ...] | None = None
     reference_stored_ptrs_by_type: dict[NodeType, "Property"] | None = None
-    reference_stored_extras: dict[str, "Property"] | None = None
+    reference_stored_extras: dict[PropertyReferenceMetadata, "Property"] | None = None
     reference_source: Optional["Property"] = None
     reference_on_delete: CascadeAction | None = UNSET
     reference_struct: StructType | None = None  # for struct child types
     reference_flags: NodeRelationFlag = NodeRelationFlag.DEFAULT
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
-    reference_force_by_id: bool = False
+    reference_is_bench_implicit: bool = False
+    reference_force_foreign_key_key: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
     _cached_as_type: Optional["TypeInfo"] = None
@@ -445,6 +450,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         """
 
         assert self.reference_stored_ptrs is None, f"already contributed {self!r}"
+        is_parent = self.reference_kind == ReferenceKind.NODE_PARENT
 
         # property reference
         if self.reference_kind == ReferenceKind.PROPERTY:
@@ -471,7 +477,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             return (property_ptr,)
 
         # struct (parent) references
-        if self.reference_kind == ReferenceKind.STRUCT_PARENT:
+        elif self.reference_kind == ReferenceKind.STRUCT_PARENT:
             parent_id = Property(
                 id=self.id,
                 name=self.name + "_id",
@@ -509,8 +515,17 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.reference_wired_ptr = parent_id
             return parent_id, parent_key
 
+        # NOTE: mapping stored and wired references (i.e. node pointers) is slightly involved.
+        #  In wire pointers (NodeReference) we conveniently have a struct with all the info:
+        #   type+id+[ck]+[bench_id]+[base_ck+base_bench_id]
+        #  But we don't want to store pointers as structs for efficiency and correctness, so we map them.
+        #  (We have lots of pointers, so storing each as jsonb is worse than uuid+type columns.)
+        #  For instance, we want FKs on some id columns (like parent pointers), so those need to be
+        #  distinct id columns, while others can be bunched together into a single 'ck' + 'type'.
+        #  :StoredPointers
+
         # wired/stored pointer settings for each node reference kind
-        if self.reference_kind == ReferenceKind.NODE_PARENT:
+        elif is_parent:
             is_wired = True
             is_stored = True
             is_required = False
@@ -544,8 +559,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         else:
             raise ValueError(f"unexpected reference kind {self.reference_kind!r} for {self!r}")
 
-        # contribute the properties
         if is_wired:
+            # wired reference representation is just a nice NodeReference struct
             self.reference_wired_ptr = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ptr",
@@ -565,50 +580,54 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 default=None,
                 primitive_type=None,
             )
-        extra_stored_props: dict[str, "Property"] = {}
+
+        # unravel the reference types into appropriate id/ck/other metadata columns
+        stored_ptr_props = []  # the contributed 'ptr'-like properties (id or ck)
+        # ... and any other metadata (type, base, etc.)
+        extra_stored_props: dict[PropertyReferenceMetadata, "Property"] = {}
         if is_stored and self.component.__is_node__:  # only nodes are stored
-            stored_ptr_props = []
-            sub_package_ref_types: list[NodeType] = []
-            for ref_type in self.reference_nodes:  # :RavelReferences
-                store_as_id = (
-                    self.reference_force_by_id is True
-                    or self.reference_kind
-                    in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR_FIRST)
-                    or ref_type not in SUB_PACKAGE_NODE_TYPES
-                )
-                if not store_as_id:
-                    sub_package_ref_types.append(ref_type)
-                    continue
-                if ref_type.name.lower() in self.name:  # reduce clutter if type is unambiguous
-                    prop_name = f"{self.name}_id"
-                else:
-                    prop_name = f"{self.name}_{ref_type.name.lower()}_id"
-                id_ref_prop = Property(
-                    id=self.id,
-                    name=prop_name,
-                    component=self.component,
-                    py_type_raw=list[UUID] if is_list else UUID,
-                    reference_kind=self.reference_kind,
-                    reference_nodes=(ref_type,),
-                    reference_source=self,
-                    reference_on_delete=on_delete,
-                    is_runtime=False,
-                    is_wired=False,
-                    is_stored=True,
-                    is_internal=is_internal,
-                    is_list=is_list,
-                    is_required=is_required,
-                    primitive_type=PrimitiveType.UUID,
-                    is_indexed_in_pg=self.is_indexed_in_pg,
-                )
-                stored_ptr_props.append(id_ref_prop)
-            if sub_package_ref_types:
+            need_fks = self.reference_force_foreign_key_key or is_parent
+
+            # figure out which reference types (if any) to pack into the 'ck'
+            ck_ptr_types: list[NodeType] = []
+            if need_fks:
+                for ref_type in self.reference_nodes:
+                    if not is_parent and ref_type in SUB_PACKAGE_NODE_TYPES:
+                        ck_ptr_types.append(ref_type)
+                        continue
+                    if ref_type.name.lower() in self.name:  # reduce clutter if type is unambiguous
+                        prop_name = f"{self.name}_id"
+                    else:
+                        prop_name = f"{self.name}_{ref_type.name.lower()}_id"
+                    id_ref_prop = Property(
+                        id=self.id,
+                        name=prop_name,
+                        component=self.component,
+                        py_type_raw=list[UUID] if is_list else UUID,
+                        reference_kind=self.reference_kind,
+                        reference_nodes=(ref_type,),
+                        reference_source=self,
+                        reference_on_delete=on_delete,
+                        is_runtime=False,
+                        is_wired=False,
+                        is_stored=True,
+                        is_internal=is_internal,
+                        is_list=is_list,
+                        is_required=is_required,
+                        primitive_type=PrimitiveType.UUID,
+                        is_indexed_in_pg=self.is_indexed_in_pg,
+                    )
+                    stored_ptr_props.append(id_ref_prop)
+            else:
+                ck_ptr_types.extend(self.reference_nodes)
+
+            if ck_ptr_types:
                 ck_ref_prop = Property(
                     id=self.id,
                     name=self.name + "_ck",
                     component=self.component,
                     py_type_raw=list[UUID] if is_list else UUID,
-                    reference_nodes=tuple(sub_package_ref_types),
+                    reference_nodes=tuple(ck_ptr_types),
                     reference_source=self,
                     is_runtime=False,
                     is_wired=False,
@@ -619,7 +638,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     primitive_type=PrimitiveType.UUID,
                 )
                 stored_ptr_props.append(ck_ref_prop)
-                if len(sub_package_ref_types) > 1:
+                if len(ck_ptr_types) > 1:
                     # disambiguate type for heterogeneous ck references :HomogeneousListCk
                     assert not is_list, f"cannot store heterogeneous types in list: {self!r}"
                     extra_stored_props["type"] = Property(
@@ -636,8 +655,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         is_required=is_required,
                         primitive_type=PrimitiveType.INT16,
                     )
-            is_ref_in_bench = any(t in IN_BENCH_NODE_TYPES for t in sub_package_ref_types)
-            if is_ref_in_bench:
+
+            # we need the 'bench_id' for the reference if it could be in a Bench
+            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in self.reference_nodes)
+            if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
                 extra_stored_props["bench_id"] = Property(
                     id=self.id,
                     name=self.name + "_bench_id",
@@ -655,7 +676,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
-            if any(t in BASED_NODE_TYPES for t in sub_package_ref_types):
+
+            # we also need a base and _its_ bench if this is a 'based' node (node with a base node)
+            if any(t in BASED_NODE_TYPES for t in ck_ptr_types):
                 assert not is_list, f"cannot store based types in list: {self!r}"
                 extra_stored_props["base_ck"] = Property(
                     id=self.id,
@@ -672,11 +695,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
-                if is_ref_in_bench:
+                if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
                     stored_base_bench_id = extra_stored_props["bench_id"].clone()
                     stored_base_bench_id.name = self.name + "_base_bench_id"
                     extra_stored_props["base_bench_id"] = stored_base_bench_id
 
+            # index contributed info into this property
             stored_ptrs_by_type = {}
             for prop in stored_ptr_props:
                 for ref_type in prop.reference_nodes:
@@ -728,7 +752,8 @@ def p_property(
     default_factory: Callable[[], Any] = None,
     require: bool = UNSET,
     references: tuple[NodeType, ...] | NodeType = None,
-    reference_force_by_id: bool = False,
+    fk: bool = False,
+    is_bench_implicit: bool = False,
     struct: StructType = None,
     store: bool = True,
     wire: bool = True,
@@ -756,6 +781,8 @@ def p_property(
     if array and not (struct or references):
         assert default is UNSET and default_factory is None, "can't set default for array"
         default_factory = list
+    if fk:
+        assert not array, "can't have foreign key on list"
     return Property(
         id=id,
         description=description,
@@ -767,7 +794,8 @@ def p_property(
         reference_nodes=try_tuple(references),
         reference_struct=struct,
         reference_list_type=custom_list,
-        reference_force_by_id=reference_force_by_id,
+        reference_is_bench_implicit=is_bench_implicit,
+        reference_force_foreign_key_key=fk,
         is_internal=internal,
         is_system=system,
         is_kernel=kernel,
@@ -824,6 +852,7 @@ def p_node_ancestor(
     wire: bool = False,
     require: bool = UNSET,
     index_in_pg: bool = False,
+    is_bench_implicit: bool = False,
     kind: ReferenceKind = ReferenceKind.NODE_ANCESTOR_FIRST,
 ):
     """Computed nearest or farthest ancestor of the given type."""
@@ -839,6 +868,7 @@ def p_node_ancestor(
         is_wired=wire,
         is_required=require,
         is_indexed_in_pg=index_in_pg,
+        reference_is_bench_implicit=is_bench_implicit,
     )
 
 
@@ -965,6 +995,10 @@ p_regular = functools.partial(p_property, internal=False, system=False)
 p_internal = functools.partial(p_property, internal=True, system=False)
 p_system = functools.partial(p_property, internal=True, system=True)
 p_kernel = functools.partial(p_property, internal=True, system=True, sensitive=True, kernel=True)
+
+if TYPE_CHECKING:
+    p_regular = p_internal = p_system = p_kernel = p_property
+
 METATYPE_PROPERTY = Property(
     id=1,
     name="metatype",

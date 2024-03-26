@@ -1343,7 +1343,9 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_node_parent(4)
     # template: Optional["Node"] = node_template(5)
-    package: "Package" = p_node_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
+    package: "Package" = p_node_ancestor(
+        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+    )
     # TODO :Performance: only encode bench_ptr for wiring if needed
     #  (we should be able to derive that from package_ptr if that's also present)
     bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=True, wire=True)
@@ -1366,7 +1368,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         array=False,
         autoset=True,
         references=(NodeType.USER, NodeType.RUN),
-        reference_force_by_id=True,
+        is_bench_implicit=True,
     )
     updated_by: Union["User", "Run", None] = p_system(
         18,
@@ -1375,7 +1377,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         array=False,
         autoset=True,
         references=(NodeType.USER, NodeType.RUN),
-        reference_force_by_id=True,
+        is_bench_implicit=True,
     )
     # changed_by (19)?, active_by (20)?, ...
     # from Struct: computed_properties (21), set_properties (22)

@@ -91,7 +91,7 @@ const operationsTracker = {
     if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    log.debug(op.name, op.request);
+    log.trace(op.name, op.request);
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
@@ -113,12 +113,12 @@ const operationsTracker = {
       op.call.responses.onNext(() => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses || 0) + 1;
-        log.debug(op.name, "update", op.numResponses);
+        log.trace(op.name, "update", op.numResponses);
       });
       op.call.responses.onComplete(() => {
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        log.debug(op.name, "completed");
+        log.trace(op.name, "completed");
         remove();
       });
       op.call.responses.onError((error) => {
@@ -133,7 +133,7 @@ const operationsTracker = {
       op.call.response
         .then((output) => {
           op.response = output;
-          log.debug(op.name, "completed", output);
+          log.trace(op.name, "completed", output);
         })
         .catch((error) => {
           op.error = error;

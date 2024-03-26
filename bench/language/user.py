@@ -70,7 +70,7 @@ class User(Node):
     # ordinal/number: ...?
     # (main_handle is optional because we can create user without handle)
     main_handle: Optional[Handle] = p_system(
-        31, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
@@ -79,7 +79,7 @@ class User(Node):
     email: str = p_system(35, defer=True, unique=True, sensitive=True, validate=validate_email)
     icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
-        37, array=False, require=False, references=NodeType.BENCH
+        37, array=False, require=False, references=NodeType.BENCH, fk=True
     )
     status: UserStatus = p_system(38)
 
@@ -90,6 +90,7 @@ class User(Node):
     password_hash: Optional[bytes] = p_kernel(
         51, default=None, defer=True, encrypt=True, sensitive=True
     )
+    # challenges?
     # password_reset_token: Optional[UUID] = ...
     # email_confirmation_token: Optional[UUID] = ...
 
@@ -117,7 +118,7 @@ class Organization(Node):
     """
 
     main_handle: Optional[Handle] = p_system(
-        31, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Organization
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
@@ -125,7 +126,7 @@ class Organization(Node):
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
-        36, array=False, require=False, references=NodeType.BENCH
+        36, array=False, require=False, references=NodeType.BENCH, fk=True
     )
     status: OrganizationStatus = p_system(37)
 
@@ -160,7 +161,7 @@ class Client(Node):
 
     # for user clients
     main_space: Optional["Space"] = p_system(
-        60, array=False, require=False, references=NodeType.SPACE
+        60, array=False, require=False, references=NodeType.SPACE, fk=True
     )
 
     def __content_str__(self) -> str:
@@ -210,7 +211,7 @@ class Invite(Node):
 class Notification(HasBase, HasValues):
     """
     A notification for the Bench's owner.
-    As with all owner Bench stuff, the main Bench's main package is the 'truth'.
+    As with most Bench stuff, the main Bench's main package is the 'truth'.
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)

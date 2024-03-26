@@ -226,33 +226,3 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
                 type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id
             )
         )
-
-    # assert environment_a.bench_id == bench_a.id
-    # assert environment_a.to_ref().equals_content(
-    #     NodeReference(type=NodeType.ENVIRONMENT, id=environment_a.id, bench_id=bench_a.id)
-    # )
-    # assert branch_a.bench_id == bench_a.id
-    # assert branch_a.to_ref().equals_content(
-    #     NodeReference(type=NodeType.BRANCH, id=branch_a.id, bench_id=bench_a.id)
-    # )
-    # assert branch_a.parent_ptr.id == bench_a.id
-
-    # sub bench nested pointers
-    # server_a: Server = fabricator.fabricate(NodeType.SERVER, parent=bench_a, name="Main")
-    # assert server_a.bench_id == bench_a.id
-    # client_a = fabricator.fabricate(NodeType.CLIENT, parent=server_a, name="Testificate's iPhone")
-    # assert client_a.bench_id == bench_a.id
-    # assert client_a.to_ref().equals_content(
-    #     NodeReference(type=NodeType.CLIENT, id=client_a.id, bench_id=bench_a.id)
-    # )
-    # assert client_a.parent_ptr.bench_id == bench_a.id
-    #
-    # # sub package nested pointers
-    # package_a = bench_a.packages.create(environment=environment_a)
-    # assert package_a.bench_id == bench_a.id
-    # block_a_1 = package_a.blocks.create(type=BlockType.CODE_ROUTINE)
-    # assert block_a_1.bench_id == bench_a.id
-    # assert block_a_1.to_ref().equals_content(
-    #     NodeReference(type=NodeType.BLOCK, ck=block_a_1.ck, id=block_a_1.id, bench_id=bench_a.id)
-    # )
-    # block_a_2 = package_a.blocks.create(type=BlockType.CODE_ROUTINE)

@@ -45,7 +45,7 @@ class Bench(Node):
 
     parent: None = p_node_parent(4)
     main_handle: Optional["Handle"] = p_system(
-        31, require=False, array=False, references=NodeType.HANDLE
+        31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_node_child(NodeType.HANDLE)
     slug: str = p_system(32, unique=True)  # must match main handle
@@ -63,13 +63,28 @@ class Bench(Node):
 
     # source
     main_environment: Optional["Environment"] = p_regular(
-        40, require=False, array=False, references=NodeType.ENVIRONMENT
+        40,
+        require=False,
+        array=False,
+        references=NodeType.ENVIRONMENT,
+        fk=True,
+        is_bench_implicit=True,
     )
     main_branch: Optional["Branch"] = p_regular(
-        42, require=False, array=False, references=NodeType.BRANCH
+        42,
+        require=False,
+        array=False,
+        references=NodeType.BRANCH,
+        fk=True,
+        is_bench_implicit=True,
     )
     published_branch: Optional["Branch"] = p_regular(
-        43, require=False, array=False, references=NodeType.BRANCH
+        43,
+        require=False,
+        array=False,
+        references=NodeType.BRANCH,
+        fk=True,
+        is_bench_implicit=True,
     )
     packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
     environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
@@ -96,15 +111,35 @@ class Environment(Node):
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
-    server: "Server" = p_system(40, require=True, array=False, references=NodeType.SERVER)
-    store: "Store" = p_system(41, require=True, array=False, references=NodeType.STORE)
-    search: "Store" = p_system(42, require=True, array=False, references=NodeType.STORE)
-    analytics: Optional["Store"] = p_system(
-        43, require=False, default=None, array=False, references=NodeType.STORE
+    server: "Server" = p_system(
+        40, require=True, array=False, references=NodeType.SERVER, fk=True, is_bench_implicit=True
     )
-    drive: "Drive" = p_system(44, require=True, array=False, references=NodeType.DRIVE)
+    store: "Store" = p_system(
+        41, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
+    )
+    search: "Store" = p_system(
+        42, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
+    )
+    analytics: Optional["Store"] = p_system(
+        43,
+        require=False,
+        default=None,
+        array=False,
+        references=NodeType.STORE,
+        fk=True,
+        is_bench_implicit=True,
+    )
+    drive: "Drive" = p_system(
+        44, require=True, array=False, references=NodeType.DRIVE, fk=True, is_bench_implicit=True
+    )
     cache: Optional["Cache"] = p_system(
-        45, require=False, default=None, array=False, references=NodeType.CACHE
+        45,
+        require=False,
+        default=None,
+        array=False,
+        references=NodeType.CACHE,
+        fk=True,
+        is_bench_implicit=True,
     )
 
 
@@ -124,7 +159,7 @@ class Branch(Node):
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
     main_package: Optional["Package"] = p_system(
-        40, require=False, array=False, references=NodeType.PACKAGE
+        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, is_bench_implicit=True
     )
 
 
@@ -144,7 +179,12 @@ class Package(Node):
     paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
 
     environment: Environment = p_system(
-        40, require=True, array=False, references=NodeType.ENVIRONMENT
+        40,
+        require=True,
+        array=False,
+        references=NodeType.ENVIRONMENT,
+        fk=True,
+        is_bench_implicit=True,
     )
     bases: list["Package"] = p_system(42, require=False, array=True, references=NodeType.PACKAGE)
 
