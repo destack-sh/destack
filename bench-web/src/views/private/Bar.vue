@@ -1,26 +1,26 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation } from "@/proto/wire";
 import { fireActionById } from "@/system/action";
+import { isDeveloperMode } from "@/system/client";
 import type { GraphConnection } from "@/system/connection";
+import { graphConnections } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { clientMeta, isDeveloperMode } from "@/system/client";
 import { bench, hasLocalBench } from "@/system/space";
-import { client, user } from "@/system/user";
+import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
+import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
-import type { HoverInfo, TooltipInfo } from "@/utils/tooltip";
+import { humanizeBytes } from "@/utils/string";
+import { formatDurationFromNow } from "@/utils/time";
+import type { TooltipInfo } from "@/utils/tooltip";
+import Scroll from "@/views/containers/Scroll.vue";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
 import { useElementSize, useFps, useMemory } from "@vueuse/core";
 import { computed, ref } from "vue";
-import { isAuthenticated } from "@/system/user";
-import { graphConnections } from "@/system/connection";
-import Scroll from "@/views/containers/Scroll.vue";
-import { ScrollbarWidth } from "@/utils/layout";
-import { humanizeBytes } from "@/utils/string";
 
 const props = defineProps<{
   spaceConnection: GraphConnection;
@@ -79,7 +79,9 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-telescope",
       title: "Analyze",
-      action: { items: menuActionsLike({ prefix: ["common.sense"] }) },
+      action: {
+        items: [menuItemFromAction("space.launch.inspector"), ...menuActionsLike({ prefix: ["common.sense"] })],
+      },
     },
     {
       id: "session",
@@ -88,6 +90,10 @@ const BENCH_MENU_ITEMS = computed(() => {
       title: "Run",
       action: { items: menuActionsLike({ prefix: ["common.session"] }) },
     },
+    // extra
+    menuItemFromAction("space.launch.docs"),
+    menuItemFromAction("space.launch.library"),
+    menuItemFromAction("space.launch.discord"),
   ];
 
   if (isDeveloperMode.value) {
@@ -297,16 +303,20 @@ const USER_MENU_ITEMS = computed(() => {
               </template>
               <!-- Client Info -->
               <template #footer>
-                <div class="px-2.5 pb-1.5 pt-2 text-gray-500">
-                  <div class="flex w-full flex-row">
-                    <span class="select-all">{{ clientMeta.operatingSystem }}</span>
-                    <span class="ml-auto select-all">{{ clientMeta.browserName }} {{ clientMeta.browserVersion }}</span>
-                  </div>
-                  <div class="flex w-full flex-row text-xs">
-                    <span class="select-all">#{{ client?.id.split("-")[0] }}</span>
-                    <span class="ml-auto select-all">#{{ clientMeta.nonce.split("-")[0] }}</span>
-                  </div>
-                </div>
+                <ul class="px-2.5 pb-1.5 pt-2">
+                  <li
+                    v-for="c in clientsSorted"
+                    :key="c.id"
+                    class="flex flex-row py-0.5"
+                    :class="c.id == client?.id ? 'text-gray-900' : 'text-gray-500'"
+                  >
+                    <span class="select-all">{{ c.operatingSystem }} - {{ c.browserName }}</span>
+                    <span class="ml-auto">
+                      <span v-if="c.id == client?.id">current</span>
+                      <span v-else-if="c.lastSeenAt">{{ formatDurationFromNow(c.lastSeenAt) }}</span>
+                    </span>
+                  </li>
+                </ul>
               </template>
             </Menu>
           </template>

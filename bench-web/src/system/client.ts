@@ -4,7 +4,6 @@ import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } 
 import { log } from "@/utils/log";
 import { pickRef, pretendReadonly } from "@/utils/ref";
 import { pseudoRandomNumber, xorString } from "@/utils/string";
-import type { IMessageType } from "@protobuf-ts/runtime";
 import { useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 import { computed, readonly, shallowRef, type Ref } from "vue";

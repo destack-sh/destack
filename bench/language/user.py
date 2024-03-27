@@ -152,6 +152,7 @@ class Client(Node):
     operating_system: Optional[str] = p_regular(42, default=None)
     browser_name: Optional[str] = p_regular(43, default=None)
     browser_version: Optional[str] = p_regular(44, default=None)
+    place_id: Optional[str] = p_regular(45, default=None)
 
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True

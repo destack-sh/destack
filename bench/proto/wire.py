@@ -1731,6 +1731,7 @@ class ClientData(betterproto.Message):
     operating_system: Optional[str] = betterproto.string_field(42, optional=True)
     browser_name: Optional[str] = betterproto.string_field(43, optional=True)
     browser_version: Optional[str] = betterproto.string_field(44, optional=True)
+    place_id: Optional[str] = betterproto.string_field(45, optional=True)
     access_token: Optional[str] = betterproto.string_field(50, optional=True)
     last_seen_at: datetime = betterproto.message_field(51)
     logged_in_at: Optional[datetime] = betterproto.message_field(52, optional=True)
@@ -4487,7 +4488,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.26.7"
+VERSION = "2024.03.27.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

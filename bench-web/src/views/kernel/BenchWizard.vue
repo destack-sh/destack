@@ -95,7 +95,7 @@ defineExpose({ self, focus });
       <Button
         v-if="state == 'create-bench'"
         name="submit"
-        :icon="makeIcon({ name: 'fa-rocket-launch' })"
+        :icon="makeIcon({ name: 'fas fa-rocket-launch' })"
         title="Create Bench"
         class="w-full"
         :is-loading="isActive"

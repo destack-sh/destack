@@ -9,20 +9,18 @@ import {
   UserData,
   UserProperty,
   UserStatus,
-  ViewData,
   ViewType,
 } from "@/proto/wire";
 import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
+import local, { persistentInfo } from "@/system/client";
 import { useGetNodes } from "@/system/connection";
-import { makeIcon } from "@/system/icon";
-import local from "@/system/client";
 import { canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { v4 } from "uuid";
+import { v4, v5 } from "uuid";
 import { computed, ref } from "vue";
 
 export const nonce = v4();
@@ -51,13 +49,27 @@ export const client = userGraph.getRef(
   ),
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
+export const clientsSorted = computed(() => {
+  // sort clients so we are first, then descending by last active
+  return clients.value.slice().sort((a, b) => {
+    if (a.id == local.clientInfo.value?.id) return -1;
+    if (b.id == local.clientInfo.value?.id) return 1;
+    if (a.lastSeenAt == null) return -1;
+    if (b.lastSeenAt == null) return 1;
+    return Number(b.lastSeenAt.seconds - a.lastSeenAt.seconds);
+  });
+});
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 
 function makeCurrentClient(): ClientData {
-  return makeNode({
-    metatype: NodeType.CLIENT,
-    ...local.clientMeta.value,
-  });
+  return makeNode(
+    {
+      metatype: NodeType.CLIENT,
+      placeId: persistentInfo.value!.placeId,
+      ...local.clientMeta.value,
+    },
+    { omit: ["id"] },
+  );
 }
 
 function onLogIn(info: { user: UserData; client: ClientData; accessToken: string }) {

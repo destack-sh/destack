@@ -845,7 +845,7 @@ def edit_data_graph(
             elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
                 properties = (node_cls.deleted_at.id,)
             else:
-                raise ValueError(f"unexpected edit type: {edit_type}")
+                raise ValueError(f"unexpected edit type: {edit_type.name}")
             existing_node = graph.get(node_data.id)
             assert existing_node is not None, f"missing node for update: {edit}"
             if not update_nodes_in_place:

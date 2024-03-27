@@ -57,6 +57,13 @@ watch(
   { immediate: true },
 );
 
+function clear() {
+  name.value = "";
+  slug.value = "";
+  email.value = "";
+  password.value = "";
+}
+
 async function submit() {
   isActive.value = true;
   try {
@@ -71,6 +78,7 @@ async function submit() {
     } else {
       throw new Error(`unexpected registration state: ${state.value}`);
     }
+    clear();
   } catch (e) {
     // already handled
   } finally {
