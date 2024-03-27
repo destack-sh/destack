@@ -16,8 +16,8 @@ export const LOCAL_PACKAGE_ID = "00000000-0000-0000-0000-000000000001";
 export const LOCAL_SPACE_ID = "00000000-0000-0000-0000-000000000002";
 
 export const LOCAL_BENCH_PTR = nodeReference(NodeType.BENCH, LOCAL_BENCH_ID);
-export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, LOCAL_BENCH_ID);
-export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
+export const LOCAL_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, LOCAL_PACKAGE_ID, { benchId: LOCAL_BENCH_ID });
+export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, { benchId: LOCAL_BENCH_ID });
 
 //
 // NOTE: we use a simple semi-randomised XOR shift encoding for local storage.
@@ -146,9 +146,11 @@ const packageIdByBenchId = computed(() => {
   return packageIdByBenchId;
 });
 export const packagePtr = computed(() => {
-  if (_spacePtr.value?.benchId == null || _spacePtr.value.benchId == LOCAL_BENCH_ID) return null;
+  if (_benchPtr.value == null) return null;
   else
-    return nodeReference(NodeType.PACKAGE, packageIdByBenchId.value[_spacePtr.value.benchId], _spacePtr.value.benchId);
+    return nodeReference(NodeType.PACKAGE, packageIdByBenchId.value[_benchPtr.value.id!], {
+      benchId: _benchPtr.value.id!,
+    });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
 
 /** Sets the active space. Must be local or from the current package. */
@@ -163,7 +165,7 @@ function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
 /** Resets the space to the local space. Does not affect the Bench. */
 function setSpaceToLocal() {
   log.trace("local.setSpaceToLocal");
-  _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, LOCAL_BENCH_ID);
+  _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, { benchId: LOCAL_BENCH_ID });
 }
 
 /** Sets the current Bench/Package. If it doesn't match the current space, the space is reset to local. */
@@ -186,6 +188,7 @@ function setBench(set: {
   }
 }
 
+/** Resets current Bench/Package/Space. */
 function clearBench() {
   log.trace("local.clearBench");
   if (_benchPtr.value != null) {
@@ -216,8 +219,8 @@ const local = {
   packagePtr,
   setSpace,
   setSpaceToLocal,
-  setPackage: setBench,
-  clearPackage: clearBench,
+  setBench,
+  clearBench,
   isDeveloperMode,
 } as const;
 

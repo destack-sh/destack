@@ -54,13 +54,6 @@ const BENCH_MENU_ITEMS = computed(() => {
       action: { items: menuActionsLike({ prefix: ["space.omnibar"] }) },
     },
     {
-      id: "space",
-      category: "main",
-      icon: ICON_BY_NODE_TYPE[NodeType.SPACE],
-      title: "Space",
-      action: { items: menuActionsLike({ prefix: ["space.launch"] }) },
-    },
-    {
       id: "view",
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
@@ -91,8 +84,10 @@ const BENCH_MENU_ITEMS = computed(() => {
       action: { items: menuActionsLike({ prefix: ["common.session"] }) },
     },
     // extra
-    menuItemFromAction("space.launch.docs"),
+    menuItemFromAction("space.launch.explorer"),
+    menuItemFromAction("space.launch.outline"),
     menuItemFromAction("space.launch.library"),
+    menuItemFromAction("space.launch.docs"),
     menuItemFromAction("space.launch.discord"),
   ];
 

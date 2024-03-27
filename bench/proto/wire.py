@@ -2786,6 +2786,8 @@ class GetNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
+    """Nodes in pre-order (parent before children) traversal."""
+
     access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
     epoch: int = betterproto.uint64_field(3)
 
@@ -2809,6 +2811,8 @@ class SearchNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SearchNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
+    """Nodes in pre-order (parent before children) traversal."""
+
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     cursors: List[str] = betterproto.string_field(3)
     start_cursor: str = betterproto.string_field(4)
@@ -4487,7 +4491,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.27.4"
+VERSION = "2024.03.27.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject

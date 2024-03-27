@@ -64,6 +64,8 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.logs",
   "space.launch.discord",
   "space.launch.notifications",
+  "space.edit.create",
+  "space.edit.resetCanvasDefault",
   // common
   "common.edit.undo",
   "common.edit.redo",
@@ -805,6 +807,18 @@ contributeActionMap<"space">({
     icon: "fas fa-books",
     action: ACTION_COMING_SOON,
   },
+  "space.launch.explorer": {
+    title: "Open Explorer",
+    text: "Explore nodes in the space",
+    icon: "fas fa-compass",
+    action: ACTION_COMING_SOON,
+  },
+  "space.launch.outline": {
+    title: "View Outline",
+    text: "View the outline of the space",
+    icon: "fas fa-list-tree",
+    action: ACTION_COMING_SOON,
+  },
   "space.launch.docs": {
     title: "Read the Docs",
     text: "Get help from our examples and guides",
@@ -827,6 +841,27 @@ contributeActionMap<"space">({
     icon: "fas fa-envelope",
     enabled: ref(false),
     action: ACTION_COMING_SOON,
+  },
+  "space.launch.logs": {
+    title: "View Logs",
+    text: "View all Logs in the Space",
+    icon: "fas fa-clipboard-list",
+    action: ACTION_COMING_SOON,
+  },
+  // edit
+  "space.edit.create": {
+    title: "Create Space",
+    text: "Create a new separate Space",
+    icon: "fas fa-plus",
+    action: ACTION_COMING_SOON,
+  },
+  "space.edit.resetCanvasDefault": {
+    title: "Reset Canvas (Default)",
+    text: "Reset the canvas to the default state",
+    icon: "fas fa-bug",
+    action: () => {
+      setupDefaultCanvas(canvas.txFactory(), space.value!);
+    },
   },
 });
 

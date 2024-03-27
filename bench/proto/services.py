@@ -45,6 +45,20 @@ ServerStreamingRpcCallable = Callable[
 ]
 RpcCallable = UnaryRpcCallable | ServerStreamingRpcCallable
 
+GRPC_STATUS_BY_BENCH_ERROR_CLASS: Mapping[type, GRPCStatus] = {
+    NotImplementedError: GRPCStatus.UNIMPLEMENTED,
+    NodeNotFoundError: GRPCStatus.NOT_FOUND,
+    SqlNotExistsError: GRPCStatus.NOT_FOUND,
+    SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
+    AccessError: GRPCStatus.PERMISSION_DENIED,
+    ValidationError: GRPCStatus.INVALID_ARGUMENT,
+}
+
+
+def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
+    status = GRPC_STATUS_BY_BENCH_ERROR_CLASS.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
+    return status
+
 
 class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic[StubT]):
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
@@ -191,15 +205,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 # wrap error
                 duration = asyncio.get_running_loop().time() - start
                 log.exception(rpc_name, duration=duration, error=e)
-                status_map: Mapping[type, GRPCStatus] = {
-                    NotImplementedError: GRPCStatus.UNIMPLEMENTED,
-                    NodeNotFoundError: GRPCStatus.NOT_FOUND,
-                    SqlNotExistsError: GRPCStatus.NOT_FOUND,
-                    SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
-                    AccessError: GRPCStatus.PERMISSION_DENIED,
-                    ValidationError: GRPCStatus.INVALID_ARGUMENT,
-                }
-                status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
+                status = get_grpc_status_from_bench_error(e)
                 raise GRPCError(status, str(e)) from e
 
             except Exception as e:
@@ -226,14 +232,14 @@ class BenchServer(grpclib.server.Server):
     @functools.wraps(grpclib.server.Server.__init__)
     def __init__(self, handlers: Collection["IServable"], **kwargs):
         super().__init__(handlers, **kwargs)
-        self._custom_handlers: tuple[BenchServiceBase, ...] = tuple(
+        self._services: tuple[BenchServiceBase, ...] = tuple(
             h for h in handlers if isinstance(h, BenchServiceBase)
         )
         self._host: str | None = None
         self._port: int | None = None
 
     def __str__(self):
-        return f"services={self._custom_handlers}, host={self._host}, port={self._port}"
+        return f"services={self._services}, host={self._host}, port={self._port}"
 
     def __repr__(self):
         return f"<BenchServer {self}>"
@@ -243,18 +249,18 @@ class BenchServer(grpclib.server.Server):
         self._host = host
         self._port = port
         logger.info("server.start", server=self)
-        await asyncio.gather(*(h.start() for h in self._custom_handlers))
+        await asyncio.gather(*(h.start() for h in self._services))
         await super().start(host=host, port=port, **kwargs)
         logger.info("server.ready", server=self)
 
     def close(self) -> None:
         logger.info("server.close", server=self)
-        for task in self._custom_handlers:
+        for task in self._services:
             task.close()
         super().close()
 
     @functools.wraps(grpclib.server.Server.wait_closed)
     async def wait_closed(self) -> None:
         await super().wait_closed()
-        await asyncio.gather(*(h.wait_closed() for h in self._custom_handlers))
+        await asyncio.gather(*(h.wait_closed() for h in self._services))
         logger.info("server.closed", server=self)

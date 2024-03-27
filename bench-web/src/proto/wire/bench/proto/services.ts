@@ -69,6 +69,8 @@ export interface GetNodesRequest {
  */
 export interface GetNodesResponse {
     /**
+     * Nodes in pre-order (parent before children) traversal.
+     *
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
     nodes: SomeNodeData[];
@@ -139,6 +141,8 @@ export interface SearchNodesRequest {
  */
 export interface SearchNodesResponse {
     /**
+     * Nodes in pre-order (parent before children) traversal.
+     *
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
     nodes: SomeNodeData[];

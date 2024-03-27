@@ -31,6 +31,19 @@ export const BENCH_TYPE_NAME: Record<BenchType, string> = reverseRecord(BenchTyp
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 
+/** Short string representation of the node (pointer) */
+export function describeNode(node: AnyNodeData | NodeReferenceData | TypedNodeReferenceData<any>): string {
+  const nodeParts: string[] = [`id=${node.id}`];
+  if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
+  if ("revision" in node) nodeParts.push(`r=${node.revision}`);
+  if ('name' in node) nodeParts.push(`name=${node.name}`); 
+  if ('slug' in node) nodeParts.push(`slug=${node.slug}`);
+  if ('title' in node) nodeParts.push(`title=${node.title}`); 
+  const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
+  const typeName = toCasing(NodeType[type], Casing.CAMEL);
+  return `${typeName}:[${nodeParts.join(", ")}]`;
+}
+
 export function newStructId(): number {
   /** Generates a positive 32-bit random integer */
   return Math.floor(Math.random() * 0x7fffffff);
@@ -178,9 +191,16 @@ export function isStruct(value: AnyNodeData | AnyStructData): value is AnyStruct
 export function nodeReference<T extends NodeType>(
   nodeType: T,
   id: string,
-  benchId?: string,
+  meta?: {
+    ck?: string;
+    benchId?: string;
+    baseCk?: string;
+    baseBenchId?: string;
+  },
 ): TypedNodeReferenceData<T> {
-  return { metatype: BenchType.NODE_REFERENCE, type: nodeType, id, benchId };
+  const ptr = { metatype: BenchType.NODE_REFERENCE, type: nodeType, ...meta, id };
+  if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
+  return ptr;
 }
 
 export function propertyReference<T extends BenchType>(metatype: T, id: number): PropertyReferenceData {
@@ -199,19 +219,24 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     type: node.metatype as unknown as T,
     id: node.id,
   };
-  if ("packagePtr" in allProperties && "packagePtr" in node) {
+  // benchId
+  if (node.metatype == BenchType.BENCH) {
+    reference.benchId = node.id;
+  } else if ("packagePtr" in allProperties && "packagePtr" in node) {
     reference.benchId = node.packagePtr?.benchId;
   } else {
     reference.benchId = node.parentPtr?.benchId;
   }
+  // ck
   if ("ck" in allProperties) {
     reference.ck = (node as { ck: string }).ck;
-    if (node.metatype in BASED_NODE_TYPES) {
-      const base = getBaseFromNode(node);
-      if (base != null) {
-        reference.baseCk = base.ck;
-        reference.baseBenchId = base.benchId;
-      }
+  }
+  // base
+  if (node.metatype in BASED_NODE_TYPES) {
+    const base = getBaseFromNode(node);
+    if (base != null) {
+      reference.baseCk = base.ck;
+      reference.baseBenchId = base.benchId;
     }
   }
   return reference;

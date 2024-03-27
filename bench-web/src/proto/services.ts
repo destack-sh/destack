@@ -55,7 +55,7 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   DEADLINE_EXCEEDED: "Request timed out",
 };
 
-export function humanizeError(error: OperationError): { title: string, text: string} {
+export function humanizeError(error: OperationError): { title: string; text: string } {
   if (error instanceof RpcError) {
     const title = HUMANIZED_OPERATION_STATUS[error.code] ?? "Server error";
     return { title, text: error.message };
@@ -307,20 +307,18 @@ export const supervisor = new SupervisorClient(
     fetchInit: TRANSPORT_FETCH_OPTIONS,
   }),
 );
-export async function getHostClient(bench: { id: string } | { slug: string }): Promise<HostClient> {
+export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   /** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
-  if ("slug" in bench && _CACHED_BENCH_IDS[bench.slug]) {
-    return _CACHED_HOST_CLIENTS[_CACHED_BENCH_IDS[bench.slug]];
-  } else if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) {
+  if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) {
     return _CACHED_HOST_CLIENTS[bench.id];
   } else {
-    // fallback: lookup bench host via supervisor
-    const hostInfo = await supervisor.getHost({
-      bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
-    }).response;
+    // TODO :Scalability: fallback: lookup bench host via supervisor :SingleHostService
+    // const hostInfo = await supervisor.getHost({
+    //   bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
+    // }).response;
+    const hostInfo = { host: SUPERVISOR_URL };
     const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: hostInfo.host }));
-    _CACHED_BENCH_IDS[hostInfo.benchSlug] = hostInfo.bench!.id!;
-    _CACHED_HOST_CLIENTS[hostInfo.bench!.id!] = hostClient;
+    _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
     return hostClient;
   }
 }

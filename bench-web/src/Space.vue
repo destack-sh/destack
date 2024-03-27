@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { useActiveConnection } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/client";
 import { isDragging } from "@/utils/layout";
@@ -8,10 +8,11 @@ import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import MenuOverlay from "@/views/private/MenuOverlay.vue";
-import { useWindowSize } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { useTitle, useWindowSize } from "@vueuse/core";
+import { computed, ref, watch } from "vue";
 import { toNodeReference } from "@/proto/wiring";
 import Split from "@/views/containers/Split.vue";
+import { bench, canvas } from "@/system/space";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -31,6 +32,21 @@ const mainBox = computed(() => ({
   height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
 }));
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
+
+// sync browser title
+const browserTitle = useTitle();
+watch([canvas.focusedViewPtr, bench], () => {
+  const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
+  let viewTitle = null;
+  if (canvas.focusedViewPtr.value != null) {
+    const viewAncestors = [canvas.graph.get(canvas.focusedViewPtr.value)!].concat(
+      ...(canvas.graph.getAncestors(canvas.focusedViewPtr.value, [NodeType.VIEW]) as ViewData[]),
+    );
+    viewTitle = viewAncestors.find((ancestor) => ancestor.title != null)?.title;
+  }
+
+  browserTitle.value = viewTitle ? `${viewTitle} - ${benchPostfix}` : benchPostfix;
+});
 </script>
 <template>
   <!-- Space -->

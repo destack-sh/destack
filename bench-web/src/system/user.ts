@@ -137,7 +137,7 @@ export async function logOut(options?: { all?: boolean; clients?: { id: string }
     local.clearUser();
     if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
       // reset local space
-      local.clearPackage();
+      local.clearBench();
     }
     toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }

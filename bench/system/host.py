@@ -28,7 +28,7 @@ from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import filter_edits
-from bench.language.query import StoreEngine
+from bench.language.query import PostgresEngine, StoreEngine
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
     DownloadFilesRequest,
@@ -36,13 +36,12 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
     HostBase,
-    HostStub,
     RunIntrinsicBlockRequest,
     RunIntrinsicBlockResponse,
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
+from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoService
 from bench.system.resource import get_s3_client, provision_pending_resources
 from bench.utils.func import to_uuid
@@ -94,41 +93,70 @@ class HostMultiplexer(BenchServiceBase, HostBase):
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
-        @functools.wraps(func)
-        async def _multiplexed_rpc(subject: Subject, request: betterproto.Message) -> None:
+        _, cardinality, request_type, reply_type = handler
+
+        async def _get_host(request: betterproto.Message) -> Host:
+            """Gets or starts a running Host for the given Bench"""
+
+            # get request's bench id
             scope: GraphScope | None = getattr(request, "scope")
             if scope is None:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
             bench_id = to_uuid(scope.bench_id)
+            if bench_id is None:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
 
-            # get bench host
+            # get host
             host = self._hosts.get(bench_id)
             if host is None:
                 async with self._hosts_lock:
-                    # check again in case another request added it
                     host = self._hosts.get(bench_id)
                     if host is None:
                         host = await self._start_host(bench_id)
                         self._hosts[bench_id] = host
+            return host
 
-            # forward to host
-            await getattr(host, method_name)(subject, request)
+        if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
 
-        return _multiplexed_rpc
+            @functools.wraps(func)
+            async def _multiplexed_unary_rpc(
+                subject: Subject, request: betterproto.Message
+            ) -> None:
+                host = await _get_host(request)
+                return await getattr(host, method_name)(subject, request)
+
+            return _multiplexed_unary_rpc
+
+        elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
+
+            @functools.wraps(func)
+            async def _multiplexed_unary_stream_rpc(
+                subject: Subject, request: betterproto.Message
+            ) -> None:
+                host = await _get_host(request)
+                async for response in getattr(host, method_name)(subject, request):
+                    yield response
+
+            return _multiplexed_unary_stream_rpc
+
+        else:
+            raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
+class Host(GraphIoService, HostBase):
     """
     Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management)..
     Clients interact with a Bench exclusively through its Host.
     """
 
     def __init__(self, bench_id: UUID):
-        BenchServiceBase.__init__(self, loopback_stub_to=HostStub)
         GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
+        self._bench_pg_engine = PostgresEngine(
+            GLOBAL_STORE, scope=self._bench_scope, node_types=IN_BENCH_NODE_TYPES
+        )
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -152,7 +180,7 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
     def engines(self) -> tuple[StoreEngine, ...]:
         # TODO :Broken :Performance: use local in memory engines in Host (where possible)
         #  also provide & use bench-specific store engines
-        return (GLOBAL_POSTGRES_ENGINE,)
+        return (self._bench_pg_engine,)
 
     async def start(self) -> None:
         async with global_session() as session:
@@ -167,6 +195,12 @@ class Host(BenchServiceBase[HostStub], GraphIoService, HostBase):
             await provision_pending_resources(self._bench, session)
             await session.commit()
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
+
+    def close(self) -> None:
+        pass
+
+    async def wait_closed(self) -> None:
+        pass
 
     def _on_graph_edited_inner(self, scopes: list[GraphScope], edits: list[EditData]):
         # TODO :Incomplete: re-interp packages after edit (update notices, ...?)

@@ -1103,9 +1103,12 @@ def evaluate_and_adapt_read(
     """
     Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
      -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
+
     In case a node was completely denied but its children weren't, we include a Skip node in the result.
     If no overall owner is given, the owners (i.e. actual roots) must be in the graph.
-    Assumes that all policies are valid.
+
+    NOTE: assumes that all policies are valid.
+    NOTE: nodes are returned in pre-order (parents before children).
     """
     from bench.proto import wire, wiring
 
@@ -1115,16 +1118,15 @@ def evaluate_and_adapt_read(
     cache: dict[Any, Any] = {}
 
     # adapt & filter nodes
-    verb = ReadType.GET  # same for all?
-    for n in graph.nodes:
+
+    def _adapt_descendants(root: AnyNodeData, n: AnyNodeData) -> None:
+        # evaluate access
         object_node_type: NodeType = wiring.unpack_enum(NodeType, n.metatype)
         object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
         object_properties: bitarray = object_node_cls.__properties_mask_set__
-
-        root = graph.get_root(n)  # a bit inefficient?
         allowed_properties, access, was_cached = evaluate_access(
             matrix=matrix,
-            verb=verb,
+            verb=ReadType.GET,  # same for all?
             object_node_type=object_node_type,
             object_properties=object_properties,
             root_id=root.id,
@@ -1135,6 +1137,8 @@ def evaluate_and_adapt_read(
         )
         if not was_cached:
             accesses.append(access)
+
+        # apply decision (skip or adapt)
         if access.decision == PolicyEffect.DENY:
             skips[n.id] = UNSET  # mark as skipped
         elif allowed_properties == object_properties:
@@ -1151,6 +1155,13 @@ def evaluate_and_adapt_read(
                 setattr(n, prop.name, None)
             n.metatype = object_node_type  # always keep metatype
             visible_nodes.append(n)
+
+        # traverse children
+        for child in graph.iter_descendants(n):
+            _adapt_descendants(root, child)
+
+    for root in graph.find_roots():
+        _adapt_descendants(root, root)
 
     # add any required skipped nodes back in (as Skips)
     for n in visible_nodes:

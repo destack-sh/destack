@@ -39,7 +39,6 @@ export const LOADED_SOURCE_NODE_TYPES = [
   NodeType.UPGRADE,
   NodeType.SPACE,
   NodeType.LINK,
-  NodeType.SKIP,
   NodeType.NOTICE,
   NodeType.BLOCK,
   NodeType.TRIGGER,

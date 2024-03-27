@@ -30,6 +30,9 @@ def test_get_set_non_existing_property(fabricator: "Fabricator"):
 async def test_node_pointers_consistency(fabricator: "Fabricator"):
     """Pointers should include the relevant bench/base/base_bench references."""
     bench_a: Bench = fabricator.fabricate(NodeType.BENCH, slug="test_a", name="test_b")
+    assert bench_a.to_ref().equals_content(
+        NodeReference(type=NodeType.BENCH, id=bench_a.id, bench_id=bench_a.id)
+    )
 
     # sub bench, above package pointers
     environment_a = Environment(parent=bench_a, name="Production A")
