@@ -48,7 +48,6 @@ from bench.language.property import (
     p_runtime,
     p_secret_value_packed,
     p_system,
-    p_value_dynamic,
     p_value_packed,
     p_value_runtime,
 )
@@ -142,7 +141,7 @@ class Log(Node):
     text: Optional[Text] = p_internal(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_dynamic: Any | None = p_value_dynamic(36)
+    value_packed: Any | None = p_value_packed(36)
     request: Optional["Request"] = p_system(
         37, require=False, array=False, struct=StructType.REQUEST
     )
@@ -1013,10 +1012,9 @@ class RunCodeFrame(Struct):
     node: Node = p_internal(30, array=False, require=True, references=NodeType.BLOCK)
     lineno: int = p_internal(31)
     name: str = p_internal(32)
-    locals: Optional[dict[str, Any]] = p_internal(
-        33, default=None, primitive_type=PrimitiveType.JSON
-    )
-    line: str = p_internal(34)
+    line: str = p_internal(33)
+
+    # locals?
 
     @staticmethod
     def clean(
@@ -1049,10 +1047,6 @@ class RunCodeFrame(Struct):
                     frame.name = from_block.name or "<unnamed>"
                     frame.lineno = frame.lineno - code._transform.start_offset
                     frame.line = code.code.splitlines()[frame.lineno - 1]
-                    frame.locals = frame.locals or {}
-                    for ident, var in code._block_references.items():
-                        if ident not in frame.locals and var.id in session.package._graph:
-                            frame.locals[ident] = repr(session.package._graph[var.id])
             if found_start:
                 # trim file path for python packages
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"

@@ -18,9 +18,10 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.node import HasBase, Node, Property, Struct, struct
-from bench.language.property import p_regular
+from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.setup import BENCH_CLASS_BY_TYPE, _well_known_enum
 from bench.language.validation import ValidationHandler
+from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
@@ -202,7 +203,7 @@ __property__ = property
 
 
 @struct(StructType.EXPRESSION)
-class Expression(Struct):
+class Expression(HasValues):
     """An expression (conditional, aggregation, sort, etc)."""
 
     op: ExpressionOp = p_regular(30, require=True)
@@ -211,7 +212,8 @@ class Expression(Struct):
         32, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
-    value: Any = p_regular(36, default=None, primitive_type=PrimitiveType.JSON)
+    value_packed: Any = p_value_packed(36)
+    value: Any = p_value_runtime(36)
     sort_mode: Optional[SortMode] = p_regular(37, default=None)
 
     @__property__

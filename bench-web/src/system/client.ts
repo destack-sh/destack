@@ -177,7 +177,7 @@ function setBench(set: {
   const bench = nodeReference(NodeType.BENCH, set.pkg.benchId!);
   _benchPtr.value = bench;
   if (_packagePtrs.value == null) _packagePtrs.value = [];
-  _packagePtrs.value = _packagePtrs.value.filter((p) => p.benchId != bench.id).concat([set.pkg]);
+  _packagePtrs.value = _packagePtrs.value.filter((p) => p.benchId != bench.id).concat(set.pkg);
   if (set.space != null) {
     if (set.space.benchId != bench.id) throw new Error(`space ${set.space.id} is not in the active Bench ${bench.id}`);
     setSpace(set.space);

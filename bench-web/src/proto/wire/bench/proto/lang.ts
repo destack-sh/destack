@@ -480,9 +480,9 @@ export interface ExpressionData {
      */
     clauses: ExpressionData[];
     /**
-     * @generated from protobuf field: google.protobuf.Struct value = 36;
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 36;
      */
-    value?: Struct;
+    valuePacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 37;
      */
@@ -1153,7 +1153,7 @@ export interface ResourceCredentialData {
     password?: string;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -1195,11 +1195,7 @@ export interface RunCodeFrameData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct locals = 33;
-     */
-    locals?: Struct;
-    /**
-     * @generated from protobuf field: string line = 34;
+     * @generated from protobuf field: string line = 33;
      */
     line: string;
 }
@@ -3176,9 +3172,9 @@ export interface LogData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_dynamic = 36;
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 36;
      */
-    valueDynamic?: Struct;
+    valuePacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.RequestData request = 37;
      */
@@ -9307,7 +9303,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 31, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 36, name: "value", kind: "message", T: () => Struct },
+            { no: 36, name: "value_packed", kind: "message", T: () => Struct },
             { no: 37, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] }
         ]);
     }
@@ -9360,8 +9356,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* repeated symbolx.bench.ExpressionData clauses */ 35:
                     message.clauses.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* google.protobuf.Struct value */ 36:
-                    message.value = Struct.internalBinaryRead(reader, reader.uint32(), options, message.value);
+                case /* optional google.protobuf.Struct value_packed */ 36:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.SortMode sort_mode */ 37:
                     message.sortMode = reader.int32();
@@ -9412,9 +9408,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* repeated symbolx.bench.ExpressionData clauses = 35; */
         for (let i = 0; i < message.clauses.length; i++)
             ExpressionData.internalBinaryWrite(message.clauses[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Struct value = 36; */
-        if (message.value)
-            Struct.internalBinaryWrite(message.value, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 36; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.SortMode sort_mode = 37; */
         if (message.sortMode !== undefined)
             writer.tag(37, WireType.Varint).int32(message.sortMode);
@@ -11005,8 +11001,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
             { no: 30, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "lineno", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "locals", kind: "message", T: () => Struct },
-            { no: 34, name: "line", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 33, name: "line", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<RunCodeFrameData>): RunCodeFrameData {
@@ -11056,10 +11051,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional google.protobuf.Struct locals */ 33:
-                    message.locals = Struct.internalBinaryRead(reader, reader.uint32(), options, message.locals);
-                    break;
-                case /* string line */ 34:
+                case /* string line */ 33:
                     message.line = reader.string();
                     break;
                 default:
@@ -11105,12 +11097,9 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional google.protobuf.Struct locals = 33; */
-        if (message.locals)
-            Struct.internalBinaryWrite(message.locals, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* string line = 34; */
+        /* string line = 33; */
         if (message.line !== "")
-            writer.tag(34, WireType.LengthDelimited).string(message.line);
+            writer.tag(33, WireType.LengthDelimited).string(message.line);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15416,7 +15405,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 33, name: "event", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "value_dynamic", kind: "message", T: () => Struct },
+            { no: 36, name: "value_packed", kind: "message", T: () => Struct },
             { no: 37, name: "request", kind: "message", T: () => RequestData },
             { no: 40, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15505,8 +15494,8 @@ class LogData$Type extends MessageType<LogData> {
                 case /* optional symbolx.bench.TextData text */ 35:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional google.protobuf.Struct value_dynamic */ 36:
-                    message.valueDynamic = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueDynamic);
+                case /* optional google.protobuf.Struct value_packed */ 36:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.RequestData request */ 37:
                     message.request = RequestData.internalBinaryRead(reader, reader.uint32(), options, message.request);
@@ -15596,9 +15585,9 @@ class LogData$Type extends MessageType<LogData> {
         /* optional symbolx.bench.TextData text = 35; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_dynamic = 36; */
-        if (message.valueDynamic)
-            Struct.internalBinaryWrite(message.valueDynamic, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 36; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.RequestData request = 37; */
         if (message.request)
             RequestData.internalBinaryWrite(message.request, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
@@ -20273,6 +20262,11 @@ export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeRef
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
 export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
 
+// type lists
+export const BENCH_TYPES: BenchType[] = Object.values(BenchType).filter(v => typeof v === 'number' && v > 0) as BenchType[]
+export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
+export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
+
 // Message types
 export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {
   [BenchType.BENCH]: BenchData,
@@ -21224,7 +21218,7 @@ export enum LogProperty {
   event = 33,
   message = 34,
   text = 35,
-  valueDynamic = 36,
+  valuePacked = 36,
   request = 37,
   sessionPtr = 40,
   runPtr = 41,
@@ -21745,7 +21739,7 @@ export enum ExpressionProperty {
   fieldPtr = 31,
   propertyPtr = 32,
   clauses = 35,
-  value = 36,
+  valuePacked = 36,
   sortMode = 37,
 }
 
@@ -21809,8 +21803,7 @@ export enum RunCodeFrameProperty {
   nodePtr = 30,
   lineno = 31,
   name = 32,
-  locals = 33,
-  line = 34,
+  line = 33,
 }
 
 export enum RunErrorProperty {

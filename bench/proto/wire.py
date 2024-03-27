@@ -1037,7 +1037,9 @@ class ExpressionData(betterproto.Message):
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(32, optional=True)
     clauses: List["ExpressionData"] = betterproto.message_field(35)
-    value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(36)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        36, optional=True
+    )
     sort_mode: Optional["SortMode"] = betterproto.enum_field(37, optional=True)
 
 
@@ -1354,7 +1356,7 @@ class ResourceCredentialData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     """
-    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1366,10 +1368,7 @@ class RunCodeFrameData(betterproto.Message):
     node_ptr: "NodeReferenceData" = betterproto.message_field(30)
     lineno: int = betterproto.int32_field(31)
     name: str = betterproto.string_field(32)
-    locals: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        33, optional=True
-    )
-    line: str = betterproto.string_field(34)
+    line: str = betterproto.string_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -2021,7 +2020,7 @@ class LogData(betterproto.Message):
     event: Optional[str] = betterproto.string_field(33, optional=True)
     message: Optional[str] = betterproto.string_field(34, optional=True)
     text: Optional["TextData"] = betterproto.message_field(35, optional=True)
-    value_dynamic: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         36, optional=True
     )
     request: Optional["RequestData"] = betterproto.message_field(37, optional=True)
@@ -4488,7 +4487,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.27.3"
+VERSION = "2024.03.27.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
