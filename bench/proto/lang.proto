@@ -1542,6 +1542,7 @@ message ClientData {
   optional string operating_system = 42;
   optional string browser_name = 43;
   optional string browser_version = 44;
+  optional string place_id = 45;
   optional string access_token = 50;
   google.protobuf.Timestamp last_seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;

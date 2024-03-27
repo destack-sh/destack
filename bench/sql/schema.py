@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.03.26.7"
+VERSION = "2024.03.27.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1911,6 +1911,7 @@ CLIENT_TABLE = Table(
         Column("operating_system", PrimitiveType.STRING, is_nullable=True),
         Column("browser_name", PrimitiveType.STRING, is_nullable=True),
         Column("browser_version", PrimitiveType.STRING, is_nullable=True),
+        Column("place_id", PrimitiveType.STRING, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("last_seen_at", PrimitiveType.DATETIME),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),

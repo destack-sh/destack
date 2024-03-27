@@ -114,6 +114,7 @@ export function newNodeIdFromCk(packageId: string, ck: string): string {
  */
 export function makeNode<T extends NodeType>(
   data: Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties"> & { metatype: T },
+  options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const node = {
     ...data,
@@ -121,14 +122,17 @@ export function makeNode<T extends NodeType>(
     revision: 0,
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
-  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
-  if ("packagePtr" in properties) {
-    if (!("packagePtr" in data) || data.packagePtr == null)
-      throw new Error(`missing packagePtr to make in-package node ${NodeType[data.metatype]}`);
-    if ((node as any).ck == null) (node as any).ck = newNodeCk();
-    node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
-  } else {
-    node.id = newNodeId();
+
+  if (!options?.omit?.includes('id')) {
+    const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+    if ("packagePtr" in properties) {
+      if (!("packagePtr" in data) || data.packagePtr == null)
+        throw new Error(`missing packagePtr to make in-package node ${NodeType[data.metatype]}`);
+      if ((node as any).ck == null) (node as any).ck = newNodeCk();
+      node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
+    } else {
+      node.id = newNodeId();
+    }
   }
 
   return node;

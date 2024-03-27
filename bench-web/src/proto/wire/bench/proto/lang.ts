@@ -2271,6 +2271,10 @@ export interface ClientData {
      */
     browserVersion?: string;
     /**
+     * @generated from protobuf field: optional string place_id = 45;
+     */
+    placeId?: string;
+    /**
      * @generated from protobuf field: optional string access_token = 50;
      */
     accessToken?: string;
@@ -13421,6 +13425,7 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "browser_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 45, name: "place_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "last_seen_at", kind: "message", T: () => Timestamp },
             { no: 52, name: "logged_in_at", kind: "message", T: () => Timestamp },
@@ -13503,6 +13508,9 @@ class ClientData$Type extends MessageType<ClientData> {
                     break;
                 case /* optional string browser_version */ 44:
                     message.browserVersion = reader.string();
+                    break;
+                case /* optional string place_id */ 45:
+                    message.placeId = reader.string();
                     break;
                 case /* optional string access_token */ 50:
                     message.accessToken = reader.string();
@@ -13589,6 +13597,9 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional string browser_version = 44; */
         if (message.browserVersion !== undefined)
             writer.tag(44, WireType.LengthDelimited).string(message.browserVersion);
+        /* optional string place_id = 45; */
+        if (message.placeId !== undefined)
+            writer.tag(45, WireType.LengthDelimited).string(message.placeId);
         /* optional string access_token = 50; */
         if (message.accessToken !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.accessToken);
@@ -21453,6 +21464,7 @@ export enum ClientProperty {
   operatingSystem = 42,
   browserName = 43,
   browserVersion = 44,
+  placeId = 45,
   accessToken = 50,
   lastSeenAt = 51,
   loggedInAt = 52,

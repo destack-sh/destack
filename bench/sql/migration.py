@@ -980,6 +980,6 @@ WHERE
         tables.append(table)
 
     duration = asyncio.get_running_loop().time() - start
-    logger.debug("introspect", cur=cur, duration=duration, tables=tables)
+    logger.debug("introspect", cur=cur, duration=duration, tables=[t.name for t in tables])
 
     return tables

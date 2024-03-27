@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import uuid4, uuid5
 
 import betterproto
 import structlog
@@ -69,9 +69,11 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
     # User management
     #
 
-    def _make_new_client(self, parent: User, client_data: ClientData) -> Client:
+    def _make_client(self, parent: User, client_data: ClientData) -> Client:
+        """Maps the given client info to a Client instance, trying to preserve a stable identity."""
+        id = to_uuid(client_data.id) if client_data.id else uuid5(parent.id, client_data.place_id)
         return Client(
-            id=to_uuid(client_data.id),
+            id=id,
             parent=parent,
             name=client_data.name,
             device_name=client_data.device_name,
@@ -101,7 +103,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            client = self._make_new_client(user, request.client)
+            client = self._make_client(user, request.client)
             client.access_token = generate_access_token()
             session.create(user, client)
             await session.flush()
@@ -153,7 +155,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            client = self._make_new_client(user, request.client)
+            client = self._make_client(user, request.client)
             client.access_token = generate_access_token()
             user.last_logged_in_at = utcnow_with_tz()
             session.upsert(client)

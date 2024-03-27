@@ -274,7 +274,7 @@ class Transaction:
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
-            properties=properties,  # type: ignore
+            properties=list(properties) if properties is not None else None,
             scope=scope,
             subject=subject.to_ref() if subject is not None else None,
             revision=None,  # not known yet
@@ -323,7 +323,7 @@ class Transaction:
             #  (to avoid re-packing everything for successive updates)
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
-            edit.properties = n._unmask_properties_ids(n._updated_properties)
+            edit.properties = list(n._unmask_properties_ids(n._updated_properties))
             node_data = wiring.unwrap_some_node(edit.node)
             for prop in properties:
                 if prop.reference_wired_ptr:
@@ -390,7 +390,7 @@ class Transaction:
             elif edit.type == EditType.DELETE:
                 node.deleted_at = now  # technically unnecessary but convenient
             else:
-                raise ValueError(f"unexpected edit type: {edit.type}")
+                raise ValueError(f"unexpected edit type: {edit.type.name}")
 
     async def open(self):
         pass
