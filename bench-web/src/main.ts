@@ -8,7 +8,7 @@ import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { registerViewComponents } from "@/views";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
-import { CLICK_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
+import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
 import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
@@ -60,7 +60,7 @@ async function init() {
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
   app.directive("contextmenu", CONTEXTMENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);
-  app.directive("clickoutside", CLICK_OUTSIDE_DIRECTIVE);
+  app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 
   // start our own stuff
   await registerViewComponents();
