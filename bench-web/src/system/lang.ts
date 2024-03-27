@@ -43,7 +43,6 @@ export const LOADED_SOURCE_NODE_TYPES = [
   NodeType.BLOCK,
   NodeType.TRIGGER,
   NodeType.FIELD,
-  NodeType.RECORD, // nocheckin: should error because crosses store boundaries (then remove Record from loaded)
   NodeType.QUERY,
   NodeType.VIEW,
 ];
