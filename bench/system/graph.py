@@ -2,6 +2,7 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, final
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from bench.language.const import AccessKind, ConditionalOp, EditType, NodeType, 
 from bench.language.graph import NodeDataGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -48,7 +50,7 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.func import bytetuple, group_by, to_uuid
+from bench.utils.func import bytetuple, group_by, partition, to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -71,6 +73,38 @@ class EditWatcher:
 
     def __str__(self):
         return f"{self.subject}: {'|'.join(n.bench_name for n in self.node_types.tuple)} [{self.filters}]"
+
+
+def _check_nodes_in_same_store(
+    roots: tuple[NodeType, ...] | tuple[NodeReference, ...] | tuple[NodeReferenceData],
+    options: ReadOptions,
+):
+    """
+    Check that all node types belong in the same store.
+    TODO :Robustness: assign & check nodes/node types to 'stores' more explicitly
+    """
+
+    if roots and isinstance(roots[0], (NodeReference, NodeReferenceData)):
+        roots = tuple(r.type for r in roots)
+
+    has_global = False
+    has_local = False
+
+    for node_type in chain(roots, options.ancestor_types, options.descendant_types):
+        if NODE_CLASS_BY_TYPE[node_type].__is_local__:
+            has_local = True
+        else:
+            has_global = True
+
+    if has_global and has_local:
+        global_types, local_types = partition(
+            lambda t: NODE_CLASS_BY_TYPE[t].__is_local__,
+            chain(roots, options.ancestor_types, options.descendant_types),
+        )
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"can't mix global and local node types: {global_types} vs {local_types}",
+        )
 
 
 class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object):
@@ -115,6 +149,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
+        _check_nodes_in_same_store(roots, options)
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
@@ -163,6 +198,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
+        _check_nodes_in_same_store((node_type,), options)
 
         adapted_options = adapt_read_options(subject, node_type, options)
         async with self.session() as session:
