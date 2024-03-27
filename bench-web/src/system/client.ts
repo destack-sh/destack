@@ -4,9 +4,10 @@ import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } 
 import { log } from "@/utils/log";
 import { pickRef, pretendReadonly } from "@/utils/ref";
 import { pseudoRandomNumber, xorString } from "@/utils/string";
-import { useLocalStorage } from "@vueuse/core";
+import { syncRef, useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 import { computed, readonly, shallowRef, type Ref } from "vue";
+import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
 
 const BENCH_LOCAL_STORAGE_PREFIX = "bench-";
 
@@ -200,6 +201,7 @@ function clearBench() {
 
 const developerSettings = useLocal("developerSettings");
 export const isDeveloperMode = pickRef(developerSettings, "isDeveloperMode", false);
+syncRef(isDeveloperMode, globalIsDeveloperMode);
 
 // (re-)export some stuff in a wrapper for clarity
 

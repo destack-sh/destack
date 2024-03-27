@@ -3,7 +3,7 @@
  */
 
 import { LogLevel } from "@/proto/wire";
-import { isDeveloperMode } from "@/system/client";
+import { isDeveloperMode } from "@/utils/globals";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.UNSPECIFIED]: "log",
