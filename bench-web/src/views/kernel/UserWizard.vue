@@ -5,6 +5,7 @@ import { useActiveConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
+import { makeTypeInfo } from "@/system/value";
 import { reverseRecord } from "@/utils/functools";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -137,7 +138,7 @@ defineExpose<ViewExposed>({ self, focus });
         name="password"
         title="Password"
         is-input
-        is-secret
+        :value-type="makeTypeInfo({ isSecret: true })"
         v-model="password"
       />
     </div>
@@ -174,4 +175,3 @@ defineExpose<ViewExposed>({ self, focus });
     </div>
   </div>
 </template>
-@/system/client

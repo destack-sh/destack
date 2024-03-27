@@ -2320,8 +2320,9 @@ message ViewData {
   optional TextData text = 33;
   string order_key = 34;
   optional IconData icon = 35;
-  optional google.protobuf.Struct value_packed = 40;
-  optional NodeReferenceData node_ptr = 41;
+  optional TypeInfoData value_type = 40;
+  optional google.protobuf.Struct value_packed = 41;
+  optional NodeReferenceData node_ptr = 42;
   optional Variant variant = 50;
   optional FontData font = 51;
   optional OffsetData position = 60;
@@ -2336,7 +2337,6 @@ message ViewData {
   optional bool is_disabled = 81;
   optional bool is_loading = 82;
   optional bool is_input = 83;
-  optional bool is_secret = 84;
 }
 
 message SomeNodeData {

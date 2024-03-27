@@ -36,6 +36,7 @@ export function newStructId(): number {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
+/** Makes a struct with an identity (if required) */
 export function makeStruct<T extends StructType>(
   data: Omit<StructTypeMapping[T], "metatype" | "id"> & { metatype: T },
 ): StructTypeMapping[T] {
@@ -50,6 +51,26 @@ export function makeStruct<T extends StructType>(
     struct = { ...data };
   }
   return struct as unknown as StructTypeMapping[T];
+}
+
+/** Makes a struct from partial properties */
+export function makeDefaultStruct<T extends StructType>(
+  data: Partial<Omit<StructTypeMapping[T], "metatype" | "id">> & { metatype: T },
+): StructTypeMapping[T] {
+  const allProperties: AnyPropertyType = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[data.metatype as unknown as BenchType]!;
+  let ord = 1; // skip metatype
+  const struct = { ...data } as unknown as StructTypeMapping[T];
+  for (const propName of Object.keys(allProperties)) {
+    if (!isNaN(Number(propName))) continue; // skip numeric keys
+    if (propName == "metatype") continue; // already set
+    if ((struct as any)[propName] == null) {
+      const field = messageType.fields[ord];
+      (struct as any)[propName] = getDefaultProtoValue(field);
+    }
+    ord += 1;
+  }
+  return struct;
 }
 
 export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
@@ -123,7 +144,7 @@ export function makeNode<T extends NodeType>(
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
 
-  if (!options?.omit?.includes('id')) {
+  if (!options?.omit?.includes("id")) {
     const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
     if ("packagePtr" in properties) {
       if (!("packagePtr" in data) || data.packagePtr == null)

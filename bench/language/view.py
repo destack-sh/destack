@@ -19,7 +19,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Package, Policy, Text
+    from bench.language import Block, Icon, Package, Policy, Text, TypeInfo
 
 
 @_well_known_enum
@@ -355,14 +355,16 @@ class View(HasViews, HasValues):
     )
 
     # content
-    value_packed: Any = p_value_packed(40)
-    value = p_value_runtime(packed=40)
+    value_type: Optional["TypeInfo"] = p_regular(
+        40, default=None, require=False, struct=StructType.TYPE_INFO
+    )
+    value_packed: Any = p_value_packed(41)
+    value = p_value_runtime(packed=41)
     # TODO :Cleanup :Architecture: View.node should probably just be in View.value
     #  (with relevant Views having that type... once we have the Value system more figured out)
     node: Optional["Node"] = p_regular(
-        41, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
+        42, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
     )
-    ...  # value/value source/file/node...
 
     # style
     variant: Optional[Variant] = p_regular(50, default=None, require=False)
@@ -394,14 +396,13 @@ class View(HasViews, HasValues):
     focus: Optional[Selection] = p_regular(
         71, default=None, require=False, struct=StructType.SELECTION
     )
-    ...  # selection/focus/placeholder/behavior/effects/...
+    ...  # behavior/effects/...
 
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)
     is_disabled: Optional[bool] = p_regular(81, default=False)
     is_loading: Optional[bool] = p_regular(82, default=False)
     is_input: Optional[bool] = p_regular(83, default=False)
-    is_secret: Optional[bool] = p_regular(84, default=False)  # should probably be in type info?
 
     def __repr__(self):  # noqa: we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"

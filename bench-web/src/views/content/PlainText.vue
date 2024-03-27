@@ -9,7 +9,7 @@ import { ref, toRef } from "vue";
 const props = defineProps<
   { self?: NodeReferenceData } & Pick<
     ViewData,
-    "name" | "title" | "text" | "icon" | "orientation" | "isInput" | "isDisabled" | "isSecret"
+    "name" | "title" | "text" | "icon" | "valueType" | "orientation" | "isInput" | "isDisabled"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -35,7 +35,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />
       <input
         ref="inputRef"
-        :type="isSecret ? 'password' : 'text'"
+        :type="valueType?.isSecret ? 'password' : 'text'"
         v-model="modelValue"
         class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :disabled="isDisabled"
