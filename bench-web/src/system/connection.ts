@@ -43,7 +43,7 @@ export function getScopeKey(scope: GraphScope): string {
 export type GraphConnectionKind = "get" | "search" | "aggregate";
 
 /**
- * A connection to a subgraph for an overlapping set of read operations.
+ * A connection to a subgraph.
  */
 export type GraphConnection = {
   id: number;
@@ -360,10 +360,10 @@ export async function connectGet<T extends NodeType>(
     options,
     params.live ?? false,
   );
-
   addGraphConnection(connection);
 
   // TODO :Robusness: retry/resume watching connection on watch failure
+  
   // fetch nodes
   let epoch: bigint;
   try {

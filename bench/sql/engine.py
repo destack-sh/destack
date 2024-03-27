@@ -1062,9 +1062,15 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     'Ravels' a wired pointer from (one or more) stored columns.
     See above and :StoredPointers
     """
-    bench_id = row.get("bench_ck")
+
+    # bench id
+    if node.metatype == NodeType.BENCH:
+        bench_id = row.get("id")
+    else:
+        bench_id = row.get("bench_ck")
     if bench_id is not None:
         bench_id = str(bench_id)
+
     if prop.is_list:
         # can only be a a set of id props + a single ck prop (:HomogeneousListCk)
         ptrs = []

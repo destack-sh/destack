@@ -7,17 +7,28 @@ from bench.language import Bench, ReadOptions, User
 from bench.language.const import NodeType, UserStatus
 from bench.language.graph import NodeDataGraph
 from bench.proto import wire, wiring
-from bench.proto.wire import CreateBenchRequest, GetNodesRequest, HostStub, SupervisorStub
-from bench.system.host import Host
+from bench.proto.wire import (
+    CreateBenchRequest,
+    GetNodesRequest,
+    GraphScope,
+    HostStub,
+    SupervisorStub,
+)
+from bench.system.host import HostMultiplexer
 from bench.system.test.conftest import UserHandle
 
 
-@dataclass(slots=True)
+@dataclass
 class BenchHandle:
     bench: Bench
     owner: User
     owner_handle: UserHandle
+    supervisor: SupervisorStub
     host: HostStub
+
+    @property
+    def scope(self):
+        return GraphScope(bench_id=str(self.bench.id))
 
     @property
     def headers(self):
@@ -35,13 +46,17 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle) -> Bench
     create_bench_rep = await supervisor.create_bench(create_bench_req, metadata=some_user.headers)
     bench: Bench = wiring.unpack_node(create_bench_rep.bench)
 
-    service = Host(bench.id)
+    service = HostMultiplexer()
     await service.start()
     try:
         async with ChannelFor([service]) as channel:
             host_stub = HostStub(channel)
             handle = BenchHandle(
-                bench=bench, owner=some_user.user, owner_handle=some_user, host=host_stub
+                bench=bench,
+                owner=some_user.user,
+                owner_handle=some_user,
+                supervisor=supervisor,
+                host=host_stub,
             )
             yield handle
     finally:
@@ -57,7 +72,9 @@ async def test_user_activate(some_bench: BenchHandle):
         roots=[some_bench.owner.to_ref()._to_data()],
         options=ReadOptions(select_all_properties=True)._to_data(),
     )
-    read_user_rep = await some_bench.host.get_nodes(read_user_req, metadata=some_bench.headers)
+    read_user_rep = await some_bench.supervisor.get_nodes(
+        read_user_req, metadata=some_bench.headers
+    )
     user = read_user_rep.nodes[0].user
     assert user.main_bench_ptr is not None, f"{user!r} has no main Bench"
     assert user.status == UserStatus.ACTIVATED
@@ -65,6 +82,7 @@ async def test_user_activate(some_bench: BenchHandle):
     # read back bench (should be allowed & have default resources)
     read_bench_req = GetNodesRequest(
         roots=[user.main_bench_ptr],
+        scope=some_bench.scope,
         options=ReadOptions(
             select_all_properties=True,
             descendant_types=[

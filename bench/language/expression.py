@@ -113,14 +113,21 @@ class NodeReference(Struct):
             return None
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id)
-        if "bench" in node.__properties__:
+
+        # bench_id
+        if node.metatype == NodeType.BENCH:
+            reference.bench_id = node.id
+        elif "bench" in node.__properties__:
             reference.bench_id = node.bench_id
+        # ck
         if "ck" in node.__properties__:
             reference.ck = node.ck
-            if node.metatype in BASED_NODE_TYPES:
-                node: HasBase
-                reference.base_ck = node.base.ck
-                reference.base_bench_id = node.base.bench_id
+        # base
+        if node.metatype in BASED_NODE_TYPES:
+            node: HasBase
+            reference.base_ck = node.base.ck
+            reference.base_bench_id = node.base.bench_id
+
         return reference
 
     @staticmethod
@@ -133,16 +140,23 @@ class NodeReference(Struct):
         reference = NodeReferenceData(
             metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
         )
-        if "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
+
+        # bench_id
+        if node_data.metatype == NodeType.BENCH:
+            reference.bench_id = node_data.id
+        elif "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
             reference.bench_id = node_data.parent_ptr.bench_id
+        # ck
         if "ck" in node_cls.__properties__:
             node_cls: type[HasBase]
             reference.ck = node_data.ck
-            if node_data.metatype in BASED_NODE_TYPES:
-                base = node_cls.get_base_from_data(node_data)
-                if base is not None:
-                    reference.base_ck = base.ck
-                    reference.base_bench_id = base.bench_id
+        # base
+        if NodeType(node_data.metatype) in BASED_NODE_TYPES:
+            base = node_cls.get_base_from_data(node_data)
+            if base is not None:
+                reference.base_ck = base.ck
+                reference.base_bench_id = base.bench_id
+
         return reference
 
 

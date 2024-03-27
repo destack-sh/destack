@@ -23,6 +23,7 @@ message GetNodesRequest {
   optional bool skip_locked = 5;
 }
 message GetNodesResponse {
+  // Nodes in pre-order (parent before children) traversal.
   repeated SomeNodeData nodes = 1;
   optional AccessMatrixData access = 2;
   uint64 epoch = 3;
@@ -43,6 +44,7 @@ message SearchNodesRequest {
   optional bool skip_locked = 12;
 }
 message SearchNodesResponse {
+  // Nodes in pre-order (parent before children) traversal.
   repeated SomeNodeData nodes = 1;
   repeated NodeReferenceData roots = 2;
   repeated string cursors = 3;

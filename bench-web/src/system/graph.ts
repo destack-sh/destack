@@ -7,6 +7,7 @@ import {
   type NodeType,
   type NodeTypeMapping,
 } from "@/proto/wire";
+import { describeNode } from "@/proto/wiring";
 import { defaultSort } from "@/system/lang";
 import { manualSubRef, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -227,10 +228,10 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
   add(node: AnyNodeData) {
     if (!node.id) throw new Error("node must have an id");
-    if (this.nodesById[node.id]) throw new Error(`node [id=${node.id}] already exists`);
+    if (this.nodesById[node.id]) throw new Error(`node ${describeNode(node)} id already exists`);
     this.nodesById[node.id] = node;
     if ("ck" in node) {
-      if (this.nodesByCk[node.ck]) throw new Error(`node [ck=${node.ck}] already exists`);
+      if (this.nodesByCk[node.ck]) throw new Error(`node ${describeNode(node)} ck already exists`);
       this.nodesByCk[node.ck] = node.id;
     }
 
@@ -248,7 +249,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
   update(node: AnyNodeData) {
     const existing = this.nodesById[node.id];
-    if (!existing && !this.isPartial) throw new Error(`node [id=${node.id}] does not exist`);
+    if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} does not exist`);
 
     if (existing?.parentPtr?.id != node.parentPtr?.id) {
       // move
@@ -286,7 +287,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       if (!this.nodesById[parentId] && !this.isPartial) {
-        throw new Error(`parent [id=${parentId}] does not exist for node [id=${node.id}]`);
+        throw new Error(`parent ${describeNode(node.parentPtr)} does not exist for node ${describeNode(node)}`);
       }
       if (!this.nodesByParentIdAndType[parentId]) {
         this.nodesByParentIdAndType[parentId] = {};
@@ -304,11 +305,11 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
-      if (nodeIdx == -1) throw new Error(`node [id=${node.id}] not found in parent [id=${parentId}]`);
+      if (nodeIdx == -1) throw new Error(`node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)}`);
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
     } else {
       const rootIdx = this.rootsIds.findIndex((n) => n == node.id);
-      if (rootIdx == -1) throw new Error(`node [id=${node.id}] not found in roots`);
+      if (rootIdx == -1) throw new Error(`node ${describeNode(node)} not found in roots`);
       this.rootsIds.splice(rootIdx, 1);
     }
   }

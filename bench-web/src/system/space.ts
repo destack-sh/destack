@@ -24,7 +24,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
   computed(() => ({
     name: "package",
     roots: [local.packagePtr.value!],
-    options: { descendantTypes: LOADED_SOURCE_NODE_TYPES },
+    options: { ancestorTypes: [NodeType.BENCH], descendantTypes: LOADED_SOURCE_NODE_TYPES },
     enabled: local.packagePtr.value != null,
     live: true,
   })),
@@ -63,9 +63,14 @@ watch(
   { immediate: true },
 );
 
-/** 'Goes' to a Bench and sets it as the current main Bench */
-export async function goToBench(go: { bench: NodeReferenceData }) {
+/**
+ * 'Goes' to a Bench and sets it as the current main Bench.
+ * Also finds our Space in the Package (or creates a new one if we have access).
+ **/
+export async function goToBench(go: { bench: NodeReferenceData; branch?: NodeReferenceData; pkg?: NodeReferenceData }) {
   log.info("space.goToBench", go);
+
+  // connect to bench/package
   const {
     response: { nodes },
   } = await supervisor.getNodes({
@@ -75,6 +80,9 @@ export async function goToBench(go: { bench: NodeReferenceData }) {
   const graph = new NodeGraph();
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
-  const mainBranch = graph.get(bench.mainBranchPtr!) as BranchData;
-  local.setPackage({ pkg: mainBranch.mainPackagePtr as TypedNodeReferenceData<NodeType.PACKAGE> });
+  const branch = graph.get(go.branch ?? bench.mainBranchPtr!) as BranchData;
+  const pkg = go.pkg ?? branch.mainPackagePtr!;
+  local.setBench({ pkg: pkg as TypedNodeReferenceData<NodeType.PACKAGE> });
+
+  // nocheckin: get or create space in package
 }

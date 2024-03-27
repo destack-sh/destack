@@ -208,6 +208,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
     # read back
     async with test_session() as session:
         server_a = await Server.include_ancestors().get(id=server_a.id)
+        assert server_a.parent_ptr.equals_content(bench_a.to_ref())
         assert server_a.bench_id == bench_a.id
         assert server_a.to_ref().equals_content(
             NodeReference(type=NodeType.SERVER, id=server_a.id, bench_id=bench_a.id)

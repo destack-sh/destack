@@ -263,4 +263,4 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 await Bench.get(slug=value)
             else:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED, "nocheckin")
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED, "not implemented :SingleHostService")
