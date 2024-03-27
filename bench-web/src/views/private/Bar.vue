@@ -34,7 +34,7 @@ const middlePosition = computed(() => ({
   y: props.box.y + props.box.height / 2 - middleSize.height.value / 2,
 }));
 
-const fps = useFps({ every: 8 });
+const fps = useFps({ every: 15 });
 const memory = useMemory();
 
 const BENCH_MENU_ITEMS = computed(() => {
