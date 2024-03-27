@@ -5053,11 +5053,15 @@ export interface ViewData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
+     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
+     */
+    valueType?: TypeInfoData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 42;
      */
     nodePtr?: NodeReferenceData;
     /**
@@ -5116,10 +5120,6 @@ export interface ViewData {
      * @generated from protobuf field: optional bool is_input = 83;
      */
     isInput?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_secret = 84;
-     */
-    isSecret?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -19564,8 +19564,9 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
-            { no: 40, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
+            { no: 41, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 42, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.Variant", Variant, "VARIANT_"] },
             { no: 51, name: "font", kind: "message", T: () => FontData },
             { no: 60, name: "position", kind: "message", T: () => OffsetData },
@@ -19579,8 +19580,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 84, name: "is_secret", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 83, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -19669,10 +19669,13 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 40:
+                case /* optional symbolx.bench.TypeInfoData value_type */ 40:
+                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
+                    break;
+                case /* optional google.protobuf.Struct value_packed */ 41:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 42:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* optional symbolx.bench.Variant variant */ 50:
@@ -19716,9 +19719,6 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional bool is_input */ 83:
                     message.isInput = reader.bool();
-                    break;
-                case /* optional bool is_secret */ 84:
-                    message.isSecret = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -19799,12 +19799,15 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 40; */
+        /* optional symbolx.bench.TypeInfoData value_type = 40; */
+        if (message.valueType)
+            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 41; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 41; */
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 42; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.Variant variant = 50; */
         if (message.variant !== undefined)
             writer.tag(50, WireType.Varint).int32(message.variant);
@@ -19847,9 +19850,6 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional bool is_input = 83; */
         if (message.isInput !== undefined)
             writer.tag(83, WireType.Varint).bool(message.isInput);
-        /* optional bool is_secret = 84; */
-        if (message.isSecret !== undefined)
-            writer.tag(84, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20981,8 +20981,9 @@ export enum ViewProperty {
   text = 33,
   orderKey = 34,
   icon = 35,
-  valuePacked = 40,
-  nodePtr = 41,
+  valueType = 40,
+  valuePacked = 41,
+  nodePtr = 42,
   variant = 50,
   font = 51,
   position = 60,
@@ -20997,7 +20998,6 @@ export enum ViewProperty {
   isDisabled = 81,
   isLoading = 82,
   isInput = 83,
-  isSecret = 84,
 }
 
 export enum BadgeProperty {

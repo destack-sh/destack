@@ -2641,10 +2641,11 @@ class ViewData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     order_key: str = betterproto.string_field(34)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        40, optional=True
+        41, optional=True
     )
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
     variant: Optional["Variant"] = betterproto.enum_field(50, optional=True)
     font: Optional["FontData"] = betterproto.message_field(51, optional=True)
     position: Optional["OffsetData"] = betterproto.message_field(60, optional=True)
@@ -2659,7 +2660,6 @@ class ViewData(betterproto.Message):
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
     is_loading: Optional[bool] = betterproto.bool_field(82, optional=True)
     is_input: Optional[bool] = betterproto.bool_field(83, optional=True)
-    is_secret: Optional[bool] = betterproto.bool_field(84, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4488,7 +4488,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.03.27.1"
+VERSION = "2024.03.27.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.03.27.1"
+VERSION = "2024.03.27.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -852,6 +852,7 @@ VIEW_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
@@ -884,7 +885,6 @@ VIEW_TABLE = Table(
         Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_secret", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
