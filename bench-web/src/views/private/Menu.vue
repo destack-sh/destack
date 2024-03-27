@@ -16,7 +16,6 @@ const emit = defineEmits<{
   close: [bubble?: boolean];
 }>();
 
-const menuRef: Ref<HTMLUListElement | null> = ref(null);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const itemRefs: Ref<Record<number, HTMLElement | null>> = ref({});
@@ -95,6 +94,11 @@ function focus(idx: number | "next" | "previous" | "top" | "bottom") {
   }
 }
 
+function clear() {
+  query.value = "";
+  focusedItemIdx.value = null;
+}
+
 /** Triggers the action for the given item */
 function fire(itemIdx: number) {
   const item = props.items[itemIdx];
@@ -116,8 +120,8 @@ function fire(itemIdx: number) {
 function openNestedMenu(itemIdx: number) {
   activeNestedItemIdx.value = itemIdx;
   nextTick(() => {
+    activeNestedItemRef.value.clear();
     activeNestedItemRef.value.focus("top");
-    activeNestedItemRef.value.query = "";
   });
 }
 
@@ -131,7 +135,7 @@ function onNavigateHorizontal(direction: "left" | "right") {
     openNestedMenu(focusedItemIdx.value!);
   } else {
     // in nested menu
-    if (item != null &&isNestedItem(item.action)) {
+    if (item != null && isNestedItem(item.action)) {
       openNestedMenu(focusedItemIdx.value!);
     } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");
@@ -167,17 +171,10 @@ watch(
 
     // auto-select best match
     const bestMatch = bestMatches.find((i) => !props.items[i].isDisabled);
-    if (bestMatch != null) {
-      focus(bestMatch);
-    }
+    if (bestMatch != null) focus(bestMatch);
   },
   { immediate: true },
 );
-
-// close when clicked outside of the menu
-useEventListener("mousedown", (e) => {
-  if (!menuRef.value?.contains(e.target as Node)) emit("close");
-});
 
 // position the nested menu
 const { placement: nestedPlacement } = useFloating({
@@ -187,15 +184,15 @@ const { placement: nestedPlacement } = useFloating({
   options: { placement: "right-top", referenceMargin: 8, referenceOffset: { x: 0, y: -7 } },
 });
 
-defineExpose({ focus, query });
+defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    ref="menuRef"
     class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
+    v-outside.mousedown.stop="() => emit('close')"
   >
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
@@ -211,7 +208,7 @@ defineExpose({ focus, query });
           @keydown.down.stop.prevent="focus('next')"
           @keydown.right.stop.prevent="onNavigateHorizontal('right')"
           @keydown.left.stop.prevent="onNavigateHorizontal('left')"
-          @click.stop="/* not meant to be 'in' the menu */ emit('close')"
+          @click.stop="/* floating input is not meant to be 'in' the menu */ emit('close')"
         />
       </div>
     </div>

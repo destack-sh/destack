@@ -198,7 +198,7 @@ const USER_MENU_ITEMS = computed(() => {
               <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
               <div
                 class="p z-50 rounded-md border border-gray-700 bg-white text-gray-900 shadow-md shadow-gray-700"
-                v-clickoutside.stop="close"
+                v-outside.click.stop="close"
               >
                 <div class="my-1 border-b border-gray-700 px-3 py-1">
                   <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>

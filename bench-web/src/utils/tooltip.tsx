@@ -239,32 +239,52 @@ export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
 };
 
 //
-// Click outside directive
+// Input event outside directive
 //
 
-type ClickOutsideCallback = (e: MouseEvent) => void;
+const INPUT_EVENTS = [
+  "click",
+  "mousedown",
+  "mouseup",
+  "mouseenter",
+  "mouseleave",
+  "touchstart",
+  "touchend",
+  "keydown",
+  "keyup",
+  "input",
+  "change",
+  "focus",
+  "blur",
+];
+type InputEventName = (typeof INPUT_EVENTS)[number];
+type InputOutsideCallback = (e: Event) => void;
 
-type ClickOutsideTriggerElement = {
-  clickOutsideOnClick?: (e: MouseEvent) => void;
+type EventOutsideTriggerElement = {
+  inputOutsideEventName?: string;
+  inputOutsideOnInput?: (e: Event) => void;
 } & HTMLElement;
 
-/** Convenience click outside directive to perform arbitrary actions */
-export const CLICK_OUTSIDE_DIRECTIVE: Directive<MaybeElement, ClickOutsideCallback> = {
+/** Convenience X outside Y directive. Event name is derived from modifier. */
+export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideCallback> = {
   mounted(el, binding) {
-    const triggerEl = el as ClickOutsideTriggerElement;
+    const triggerEl = el as EventOutsideTriggerElement;
+    const eventName = Object.keys(binding.modifiers)[0];
+    if (!INPUT_EVENTS.includes(eventName)) throw new Error(`Invalid input event: ${eventName}`);
 
-    triggerEl.clickOutsideOnClick = (e: MouseEvent) => {
+    triggerEl.inputOutsideOnInput = (e: Event) => {
       if (!triggerEl.contains(e.target as Node)) {
         binding.value?.(e);
         if (binding.modifiers.stop) e.stopPropagation();
         if (binding.modifiers.prevent) e.preventDefault();
       }
     };
-    document.addEventListener("click", triggerEl.clickOutsideOnClick);
+    document.addEventListener(eventName, triggerEl.inputOutsideOnInput);
   },
 
   unmounted(el) {
-    const triggerEl = el as ClickOutsideTriggerElement;
-    if (triggerEl.clickOutsideOnClick) document.removeEventListener("click", triggerEl.clickOutsideOnClick);
+    const triggerEl = el as EventOutsideTriggerElement;
+    if (triggerEl.inputOutsideOnInput)
+      document.removeEventListener(triggerEl.inputOutsideEventName!, triggerEl.inputOutsideOnInput);
   },
 };
