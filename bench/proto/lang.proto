@@ -966,7 +966,7 @@ message ExpressionData {
   optional NodeReferenceData field_ptr = 31;
   optional PropertyReferenceData property_ptr = 32;
   repeated ExpressionData clauses = 35;
-  google.protobuf.Struct value = 36;
+  optional google.protobuf.Struct value_packed = 36;
   optional SortMode sort_mode = 37;
 }
 
@@ -1226,7 +1226,7 @@ message ResourceCredentialData {
   optional string password = 32;
 }
 
-// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
   optional int32 id = 2;
@@ -1237,8 +1237,7 @@ message RunCodeFrameData {
   NodeReferenceData node_ptr = 30;
   int32 lineno = 31;
   string name = 32;
-  optional google.protobuf.Struct locals = 33;
-  string line = 34;
+  string line = 33;
 }
 
 // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
@@ -1796,7 +1795,7 @@ message LogData {
   optional string event = 33;
   optional string message = 34;
   optional TextData text = 35;
-  optional google.protobuf.Struct value_dynamic = 36;
+  optional google.protobuf.Struct value_packed = 36;
   optional RequestData request = 37;
   optional NodeReferenceData session_ptr = 40;
   optional NodeReferenceData run_ptr = 41;

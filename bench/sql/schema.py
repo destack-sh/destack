@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.03.27.3"
+VERSION = "2024.03.27.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1382,7 +1382,7 @@ LOG_TABLE = Table(
         Column("event", PrimitiveType.STRING, is_nullable=True),
         Column("message", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("value_dynamic", PrimitiveType.JSON, is_nullable=True),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("request", PrimitiveType.JSON, is_nullable=True),
         Column("session_ck", PrimitiveType.UUID, is_nullable=True),
         Column("session_bench_id", PrimitiveType.UUID, is_nullable=True),

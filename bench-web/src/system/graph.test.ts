@@ -10,6 +10,7 @@ import {
   UserData,
   type AnyPropertyType,
   type AnyTypeMapping,
+  BENCH_TYPES,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { LayerNodeGraph, NodeGraph, ProxyNodeGraph } from "@/system/graph";
@@ -32,16 +33,21 @@ const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
 };
 
 const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
+  "google.protobuf.Struct": () => {},
   "google.protobuf.Timestamp": () => new Date().toISOString(),
   "google.protobuf.Duration": () => Math.random(),
   "symbolx.bench.NodeReferenceData": () => ({ metatype: BenchType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
+};
+
+const PROP_NAME_GENERATORS: Record<string, () => any> = {
+  valuePacked: () => {},
 };
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};
 
 export function fabricate<T extends BenchType>(
   metatype: T,
-  options?: { path?: StructType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
+  options?: { path?: BenchType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
 ): AnyTypeMapping[T] {
   const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype]!;
   const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype]!;
@@ -67,9 +73,16 @@ export function fabricate<T extends BenchType>(
       value = members[Math.floor(Math.random() * members.length)];
     } else if (field.kind == "message" && BENCH_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
       const benchType = BENCH_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
-      value = fabricate(benchType);
+      if (options?.path?.includes(benchType)) {
+        value = null;
+      } else {
+        const path = (options?.path ?? []).concat(metatype);
+        value = fabricate(benchType, { path });
+      }
     } else if (field.kind == "message" && MESSAGE_TYPE_GENERATORS[field.T().typeName]) {
       value = MESSAGE_TYPE_GENERATORS[field.T().typeName]!();
+    } else if (PROP_NAME_GENERATORS[propName]) {
+      value = PROP_NAME_GENERATORS[propName]!();
     } else {
       throw new Error(`no generator for field ${messageType.typeName}.${propName} [kind=${field.kind}]`);
     }
@@ -97,7 +110,10 @@ export function fabricate<T extends BenchType>(
   return struct as AnyTypeMapping[T];
 }
 
-test("fabricate", () => fabricate(BenchType.USER, { unset: ["parentPtr"] }));
+const BENCH_TYPES_NAMES = BENCH_TYPES.map((t) => BenchType[t]);
+test.each(BENCH_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
+  fabricate(BenchType[metatype as any] as unknown as BenchType);
+});
 
 describe("node graph", () => {
   const graph = new NodeGraph();
