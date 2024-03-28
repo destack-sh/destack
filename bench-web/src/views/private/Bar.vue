@@ -23,7 +23,7 @@ import { useElementSize, useFps, useMemory } from "@vueuse/core";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  spaceConnection: GraphConnection;
+  spaceConnection: GraphConnection<"get", any>;
   box: { x: number; y: number; width: number; height: number };
 }>();
 
@@ -130,9 +130,10 @@ const USER_MENU_ITEMS = computed(() => {
     <div class="flex flex-shrink-0 flex-row items-center gap-x-4">
       <!-- Bench -->
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
-        <template v-slot:trigger="{ toggle }">
+        <template v-slot:trigger="{ toggle, isOpen }">
           <button
-            class="flex select-none flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+            class="flex select-none flex-row items-center rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+            :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
             <div class="mr-2 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
@@ -271,9 +272,10 @@ const USER_MENU_ITEMS = computed(() => {
       <template v-if="user">
         <!-- User (logged in) -->
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
-          <template v-slot:trigger="{ toggle }">
+          <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="flex flex-row items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+              class="flex flex-row items-center rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+              :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
               <span class="mr-2 rounded-md border border-gray-300 bg-primary-300 px-0.5">

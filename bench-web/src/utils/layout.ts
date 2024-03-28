@@ -167,7 +167,7 @@ export function useSplitView(
     const draggedToPx =
       layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
     const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-    graphConnection.sideTx.update(
+    graphConnection.tx.update(
       {
         metatype: NodeType.VIEW,
         id: viewsRef.value[draggingIdx.value].id,
@@ -175,7 +175,7 @@ export function useSplitView(
       },
       { debounce: true },
     );
-    graphConnection.sideTx.update(
+    graphConnection.tx.update(
       {
         metatype: NodeType.VIEW,
         id: viewsRef.value[draggingIdx.value + 1].id,

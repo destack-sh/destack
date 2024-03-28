@@ -36,3 +36,36 @@ export function roundToDigits(value: number, digits: number): number {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
 }
+
+/**
+ * A simple wrapper around Promises to behave like Python's asyncio.Event
+ * Can be reset, set, and waited on.
+ * */
+export class AsyncEvent {
+  private _resolve: (() => void) | null = null;
+  private _promise: Promise<void> | null = null;
+
+  constructor() {
+    this._promise = new Promise((resolve) => {
+      this._resolve = resolve;
+    });
+  }
+
+  async wait() {
+    await this._promise;
+  }
+
+  set() {
+    if (this._resolve) {
+      this._resolve();
+      this._resolve = null;
+      this._promise = null;
+    }
+  }
+
+  reset() {
+    this._promise = new Promise((resolve) => {
+      this._resolve = resolve;
+    });
+  }
+}

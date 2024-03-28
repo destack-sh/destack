@@ -375,12 +375,13 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                         break
                     edits = self.adapt_edits(watcher, edits)
                     epochs_to_replay.append((epoch, edits))
-                logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
-                for epoch, edits in epochs_to_replay:
-                    yield WatchEditsResponse(edits=edits, epoch=epoch)
+                if epochs_to_replay:
+                    logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
+                    for epoch, edits in epochs_to_replay:
+                        yield WatchEditsResponse(edits=edits, epoch=epoch)
 
             # listen for new epochs
-            logger.info("graph.watch.listen", watcher=watcher)
+            logger.info("graph.watch", watcher=watcher)
             while True:
                 epoch = await watcher.sink.get()
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)

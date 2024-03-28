@@ -37,7 +37,7 @@ export const spaceRemote = pkgGraph.getRef(local.spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(local.spacePtr);
 export const spaceConnection = useActiveConnection(local.spacePtr);
-export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.connection.sideTx);
+export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.connection.tx);
 
 // setup/connect local space as needed
 watch(
@@ -51,7 +51,7 @@ watch(
         spaceGraphLocal.add(space);
         local.setSpaceToLocal();
         log.debug("space.setupEmptyCanvas", { space });
-        nextTick(() => setupEmptyCanvas(spaceConnection.connection.sideTx, space)); // spaceConnection is prepared lazily
+        nextTick(() => setupEmptyCanvas(spaceConnection.connection.tx, space)); // spaceConnection is prepared lazily
       }
     } else {
       // remote
@@ -84,5 +84,12 @@ export async function goToBench(go: { bench: NodeReferenceData; branch?: NodeRef
   const pkg = go.pkg ?? branch.mainPackagePtr!;
   local.setBench({ pkg: pkg as TypedNodeReferenceData<NodeType.PACKAGE> });
 
-  // nocheckin: get or create space in package
+  // nocheckin: find or create space in package
+  // await pkgConnection.isLoaded(pkg.id)
+  const spaces = pkgGraph.getChildren(pkg, NodeType.SPACE);
+  const localSpacePtr = local.getSpacePtr(bench.id)
+
+  let space = null; // ...
+
+  // if (space == null && pkgConnection.access)
 }

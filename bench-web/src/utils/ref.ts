@@ -9,7 +9,7 @@ import {
   watch,
   type ComputedGetter,
   type Ref,
-  type WatchOptions
+  type WatchOptions,
 } from "vue";
 
 /** A ref that pretends to be read-only but really isn't */
@@ -18,10 +18,15 @@ export function pretendReadonly<T extends object>(value: T): Readonly<T> {
 }
 
 /** Get/set a property of an object behind a Ref */
-export function pickRef<T, K extends keyof T>(obj: Ref<T | null |undefined>, key: K, valueFallback: T[K], objFallback: T | {} = {}): Ref<T[K]> {
+export function pickRef<T, K extends keyof T>(
+  obj: Ref<T | null | undefined>,
+  key: K,
+  valueFallback: T[K],
+  objFallback: T | {} = {},
+): Ref<T[K]> {
   return computed({
     get: () => obj.value?.[key] ?? valueFallback,
-    set: (value) => (obj.value = { ...obj.value ?? objFallback, [key]: value } as T),
+    set: (value) => (obj.value = { ...(obj.value ?? objFallback), [key]: value } as T),
   });
 }
 
@@ -187,4 +192,31 @@ export function computedSubRef<T>(get: () => T, stop: () => void): SubRef<T> {
   const ref = computedRef as unknown as SubRef<T>;
   ref.stop = stop;
   return ref;
+}
+
+/**
+ * Create a proxy which has a reference to a value it mimics.
+ * If the value is present, the proxy behaves like the value.
+ * If the value is not present, the proxy errors on access.
+ */
+export function proxyWrap<T extends object>(value: Ref<T | null>, options?: { name?: string }): T {
+  const name = options?.name ?? "proxy value";
+  return new Proxy(
+    {},
+    {
+      get(target, prop) {
+        const v = value.value;
+        if (v == null) throw new Error(`${name} is not available`);
+
+        return v[prop as keyof T];
+      },
+      set(target, prop, value) {
+        const v = value.value;
+        if (v == null) throw new Error(`${name} is not available`);
+        
+        v[prop as keyof T] = value;
+        return true;
+      },
+    },
+  ) as T;
 }
