@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
-import { useActiveConnection, useGetNodes } from "@/system/connection";
+import { useExistingConnection, useGetNodes } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
@@ -16,7 +16,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 
 const self = toRef(props, "self");
-const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(self);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
   computed(() => ({
     name: `page.${props.nodePtr?.id}`,

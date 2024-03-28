@@ -20,7 +20,7 @@ import {
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
+import { ScalarType, type FieldInfo, type IMessageType, MessageType } from "@protobuf-ts/runtime";
 import { v4, v5 } from "uuid";
 import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
@@ -36,9 +36,9 @@ export function describeNode(node: AnyNodeData | NodeReferenceData | TypedNodeRe
   const nodeParts: string[] = [`id=${node.id}`];
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`r=${node.revision}`);
-  if ('name' in node) nodeParts.push(`name=${node.name}`); 
-  if ('slug' in node) nodeParts.push(`slug=${node.slug}`);
-  if ('title' in node) nodeParts.push(`title=${node.title}`); 
+  if ("name" in node) nodeParts.push(`name=${node.name}`);
+  if ("slug" in node) nodeParts.push(`slug=${node.slug}`);
+  if ("title" in node) nodeParts.push(`title=${node.title}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   const typeName = toCasing(NodeType[type], Casing.CAMEL);
   return `${typeName}:[${nodeParts.join(", ")}]`;
@@ -100,11 +100,8 @@ export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
   [ScalarType.BYTES]: new Uint8Array(),
 };
 
-/**
- * Initializes the proto with default values so it can be serialized to a protobuf message.
- * NOTE: proto default values are not semantically correct, this is just for to patch not-semantically-required fields.
- */
-export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMapping[T] {
+/** Initializes the Bench type proto with default proto values. */
+export function makeDefaultBenchProto<T extends BenchType>(metatype: T): AnyTypeMapping[T] {
   const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
   const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype as unknown as BenchType]!;
   let ord = 1; // skip metatype
@@ -115,6 +112,15 @@ export function makeDefaultProto<T extends BenchType>(metatype: T): AnyTypeMappi
     const field = messageType.fields[ord];
     (proto as any)[propName] = getDefaultProtoValue(field);
     ord += 1;
+  }
+  return proto;
+}
+
+/** Initializes any proto message with default proto values. */
+export function makeDefaultProto<T extends object>(messageType: MessageType<T>): T {
+  const proto = {} as T;
+  for (const field of messageType.fields) {
+    (proto as any)[field.name] = getDefaultProtoValue(field);
   }
   return proto;
 }

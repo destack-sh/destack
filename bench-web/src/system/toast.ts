@@ -43,6 +43,16 @@ export enum ToastDuration {
   inf = Infinity,
 }
 
+export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<LogLevel, ToastDuration> = {
+  [LogLevel.UNSPECIFIED]: ToastDuration.md,
+  [LogLevel.TRACE]: ToastDuration.sm,
+  [LogLevel.DEBUG]: ToastDuration.sm,
+  [LogLevel.INFO]: ToastDuration.md,
+  [LogLevel.WARNING]: ToastDuration.md,
+  [LogLevel.ERROR]: ToastDuration.lg,
+  [LogLevel.FATAL]: ToastDuration["2xl"],
+};
+
 export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
   Partial<Pick<Toast, "key" | "actions" | "durationMs">> & {
     icon?: string | IconData;
@@ -71,7 +81,7 @@ export class Toaster {
     else if (toast.override) this.toasts.value = this.toasts.value.filter((t) => t.key !== toast.key);
     const id = Math.random().toString(36).substring(2);
     const createdAt = DateTime.now();
-    const durationMs = toast.durationMs ?? ToastDuration.md;
+    const durationMs = toast.durationMs ?? DEFAULT_TOAST_DURATION_BY_LEVEL[toast.level];
     const remainingDurationMs = durationMs;
     const actions = toast.actions ?? [];
     const icon = typeof toast.icon == "string" ? makeIcon({ name: toast.icon }) : toast.icon;

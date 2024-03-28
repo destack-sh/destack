@@ -1,4 +1,4 @@
-import type { Fn } from "@vueuse/core";
+import { syncRef, type Fn } from "@vueuse/core";
 import {
   computed,
   customRef,
@@ -10,6 +10,9 @@ import {
   type ComputedGetter,
   type Ref,
   type WatchOptions,
+  toValue,
+  shallowRef,
+  type ShallowRef,
 } from "vue";
 
 /** A ref that pretends to be read-only but really isn't */
@@ -198,8 +201,10 @@ export function computedSubRef<T>(get: () => T, stop: () => void): SubRef<T> {
  * Create a proxy which has a reference to a value it mimics.
  * If the value is present, the proxy behaves like the value.
  * If the value is not present, the proxy errors on access.
+ * NOTE: Because the underlying value is a reference that is used in get(),
+ *  any changes to the value will be reflected in the proxy.
  */
-export function proxyWrap<T extends object>(value: Ref<T | null>, options?: { name?: string }): T {
+export function proxyRef<T extends object>(value: Ref<T | null>, options?: { name?: string }): T {
   const name = options?.name ?? "proxy value";
   return new Proxy(
     {},
@@ -213,7 +218,7 @@ export function proxyWrap<T extends object>(value: Ref<T | null>, options?: { na
       set(target, prop, value) {
         const v = value.value;
         if (v == null) throw new Error(`${name} is not available`);
-        
+
         v[prop as keyof T] = value;
         return true;
       },

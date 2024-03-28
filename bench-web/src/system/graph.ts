@@ -522,9 +522,9 @@ export class LayerNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph 
 export class ProxyNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph {
   readonly _graph: ShallowRef<ReadNodeGraph | null>;
 
-  constructor(graph: ReadNodeGraph | null) {
+  constructor(graph: MaybeRef<ReadNodeGraph | null>) {
     super();
-    this._graph = shallowRef(graph);
+    this._graph = isRef(graph) ? graph : shallowRef(graph);
   }
 
   public get graph(): ReadNodeGraph | null {

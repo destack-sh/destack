@@ -1,16 +1,9 @@
-import {
-  GraphIOClient,
-  GraphScope,
-  HostClient,
-  RpcMetadata,
-  SupervisorClient,
-  type IGraphIOClient,
-} from "@/proto/wire";
+import { GraphScope, HostClient, RpcMetadata, SupervisorClient, type IGraphIOClient } from "@/proto/wire";
 import { clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
+import { GrpcStatusCode, GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
   RpcError,
   type MethodInfo,
@@ -45,6 +38,14 @@ export type Operation<I extends object, O extends object> = {
 };
 
 export type OperationError = RpcError | Error;
+export type GrpcStatusName = keyof typeof GrpcStatusCode;
+
+export type OperationMetadata = {
+  connectionId?: number;
+  operationName?: string;
+  operationText?: string;
+  suppressErrors?: boolean;
+};
 
 export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   INVALID_ARGUMENT: "Invalid request",
@@ -54,18 +55,23 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   UNAUTHENTICATED: "Not authenticated",
   FAILED_PRECONDITION: "Cannot do this right now",
   PERMISSION_DENIED: "Not allowed",
-  RESOURCE_EXHAUSTED: "Too many requests",
+  RESOURCE_EXHAUSTED: "Server overloaded",
   UNAVAILABLE: "Service unavailable",
   NOT_IMPLEMENTED: "Not yet supported",
   INTERNAL: "Internal server error",
   CANCELLED: "Request cancelled",
   DEADLINE_EXCEEDED: "Request timed out",
 };
+export const HUMANIZED_OPERATION_MESSAGE: { [key: string]: string } = {
+  UNAUTHENTICATED: "Please log in and try again.",
+  UNAVAILABLE: "Server could not be reached.",
+};
 
 export function humanizeError(error: OperationError): { title: string; text: string } {
   if (error instanceof RpcError) {
     const title = HUMANIZED_OPERATION_STATUS[error.code] ?? "Server error";
-    return { title, text: error.message };
+    const message = HUMANIZED_OPERATION_MESSAGE[error.code] ?? error.message;
+    return { title, text: message };
   } else {
     return { title: "Error", text: error.message };
   }
@@ -106,12 +112,16 @@ const operationsTracker = {
     };
     const onError = async (error: RpcError) => {
       const code = error.code;
-      log.error(op.name, code, error);
+
+      if (!(op.options as OperationMetadata).suppressErrors) {
+        log.error(op.name, code, error, op);
+        toaster.error(humanizeError(error));
+      }
+
       if (code == "UNAUTHENTICATED") {
         const { onAuthenticationError } = await import("@/system/user"); // recursive import
         onAuthenticationError(error);
       }
-      toaster.error(humanizeError(error));
     };
 
     // subscribe to call events

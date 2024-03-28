@@ -20,7 +20,7 @@ import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { v4, v5 } from "uuid";
+import { v4 } from "uuid";
 import { computed, ref } from "vue";
 
 export const nonce = v4();
@@ -29,15 +29,14 @@ export const isAuthenticated = computed(() => local.clientInfo.value?.accessToke
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
 export const { graph: userGraph, connection: userConnection } = useGetNodes(
+  { name: "user", live: true },
   computed(() => ({
-    name: "user",
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: {
       descendantTypes: [NodeType.CLIENT],
       includePropertiesPtr: [propertyReference(BenchType.USER, UserProperty.email)],
     },
     enabled: isAuthenticated.value,
-    live: true,
   })),
 );
 export const user = userGraph.getRef(
