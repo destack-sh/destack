@@ -109,7 +109,7 @@ defineExpose({ self, focus });
         title="Close"
         class="w-full"
         :variant="Variant.V3"
-        @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>
   </div>

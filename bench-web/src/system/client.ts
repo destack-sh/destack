@@ -131,12 +131,18 @@ function clearUser() {
 // Space
 //
 
-// space/package/bench are derived from spacePtr and packagePtrs (which )
+// Current Space. May be local if not in current Bench.
 const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
-const _benchPtr = useLocal("benchPtr") as Ref<TypedNodeReferenceData<NodeType.BENCH> | null>;
-const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
 export const spacePtr = pretendReadonly(_spacePtr);
+// Current Bench.
+const _benchPtr = useLocal("benchPtr") as Ref<TypedNodeReferenceData<NodeType.BENCH> | null>;
 export const benchPtr = pretendReadonly(_benchPtr);
+// The Bench->Package mappings.
+const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
+// The Bench->Space mappings.
+const _spacePtrs = useLocal("spacePtrs") as Ref<TypedNodeReferenceData<NodeType.SPACE>[]>;
+
+// packagePtr is derived from benchPtr+packagePtrs
 const packageIdByBenchId = computed(() => {
   const packageIdByBenchId: Record<string, string> = {};
   for (const pkg of _packagePtrs.value) {
@@ -153,19 +159,24 @@ export const packagePtr = computed(() => {
     });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
 
-/** Sets the active space. Must be local or from the current package. */
+/** Sets the active space. Must be local or from the current package. Also replaces main space for that bench. */
 function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
   if (space.benchId != LOCAL_BENCH_ID && packageIdByBenchId.value[space.benchId!] == null) {
     throw new Error(`space ${space.id} is not in the active Package ${packageIdByBenchId.value[space.benchId!]}`);
   }
   log.trace("local.setSpace", space);
   _spacePtr.value = space;
+  _spacePtrs.value = _spacePtrs.value.filter((s) => s.benchId != space.benchId).concat(space);
 }
 
 /** Resets the space to the local space. Does not affect the Bench. */
 function setSpaceToLocal() {
   log.trace("local.setSpaceToLocal");
   _spacePtr.value = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, { benchId: LOCAL_BENCH_ID });
+}
+
+function getSpacePtr(benchId: string): TypedNodeReferenceData<NodeType.SPACE> | null {
+  return _spacePtrs.value.find((s) => s.benchId == benchId) ?? null;
 }
 
 /** Sets the current Bench/Package. If it doesn't match the current space, the space is reset to local. */
@@ -219,6 +230,7 @@ const local = {
   packagePtr,
   setSpace,
   setSpaceToLocal,
+  getSpacePtr,
   setBench,
   clearBench,
   isDeveloperMode,

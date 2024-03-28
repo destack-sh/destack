@@ -54,7 +54,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeFrame": {
     enabled: computed(() => hasFocusedSplit.value && isWindow.value),
     action: () => {
-      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+      canvas.removeView(spaceConnection.tx, spaceGraph, splits.value[focusedSplitIdx.value!]);
     },
   },
   "view.navigate.focusPreviousFrame": {
@@ -63,7 +63,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const allFrames = canvas.currentFrames;
       const currentIdx = allFrames.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
-      canvas.focus(spaceConnection.sideTx, { view: allFrames[prevIdx] });
+      canvas.focus(spaceConnection.tx, { view: allFrames[prevIdx] });
     },
   },
   "view.navigate.focusNextFrame": {
@@ -72,27 +72,27 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const allFrames = canvas.currentFrames;
       const currentIdx = allFrames.findIndex((window) => window.id == splits.value[focusedSplitIdx.value!].id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentFrames.length;
-      canvas.focus(spaceConnection.sideTx, { view: allFrames[nextIdx] });
+      canvas.focus(spaceConnection.tx, { view: allFrames[nextIdx] });
     },
   },
   "view.navigate.closeSplit": {
     enabled: computed(() => hasFocusedSplit.value && !isWindow.value),
     action: () => {
-      canvas.removeView(spaceConnection.sideTx, spaceGraph, splits.value[focusedSplitIdx.value!]);
+      canvas.removeView(spaceConnection.tx, spaceGraph, splits.value[focusedSplitIdx.value!]);
     },
   },
   "view.navigate.focusNextSplit": {
     enabled: hasFocusedSplit,
     action: () => {
       const nextIdx = (focusedSplitIdx.value! + 1) % splits.value.length;
-      canvas.focus(spaceConnection.sideTx, { view: splits.value[nextIdx] });
+      canvas.focus(spaceConnection.tx, { view: splits.value[nextIdx] });
     },
   },
   "view.navigate.focusPreviousSplit": {
     enabled: hasFocusedSplit,
     action: () => {
       const prevIdx = (focusedSplitIdx.value! - 1 + splits.value.length) % splits.value.length;
-      canvas.focus(spaceConnection.sideTx, { view: splits.value[prevIdx] });
+      canvas.focus(spaceConnection.tx, { view: splits.value[prevIdx] });
     },
   },
 };

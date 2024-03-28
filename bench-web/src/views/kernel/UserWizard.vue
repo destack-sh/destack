@@ -39,7 +39,7 @@ const isActive = ref(false);
 function setState(newState: State) {
   if (newState == state.value) return;
   state.value = newState;
-  spaceConnection.sideTx.update({ metatype: NodeType.VIEW, id: self.value.id, title: TITLE_BY_STATE[newState] });
+  spaceConnection.tx.update({ metatype: NodeType.VIEW, id: self.value.id, title: TITLE_BY_STATE[newState] });
   canvas.focusInComponent(self.value);
 }
 
@@ -170,7 +170,7 @@ defineExpose<ViewExposed>({ self, focus });
         :title="'Close'"
         class="w-full"
         :variant="Variant.V3"
-        @click="() => canvas.removeView(spaceConnection.sideTx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>
   </div>

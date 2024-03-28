@@ -1,3 +1,4 @@
+import { supervisor } from "@/proto/services";
 import {
   BenchType,
   EditType,
@@ -13,7 +14,7 @@ import {
   Timestamp,
 } from "@/proto/wire";
 import { getDefaultProtoValue, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
-import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
 
 /** A transaction on the Bench state graph. */
@@ -102,7 +103,8 @@ export class TransactionBuilder implements Transaction {
   }
 
   update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T }, options?: { debounce?: boolean },
+    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T },
+    options?: { debounce?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
@@ -125,7 +127,12 @@ export class TransactionBuilder implements Transaction {
       }
       ord += 1;
     }
-    this._addEdit(EditType.UPDATE, patchedNode as unknown as NodeTypeMapping[T], properties, options?.debounce ?? false);
+    this._addEdit(
+      EditType.UPDATE,
+      patchedNode as unknown as NodeTypeMapping[T],
+      properties,
+      options?.debounce ?? false,
+    );
   }
 
   move(node: AnyNodeData) {
@@ -225,6 +232,7 @@ export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & W
  */
 export interface TransactionBuffer {
   tx: Transaction;
+  overlay: ReadNodeGraph;
 }
 
 /**
@@ -233,11 +241,13 @@ export interface TransactionBuffer {
 export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScope;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
+  public readonly overlay: ReadNodeGraph;
   public readonly tx: TransactionBuilder; // always keep a single transaction
 
   constructor(scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
     this.scope = scope;
     this.graph = graph;
+    this.overlay = new NodeGraph({ scope, isPartial: true }); // just leave it empty since we apply immediately
     this.tx = new TransactionBuilder(scope, v4());
 
     // immediately apply and reset the transaction
@@ -255,6 +265,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
 export class SwapTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScope;
   public readonly client: IGraphIOClient;
+  public readonly overlay: ReadNodeGraph;
   public currentTx: Transaction;
   public pendingTx: Transaction | null;
 
@@ -262,6 +273,7 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     this.scope = scope;
     this.currentTx = new TransactionBuilder(scope, v4());
     this.pendingTx = null;
+    this.overlay = new NodeGraph({ scope, isPartial: true });
     this.client = client;
   }
 
@@ -270,4 +282,20 @@ export class SwapTransactionBuffer implements TransactionBuffer {
   }
 
   // nocheckin: commit/swap remote transaction buffer
+}
+// nocheckin: track edit by origin view? (for undo/redo)
+
+const globalTxBuffer: TransactionBuffer = new SwapTransactionBuffer({}, supervisor);
+const benchTxBuffers: Record<string, SwapTransactionBuffer> = {};
+
+/** Gets the transaction buffer for the given scope (non-exclusively). */
+export function getTransactionBuffer(scope: GraphScope): TransactionBuffer {
+  if (scope.benchId) {
+    if (!benchTxBuffers[scope.benchId]) {
+      benchTxBuffers[scope.benchId] = new SwapTransactionBuffer(scope, supervisor);
+    }
+    return benchTxBuffers[scope.benchId];
+  } else {
+    return globalTxBuffer;
+  }
 }

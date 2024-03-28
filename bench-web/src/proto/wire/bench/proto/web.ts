@@ -119,48 +119,76 @@ export interface DeveloperSettings {
  * All the locally stored data.
  * All fields must be messages (may be repeated). :LocalStorageEncoding
  *
+ *
+ * Auth
+ *
+ *
  * @generated from protobuf message symbolx.bench.LocalStorage
  */
 export interface LocalStorage {
     /**
-     * auth
+     * Stuff persisted forever (ideally, per browser).
      *
      * @generated from protobuf field: optional symbolx.bench.PersistentInfo persistent_info = 1;
      */
     persistentInfo?: PersistentInfo;
     /**
+     * Current logged in user.
+     *
      * @generated from protobuf field: optional symbolx.bench.UserInfo user_info = 3;
      */
     userInfo?: UserInfo;
     /**
+     * Current logged in client.
+     *
      * @generated from protobuf field: optional symbolx.bench.ClientInfo client_info = 4;
      */
     clientInfo?: ClientInfo;
     /**
+     * All configured badges.
+     *
      * @generated from protobuf field: repeated symbolx.bench.BadgeInfo badges = 5;
      */
     badges: BadgeInfo[];
+    // 
+    // Space/bench
+    // 
+
     /**
-     * space/bench
+     * The current Space. May be local if not in a current Bench.
      *
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData space_ptr = 10;
      */
     spacePtr?: NodeReferenceData;
     /**
+     * The current Bench.
+     *
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 11;
      */
     benchPtr?: NodeReferenceData;
     /**
+     * The Bench->Package mapping for known Benches.
+     *
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData package_ptrs = 12;
      */
     packagePtrs: NodeReferenceData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.LocalNodeGraph local_graphs = 13;
+     * The Bench->Space mapping for known Benches.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData space_ptrs = 13;
+     */
+    spacePtrs: NodeReferenceData[];
+    /**
+     * Any local graphs.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.LocalNodeGraph local_graphs = 15;
      */
     localGraphs: LocalNodeGraph[];
+    // 
+    // Debug
+    // 
+
     /**
-     * debug
-     *
      * @generated from protobuf field: optional symbolx.bench.DeveloperSettings developer_settings = 20;
      */
     developerSettings?: DeveloperSettings;
@@ -526,7 +554,8 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
             { no: 10, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 11, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 13, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalNodeGraph },
+            { no: 13, name: "space_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 15, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalNodeGraph },
             { no: 20, name: "developer_settings", kind: "message", T: () => DeveloperSettings }
         ]);
     }
@@ -534,6 +563,7 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.badges = [];
         message.packagePtrs = [];
+        message.spacePtrs = [];
         message.localGraphs = [];
         if (value !== undefined)
             reflectionMergePartial<LocalStorage>(this, message, value);
@@ -565,7 +595,10 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
                 case /* repeated symbolx.bench.NodeReferenceData package_ptrs */ 12:
                     message.packagePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.LocalNodeGraph local_graphs */ 13:
+                case /* repeated symbolx.bench.NodeReferenceData space_ptrs */ 13:
+                    message.spacePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.LocalNodeGraph local_graphs */ 15:
                     message.localGraphs.push(LocalNodeGraph.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.DeveloperSettings developer_settings */ 20:
@@ -604,9 +637,12 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         /* repeated symbolx.bench.NodeReferenceData package_ptrs = 12; */
         for (let i = 0; i < message.packagePtrs.length; i++)
             NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.LocalNodeGraph local_graphs = 13; */
+        /* repeated symbolx.bench.NodeReferenceData space_ptrs = 13; */
+        for (let i = 0; i < message.spacePtrs.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.spacePtrs[i], writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.LocalNodeGraph local_graphs = 15; */
         for (let i = 0; i < message.localGraphs.length; i++)
-            LocalNodeGraph.internalBinaryWrite(message.localGraphs[i], writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            LocalNodeGraph.internalBinaryWrite(message.localGraphs[i], writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.DeveloperSettings developer_settings = 20; */
         if (message.developerSettings)
             DeveloperSettings.internalBinaryWrite(message.developerSettings, writer.tag(20, WireType.LengthDelimited).fork(), options).join();

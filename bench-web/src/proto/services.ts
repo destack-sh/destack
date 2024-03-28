@@ -1,4 +1,11 @@
-import { HostClient, RpcMetadata, SupervisorClient } from "@/proto/wire";
+import {
+  GraphIOClient,
+  GraphScope,
+  HostClient,
+  RpcMetadata,
+  SupervisorClient,
+  type IGraphIOClient,
+} from "@/proto/wire";
 import { clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
@@ -307,8 +314,9 @@ export const supervisor = new SupervisorClient(
     fetchInit: TRANSPORT_FETCH_OPTIONS,
   }),
 );
+
+/** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
-  /** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
   if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) {
     return _CACHED_HOST_CLIENTS[bench.id];
   } else {
@@ -321,4 +329,10 @@ export async function getHostClient(bench: { id: string }): Promise<HostClient> 
     _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
     return hostClient;
   }
+}
+
+/** Gets the Graph client for a given scope */
+export async function getGraphClient(scope?: Partial<GraphScope>): Promise<IGraphIOClient> {
+  if (scope?.benchId == null) return supervisor;
+  else return await getHostClient({ id: scope.benchId });
 }
