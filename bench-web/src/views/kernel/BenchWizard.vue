@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { ViewData, NodeReferenceData, Region, UserStatus, Variant } from "@/proto/wire/";
-import { useActiveConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { createBench, user } from "@/system/user";
 import { viewEmits, type FocusAnchor } from "@/views/common";
@@ -14,7 +14,7 @@ import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
 
-const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
 
 type State = "create-bench" | "activate-bench" | "all-set";
 const self = toRef(props, "self");

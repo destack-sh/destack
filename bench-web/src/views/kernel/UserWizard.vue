@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { NodeType, Region, Variant, ViewData, type NodeReferenceData } from "@/proto/wire";
 import { benchPtr } from "@/system/client";
-import { useActiveConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
@@ -17,7 +17,7 @@ const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
 
 type State = "sign-up" | "log-in" | "all-set";
 const TITLE_BY_STATE: Record<State, string> = {

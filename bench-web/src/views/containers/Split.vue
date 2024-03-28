@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
-import { useActiveConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -17,7 +17,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(toRef(props, "self"));
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
 const splits = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
 const focusedSplitIdx: Ref<number | null> = computed(() => {
   if (splits.value.length == 0) return null;

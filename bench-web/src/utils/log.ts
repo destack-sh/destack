@@ -28,10 +28,6 @@ const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
 export class Logger {
   public static globalInstance: Logger;
 
-  constructor(readonly name: string) {
-    this.name = name;
-  }
-
   log(level: LogLevel, ...args: any[]) {
     const minLevel = isDeveloperMode.value ? LogLevel.TRACE : LogLevel.DEBUG;
     if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[minLevel]) return;
@@ -66,5 +62,5 @@ export class Logger {
   }
 }
 
-Logger.globalInstance = new Logger("global");
+Logger.globalInstance = new Logger();
 export const log = Logger.globalInstance;

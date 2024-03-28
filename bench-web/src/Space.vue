@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { useActiveConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { LOCAL_SPACE_PTR, spacePtr } from "@/system/client";
 import { isDragging } from "@/utils/layout";
 import Bar from "@/views/private/Bar.vue";
@@ -19,7 +19,7 @@ const BAR_OFFSET = 0;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
-const { graph: spaceGraph, connection: spaceConnection } = useActiveConnection(
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(
   computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
 );
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
@@ -111,7 +111,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   caret-color: transparent;
 }
 
-/* marks shouldn't be ugly */
+/* marks are bold+underline by default */
 mark {
   background-color: transparent;
   color: inherit;
@@ -119,5 +119,29 @@ mark {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.mark-bold mark {
+  font-weight: bold;
+}
+
+.mark-semibold mark {
+  font-weight: 600;
+}
+
+.mark-underlined mark {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mark-primary mark {
+  background-color: #fcd34d;
+  font-weight: normal;
+  text-decoration: none;
+}
+
+.mark-secondary mark {
+  background-color: #bae6fd;
+  font-weight: normal;
+  text-decoration: none;
+}
 </style>
-@/system/client

@@ -1,4 +1,5 @@
 import { ReadType, type AccessType, type NodeReferenceData, EditType, UseType, AccessMatrixData } from "@/proto/wire";
+import { toRef, type MaybeRef, type Ref } from "vue";
 
 export const READ_TYPES: ReadType[] = Object.keys(ReadType)
   .map((key) => Number(key))
@@ -14,10 +15,18 @@ export type AccessArbiter = {
   can(access: AccessType, node: NodeReferenceData): boolean;
 };
 
-export function accessAsOwner(): AccessArbiter {
+export function accessFull(): AccessArbiter {
   return {
     can(access: AccessType, node: NodeReferenceData) {
       return true;
+    },
+  };
+}
+
+export function accessNone(): AccessArbiter {
+  return {
+    can(access: AccessType, node: NodeReferenceData) {
+      return false;
     },
   };
 }
@@ -32,16 +41,16 @@ export function accessFromMatrix(matrix: AccessMatrixData) {
 }
 
 export class AccessProxy {
-  arbiter: AccessArbiter | null;
-  readonly defaultArbiter: AccessArbiter;
+  access: Ref<AccessArbiter | null>;
+  readonly defaultAccess: AccessArbiter;
 
-  constructor(arbiter: AccessArbiter | null, defaultArbiter: AccessArbiter) {
-    this.arbiter = arbiter;
-    this.defaultArbiter = defaultArbiter;
+  constructor(arbiter: MaybeRef<AccessArbiter | null>, options: { default: AccessArbiter }) {
+    this.access = toRef(arbiter);
+    this.defaultAccess = options.default;
   }
 
   can(access: AccessType, node: NodeReferenceData) {
-    if (this.arbiter != null) return this.arbiter.can(access, node);
-    else return this.defaultArbiter.can(access, node);
+    if (this.access.value != null) return this.access.value.can(access, node);
+    else return this.defaultAccess.can(access, node);
   }
 }
