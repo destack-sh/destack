@@ -10,7 +10,14 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { copyNode, makeNode, makeStruct, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  copyNode,
+  makeNode,
+  makeStruct,
+  toNodeReference,
+  typeNodeReferenceMaybe,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import { ROOT_VIEW_COMPONENT_NAMES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
@@ -181,8 +188,10 @@ export class ViewCanvas {
         componentsById[getViewComponentId(c)] = c;
       });
       this.focusedViewComponentsById.value = componentsById;
-      this.focusedViewPtr.value = (findViewComponent(component, isIdentifiedViewComponent)?.exposed.self?.value ??
-        null) as TypedNodeReferenceData<NodeType.VIEW> | null;
+      this.focusedViewPtr.value = typeNodeReferenceMaybe(
+        NodeType.VIEW,
+        findViewComponent(component, isIdentifiedViewComponent)?.exposed.self?.value ?? null,
+      );
     }
 
     // update graph focus state
@@ -341,9 +350,10 @@ export class ViewCanvas {
     });
 
     // register
+    // TODO @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
     let oldComponentId: string | null = null;
     watch(
-      [() => self.value?.id, () => id?.value],
+      () => self.value?.id ?? id?.value ?? null,
       () => {
         if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance)
           delete this.viewRefsById.value[oldComponentId];
@@ -434,7 +444,7 @@ export class ViewCanvas {
       if (primary == null) {
         // no root, reset space
         log.info("view.repair", this.spacePtr.value);
-        const space = this.graph.get(this.spacePtr.value!)!;
+        const space = this.graph.getOrFail(this.spacePtr.value!);
         primary = setupEmptyCanvas(tx, space).primary;
       }
 

@@ -6,6 +6,7 @@ import {
   NodeSource,
   NodeType,
   PROPERTY_ENUM_BY_TYPE,
+  PropertyReferenceData,
   STRUCT_PROPERTY_ENUM_BY_TYPE,
   SomeNodeData,
   StructType,
@@ -15,12 +16,12 @@ import {
   type AnyTypeMapping,
   type NodeTypeMapping,
   type StructTypeMapping,
-  PropertyReferenceData,
+  PackageData,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import { ScalarType, type FieldInfo, type IMessageType, MessageType } from "@protobuf-ts/runtime";
+import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4, v5 } from "uuid";
 import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
@@ -30,9 +31,15 @@ export const BENCH_TYPE_NAME: Record<BenchType, string> = reverseRecord(BenchTyp
 
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
+export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | TypedNodeReferenceData<T>;
 
 /** Short string representation of the node (pointer) */
-export function describeNode(node: AnyNodeData | NodeReferenceData | TypedNodeReferenceData<any>): string {
+export function describeNode(node: {
+  metatype?: BenchType;
+  type?: NodeType | BenchType | any;
+  id?: string;
+  ck?: string;
+}): string {
   const nodeParts: string[] = [`id=${node.id}`];
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`r=${node.revision}`);
@@ -42,7 +49,7 @@ export function describeNode(node: AnyNodeData | NodeReferenceData | TypedNodeRe
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
-  const typeName = toCasing(NodeType[type], Casing.CAMEL);
+  const typeName = type == null ? "Node" : toCasing(NodeType[type as unknown as NodeType], Casing.CAMEL);
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
 
@@ -155,7 +162,7 @@ export function newNodeIdFromCk(packageId: string, ck: string): string {
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties"> & { metatype: T },
+  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties">> & { metatype: T },
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const node = {
@@ -165,8 +172,10 @@ export function makeNode<T extends NodeType>(
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
 
+  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+
+  // assign id/ck
   if (!options?.omit?.includes("id")) {
-    const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
     if ("packagePtr" in properties) {
       if (!("packagePtr" in data) || data.packagePtr == null)
         throw new Error(`missing packagePtr to make in-package node ${NodeType[data.metatype]}`);
@@ -209,6 +218,19 @@ export function nodeReference<T extends NodeType>(
   const ptr = { metatype: BenchType.NODE_REFERENCE, type: nodeType, ...meta, id };
   if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
   return ptr;
+}
+
+export function typeNodeReference<T extends NodeType>(nodeType: T, ref: NodeReferenceData): TypedNodeReferenceData<T> {
+  if (ref.type != nodeType) throw new Error(`expected ${NodeType[nodeType]}, got ${NodeType[ref.type]}`);
+  return ref as TypedNodeReferenceData<T>;
+}
+
+export function typeNodeReferenceMaybe<T extends NodeType>(
+  nodeType: T,
+  ref: NodeReferenceData | undefined | null,
+): TypedNodeReferenceData<T> | null {
+  if (ref == null) return null;
+  return typeNodeReference(nodeType, ref);
 }
 
 export function propertyReference<T extends BenchType>(metatype: T, id: number): PropertyReferenceData {
@@ -255,6 +277,15 @@ export function toNodeReferenceRef<T extends NodeType>(
 ): Ref<TypedNodeReferenceData<T> | null> {
   const nodeRef = toRef(node) as Ref<NodeTypeMapping[T] | null>;
   return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
+}
+
+export function toNodeReferenceInPackage<T extends NodeType>(
+  ref: TypedNodeReferenceData<T> | NodeReferenceData,
+  pkg: string | TypedNodeReferenceData<NodeType.PACKAGE> | NodeReferenceData | PackageData,
+): TypedNodeReferenceData<T> {
+  const packageId = typeof pkg == "string" ? pkg : pkg.id!;
+  if (ref.ck == null) return ref as TypedNodeReferenceData<T>;
+  else return { ...ref, id: newNodeIdFromCk(packageId, ref.ck), ck: undefined } as TypedNodeReferenceData<T>;
 }
 
 export function toBenchType(type: NodeType | StructType): BenchType {

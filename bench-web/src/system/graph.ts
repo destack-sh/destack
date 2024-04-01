@@ -28,8 +28,10 @@ export interface ReadNodeGraph {
   get size(): number;
   /** The (relative) roots (nodes without parents in graph) */
   get roots(): AnyNodeData[];
-  /** Gets the current node with that key (not reactive) */
+  /** Gets the current node with that key if present (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
+  /** Gets the current node with that given key (error if not found) */
+  getOrFail<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
   /** Gets the children of the given parent with the given metatype (not reactive) */
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
   /** Subscribe to any change in the given key */
@@ -99,6 +101,16 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
 
   get roots() {
     return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);
+  }
+
+  describeSelf(): string {
+    return `${this.constructor.name}(${this.roots.map(describeNode)})`;
+  }
+
+  getOrFail<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
+    const node = this.get(key);
+    if (node == null) throw new Error(`node ${describeNode(key)} not found in ${this.describeSelf()}`);
+    return node;
   }
 
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null {
@@ -228,10 +240,12 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
   add(node: AnyNodeData) {
     if (!node.id) throw new Error("node must have an id");
-    if (this.nodesById[node.id]) throw new Error(`node ${describeNode(node)} id already exists`);
+    if (this.nodesById[node.id])
+      throw new Error(`node ${describeNode(node)} id already exists in ${this.describeSelf()}`);
     this.nodesById[node.id] = node;
     if ("ck" in node) {
-      if (this.nodesByCk[node.ck]) throw new Error(`node ${describeNode(node)} ck already exists`);
+      if (this.nodesByCk[node.ck])
+        throw new Error(`node ${describeNode(node)} ck already exists in ${this.describeSelf()}`);
       this.nodesByCk[node.ck] = node.id;
     }
 
@@ -249,7 +263,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
   update(node: AnyNodeData) {
     const existing = this.nodesById[node.id];
-    if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} does not exist`);
+    if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
 
     if (existing?.parentPtr?.id != node.parentPtr?.id) {
       // move
@@ -287,7 +301,9 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       if (!this.nodesById[parentId] && !this.isPartial) {
-        throw new Error(`parent ${describeNode(node.parentPtr)} does not exist for node ${describeNode(node)}`);
+        throw new Error(
+          `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
+        );
       }
       if (!this.nodesByParentIdAndType[parentId]) {
         this.nodesByParentIdAndType[parentId] = {};
@@ -305,11 +321,14 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
-      if (nodeIdx == -1) throw new Error(`node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)}`);
+      if (nodeIdx == -1)
+        throw new Error(
+          `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
+        );
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
     } else {
       const rootIdx = this.rootsIds.findIndex((n) => n == node.id);
-      if (rootIdx == -1) throw new Error(`node ${describeNode(node)} not found in roots`);
+      if (rootIdx == -1) throw new Error(`node ${describeNode(node)} not found in roots of ${this.describeSelf()}`);
       this.rootsIds.splice(rootIdx, 1);
     }
   }

@@ -12,10 +12,19 @@ import {
   type IGraphIOClient,
   type NodeTypeMapping,
   Timestamp,
+  NodeReferenceData,
 } from "@/proto/wire";
-import { getDefaultProtoValue, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
+import {
+  getDefaultProtoValue,
+  makeNode,
+  newStructId,
+  toNodeReference,
+  unwrapSomeNode,
+  wrapSomeNode,
+} from "@/proto/wiring";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { v4 } from "uuid";
+import { watch } from "vue";
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -24,12 +33,14 @@ export type Transaction = {
   readonly edits: EditData[];
 
   /** Create a new node */
-  create(node: AnyNodeData): void;
+  create<T extends NodeType>(
+    node: { metatype: T | BenchType } & Partial<Omit<NodeTypeMapping[T], "metatype">>,
+  ): NodeTypeMapping[T];
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
   /**
-   * Update regular properties in this node. If we already have an update for this node, extend that
-   * TODO :Broken: handle debounce updates
+   * Update regular properties in this node. If we already have an update for this node, update it.
+   * nocheckin :Broken: handle debounce updates somehow?
    */
   update<T extends NodeType>(
     update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T },
@@ -54,12 +65,14 @@ export type Transaction = {
 export class TransactionBuilder implements Transaction {
   scope: GraphScope;
   id: string;
+  subject: NodeReferenceData | null;
   edits: EditData[] = [];
   subs: Array<(edit: EditData, debounced: boolean) => void> = [];
 
-  constructor(scope: GraphScope, id: string) {
+  constructor(scope: GraphScope, id: string, subject: NodeReferenceData | null) {
     this.scope = scope;
     this.id = id;
+    this.subject = subject;
   }
 
   subscribe(sub: (edit: EditData, debounced: boolean) => void): () => void {
@@ -77,6 +90,7 @@ export class TransactionBuilder implements Transaction {
       node: wrapSomeNode(node),
       nodeType: node.metatype as unknown as NodeType,
       properties: properties ?? [],
+      subject: this.subject ?? undefined,
       scope: {
         benchId: "packagePtr" in node ? node.packagePtr?.benchId : undefined,
         packageId: "packagePtr" in node ? node.packagePtr?.id : undefined,
@@ -94,8 +108,14 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
-  create(node: AnyNodeData) {
+  create<T extends NodeType>(
+    nodeIn: { metatype: T | BenchType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
+  ): NodeTypeMapping[T] {
+    // TODO :Cleanup: why doesn't Transaction.nodeIn typecheck properly (below for makeNode)?
+    const node: NodeTypeMapping[T] =
+      nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
     this._addEdit(EditType.CREATE, node);
+    return node as NodeTypeMapping[T];
   }
 
   upsert(node: AnyNodeData) {
@@ -199,7 +219,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     } else {
       let properties: number[];
       const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeData.metatype]!;
-      if (editType == EditType.UPDATE) {
+      if (editType == EditType.UPDATE || edit.type == EditType.UPSERT) {
         properties = edit.properties;
       } else if (editType == EditType.MOVE) {
         properties = [nodeProperties.parentPtr];
@@ -233,6 +253,11 @@ export function editGraphOverlay(base: ReadNodeGraph, overlay: ReadNodeGraph & W
 export interface TransactionBuffer {
   tx: Transaction;
   overlay: ReadNodeGraph;
+
+  /** Commits the current transaction. */
+  commit(): void;
+  /** Resets the current transaction and overlay. */
+  reset(newSubject: NodeReferenceData | null): void;
 }
 
 /**
@@ -242,20 +267,33 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScope;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly overlay: ReadNodeGraph;
-  public readonly tx: TransactionBuilder; // always keep a single transaction
+  private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
     this.scope = scope;
     this.graph = graph;
     this.overlay = new NodeGraph({ scope, isPartial: true }); // just leave it empty since we apply immediately
-    this.tx = new TransactionBuilder(scope, v4());
+    this.reset(null);
+  }
 
+  get tx(): Transaction {
+    return this.currentTx!; // set in constructor
+  }
+
+  commit() {
+    // nothing to do
+  }
+
+  reset(newSubject: NodeReferenceData | null) {
+    const newTx = new TransactionBuilder(this.scope, v4(), newSubject);
     // immediately apply and reset the transaction
-    this.tx.subscribe((edit) => {
+    newTx.subscribe((edit) => {
+      if (this.currentTx !== newTx) throw new Error("transaction is closed");
       canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.graph, [edit]);
-      this.tx.edits.length = 0;
+      newTx.edits.length = 0;
     });
+    this.currentTx = newTx;
   }
 }
 
@@ -266,19 +304,28 @@ export class SwapTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScope;
   public readonly client: IGraphIOClient;
   public readonly overlay: ReadNodeGraph;
-  public currentTx: Transaction;
-  public pendingTx: Transaction | null;
+  private currentTx: Transaction | null;
+  private pendingTx: Transaction | null;
 
   constructor(scope: GraphScope, client: IGraphIOClient) {
     this.scope = scope;
-    this.currentTx = new TransactionBuilder(scope, v4());
+    this.currentTx = null;
     this.pendingTx = null;
     this.overlay = new NodeGraph({ scope, isPartial: true });
     this.client = client;
   }
 
   get tx(): Transaction {
+    if (this.currentTx == null) throw new Error("no active transaction");
     return this.currentTx;
+  }
+
+  commit() {
+    throw new Error("not yet implemented");
+  }
+
+  reset(newSubject: NodeReferenceData | null) {
+    throw new Error("not yet implemented");
   }
 
   // nocheckin: commit/swap/overlay remote transaction buffer

@@ -16,9 +16,9 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
-import { makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData, describeNode } from "@/proto/wiring";
+import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
-import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID, LOCAL_SPACE_PTR } from "@/system/client";
+import { LOCAL_SPACE_PTR, spaceGraphLocal } from "@/system/client";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
 import {
@@ -30,6 +30,7 @@ import {
   type TransactionBuffer,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
+import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -234,31 +235,31 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     let retryCount = 0;
     let lastErrorCode: string | null = null;
 
+    const shouldRetry = (error: Error) => {
+      if (this.isClosed.value) return false;
+      if (!(error as RpcError).code) return true; // unknown error
+      const rpcError = error as RpcError;
+      return options!.retryOn!.includes(rpcError.code as GrpcStatusName);
+    };
+
     const onError = (error: Error) => {
       // notify
       log.error(`graph.${this.kind}.error`, { name: this.meta.name, error });
       const errorCode = (error as RpcError).code ?? "UNKNOWN";
+      const retry = shouldRetry(error);
       if (errorCode != lastErrorCode) {
-        // prevent spamming
         toaster.error({
           title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Server error",
-          text: `Connection ${this.kind}:${this.meta.name} failed.`,
+          text: `'${this.kind}:${this.meta.name}' failed: ${IS_DEBUG ? error.message : (error as RpcError).code}`,
         });
         lastErrorCode = errorCode;
       }
 
-      // decide whether to retry
-      if (this.isClosed.value) return;
-      if (!(error as RpcError).code) return; // unknown error
-      const rpcError = error as RpcError;
-      if (!options!.retryOn!.includes(rpcError.code as GrpcStatusName)) {
-        log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, rpcError);
+      // (schedule) retry
+      if (!retry) {
+        log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, error);
         this.isClosed.value = true;
-        return;
-      }
-
-      // schedule retry
-      if (network.isOnline.value) {
+      } else if (network.isOnline.value) {
         retryCount++;
         const delay = Math.min(2 ** (retryCount + 1) * 1000, 60 * 1000);
         setTimeout(() => {
@@ -282,7 +283,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       while (!this.isClosed.value) {
         retrySignal.reset();
         try {
-          await this.fetch({ ...this.params, onError });
+          this.result.value = await this.fetch({ ...this.params, onError });
           retryCount = 0;
           lastErrorCode = null;
           this.isConnected.value = true;
@@ -306,7 +307,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   ): Promise<ConnectionResultMapping<T>[K]> {
     if (this.isFetching.value) this.abortController?.abort();
 
-    log.trace(`graph.${this.kind}`, this.meta.name, params);
+    log.debug(`graph.${this.kind}`, this.meta.name, params);
     this.isFetching.value = true;
     this.abortController = new AbortController();
     const onError = (error: Error) => {
@@ -318,6 +319,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       const scope = params.scope ?? getScopeFromParams(params);
       const result = await this.doFetch(scope, params, this.abortController.signal, onError);
       this.abortController = null;
+      log.debug(`graph.${this.kind}.completed`, this.meta.name, params, result);
       return result;
     } finally {
       if (this.abortController) {
@@ -490,12 +492,20 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
   }
 }
 
-/** A simple reactive wrapper for any underlying graph connection. */
+/** Shallow reactive proxy for a deferred connection. */
 export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> implements GraphConnection<K, T> {
   connection: ShallowRef<GraphConnectionBase<K, T> | null>;
+  readonly isConnected: Ref<boolean>;
+  readonly isFetching: Ref<boolean>;
+  readonly isPaused: Ref<boolean>;
+  readonly isClosed: Ref<boolean>;
 
   constructor(connection: MaybeRef<GraphConnectionBase<K, T> | null>) {
     this.connection = isRef(connection) ? connection : shallowRef(connection);
+    this.isConnected = computed(() => this.connection.value?.isConnected.value ?? false);
+    this.isFetching = computed(() => this.connection.value?.isFetching.value ?? false);
+    this.isPaused = computed(() => this.connection.value?.isPaused.value ?? false);
+    this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
   }
 
   get activeConnection(): GraphConnectionBase<K, T> {
@@ -522,30 +532,11 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
   get tx(): Transaction {
     return this.activeConnection.tx;
   }
-
-  get isConnected(): Ref<boolean> {
-    return this.activeConnection.isConnected;
-  }
-
-  get isFetching(): Ref<boolean> {
-    return this.activeConnection.isFetching;
-  }
-
-  get isPaused(): Ref<boolean> {
-    return this.activeConnection.isPaused;
-  }
-
-  get isClosed(): Ref<boolean> {
-    return this.activeConnection.isClosed;
-  }
 }
 
 //
 // Maintaining and routing connections
 //
-
-// define local space graph here because we use it immediately
-export const spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
 
 let connectionId = 0;
 function newConnectionId(): number {
@@ -556,7 +547,7 @@ const _graphConnections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
   new LocalGetConnection(
     { id: newConnectionId(), name: "local.space", live: true, options: {} },
     { roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
-    spaceGraphLocal,
+    spaceGraphLocal as WriteNodeGraph & ReadNodeGraph, // we export it as read-only but it's actually writable
   ),
 ]);
 export const graphConnections = pretendReadonly(_graphConnections);
@@ -565,12 +556,13 @@ export function addGraphConnection(connection: GraphConnectionBase<any, any>): v
   _graphConnections.value = [..._graphConnections.value, connection];
 }
 
-/** RC-1. Connections without references are GCed after some time. */
+/** RC-=1. Connections without references are GCed after some time. */
 function releaseConnection(connection: GraphConnectionBase<any, any>): void {
   connection.referenceCount--;
+  // TODO :Broken: GC connections without references after some time
 }
 
-/** Finds an existing connection and acquires it (RC+1) */
+/** Finds an existing connection and acquires it (RC+=1) */
 function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
   params: ConnectionParamsMapping<T>[K],
@@ -702,7 +694,7 @@ export function useGetNodes<T extends NodeType>(
     computed(() => connection.value?.result?.value?.access ?? null),
     { default: accessFull() },
   );
-  const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result?.value?.roots?.value ?? []);
+  const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
   return {
     graph,

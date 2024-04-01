@@ -1,16 +1,28 @@
 import { supervisor } from "@/proto/services";
-import { BenchData, BenchType, BranchData, NodeReferenceData, NodeType, SpaceData } from "@/proto/wire";
-import { unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeReadOptions, spaceGraphLocal, useExistingConnection, useGetNodes } from "@/system/connection";
+import { BenchData, BranchData, EditType, NodeType } from "@/proto/wire";
+import {
+  nodeReference,
+  toNodeReference,
+  typeNodeReference,
+  typeNodeReferenceMaybe,
+  unwrapSomeNode,
+  type SomeNodeReferenceData,
+} from "@/proto/wiring";
+import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
+import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
-import local, { LOCAL_PACKAGE_PTR, LOCAL_SPACE_ID } from "@/system/client";
+import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
-export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
+export const {
+  graph: benchGraph,
+  access: benchAccess,
+  connection: benchConnection,
+} = useGetNodes(
   { name: "bench", live: true },
   computed(() => ({
     roots: [local.benchPtr.value!],
@@ -19,7 +31,11 @@ export const { graph: benchGraph, connection: benchConnection } = useGetNodes(
   })),
 );
 export const bench = benchGraph.getRef(local.benchPtr);
-export const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
+export const {
+  graph: pkgGraph,
+  access: pkgAccess,
+  connection: pkgConnection,
+} = useGetNodes(
   { name: "pkg", live: true },
   computed(() => ({
     roots: [local.packagePtr.value!],
@@ -31,41 +47,78 @@ export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalBench = computed(() => bench.value != null);
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
-export const spaceRemote = pkgGraph.getRef(local.spacePtr);
 export const spaceGraph = new ProxyNodeGraph(null);
 export const space = spaceGraph.getRef(local.spacePtr);
-export const spaceConnection = useExistingConnection(local.spacePtr);
-export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.connection.tx);
+export const { connection: spaceConnection } = useExistingConnection(local.spacePtr);
+export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.tx);
+export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
+export const ownedSpacesInPkg = computed(() =>
+  local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),
+);
 
-// setup/connect local space as needed
+// find or create space for package
 watch(
-  spaceRemote,
+  [pkgConnection.isConnected, ownedSpacesInPkg, spacePtr],
   () => {
-    if (spaceRemote.value == null) {
-      // local
-      spaceGraph.graph = spaceGraphLocal;
-      if (spaceGraphLocal.size == 0) {
-        const space = { metatype: BenchType.SPACE, id: LOCAL_SPACE_ID, packagePtr: LOCAL_PACKAGE_PTR } as SpaceData;
-        spaceGraphLocal.add(space);
+    /** Finds an owned Space or creates a new one if allowed */
+    const findOrCreateSpace = () => {
+      const spaceInPkg = ownedSpacesInPkg.value[0];
+      if (spaceInPkg != null) {
+        // switch to our space in the package
+        log.debug("space.switchToLocalSpace", { space: spaceInPkg });
+        local.setSpace(toNodeReference(spaceInPkg));
+        spaceGraph.graph = pkgGraph;
+      } else if (pkg.value != null && pkgAccess.can(EditType.CREATE, NodeType.SPACE)) {
+        // create new space
+        const pkgPtr = toNodeReference(pkg.value);
+        log.debug("space.createNeededSpace", { pkg: pkg.value });
+        const space = pkgConnection.tx.create({
+          metatype: NodeType.SPACE,
+          parentPtr: pkgPtr,
+          packagePtr: pkgPtr,
+        });
+        setupEmptyCanvas(pkgConnection.tx, space);
+        spaceGraph.graph = pkgGraph;
+      } else if (spacePtr.value.id != LOCAL_SPACE_ID) {
+        // reset to local space
         local.setSpaceToLocal();
-        log.debug("space.setupEmptyCanvas", { space });
-        nextTick(() => setupEmptyCanvas(spaceConnection.connection.tx, space)); // spaceConnection is prepared lazily
+        spaceGraph.graph = spaceGraphLocal;
       }
+    };
+
+    // switch spaces if needed
+    const prevSpacePtr = spacePtr.value;
+    if (spacePtr.value.id == LOCAL_SPACE_ID) {
+      // current space is local
+      if (pkgConnection.isConnected.value && pkg.value != null) findOrCreateSpace();
     } else {
-      // remote
-      log.debug("space.useRemoteCanvas", { space: spaceRemote.value });
-      spaceGraph.graph = pkgGraph;
+      // current space is 'remote' (comes from the package)
+      const spaceInPkg = spaceGraph.get(spacePtr.value);
+      if (spaceInPkg == null) {
+        // current space has been deleted, notify and switch
+        toaster.warning({ title: "Space deleted", text: "Your Space is gone. Switching." });
+        findOrCreateSpace();
+      } else {
+        // current space is remote
+        spaceGraph.graph = pkgGraph;
+      }
     }
-    canvas.restoreComponentFocus();
+
+    // refocus if we switched spaces
+    if (prevSpacePtr?.id != spacePtr.value?.id) {
+      nextTick(() => canvas.restoreComponentFocus());
+    }
   },
   { immediate: true },
 );
 
-/**
- * 'Goes' to a Bench and sets it as the current main Bench.
- * Also finds our Space in the Package (or creates a new one if we have access).
- **/
-export async function goToBench(go: { bench: NodeReferenceData; branch?: NodeReferenceData; pkg?: NodeReferenceData }) {
+/** 'Goes' to a Bench and sets it as the current main Bench. **/
+export async function goToBench(go: {
+  bench: SomeNodeReferenceData<NodeType.BENCH>;
+  branch?: SomeNodeReferenceData<NodeType.BRANCH>;
+  pkg?: SomeNodeReferenceData<NodeType.PACKAGE>;
+  space?: SomeNodeReferenceData<NodeType.SPACE>;
+}) {
   log.info("space.goToBench", go);
 
   // connect to bench/package
@@ -80,14 +133,19 @@ export async function goToBench(go: { bench: NodeReferenceData; branch?: NodeRef
   const bench = graph.roots[0] as BenchData;
   const branch = graph.get(go.branch ?? bench.mainBranchPtr!) as BranchData;
   const pkg = go.pkg ?? branch.mainPackagePtr!;
-  local.setBench({ pkg: pkg as TypedNodeReferenceData<NodeType.PACKAGE> });
+  local.setBench({
+    pkg: typeNodeReference(NodeType.PACKAGE, pkg),
+    space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),
+  });
+}
 
-  // nocheckin: find or create space in package
-  // await pkgConnection.isLoaded(pkg.id)
-  const spaces = pkgGraph.getChildren(pkg, NodeType.SPACE);
-  const localSpacePtr = local.getSpacePtr(bench.id);
+/** 'Goes' to a Space and sets it as the current main Space. */
+export async function goToSpace(go: { space: SomeNodeReferenceData<NodeType.SPACE> }) {
+  log.info("space.goToSpace", go);
 
-  // let space = null; // ...
-
-  // if (space == null && pkgConnection.access)
+  if (go.space.benchId != local.benchPtr.value?.id) {
+    await goToBench({ bench: nodeReference(NodeType.BENCH, go.space.benchId!), space: go.space });
+  } else {
+    local.setSpace(typeNodeReference(NodeType.SPACE, go.space));
+  }
 }
