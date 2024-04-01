@@ -94,17 +94,18 @@ const operationsTracker = {
 
   track<I extends object, O extends object>(opIn: Omit<Operation<I, O>, "id" | "name">) {
     const id = this.numTotalOps++;
+    const serviceName = opIn.method.service.typeName.split(".").slice(2).join("."); // remove common company/project prefix
     const op = {
       ...opIn,
       id,
-      name: `${opIn.method.service.typeName}.${opIn.method.name} [id=${id}]`,
+      name: `${serviceName}.${opIn.method.name} [id=${id}]`,
     };
     this.pendingOps.push(op);
     this.recentOps.push(op);
     if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    log.trace(op.name, op.request);
+    log.trace(`rpc.${op.name}`, op.request);
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
@@ -114,7 +115,7 @@ const operationsTracker = {
       const code = error.code;
 
       if (!(op.options as OperationMetadata).suppressErrors) {
-        log.error(op.name, code, error, op);
+        log.error(`rpc.${op.name}`, code, error, op);
         toaster.error(humanizeError(error));
       }
 
@@ -130,12 +131,12 @@ const operationsTracker = {
       op.call.responses.onNext(() => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses || 0) + 1;
-        log.trace(op.name, "update", op.numResponses);
+        log.trace(`rpc.${op.name}`, "update", op.numResponses);
       });
       op.call.responses.onComplete(() => {
         op.terminatedAt = DateTime.now();
         op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        log.trace(op.name, "completed");
+        log.trace(`rpc.${op.name}`, "completed");
         remove();
       });
       op.call.responses.onError((error) => {
@@ -150,7 +151,7 @@ const operationsTracker = {
       op.call.response
         .then((output) => {
           op.response = output;
-          log.trace(op.name, "completed", output);
+          log.trace(`rpc.${op.name}`, "completed", output);
         })
         .catch((error) => {
           op.error = error;

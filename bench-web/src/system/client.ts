@@ -99,6 +99,7 @@ const _clientInfo = useLocal("clientInfo");
 export const persistentInfo = pretendReadonly(_persistentInfo);
 export const userInfo = pretendReadonly(_userInfo);
 export const clientInfo = pretendReadonly(_clientInfo);
+export const userPtr = computed(() => _userInfo.value?.id != null ? nodeReference(NodeType.USER, _userInfo.value.id) : null);
 
 // ensure persistent info is set
 if (_persistentInfo.value?.placeId == null) {

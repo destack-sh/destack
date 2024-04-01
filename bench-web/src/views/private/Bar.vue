@@ -213,20 +213,32 @@ const USER_MENU_ITEMS = computed(() => {
                     <span class="ml-2 font-semibold">{{ connection.name }}</span>
                     <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
                     <!-- Status -->
-                    <span class="ml-auto flex flex-row gap-x-2 pl-4">
-                      <span :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
+                    <span class="ml-auto flex flex-row pl-4">
+                      <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
                         {{ connection.referenceCount }}
                       </span>
-                      <span
-                        ><i
+                      <!-- Down -->
+                      <button class="rounded-md px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
+                        <i
                           :class="
                             connection.isFetching.value
                               ? 'fas fa-spinner-third animate-spin text-gray-500'
-                              : connection.isLive
-                                ? 'fas fa-signal text-success-600'
-                                : 'fas fa-signal-slash text-gray-500'
+                              : connection.isLive && !connection.isPaused.value
+                                ? 'fas fa-down text-success-600'
+                                : 'fas fa-down text-gray-500'
                           "
-                      /></span>
+                        />
+                      </button>
+                      <!-- Up -->
+                      <button
+                        class="rounded-md px-1 py-0.5 hover:bg-primary-200"
+                        @click="connection.txBuffer.togglePaused()"
+                      >
+                        <i
+                          class="fas fa-up"
+                          :class="connection.txBuffer.isPaused.value ? 'text-gray-500' : 'text-success-600'"
+                        />
+                      </button>
                     </span>
                   </li>
                 </ul>

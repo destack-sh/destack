@@ -130,6 +130,7 @@ export const ACTION_BUILTIN_IDS = [
   "user.auth.signup",
   "user.auth.login",
   "user.auth.logout",
+  "user.auth.logoutAll",
   "user.auth.activate",
   "user.misc.goToHome",
   "user.settings.editKeybindings",

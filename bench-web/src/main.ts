@@ -10,6 +10,7 @@ import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
 import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
+import { flushTransactionBuffers, setupTransactionManagement } from "@/system/transaction";
 
 async function init() {
   const app = createApp(Space);
@@ -66,17 +67,7 @@ async function init() {
   await registerViewComponents();
   toaster.run();
   keytrap.track(document); // ensure it's always running
-  // suppress save everywhere
-  keytrap.bind(["ctrl+s", "mod+s"], () => {
-    toaster.info({
-      key: "space.suppressSave",
-      icon: "fas fa-floppy-disk",
-      title: "No need to save",
-      text: "Bench synchronizes automatically.",
-      debounce: true,
-    });
-    return true;
-  });
+  setupTransactionManagement();
 
   app.mount("#app");
 }

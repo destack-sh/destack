@@ -83,6 +83,8 @@ export interface WriteNodeGraph {
   update(node: AnyNodeData): void;
   /** Removes a node from the graph (error if does not exist) */
   remove(node: AnyNodeData): void;
+  /** Clears all nodes in this graph */
+  clear(): void;
 }
 
 /**
@@ -295,6 +297,29 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     }
 
     this.notify(node);
+  }
+
+  clear() {
+    // remove all nodes
+    this.nodesById = {};
+    this.nodesByCk = {};
+    this.nodesByParentIdAndType = {};
+
+    // notify (and clear) all subs
+    for (const id in this.subsById) {
+      this.subsById[id].forEach((sub) => sub());
+    }
+    for (const ck in this.subsByCk) {
+      this.subsByCk[ck].forEach((sub) => sub());
+    }
+    for (const parentId in this.subsByParentIdAndType) {
+      for (const metatype in this.subsByParentIdAndType[parentId]) {
+        this.subsByParentIdAndType[parentId][metatype].forEach((sub) => sub());
+      }
+    }
+    this.subsById = {};
+    this.subsByCk = {};
+    this.subsByParentIdAndType = {};
   }
 
   private _addToParent(node: AnyNodeData) {
