@@ -1,4 +1,5 @@
 import { BenchType, ViewData } from "@/proto/wire";
+import { toNodeReference } from "@/proto/wiring";
 import { NodeGraph } from "@/system/graph";
 import { fabricate } from "@/system/graph.test";
 import { fixOrderKeys } from "@/system/lang";
@@ -14,7 +15,7 @@ describe("order keys", () => {
     );
 
     // 'fix' order keys with minimal edits
-    const tx = new TransactionBuilder({}, v4());
+    const tx = new TransactionBuilder({}, v4(), toNodeReference(fabricate(BenchType.USER)));
     fixOrderKeys(tx, badNodes);
     expect(tx.edits.length).toBe(3);
 

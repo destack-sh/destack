@@ -61,7 +61,7 @@ message LocalStorage {
   repeated BadgeInfo badges = 5;
 
   //
-  // Space/bench
+  // Space/Bench
   //
 
   // The current Space. May be local if not in a current Bench.
