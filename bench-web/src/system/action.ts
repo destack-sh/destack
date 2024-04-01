@@ -802,13 +802,13 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.launch.library": {
-    title: "Open Library",
+    title: "View Library",
     text: "Get building blocks from the library",
     icon: "fas fa-books",
     action: ACTION_COMING_SOON,
   },
   "space.launch.explorer": {
-    title: "Open Explorer",
+    title: "View Explorer",
     text: "Explore nodes in the space",
     icon: "fas fa-compass",
     action: ACTION_COMING_SOON,
@@ -820,7 +820,7 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.launch.docs": {
-    title: "Read the Docs",
+    title: "View Documentation",
     text: "Get help from our examples and guides",
     icon: "fas fa-book-open",
     action: ACTION_COMING_SOON,

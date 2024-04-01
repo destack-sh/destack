@@ -182,60 +182,58 @@ const USER_MENU_ITEMS = computed(() => {
       <!-- Status -->
       <div class="flex flex-row gap-x-3">
         <!-- Connection -->
-        <div v-if="hasLocalBench">
-          <Popover placement="bottom" :reference-margin="8" :container-margin="4">
-            <template #trigger="{ toggle }">
-              <button class="select-none text-success-700 hover:text-success-800" @click.stop="toggle">
-                <i class="fas fa-signal" />
-              </button>
-            </template>
-            <template #content="{ close }">
-              <!-- Connection summary -->
-              <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
-              <div
-                class="p z-50 rounded-md border border-gray-700 bg-white text-gray-900 shadow-md shadow-gray-700"
-                v-outside.click.stop="close"
-              >
-                <div class="my-1 border-b border-gray-700 px-3 py-1">
-                  <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
-                </div>
-                <Scroll
-                  :size="{ width: 320, height: 200 }"
-                  size-is-dynamic
-                  :orientation="Orientation.VERTICAL"
-                  :track-width="ScrollbarWidth.sm"
-                >
-                  <ul class="my-1.5 flex min-w-[280px] flex-col gap-y-1 px-3">
-                    <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
-                      <!-- Metadata -->
-                      <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
-                        {{ connection.kind }}
-                      </span>
-                      <span class="ml-2 font-semibold">{{ connection.name }}</span>
-                      <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
-                      <!-- Status -->
-                      <span class="ml-auto flex flex-row gap-x-2 pl-4">
-                        <span :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
-                          {{ connection.referenceCount }}
-                        </span>
-                        <span
-                          ><i
-                            :class="
-                              connection.isFetching
-                                ? 'fas fa-spinner-third animate-spin'
-                                : connection.isLive
-                                  ? 'fas fa-signal text-success-600'
-                                  : 'fas fa-signal-slash text-gray-500'
-                            "
-                        /></span>
-                      </span>
-                    </li>
-                  </ul>
-                </Scroll>
+        <Popover placement="bottom" :reference-margin="8" :container-margin="4">
+          <template #trigger="{ toggle }">
+            <button class="select-none text-success-700 hover:text-success-800" @click.stop="toggle">
+              <i class="fas fa-signal" />
+            </button>
+          </template>
+          <template #content="{ close }">
+            <!-- Connection summary -->
+            <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
+            <div
+              class="p z-50 rounded-md border border-gray-700 bg-white text-gray-900 shadow-md shadow-gray-700"
+              v-outside.click.stop="close"
+            >
+              <div class="my-1 border-b border-gray-700 px-3 py-1">
+                <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
-            </template>
-          </Popover>
-        </div>
+              <Scroll
+                :size="{ width: 320, height: 200 }"
+                size-is-dynamic
+                :orientation="Orientation.VERTICAL"
+                :track-width="ScrollbarWidth.sm"
+              >
+                <ul class="my-1.5 flex min-w-[280px] flex-col gap-y-1 px-3">
+                  <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
+                    <!-- Metadata -->
+                    <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
+                      {{ connection.kind }}
+                    </span>
+                    <span class="ml-2 font-semibold">{{ connection.name }}</span>
+                    <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
+                    <!-- Status -->
+                    <span class="ml-auto flex flex-row gap-x-2 pl-4">
+                      <span :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
+                        {{ connection.referenceCount }}
+                      </span>
+                      <span
+                        ><i
+                          :class="
+                            connection.isFetching
+                              ? 'fas fa-spinner-third animate-spin text-gray-500'
+                              : connection.isLive
+                                ? 'fas fa-signal text-success-600'
+                                : 'fas fa-signal-slash text-gray-500'
+                          "
+                      /></span>
+                    </span>
+                  </li>
+                </ul>
+              </Scroll>
+            </div>
+          </template>
+        </Popover>
 
         <!-- Developer mode -->
         <div v-if="isDeveloperMode">

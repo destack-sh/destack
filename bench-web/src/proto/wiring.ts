@@ -39,6 +39,8 @@ export function describeNode(node: AnyNodeData | NodeReferenceData | TypedNodeRe
   if ("name" in node) nodeParts.push(`name=${node.name}`);
   if ("slug" in node) nodeParts.push(`slug=${node.slug}`);
   if ("title" in node) nodeParts.push(`title=${node.title}`);
+  if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
+  if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   const typeName = toCasing(NodeType[type], Casing.CAMEL);
   return `${typeName}:[${nodeParts.join(", ")}]`;

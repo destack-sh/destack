@@ -1,9 +1,8 @@
 import {
+  HUMANIZED_OPERATION_STATUS,
   getGraphClient,
-  HUMANIZED_OPERATION_MESSAGE,
   type GrpcStatusName,
   type OperationMetadata,
-  HUMANIZED_OPERATION_STATUS,
 } from "@/proto/services";
 import {
   AggregationData,
@@ -17,7 +16,7 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
-import { makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import { makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData, describeNode } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
 import { LOCAL_BENCH_ID, LOCAL_PACKAGE_ID, LOCAL_SPACE_PTR } from "@/system/client";
 import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
@@ -32,10 +31,10 @@ import {
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { log } from "@/utils/log";
-import { deepValueEquals, pretendReadonly, proxyRef, toValueRef } from "@/utils/ref";
+import { deepValueEquals, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { useNetwork, whenever } from "@vueuse/core";
-import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
@@ -132,8 +131,8 @@ interface ConnectionResultMapping<T extends NodeType> extends Record<GraphConnec
 
 function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<T>[GraphConnectionKind]): GraphScope {
   if (params.scope != null) return params.scope;
-  if ("roots" in params && params.roots.length > 0) return { benchId: params.roots[0].id };
-  if ("bases" in params && (params.bases?.length ?? 0) > 0) return { benchId: params.bases![0].id };
+  if ("roots" in params && params.roots.length > 0) return { benchId: params.roots[0].benchId };
+  if ("bases" in params && (params.bases?.length ?? 0) > 0) return { benchId: params.bases![0].benchId };
 
   throw new Error(`cannot determine scope from params: ${JSON.stringify(params)}`);
 }
@@ -159,6 +158,8 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   readonly result: ShallowRef<ConnectionResultMapping<T>[K] | null>;
   /** The transaction buffer for editing this subgraph. */
   readonly txBuffer: TransactionBuffer;
+  /** An active Transaction for editing this subgraph. */
+  readonly tx: Transaction;
 
   /** Connected to the underlying graph as specified. */
   readonly isConnected: Ref<boolean>;
@@ -248,15 +249,12 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
 
       // decide whether to retry
       if (this.isClosed.value) return;
-      if ((error as RpcError).code) {
-        const rpcError = error as RpcError;
-        if (!options!.retryOn!.includes(rpcError.code as GrpcStatusName)) {
-          log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, rpcError);
-          this.isClosed.value = true;
-          return;
-        }
-      } else {
-        return; // ignore non-RPC errors outright?
+      if (!(error as RpcError).code) return; // unknown error
+      const rpcError = error as RpcError;
+      if (!options!.retryOn!.includes(rpcError.code as GrpcStatusName)) {
+        log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, rpcError);
+        this.isClosed.value = true;
+        return;
       }
 
       // schedule retry
@@ -280,7 +278,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       }
     });
 
-    const maintainConnection = async () => {
+    const establishAndMaintainConnection = async () => {
       while (!this.isClosed.value) {
         retrySignal.reset();
         try {
@@ -295,7 +293,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       }
     };
 
-    maintainConnection(); // run async
+    establishAndMaintainConnection(); // run async
   }
 
   /**
@@ -342,7 +340,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   /** Whether this connection is a superset of the given connection */
   supports(params: ConnectionParamsMapping<T>[K]): boolean {
     if (this.kind == "get") {
-      // TODO :Broken: Connection.supports is incorrect sometimes (assumes )
+      // TODO :Broken: Connection.supports is incorrect sometimes (assumes mostly non-overlapping GET requests)
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
@@ -476,6 +474,15 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
   constructor(meta: ConnectionMetadata, params: GetConnectionParams<T>, graph: WriteNodeGraph & ReadNodeGraph) {
     super(meta, params, new ImmediateTransactionBuffer(graph.scope, graph));
     this.graph = graph;
+
+    // 'fuse' the connection
+    this.isConnected.value = true;
+    this.result.value = { graph: this.graph, access: accessFull(), roots: this.graph.getManyRef(params.roots) };
+  }
+
+  connect(options?: Partial<ConnectionOptions> | undefined): Promise<void> {
+    // no-op, already fused
+    return Promise.resolve();
   }
 
   protected async doFetch(scope: GraphScope, params: GetConnectionParams<T>): Promise<GetConnectionResult<T>> {
@@ -510,6 +517,10 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 
   get txBuffer(): TransactionBuffer {
     return this.activeConnection.txBuffer;
+  }
+
+  get tx(): Transaction {
+    return this.activeConnection.tx;
   }
 
   get isConnected(): Ref<boolean> {
@@ -613,19 +624,16 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
     toValueRef(paramsRef),
     async () => {
       const old = connection.value;
-      if (old) releaseConnection(old);
-      if (paramsRef.value.enabled === false) {
+      if (old) {
+        releaseConnection(old);
         connection.value = null;
-        return; // disabled (not sure if this is the right place for disable/enable)
       }
+      if (paramsRef.value.enabled === false) return; // disabled
 
       // if the existing connection can support the new query, we'll just acquire it again
       const existing = acquireExistingConnection(kind, paramsRef.value);
-      if (existing) {
-        connection.value = existing;
-      } else {
-        connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
-      }
+      if (existing) connection.value = existing;
+      else connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
     },
     { immediate: true },
   );
@@ -642,7 +650,7 @@ export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
 ): {
   graph: ReadNodeGraph;
-  connection: GraphConnectionBase<"get", T>;
+  connection: GraphConnection<"get", T>;
 } {
   const nodeRef = toRef(node) as Ref<NodeReferenceData>;
   const graph = new ProxyNodeGraph(null);
@@ -652,13 +660,28 @@ export function useExistingConnection<T extends NodeType = any>(
   watch(
     toValueRef(nodeRef),
     () => {
-      if (connection.value) releaseConnection(connection.value);
-      connection.value = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
+      if (connection.value) {
+        releaseConnection(connection.value);
+        connection.value = null;
+      }
+      if (nodeRef.value != null) {
+        const newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
+        if (newConnection == null)
+          throw new Error(
+            `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
+          );
+        connection.value = newConnection as GraphConnectionBase<"get", T>;
+      }
+      graph._graph.value = connection.value?.result.value?.graph ?? null;
     },
     { immediate: true },
   );
+  watch(
+    () => connection.value?.result.value,
+    () => (graph.graph = connection.value?.result.value?.graph ?? null),
+  );
 
-  return { graph: markRaw(graph), connection: proxyRef(connection, { name: "connection" }) };
+  return { graph, connection: new ProxyConnection(connection) };
 }
 
 /**

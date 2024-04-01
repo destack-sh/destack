@@ -331,7 +331,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
         # notify watchers
         for watcher in self.watchers:
-            adapted_edits = self.adapt_edits(watcher, edits)
+            adapted_edits = self._filter_and_adapt_edits(watcher, edits)
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
@@ -341,7 +341,9 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         pass
 
     @final
-    def adapt_edits(self, watcher: EditWatcher, edits: list[EditData]) -> list[EditData]:
+    def _filter_and_adapt_edits(
+        self, watcher: EditWatcher, edits: list[EditData]
+    ) -> list[EditData]:
         # TODO :Broken :Security!: adapt graph edits to watcher's access
         adapted_edits = []
         for edit in edits:
@@ -373,7 +375,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 for epoch, edits in reversed(self.recent_epochs):
                     if epoch <= request.since_epoch:
                         break
-                    edits = self.adapt_edits(watcher, edits)
+                    edits = self._filter_and_adapt_edits(watcher, edits)
                     epochs_to_replay.append((epoch, edits))
                 if epochs_to_replay:
                     logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)

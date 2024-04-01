@@ -281,9 +281,9 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     return this.currentTx;
   }
 
-  // nocheckin: commit/swap remote transaction buffer
+  // nocheckin: commit/swap/overlay remote transaction buffer
 }
-// nocheckin: track edit by origin view? (for undo/redo)
+// nocheckin: track edit by origin (root) view? (for separate undo/redo)
 
 const globalTxBuffer: TransactionBuffer = new SwapTransactionBuffer({}, supervisor);
 const benchTxBuffers: Record<string, SwapTransactionBuffer> = {};
