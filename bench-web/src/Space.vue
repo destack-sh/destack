@@ -13,6 +13,8 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { toNodeReference } from "@/proto/wiring";
 import Split from "@/views/containers/Split.vue";
 import { bench, canvas } from "@/system/space";
+import { toaster } from "@/system/toast";
+import { keytrap } from "@/utils/keymap";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -32,6 +34,18 @@ const mainBox = computed(() => ({
   height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
 }));
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
+
+// suppress save everywhere
+keytrap.bind(["ctrl+s", "mod+s"], () => {
+  toaster.info({
+    key: "space.suppressSave",
+    icon: "fas fa-floppy-disk",
+    title: "No need to save",
+    text: "Bench synchronizes automatically.",
+    debounce: true,
+  });
+  return true;
+});
 
 // sync browser title
 const browserTitle = useTitle();

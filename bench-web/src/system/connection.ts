@@ -28,6 +28,7 @@ import {
   getTransactionBuffer,
   type Transaction,
   type TransactionBuffer,
+  SwapTransactionBuffer,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
@@ -163,13 +164,15 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   readonly tx: Transaction;
 
   /** Connected to the underlying graph as specified. */
-  readonly isConnected: Ref<boolean>;
+  readonly isConnected: Readonly<Ref<boolean>>;
   /** Currently fetching (or re-fetching) from the underlying graph.  */
-  readonly isFetching: Ref<boolean>;
+  readonly isFetching: Readonly<Ref<boolean>>;
   /** Temporarily paused from re-connecting or receiving live updates. */
-  readonly isPaused: Ref<boolean>;
+  readonly isPaused: Readonly<Ref<boolean>>;
   /** Closed and will not re-connect again. */
-  readonly isClosed: Ref<boolean>;
+  readonly isClosed: Readonly<Ref<boolean>>;
+
+  togglePaused(): void;
 };
 
 export abstract class GraphConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
@@ -188,10 +191,10 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   private abortController: AbortController | null = null; // for active fetch
   referenceCount: number = 0;
 
-  constructor(meta: ConnectionMetadata, params: ConnectionParamsMapping<T>[K], txBuffer?: TransactionBuffer) {
+  constructor(meta: ConnectionMetadata, params: ConnectionParamsMapping<T>[K], txBuffer: TransactionBuffer) {
     this.meta = meta;
     this.params = params;
-    this.txBuffer = txBuffer ?? getTransactionBuffer(getScopeFromParams(this.params));
+    this.txBuffer = txBuffer;
   }
 
   get id(): number {
@@ -208,6 +211,11 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
 
   get tx(): Transaction {
     return this.txBuffer.tx;
+  }
+
+  togglePaused(): void {
+    this.isPaused.value = !this.isPaused.value;
+    log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
   }
 
   get operationMeta(): OperationMetadata {
@@ -508,6 +516,10 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
   }
 
+  togglePaused(): void {
+    this.activeConnection.togglePaused();
+  }
+
   get activeConnection(): GraphConnectionBase<K, T> {
     if (this.connection.value == null) throw new Error("no active connection");
     return this.connection.value;
@@ -583,13 +595,15 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   const meta: ConnectionMetadata = { live: false, id: newConnectionId(), options: {}, ...metaIn };
 
   // create
+  const scope = getScopeFromParams(params);
+  const txBuffer = await getTransactionBuffer(scope);
   let connection: GraphConnectionBase<K, T>;
   if (kind == "get") {
     const getParams = params as GetConnectionParams<T>;
-    connection = new RemoteGetConnection<T>(meta, getParams) as any as GraphConnectionBase<K, T>;
+    connection = new RemoteGetConnection<T>(meta, getParams, txBuffer) as any as GraphConnectionBase<K, T>;
   } else if (kind == "search") {
     const searchParams = params as SearchConnectionParams<T>;
-    connection = new RemoteSearchConnection<T>(meta, searchParams) as any as GraphConnectionBase<K, T>;
+    connection = new RemoteSearchConnection<T>(meta, searchParams, txBuffer) as any as GraphConnectionBase<K, T>;
   } else {
     throw new Error(`unsupported connection kind: ${kind}`);
   }
@@ -602,6 +616,7 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   return connection;
 }
 
+// nocheckin: use tx buffer overlay (and filter) in connections
 /** Gets or acquires a connection given the params, maintaining reference counts and such. */
 export function useConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,

@@ -189,6 +189,13 @@ contributeActionMap<"user">({
     enabled: isAuthenticated,
     action: () => logOut(),
   },
+  "user.auth.logoutAll": {
+    icon: "fas fa-right-to-bracket",
+    title: "Log Out All",
+    text: "Log out all clients (including current).",
+    enabled: isAuthenticated,
+    action: () => logOut({ all: true }),
+  },
   "user.auth.activate": {
     icon: "fas fa-rocket-launch",
     enabled: computed(() => isAuthenticated.value && !isActivated.value),
