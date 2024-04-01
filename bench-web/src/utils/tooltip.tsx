@@ -258,10 +258,10 @@ const INPUT_EVENTS = [
   "blur",
 ];
 type InputEventName = (typeof INPUT_EVENTS)[number];
-type InputOutsideCallback = (e: Event) => void;
+type InputOutsideCallback = (e: Event) => boolean;
 
 type EventOutsideTriggerElement = {
-  inputOutsideEventName?: string;
+  inputOutsideEventName?: InputEventName;
   inputOutsideOnInput?: (e: Event) => void;
 } & HTMLElement;
 
@@ -274,11 +274,12 @@ export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideCallba
 
     triggerEl.inputOutsideOnInput = (e: Event) => {
       if (!triggerEl.contains(e.target as Node)) {
-        binding.value?.(e);
+        binding.value!(e);
         if (binding.modifiers.stop) e.stopPropagation();
         if (binding.modifiers.prevent) e.preventDefault();
       }
     };
+    triggerEl.inputOutsideEventName = eventName;
     document.addEventListener(eventName, triggerEl.inputOutsideOnInput);
   },
 
