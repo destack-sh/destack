@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref, watchEffect } from "vue";
 
 const props = defineProps<
   {
@@ -17,8 +17,8 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
-const splits = spaceGraph.getChildrenRef(toRef(props, "self"), NodeType.VIEW);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW);
 const focusedSplitIdx: Ref<number | null> = computed(() => {
   if (splits.value.length == 0) return null;
   if (props.focus?.nodesPtr.length ?? 0 > 0) {

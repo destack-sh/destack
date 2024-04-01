@@ -430,22 +430,22 @@ export class ViewCanvas {
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
-      let root = this.focusedRoot ?? this.currentFrames[0];
-      if (root == null) {
+      let primary = this.focusedRoot ?? this.currentFrames[0];
+      if (primary == null) {
         // no root, reset space
         log.info("view.repair", this.spacePtr.value);
         const space = this.graph.get(this.spacePtr.value!)!;
-        root = setupEmptyCanvas(tx, space).root;
+        primary = setupEmptyCanvas(tx, space).primary;
       }
 
       // create & focus
-      const rootChildren = this.graph.getChildren(root, NodeType.VIEW);
+      const rootChildren = this.graph.getChildren(primary, NodeType.VIEW);
       const newView = makeNode({
         ...view,
         metatype: NodeType.VIEW,
-        packagePtr: root.packagePtr,
+        packagePtr: primary.packagePtr,
         orderKey: generateKeyBetween(rootChildren[-1]?.orderKey ?? null, null),
-        parentPtr: toNodeReference(root),
+        parentPtr: toNodeReference(primary),
         icon: toIconMaybe(view.icon),
       });
       tx.create(newView);
@@ -638,22 +638,22 @@ export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceD
 }
 
 /** Sets up a minimal empty space with one root tab */
-export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { root: ViewData } {
+export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { primary: ViewData } {
   const window = makeMainWindow(space, tx);
-  const main = makeNode({
+  const primary = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.TAB,
     parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Window",
-    title: "Window",
+    name: "Primary",
+    title: "Primary",
   });
-  tx.create(main);
-  return { root: main };
+  tx.create(primary);
+  return { primary };
 }
 
-/** Setups up the default three-window canvas */
+/** Setups up the default three-frame canvas (side, primary, secondary views) */
 export function setupDefaultCanvas(
   tx: Transaction,
   space: SpaceData,

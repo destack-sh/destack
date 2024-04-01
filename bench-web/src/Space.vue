@@ -9,7 +9,7 @@ import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import { toNodeReference } from "@/proto/wiring";
 import Split from "@/views/containers/Split.vue";
 import { bench, canvas } from "@/system/space";
