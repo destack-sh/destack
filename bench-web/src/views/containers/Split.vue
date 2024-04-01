@@ -6,7 +6,7 @@ import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { computed, ref, toRef, type Ref, watchEffect } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   {
@@ -35,6 +35,7 @@ const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL)
 const hasFocusedSplit = computed(() => focusedSplitIdx.value != null);
 
 const BORDER_SIZE = 2;
+const DRAGGABLE_SIZE = 4;
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: orientation.value,
   minPx: MIN_SPLIT_SIZE,
@@ -141,13 +142,23 @@ defineExpose<ViewExposed>({ self, actions });
         v-if="viewIdx > 0"
         class="pointer-events-auto absolute transition-colors duration-300"
         :class="[
-          isHorizontal ? 'w-1 cursor-ew-resize' : 'h-1 cursor-ns-resize',
+          isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize',
           draggingIdx == viewIdx - 1 ? 'bg-primary-400' : 'bg-transparent hover:bg-primary-300',
         ]"
         :style="
           isHorizontal
-            ? { left: left - 2 + 'px', top: top + 'px', height: height + 'px' }
-            : { left: left + 'px', top: top - 2 + 'px', width: width + 'px' }
+            ? {
+                width: DRAGGABLE_SIZE + 'px',
+                left: left - DRAGGABLE_SIZE / 2 + 'px',
+                top: top + 'px',
+                height: height + 'px',
+              }
+            : {
+                height: DRAGGABLE_SIZE + 'px',
+                left: left + 'px',
+                top: top - DRAGGABLE_SIZE / 2 + 'px',
+                width: width + 'px',
+              }
         "
         @mousedown="draggingIdx = viewIdx - 1"
         data-outside-view="true"

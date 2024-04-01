@@ -2,7 +2,7 @@ import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/prot
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
 import { useElementSize, useEventListener, useMouseInElement, useMousePressed, useScroll } from "@vueuse/core";
-import { computed, ref, watch, type Ref, type MaybeRef, toRef } from "vue";
+import { computed, ref, watch, type Ref, type MaybeRef, toRef, watchEffect, nextTick } from "vue";
 
 // our own 'dragging' state so we can block pointer events at the root component
 const _isDragging = ref(false);
@@ -142,45 +142,43 @@ export function splitView(
   return { sizedViews, updateSeparator };
 }
 
+const mousePressed = useMousePressed();
+
 /**
  * Split a view in a container with draggable separators.
  * Set 'draggingIdx' to track which separator is being dragged (=index of lower view).
+ * 'draggingIdx' is automatically reset when the mouse is released.
  */
 export function useSplitView(
   viewsRef: Ref<ViewData[]>,
   sizeRef: Ref<{ width: number; height: number }>,
   containerRef: Ref<HTMLElement | null>,
   layoutRef: Ref<SplitLayout>,
-  graphConnection: GraphConnection,
+  graphConnection: GraphConnection<any, any>,
 ) {
   const { sizedViews, updateSeparator } = splitView(viewsRef, sizeRef, layoutRef);
-  const { pressed } = useMousePressed();
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
   const draggingIdx = ref<number | null>(null);
 
-  watch([pressed, mouseRelativeX, mouseRelativeY], () => {
+  watch([mousePressed.pressed, draggingIdx, mouseRelativeX, mouseRelativeY], () => {
     if (draggingIdx.value == null) return;
-    if (!pressed.value) {
-      draggingIdx.value = null;
+    if (!mousePressed.pressed.value) {
+      // NOTE: sometimes the event listener for 'draggingIdx' fires after 'mousePressed',
+      //  so we don't want to stop dragging immediately.
+      nextTick(() => {
+        if (draggingIdx.value == null && !mousePressed.pressed.value) draggingIdx.value = null;
+      });
       return;
     }
     const draggedToPx =
       layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
     const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
     graphConnection.tx.update(
-      {
-        metatype: NodeType.VIEW,
-        id: viewsRef.value[draggingIdx.value].id,
-        size: aUpdate.size,
-      },
+      { metatype: NodeType.VIEW, id: viewsRef.value[draggingIdx.value].id, size: aUpdate.size },
       { debounce: true },
     );
     graphConnection.tx.update(
-      {
-        metatype: NodeType.VIEW,
-        id: viewsRef.value[draggingIdx.value + 1].id,
-        size: bUpdate.size,
-      },
+      { metatype: NodeType.VIEW, id: viewsRef.value[draggingIdx.value + 1].id, size: bUpdate.size },
       { debounce: true },
     );
   });
