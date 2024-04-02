@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -27,13 +26,13 @@ def bump(revision: int = typer.Option(None)):
     new_version = today.strftime("%Y.%m.%d") + "." + str(revision)
     logger.info("version.bump", current_version=current_version, new_version=new_version)
 
-    # write version to 'const', 'version' and 'package.json'
-    Path("bench/language/const.py").write_text(
-        Path("bench/language/const.py").read_text().replace(current_version, new_version)
-    )
-    Path("version").write_text(new_version)
-    with open("bench-web/package.json", "r") as f:
-        package = json.load(f)
-        package["version"] = new_version
-    with open("bench-web/package.json", "w") as f:
-        json.dump(package, f, indent=2)
+    # write version to 'version', Python files and TS files
+    for path in (
+        "version",
+        "bench/language/const.py",
+        "bench/sql/schema.py",
+        "bench/proto/wire.py",
+        "bench-web/package.json",
+        "bench-web/src/utils/globals.ts",
+    ):
+        Path(path).write_text(Path(path).read_text().replace(current_version, new_version))
