@@ -13,7 +13,7 @@ import {
   type AnyPropertyType,
   type EditData,
   type IGraphIOClient,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -133,7 +133,6 @@ export class TransactionBuilder implements Transaction {
     for (const sub of this.subs) {
       sub(edit, debounced ?? false);
     }
-    console.log("edit nocheckin", edit);
   }
 
   create<T extends NodeType>(
@@ -291,7 +290,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
 
       let existingNode = graph.get({ id: nodeData.id }) as Readonly<Partial<AnyNodeData>> | undefined;
       if (!existingNode) {
-        if (options?.isOverlay) existingNode = {};
+        if (options?.isOverlay) existingNode = nodeData;
         else throw new Error(`missing node for ${EditType[edit.type]}: ${nodeData.id}`);
       }
 
@@ -306,9 +305,6 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
         properties
           .filter((propId) => !updatedNode.setProperties.includes(propId))
           .forEach((i) => updatedNode.setProperties.push(i));
-        // fill in missing properties if missing in base
-        if (Object.keys(existingNode).length == 0) {
-        }
       }
 
       graph.update(updatedNode);
@@ -468,6 +464,7 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       editGraph(this.overlay, [edit], { isOverlay: true });
+      console.log("edit overlay nocheckin", edit);
     });
     return tx;
   }

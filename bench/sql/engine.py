@@ -1494,7 +1494,7 @@ async def _pg_write_edit_batch(
         dynamic_columns: list[Column] = [table._primary_key]
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
 
-        if edit_type in (EditType.UPDATE, EditType.MOVE):
+        if edit_type == EditType.UPDATE:
             dynamic_columns.append(node_cls.updated_at.column)
             dynamic_columns.extend(p.column for p in node_cls.updated_by.reference_stored_props)
             # user supplied updated properties
@@ -1519,9 +1519,16 @@ async def _pg_write_edit_batch(
                             row[prop.name] = value
                     else:
                         # property is unchanged, keep old value
-                        value = sql.Identifier(prop.column.name)
+                        value = f"{table.name}.{prop.name}"
                         row[prop.name] = value
                 dynamic_values.append(row)
+        elif edit_type == EditType.MOVE:
+            dynamic_columns.append(node_cls.updated_at.column)
+            dynamic_columns.extend(p.column for p in node_cls.parent.reference_stored_props)
+            for edit, node in zip(batch, nodes):
+                row = {"id": node.id, "updated_at": node.updated_at}
+                dynamic_values.append(row)
+                _pg_pack_node_reference_into_row(node_cls.parent, row, node.parent_ptr)
         elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
             dynamic_columns.append(node_cls.archived_at.column)
             for edit, node in zip(batch, nodes):
@@ -1553,7 +1560,7 @@ async def _pg_write_edit_batch(
             return None
 
     elif edit_type == EditType.DELETE:
-        nodes_ids = tuple(edit.node.id for edit in batch)
+        nodes_ids = list(wiring.unwrap_some_node(edit.node).id for edit in batch)
         where = SqlComparison(
             left=sql.Identifier("id"),
             op=PostgresConditionalOp.EQ,

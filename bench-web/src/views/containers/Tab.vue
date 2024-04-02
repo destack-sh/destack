@@ -161,8 +161,8 @@ defineExpose<ViewExposed>({ self, actions });
         :key="tab.id"
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 transition-colors duration-75 hover:cursor-pointer"
         :class="[
-          i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : ' hover:text-primary-900',
-          i == focusedTabIdx ? (isFocusAbsolute ? 'shadow-inset-md' : '') : '',
+          i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : 'hover:text-primary-900',
+          i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md' : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-500') : '',
         ]"
         @click="focus(tab)"

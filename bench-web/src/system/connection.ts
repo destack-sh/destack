@@ -673,7 +673,6 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   return connection;
 }
 
-// nocheckin: use tx buffer overlay (and filter) in connections
 /** Gets or acquires a connection given the params, maintaining reference counts and such. */
 export function useConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
@@ -769,6 +768,7 @@ export function useExistingConnection<T extends NodeType = any>(
   return { graph, connection: new ProxyConnection(connection) };
 }
 
+// nocheckin: use tx buffer overlay (and filter) in connections
 /** The graph of a node connection overlaid with its local buffer */
 function connectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
@@ -780,7 +780,7 @@ function connectionOverlayGraph<T extends NodeType>(
       if (connection.value?.result.value == null) {
         graph.layers.value = [];
       } else {
-        graph.layers.value = [connection.value!.result.value!.graph, connection.value?.txBuffer.overlay];
+        graph.layers.value = [connection.value!.result.value!.graph, connection.value!.txBuffer.overlay];
       }
     },
     { immediate: true },

@@ -264,10 +264,11 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   update(node: AnyNodeData) {
+    if (!node.id) throw new Error(`node must have an id: ${describeNode(node)}`);
     const existing = this.nodesById[node.id];
     if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
 
-    if (existing?.parentPtr?.id != node.parentPtr?.id) {
+    if (existing != null && existing?.parentPtr?.id != node.parentPtr?.id) {
       // move
       if (existing?.parentPtr != null) this._removeFromParent(existing!);
       if (node.parentPtr != null) this._addToParent(node);
@@ -283,6 +284,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   remove(node: AnyNodeData) {
+    if (!node.id) throw new Error(`node must have an id: ${describeNode(node)}`);
     delete this.nodesById[node.id];
     if ("ck" in node) delete this.nodesByCk[node.ck];
 
@@ -345,8 +347,9 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private _removeFromParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      const nodeIdx = this.nodesByParentIdAndType[parentId][node.metatype].findIndex((n) => n == node.id);
-      if (nodeIdx == -1)
+      const nodeIdx = this.nodesByParentIdAndType[parentId]?.[node.metatype]?.findIndex((n) => n == node.id);
+      if (nodeIdx == null && this.isPartial) return;
+      else if (nodeIdx == -1)
         throw new Error(
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
         );

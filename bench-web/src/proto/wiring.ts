@@ -152,7 +152,7 @@ export function getDefaultProtoValue(field: FieldInfo): any {
   } else if (field.kind == "enum") {
     return 0;
   } else {
-    return undefined; // is this correct?
+    return undefined; // NOTE :Robustness: is this correct?
   }
 }
 

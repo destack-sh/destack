@@ -274,7 +274,12 @@ export class ViewCanvas {
     // if no anchor is given, try to use existing focus state
     if (anchor == null && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
       const child = this.getViewData(viewData!.focus!.nodesPtr[0]);
-      if (child != null && this.focusInComponent(child)) return true;
+      if (child != null) {
+        // if we have a focus state we must use it, even if it didn't actually focus in the component
+        //  (so we 'emulate' the focus in the component by calling onComponentFocused directly)
+        if (!this.focusInComponent(child)) this.onComponentFocused(component);
+        return true;
+      }
     }
 
     // focus component directly or delegate
@@ -338,13 +343,13 @@ export class ViewCanvas {
 
     // mark element with component
     onMounted(() => {
-      // we enforce that el must be a single element
+      // NOTE: we enforce that el must be a single element for all Views with a lint rule
       if ((instance as any).vnode.el == null) console.warn("canvas.missingEl", getVueComponentType(instance), instance);
       else (instance as any).vnode.el.__viewComponent = instance;
     });
 
     // register
-    // TODO @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
+    // NOTE @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
     let oldComponentId: string | null = null;
     watch(
       () => self.value?.id ?? id?.value ?? null,
@@ -392,7 +397,7 @@ export class ViewCanvas {
     return null; // not found
   }
 
-  /** Gets all the open frames (direct children of Window views) */
+  /** Gets all the open frames (direct children of Window views, not reactive) */
   get currentFrames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
     const getFrames = (view: ViewData): ViewData[] => {
@@ -622,7 +627,7 @@ function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
     parentPtr: toNodeReference(space),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Root",
+    name: "Main",
   });
   tx.create(main);
   return main;
