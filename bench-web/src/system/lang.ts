@@ -103,7 +103,7 @@ export function updateOrderKey<T extends AnyNodeData & { orderKey: string }>(ord
     });
   }
   // @ts-ignore: orderKey must exist
-  order.tx.update({ ...order.target, orderKey });
+  order.tx.update({ ...order.target, orderKey }, ["orderKey"]);
 }
 
 /**
@@ -146,7 +146,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
       const orderKeys = generateNKeysBetween(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
       for (let j = 0; j < numDuplicates; j++) {
         // @ts-ignore: orderKey must exist
-        tx.update({ ...duplicates[j], orderKey: orderKeys[j] });
+        tx.update({ ...duplicates[j], orderKey: orderKeys[j] }, ["orderKey"]);
       }
       i += numDuplicates;
     } else {

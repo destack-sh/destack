@@ -1,29 +1,26 @@
 <script lang="ts" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { useExistingConnection } from "@/system/connection";
-import { LOCAL_SPACE_PTR, spacePtr } from "@/system/client";
+import { describeNode, toNodeReference } from "@/proto/wiring";
+import { spacePtr } from "@/system/client";
+import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
+import { toaster } from "@/system/toast";
+import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
+import { keytrap } from "@/utils/keymap";
 import { isDragging } from "@/utils/layout";
+import Split from "@/views/containers/Split.vue";
 import Bar from "@/views/private/Bar.vue";
+import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
-import MenuOverlay from "@/views/private/MenuOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, ref, watch, watchEffect } from "vue";
-import { toNodeReference } from "@/proto/wiring";
-import Split from "@/views/containers/Split.vue";
-import { bench, canvas } from "@/system/space";
-import { toaster } from "@/system/toast";
-import { keytrap } from "@/utils/keymap";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(
-  computed(() => spacePtr.value ?? LOCAL_SPACE_PTR),
-);
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes at :OneRootWindow for now
 
@@ -36,7 +33,7 @@ const mainBox = computed(() => ({
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
 // suppress save everywhere
-keytrap.bind(["ctrl+s", "mod+s"], () => {
+const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => {
   toaster.info({
     key: "space.suppressSave",
     icon: "fas fa-floppy-disk",
@@ -46,6 +43,7 @@ keytrap.bind(["ctrl+s", "mod+s"], () => {
   });
   return true;
 });
+onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
 const browserTitle = useTitle();
@@ -80,7 +78,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       :space-connection="spaceConnection"
       :box="{ x: 0, y: 0, width: spaceWidth, height: BAR_HEIGHT }"
     />
-    <!-- Window root -->
+    <!-- Space root (:OneRootWindow) -->
     <Split
       v-if="window"
       :type="ViewType.WINDOW"
@@ -93,6 +91,19 @@ watch([canvas.focusedViewPtr, bench], () => {
       :orientation="Orientation.HORIZONTAL"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
+    <!-- Loading space -->
+    <div
+      v-else-if="!spaceConnection.isConnected.value"
+      class=""
+      :style="{
+        width: mainBox.width + 'px',
+        height: mainBox.height + 'px',
+      }"
+    >
+      <div class="flex h-full flex-col items-center justify-center">
+        <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
+      </div>
+    </div>
     <!-- Overlays -->
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />

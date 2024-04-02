@@ -274,7 +274,13 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                     request.scope, node_type, AccessKind.EDIT
                 )
                 result = await connection.fetch(query, FetchOptions(count=False))
-                data_graph.extend(result.nodes)
+
+                # merge result into data_graph (there may be duplicates)
+                for node in result.nodes:
+                    if node.id not in data_graph:
+                        data_graph.add(node)
+
+                # all requested nodes must be present
                 if any(str(r.id) not in data_graph for r in node_references):
                     missing = tuple(r for r in node_references if str(r.id) not in data_graph)
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"edited scopes not found: {missing}")
@@ -295,7 +301,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             for node in nodes:
                 node._validate_self(properties=(), on_invalid=on_invalid_raise)
 
-            # apply the edits
+            # apply edits
             session.tx._add_pending_edits(request.edits)
             await session.commit()
             logger.info(

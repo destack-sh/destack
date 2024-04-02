@@ -19,7 +19,7 @@ import {
 import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
 import { LOCAL_SPACE_PTR, spaceGraphLocal } from "@/system/client";
-import { NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { LayerNodeGraph, NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
 import {
   ImmediateTransactionBuffer,
@@ -389,9 +389,18 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
       if (getScopeFromParams(otherGet).benchId != getScopeFromParams(thisGet).benchId) return false;
-      // options included?
-      if (otherGet.options?.ancestorTypes?.some((t) => !thisGet.options?.ancestorTypes?.includes(t))) return false;
-      if (otherGet.options?.descendantTypes?.some((t) => !thisGet.options?.descendantTypes?.includes(t))) return false;
+      // node types included?
+      const thisNodeTypes = [
+        ...thisGet.roots.map((r) => r.type),
+        ...(thisGet.options?.ancestorTypes ?? []),
+        ...(thisGet.options?.descendantTypes ?? []),
+      ];
+      const otherNodeTypes = [
+        ...otherGet.roots.map((r) => r.type),
+        ...(otherGet.options?.ancestorTypes ?? []),
+        ...(otherGet.options?.descendantTypes ?? []),
+      ];
+      if (!otherNodeTypes.every((t) => thisNodeTypes.includes(t))) return false;
       return true;
     } else if (this.kind == "search") {
       return deepValueEquals(this.params, params);
@@ -704,7 +713,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
   options?: {
-    ignoreNotFound?: boolean;
+    isGlobal?: boolean;
   },
 ): {
   graph: ReadNodeGraph;
@@ -714,32 +723,69 @@ export function useExistingConnection<T extends NodeType = any>(
   const graph = new ProxyNodeGraph(null);
   const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
 
-  // route to the appropriate graph connection
-  watch(
-    toValueRef(nodeRef),
-    () => {
-      if (connection.value) {
-        releaseConnection(connection.value);
-        connection.value = null;
-      }
-      if (nodeRef.value != null) {
-        const newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
-        if (newConnection == null && !options?.ignoreNotFound)
-          throw new Error(
-            `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
-          );
-        connection.value = newConnection as GraphConnectionBase<"get", T> | null;
-      }
-      graph._graph.value = connection.value?.result.value?.graph ?? null;
-    },
-    { immediate: true },
-  );
+  // route to the appropriate connection
+  const refreshConnection = () => {
+    const oldConnection = connection.value;
+    let newConnection = null;
+    if (connection.value) {
+      releaseConnection(connection.value);
+    }
+    if (nodeRef.value != null) {
+      newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
+      if (newConnection == null && !options?.isGlobal)
+        throw new Error(
+          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
+        );
+    }
+    if (newConnection !== oldConnection) {
+      connection.value = newConnection as GraphConnectionBase<"get", T> | null;
+    }
+    graph._graph.value = connection.value?.result.value?.graph ?? null;
+  };
+  watch(toValueRef(nodeRef), refreshConnection, { immediate: true });
+
+  // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
+  //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
+  if (options?.isGlobal) {
+    let stopGlobalWatch = null as (() => void) | null;
+    watch(
+      connection,
+      () => {
+        stopGlobalWatch?.();
+        if (!connection.value) {
+          stopGlobalWatch = watch(_graphConnections, refreshConnection);
+        }
+      },
+      { immediate: true },
+    );
+  }
+
+  // sync result
   watch(
     () => connection.value?.result.value,
     () => (graph.graph = connection.value?.result.value?.graph ?? null),
   );
 
   return { graph, connection: new ProxyConnection(connection) };
+}
+
+/** The graph of a node connection overlaid with its local buffer */
+function connectionOverlayGraph<T extends NodeType>(
+  connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
+): ReadNodeGraph {
+  const graph = new LayerNodeGraph([]);
+  watch(
+    () => connection.value?.result.value,
+    () => {
+      if (connection.value?.result.value == null) {
+        graph.layers.value = [];
+      } else {
+        graph.layers.value = [connection.value!.result.value!.graph, connection.value?.txBuffer.overlay];
+      }
+    },
+    { immediate: true },
+  );
+  return graph;
 }
 
 /**
@@ -755,7 +801,7 @@ export function useGetNodes<T extends NodeType>(
 
   // map results
   // TODO :Cleanup: mapping connection results is a deep ref chain?
-  const graph = new ProxyNodeGraph(computed(() => connection.value?.result?.value?.graph ?? null));
+  const graph = connectionOverlayGraph(connection);
   const access = new AccessProxy(
     computed(() => connection.value?.result?.value?.access ?? null),
     { default: accessFull() },
@@ -782,7 +828,7 @@ export function useSearchNodes<T extends NodeType>(
   const connection = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
-  const graph = new ProxyNodeGraph(computed(() => connection.value?.result?.value?.graph ?? null));
+  const graph = connectionOverlayGraph(connection);
   const access = new AccessProxy(
     computed(() => connection.value?.result?.value?.access ?? null),
     { default: accessFull() },
