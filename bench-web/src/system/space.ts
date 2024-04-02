@@ -14,7 +14,7 @@ import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
-import { computed, watch } from "vue";
+import { computed, nextTick, watch } from "vue";
 
 // bench/packages
 export const {
@@ -66,6 +66,16 @@ watch(
     } else {
       spaceGraph.graph = pkgGraph;
     }
+  },
+  { immediate: true },
+);
+
+// refocus whenever space changes
+watch(
+  spacePtr,
+  async () => {
+    await spaceConnection.waitForResult((result) => result?.graph.get({ id: spacePtr.value.id }) != null);
+    nextTick(() => canvas.restoreComponentFocus());
   },
   { immediate: true },
 );
@@ -132,6 +142,7 @@ export async function goToBench(go: {
   // figure out space once package is loaded
   await pkgConnection.waitForResult((result) => result?.graph.get({ id: pkg.id }) != null);
   await assignSpaceInPackage();
+  nextTick(() => canvas.restoreComponentFocus());
 }
 
 /** 'Goes' to a Space and sets it as the current main Space. */

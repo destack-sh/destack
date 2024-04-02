@@ -1055,12 +1055,12 @@ def evaluate_access(
             break  # already fully allowed
 
     # sum into decision
-    if mode == AccessMode.ADAPTIVE:  # if any property was allowed -> access is allowed
+    if mode == AccessMode.ADAPTIVE:  # adaptive  = if any property was allowed -> access is allowed
         if composite_allowed_properties.any():
             decision = PolicyEffect.ALLOW
         else:
             decision = PolicyEffect.DENY
-    elif mode == AccessMode.ATOMIC:  # if any property was rejected -> access is denied
+    elif mode == AccessMode.ATOMIC:  # atomic = if any property was rejected -> access is denied
         if composite_allowed_properties == object_properties:
             decision = PolicyEffect.ALLOW
         else:
@@ -1201,7 +1201,7 @@ def evaluate_edit(
     cache: dict[Any, Any] = {}
     # when creating nested nodes in one transaction, the graph only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
-    new_node_scopes_by_child_id: dict[str, str] | None = None
+    new_node_scopes_by_child_id: dict[str, str] = {}
     for edit in edits:
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
@@ -1210,16 +1210,17 @@ def evaluate_edit(
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:
-            # regular non-root node: scope = parent if creating, else scope = node
+            # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                if new_node_scopes_by_child_id is None:
-                    new_node_scopes_by_child_id = {}
                 scope_id = node.parent_ptr.id
                 while scope_id in new_node_scopes_by_child_id:
                     scope_id = new_node_scopes_by_child_id[scope_id]
                 new_node_scopes_by_child_id[node.id] = scope_id
             else:
-                scope_id = node.id
+                if node.id in new_node_scopes_by_child_id:
+                    scope_id = new_node_scopes_by_child_id[node.id]
+                else:
+                    scope_id = node.id
             scope = graph.get(scope_id)
             assert scope is not None, f"scope {scope_id} for {edit!r} not in {graph!r}"
             root = graph.get_root(scope)

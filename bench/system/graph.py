@@ -421,8 +421,9 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
 
     node_scopes_data: dict[str, "NodeReferenceData"] = {}
     graph_scopes: dict[int, "GraphScope"] = {}
+    just_created_nodes_id: set[str] = set()
     for edit in edits:
-        # node scope
+        # node scope :NodeEditScope
         node_data = wiring.unwrap_some_node(edit.node)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             # node scope is parent since we don't know this node yet
@@ -433,9 +434,13 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
                     node_scope = node_scopes_data[node_data.parent_ptr.id]
             else:
                 raise ValidationError(node_data, "can't create orphan")
+            just_created_nodes_id.add(node_data.id)
         else:
             # node scope is the edited node itself
-            node_scope = NodeReference.from_node_data(node_data)
+            if node_data.id in just_created_nodes_id:
+                continue  # skip just created nodes
+            else:
+                node_scope = NodeReference.from_node_data(node_data)
         node_scopes_data[node_data.id] = node_scope
 
         # graph scope
