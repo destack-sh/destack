@@ -35,17 +35,23 @@ export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | Type
 
 /** Short string representation of the node (pointer) */
 export function describeNode(node: {
-  metatype?: NodeType | BenchType;
-  type?: NodeType | BenchType | any;
-  id?: string;
-  ck?: string;
+  metatype?: NodeType | BenchType | any | null;
+  parentPtr?: NodeReferenceData | null;
+  type?: NodeType | BenchType | any | null;
+  id?: string | null;
+  ck?: string | null;
+  slug?: string | null;
+  name?: string | null;
+  title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`r=${node.revision}`);
-  if ("name" in node) nodeParts.push(`name=${node.name}`);
-  if ("slug" in node) nodeParts.push(`slug=${node.slug}`);
-  if ("title" in node) nodeParts.push(`title=${node.title}`);
+  if (node.name) nodeParts.push(`name='${node.name}'`);
+  if (node.slug) nodeParts.push(`slug=${node.slug}`);
+  if (node.title) nodeParts.push(`title='${node.title}'`);
+  if ("parentPtr" in node)
+    nodeParts.push(`parent=${toCasing(NodeType[node.parentPtr!.type], Casing.CAMEL)}:${node.parentPtr?.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
@@ -88,7 +94,8 @@ export function makeDefaultStruct<T extends StructType>(
     if (propName == "metatype") continue; // already set
     if ((struct as any)[propName] == null) {
       const field = messageType.fields[ord];
-      (struct as any)[propName] = getDefaultProtoValue(field);
+      const defaultValue = getDefaultProtoValue(field);
+      if (defaultValue !== undefined) (struct as any)[propName] = defaultValue;
     }
     ord += 1;
   }
@@ -138,8 +145,12 @@ export function makeDefaultProto<T extends object>(messageType: MessageType<T>):
 export function getDefaultProtoValue(field: FieldInfo): any {
   if (field.repeat) {
     return [];
+  } else if (field.opt) {
+    return undefined;
   } else if (field.kind == "scalar") {
     return SCALAR_DEFAULTS[field.T];
+  } else if (field.kind == "enum") {
+    return 0;
   } else {
     return undefined; // is this correct?
   }
@@ -176,16 +187,21 @@ export function makeNode<T extends NodeType>(
 
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
 
-  // assign id/ck
+  // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
     if ("packagePtr" in properties) {
       if (!("packagePtr" in data) || data.packagePtr == null)
-        throw new Error(`missing packagePtr to make in-package node ${NodeType[data.metatype]}`);
+        throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
       if ((node as any).ck == null) (node as any).ck = newNodeCk();
       node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
     } else {
       node.id = newNodeId();
     }
+  }
+  if ("benchPtr" in properties && (node as any).benchPtr == null) {
+    const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
+    if (benchId == null) throw new Error(`missing benchId to make sub-bench node ${NodeType[data.metatype]}`);
+    (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
 
   // assign default values to unset properties
@@ -196,7 +212,8 @@ export function makeNode<T extends NodeType>(
     if (propName == "metatype") continue; // already set
     if (!Object.prototype.hasOwnProperty.call(node, propName)) {
       const field = messageType.fields[ord];
-      (node as any)[propName] = getDefaultProtoValue(field);
+      const value = getDefaultProtoValue(field);
+      if (value !== undefined) (node as any)[propName] = value;
     }
     ord += 1;
   }

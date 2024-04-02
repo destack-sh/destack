@@ -17,6 +17,7 @@ import {
   toNodeReference,
   typeNodeReferenceMaybe,
   type TypedNodeReferenceData,
+  describeNode,
 } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
@@ -235,9 +236,7 @@ export class ViewCanvas {
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     while (parent?.metatype == BenchType.VIEW || parent?.metatype == BenchType.SPACE) {
-      tx.update({
-        metatype: parent.metatype as unknown as NodeType.VIEW | NodeType.SPACE,
-        id: parent.id,
+      tx.update(parent, {
         focus: {
           metatype: BenchType.SELECTION,
           kind: SelectionKind.LIST,
@@ -251,11 +250,7 @@ export class ViewCanvas {
     // reset focus 'down' from view
     if (focus.clearDown) {
       const descendants = this.graph.getDescendants(child, [NodeType.VIEW]) as ViewData[];
-      descendants
-        .filter((v) => v.focus != null)
-        .forEach((v) => {
-          tx.update({ ...v, metatype: NodeType.VIEW, focus: undefined });
-        });
+      descendants.filter((v) => v.focus != null).forEach((v) => tx.update(v, { focus: undefined }));
     }
   }
 
@@ -273,9 +268,8 @@ export class ViewCanvas {
       component = view as ViewComponent;
       viewData = component.exposed?.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
     }
-    if (component == null) {
-      throw new Error(`no component for view ${(view as any)?.id}`);
-    }
+    if (viewData == null) throw new Error(`no view data for view ${view}`);
+    if (component == null) throw new Error(`no component for view ${describeNode(viewData)}`);
 
     // if no anchor is given, try to use existing focus state
     if (anchor == null && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
@@ -463,12 +457,7 @@ export class ViewCanvas {
     } else if (options?.ifPresent == "focus") {
       this.focus(tx, { view: existing });
     } else if (options?.ifPresent == "upsertAndFocus") {
-      tx.update({
-        id: existing.id,
-        metatype: NodeType.VIEW,
-        ...view,
-        icon: toIconMaybe(view.icon),
-      });
+      tx.update(existing, { icon: toIconMaybe(view.icon) });
       this.focus(tx, { view: existing });
     }
   }
@@ -589,7 +578,7 @@ export class ViewCanvas {
       });
       tx.create(split);
       tx.move({ ...parent, parentPtr: toNodeReference(split) });
-      tx.update({ ...parent, metatype: NodeType.VIEW, size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
+      tx.update(parent, { size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
 
       // and a new tab wrapper
       const viewParent = makeNode({
@@ -601,7 +590,7 @@ export class ViewCanvas {
       });
       tx.create(viewParent);
       tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
-      tx.update({ ...child, metatype: NodeType.VIEW, size: undefined, orderKey: "a0" });
+      tx.update(child, { size: undefined, orderKey: "a0" });
     } else {
       // 'split' size between self and child with a new tab wrapper
       const halfSize = splitBox(parent.size!);
@@ -619,8 +608,8 @@ export class ViewCanvas {
       });
       tx.create(newSplitParent);
       tx.move({ ...child, parentPtr: toNodeReference(newSplitParent) });
-      tx.update({ ...child, metatype: NodeType.VIEW, size: halfSize, orderKey: "a0" });
-      tx.update({ ...parent, metatype: NodeType.VIEW, size: halfSize });
+      tx.update(child, { size: halfSize, orderKey: "a0" });
+      tx.update(parent, { size: halfSize });
     }
     this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }

@@ -1,4 +1,4 @@
-import { getHostClient, supervisor, type OperationMetadata } from "@/proto/services";
+import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/services";
 import {
   BenchType,
   EditType,
@@ -7,23 +7,23 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
+  PROPERTY_ENUM_BY_TYPE,
   Timestamp,
   type AnyNodeData,
   type AnyPropertyType,
   type EditData,
   type IGraphIOClient,
-  type NodeTypeMapping,
-  PROPERTY_ENUM_BY_TYPE,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   describeNode,
   getDefaultProtoValue,
   makeNode,
   newStructId,
+  nodeReference,
   unwrapSomeNode,
   wrapSomeNode,
   type TypedNodeReferenceData,
-  nodeReference,
 } from "@/proto/wiring";
 import { userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
@@ -34,7 +34,10 @@ import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import type { RpcError } from "grpc-web";
 import { v4 } from "uuid";
-import { ref, watch, type Ref, shallowRef, triggerRef } from "vue";
+import { ref, shallowRef, triggerRef, watch, type Ref } from "vue";
+
+const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
+const CONSTANT_IN_UPDATE_PROPERTIES = [...CONSTANT_PROPERTIES, "parentPtr", "archivedAt", "deletedAt"];
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -53,8 +56,9 @@ export type Transaction = {
    * Update regular properties in this node. If we already have an update for this node, update it.
    * nocheckin :Broken: handle debounce updates somehow?
    */
-  update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T },
+  update<T extends AnyNodeData>(
+    node: T,
+    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
     options?: { debounce?: boolean },
   ): void;
   /** Move node between parents */
@@ -101,6 +105,12 @@ export class TransactionBuilder implements Transaction {
   }
 
   _makeEdit(type: EditType, node: AnyNodeData, properties?: number[]): EditData {
+    const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
+    const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
+    const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+    if ("packagePtr" in allProperties && packageId == null)
+      throw new Error(`missing packagePtr in ${describeNode(node)}`);
+
     const edit: EditData = {
       id: newStructId(),
       type,
@@ -109,8 +119,8 @@ export class TransactionBuilder implements Transaction {
       properties: properties ?? [],
       subject: this.subject ?? undefined,
       scope: {
-        benchId: "packagePtr" in node ? node.benchPtr?.id : undefined,
-        packageId: "packagePtr" in node ? node.packagePtr?.id : undefined,
+        benchId,
+        packageId,
         transactionId: this.id,
       },
     };
@@ -123,6 +133,7 @@ export class TransactionBuilder implements Transaction {
     for (const sub of this.subs) {
       sub(edit, debounced ?? false);
     }
+    console.log("edit nocheckin", edit);
   }
 
   create<T extends NodeType>(
@@ -157,37 +168,47 @@ export class TransactionBuilder implements Transaction {
     this._addEdit(EditType.UPSERT, node);
   }
 
-  update<T extends NodeType>(
-    update: Partial<Omit<NodeTypeMapping[T], "metatype">> & { metatype: T },
+  update<T extends AnyNodeData>(
+    node: T,
+    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
     options?: { debounce?: boolean },
   ) {
-    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[update.metatype as unknown as NodeType]!;
-    const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[update.metatype as unknown as BenchType]!;
-    const properties: number[] = [];
-    const patchedNode = { ...update };
-    let ord = 0;
-    for (const propName of Object.keys(allProperties)) {
-      if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
-      if (propName === "id" || propName === "metatype") {
-        // keep as is (but not part of the 'update')
-      } else if (propName == "parentPtr" || propName == "archivedAt" || propName == "deletedAt") {
-        // ignore, cannot be updated directly - error?
-      } else if (Object.prototype.hasOwnProperty.call(update, propName)) {
-        // update the assigned property
-        properties.push((allProperties as any)[propName]);
-      } else {
-        // init unset fields with an allowed default value
-        //  (will be ignored anyway since its not in 'properties', but required for protobuf validation)
-        (patchedNode as any)[propName] = getDefaultProtoValue(messageType.fields[ord]);
+    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as NodeType]!;
+    const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[node.metatype as unknown as BenchType]!;
+
+    // map update values
+    let patchedNode: T;
+    let propertiesNames: string[];
+    if (Array.isArray(update)) {
+      patchedNode = { ...node };
+      propertiesNames = Object.keys(allProperties);
+      for (const propName of update) {
+        if (propName === "id" || propName === "metatype") {
+          // keep as is (but not part of the 'update')
+        } else if (propName == "parentPtr" || propName == "archivedAt" || propName == "deletedAt") {
+          // ignore, cannot be updated directly - error?
+        } else {
+          const propId = (allProperties as any)[propName];
+          if (propId == null) throw new Error(`missing property id for ${propName as string}`);
+          const value = getDefaultProtoValue(messageType.fields[propId]);
+          if (value !== undefined) (patchedNode as any)[propName] = value;
+        }
       }
-      ord += 1;
+    } else if (typeof update == "object") {
+      patchedNode = { ...node, ...update };
+      propertiesNames = Object.keys(update);
+    } else {
+      throw new Error(`unexpected update type: ${update}`);
     }
-    this._addEdit(
-      EditType.UPDATE,
-      patchedNode as unknown as NodeTypeMapping[T],
-      properties,
-      options?.debounce ?? false,
-    );
+
+    // map properties
+    const properties = Object.keys(update)
+      .filter((p) => !CONSTANT_IN_UPDATE_PROPERTIES.includes(p as any))
+      .map((propName) => allProperties[propName as keyof typeof allProperties]);
+    if (properties.length != Object.keys(update).length)
+      throw new Error(`bad update properties for ${describeNode(node)}: ${Object.keys(update).join(", ")}`);
+
+    this._addEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
   }
 
   move(node: AnyNodeData) {
@@ -245,11 +266,7 @@ export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
  * Applies the edits to the graph (in place!).
  * If a 'base' graph is provided, the given graph is edited as an overlay.
  */
-export function editGraph(
-  graph: ReadNodeGraph & WriteNodeGraph,
-  edits: EditData[],
-  options?: { base?: ReadNodeGraph },
-) {
+export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[], options?: { isOverlay: boolean }) {
   for (const edit of edits) {
     if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
     const nodeData = unwrapSomeNode(edit.node);
@@ -269,22 +286,31 @@ export function editGraph(
       } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.RESTORE) {
         properties = [nodeProperties.deletedAt];
       } else {
-        throw new Error(`unexpected edit type: ${edit.type}`);
+        throw new Error(`unexpected edit type: ${EditType[edit.type]}`);
       }
-      const existingNode = graph.get({ id: nodeData.id }) as Readonly<AnyNodeData> | undefined;
-      if (!existingNode) throw new Error(`missing node for update: ${nodeData.id}`);
-      const updatedNode = { ...existingNode }; // clone
+
+      let existingNode = graph.get({ id: nodeData.id }) as Readonly<Partial<AnyNodeData>> | undefined;
+      if (!existingNode) {
+        if (options?.isOverlay) existingNode = {};
+        else throw new Error(`missing node for ${EditType[edit.type]}: ${nodeData.id}`);
+      }
+
+      const updatedNode = { setProperties: [], ...existingNode } as AnyNodeData; // clone
       for (const propId of properties) {
         const propName = nodeProperties[propId];
         (updatedNode as any)[propName] = (nodeData as any)[propName];
       }
-      if (options?.base != null) {
-        // overlay: update 'setProperties' with newly set properties
+      if (options?.isOverlay) {
+        // update 'setProperties' with newly set properties
         updatedNode.setProperties = [...(existingNode.setProperties ?? [])];
         properties
           .filter((propId) => !updatedNode.setProperties.includes(propId))
           .forEach((i) => updatedNode.setProperties.push(i));
+        // fill in missing properties if missing in base
+        if (Object.keys(existingNode).length == 0) {
+        }
       }
+
       graph.update(updatedNode);
     }
   }
@@ -417,13 +443,15 @@ export class SwapTransactionBuffer implements TransactionBuffer {
         { edits: this.pendingTx.edits, id: this.pendingTx.id, scope: this.scope },
         { suppressErrors: true, retry: true },
       );
+      // nocheckin: accept edits into real graph somewhere? (can't wait for them to stream back)
+      // also nocheckin: ignore own edits in connection.watch
     } catch (error) {
       // rollback
       log.error("transaction.commit.error", { scope: this.scope, error });
       this.reset();
       toaster.error({
-        title: "Synchronization error",
-        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}}`,
+        title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
+        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}`,
       });
     } finally {
       this.pendingTx = null;
@@ -439,7 +467,7 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     const tx = new TransactionBuilder(this.scope, v4(), userPtr.value);
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
-      editGraph(this.overlay, [edit], { base: this.overlay });
+      editGraph(this.overlay, [edit], { isOverlay: true });
     });
     return tx;
   }

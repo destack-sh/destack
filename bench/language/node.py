@@ -1162,10 +1162,10 @@ class Struct(abc.ABC):
                 ptr = cast(list["NodeReference"], ptr)
                 resolved = []
                 for p in ptr:
-                    resolved = scope._root_graph.get(p.id or p.ck)
-                    if resolved is None:
+                    r = scope._root_graph.get(p.id or p.ck)
+                    if r is None:
                         on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
-                    resolved.append(resolved)
+                    resolved.append(r)
                 self.__dict__[prop.name] = resolved
             else:
                 ptr = cast("NodeReference", ptr)

@@ -12,7 +12,6 @@ import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/clien
 import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
-import { flushTransactionBuffers } from "@/system/transaction";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, watch } from "vue";
@@ -49,19 +48,27 @@ export const hasLocalBench = computed(() => bench.value != null);
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph(spaceGraphLocal);
 export const space = spaceGraph.getRef(local.spacePtr);
-export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, { ignoreNotFound: true });
+export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
+  isGlobal: true,
+});
 export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.tx);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),
 );
 
-// spaceGraph should point to current space (may be reset from elsewhere)
-watch(spacePtr, () => {
-  if (spacePtr.value.id == LOCAL_SPACE_ID) {
-    spaceGraph.graph = spaceGraphLocal;
-  }
-});
+// spaceGraph should point to current space
+watch(
+  spacePtr,
+  () => {
+    if (spacePtr.value.id == LOCAL_SPACE_ID) {
+      spaceGraph.graph = spaceGraphLocal;
+    } else {
+      spaceGraph.graph = pkgGraph;
+    }
+  },
+  { immediate: true },
+);
 
 /** Assigns a space in the current Package */
 async function assignSpaceInPackage() {
@@ -72,7 +79,6 @@ async function assignSpaceInPackage() {
   if (spaceInPkg != null) {
     // current space is already good
     spaceGraph.graph = pkgGraph;
-    return;
   }
 
   if (ownedSpacesInPkg.value.length > 0) {
@@ -89,7 +95,7 @@ async function assignSpaceInPackage() {
     setupEmptyCanvas(pkgConnection.tx, space);
     local.setSpace(toNodeReference(space));
     spaceGraph.graph = pkgGraph;
-    await flushTransactionBuffers();
+    await pkgConnection.txBuffer.commit();
   } else {
     // we can't create, so just use a local space
     local.setSpaceToLocal();

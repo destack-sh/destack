@@ -35,11 +35,10 @@ export type Toast = {
 };
 
 export enum ToastDuration {
-  sm = 5000,
-  md = 7000,
-  lg = 12000,
-  "2xl" = 20000,
-  "3xl" = 30000,
+  sm = 6000,
+  md = 10000,
+  lg = 15000,
+  "2xl" = 30000,
   inf = Infinity,
 }
 
