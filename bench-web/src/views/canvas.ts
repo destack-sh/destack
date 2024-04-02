@@ -221,14 +221,14 @@ export class ViewCanvas {
     tx: Transaction,
     focus: { view: SomeView; parent?: SomeView; anchor?: FocusAnchor | NodeReferenceData; hasBrowserFocus?: boolean },
   ) {
-    log.debug("view.focus", focus);
+    log.debug("canvas.focus", focus);
     this.focusInGraph(tx, focus);
     if (!focus.hasBrowserFocus) nextTick(() => this.focusInComponent(focus.view, focus.anchor));
   }
 
   /** Focuses the given view absolutely in the graph. */
   focusInGraph(tx: Transaction, focus: { view: SomeView; parent?: SomeView; clearDown?: boolean }) {
-    log.trace("view.focusInGraph", focus);
+    log.trace("canvas.focusInGraph", focus);
 
     // focus every 'child' in its 'parent' up to space root
     let child = this.getViewData(focus.view);
@@ -261,7 +261,7 @@ export class ViewCanvas {
 
   /** Focus the first focusable component within the given view. */
   focusInComponent(view: SomeView | ViewComponent, anchor?: FocusAnchor | NodeReferenceData): boolean {
-    log.trace("view.focusInComponent", view, anchor);
+    log.trace("canvas.focusInComponent", view, anchor);
 
     // get component/view data
     let component: ViewComponent | null;
@@ -316,7 +316,7 @@ export class ViewCanvas {
   /** Restores component focus to the currently absolutely focused element if possible. */
   restoreComponentFocus(): boolean {
     if (this.spacePtr.value == null) throw new Error("no current space");
-    log.trace("view.restoreComponentFocus", this.spacePtr.value);
+    log.trace("canvas.restoreComponentFocus", this.spacePtr.value);
     const space = this.graph.get(this.spacePtr.value);
     if ((space?.focus?.nodesPtr?.length ?? 0) > 0) {
       const view = this.getViewData(space!.focus!.nodesPtr[0]);
@@ -443,7 +443,7 @@ export class ViewCanvas {
       let primary = this.focusedRoot ?? this.currentFrames[0];
       if (primary == null) {
         // no root, reset space
-        log.info("view.repair", this.spacePtr.value);
+        log.info("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrFail(this.spacePtr.value!);
         primary = setupEmptyCanvas(tx, space).primary;
       }
@@ -495,7 +495,7 @@ export class ViewCanvas {
    * Removes the given view from the space graph, taking care to clean up.
    */
   removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
-    log.debug("view.remove", view);
+    log.debug("canvas.remove", view);
     const parent = graph.get(view.parentPtr!) as ViewData;
     tx.delete(view); // should soft delete?
     this.cleanupRootView(tx, graph, parent);
@@ -526,7 +526,7 @@ export class ViewCanvas {
     anchor: "start" | "end",
     referenceId: string | null,
   ) {
-    log.debug("view.add", { self, child, anchor, referenceId });
+    log.debug("canvas.add", { self, child, anchor, referenceId });
     // move & update order
     if (child.id != referenceId) {
       updateOrderKey({
@@ -554,7 +554,7 @@ export class ViewCanvas {
     child: ViewData,
     anchor: Omit<SplitAnchor, "center">,
   ) {
-    log.debug("view.split", { parent, child, anchor });
+    log.debug("canvas.split", { parent, child, anchor });
 
     // determine if we need a new split in the enclosing split view
     let split: ViewData | null = null;

@@ -1,5 +1,5 @@
 import { BenchType, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
-import { nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
 import { pickRef, pretendReadonly } from "@/utils/ref";
@@ -99,7 +99,9 @@ const _clientInfo = useLocal("clientInfo");
 export const persistentInfo = pretendReadonly(_persistentInfo);
 export const userInfo = pretendReadonly(_userInfo);
 export const clientInfo = pretendReadonly(_clientInfo);
-export const userPtr = computed(() => _userInfo.value?.id != null ? nodeReference(NodeType.USER, _userInfo.value.id) : null);
+export const userPtr = computed(() =>
+  _userInfo.value?.id != null ? nodeReference(NodeType.USER, _userInfo.value.id) : null,
+);
 
 // ensure persistent info is set
 if (_persistentInfo.value?.placeId == null) {
@@ -135,9 +137,7 @@ function clearUser() {
 
 // Current Space. May be local if not in current Bench.
 const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
-export const spacePtr = computed(() => _spacePtr.value ?? LOCAL_SPACE_PTR) as Readonly<
-  Ref<TypedNodeReferenceData<NodeType.SPACE>>
->;
+export const spacePtr = pretendReadonly(computed(() => _spacePtr.value ?? LOCAL_SPACE_PTR));
 // Current Bench.
 const _benchPtr = useLocal("benchPtr") as Ref<TypedNodeReferenceData<NodeType.BENCH> | null>;
 export const benchPtr = pretendReadonly(_benchPtr);
@@ -177,11 +177,13 @@ export const spaceGraphLocal = _spaceGraphLocal as ReadNodeGraph;
 /** Sets the active space. Must be local or from the current package. Also replaces main space for that bench. */
 function setSpace(space: TypedNodeReferenceData<NodeType.SPACE>) {
   if (space.benchId != LOCAL_BENCH_ID && packageIdByBenchId.value[space.benchId!] == null) {
-    throw new Error(`space ${space.id} is not in the active Package ${packageIdByBenchId.value[space.benchId!]}`);
+    throw new Error(
+      `${describeNode(space)} is not in the active Package ${packageIdByBenchId.value[space.benchId!] ?? "<unset>"}`,
+    );
   }
   log.trace("local.setSpace", space);
   _spacePtr.value = space;
-  _spacePtrs.value = _spacePtrs.value.filter((s) => s.benchId != space.benchId).concat(space);
+  _spacePtrs.value = (_spacePtrs.value?.filter((s) => s.benchId != space.benchId) ?? []).concat(space);
 }
 
 /** Resets the space to the local space. Does not affect the Bench. */

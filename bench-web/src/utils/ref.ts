@@ -13,6 +13,8 @@ import {
   toValue,
   shallowRef,
   type ShallowRef,
+  type WatchSource,
+  type WatchStopHandle,
 } from "vue";
 
 /** A ref that pretends to be read-only but really isn't */
@@ -224,4 +226,15 @@ export function proxyRef<T extends object>(value: Ref<T | null>, options?: { nam
       },
     },
   ) as T;
+}
+
+export function immediateStopWatch(
+  source: WatchSource,
+  callback: (stop: () => void) => void,
+  options?: WatchOptions,
+): WatchStopHandle {
+  let stop = null as (() => void) | null;
+  stop = watch(source, () => callback(stop!), { ...options });
+  callback(stop);
+  return stop;
 }

@@ -33,7 +33,7 @@ import {
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { deepValueEquals, pretendReadonly, toValueRef } from "@/utils/ref";
+import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { useNetwork, whenever } from "@vueuse/core";
 import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
@@ -172,7 +172,10 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
 
+  /** Toggle isPaused. */
   togglePaused(): void;
+  /** Waits for a result matching the predicate */
+  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void): void;
 };
 
 export abstract class GraphConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
@@ -226,6 +229,15 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     };
   }
 
+  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void) {
+    const stop = immediateStopWatch(this.result, () => {
+      if (predicate(this.result.value)) {
+        stop();
+        callback();
+      }
+    });
+  }
+
   /**
    * Maintain this connection until the end of time (or until closed).
    * Immediately tries to fetch. If we fail:
@@ -257,8 +269,10 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       const retry = shouldRetry(error);
       if (errorCode != lastErrorCode) {
         toaster.error({
+          key: `connection:${this.meta.id}`,
           title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Server error",
           text: `'${this.kind}:${this.meta.name}' failed: ${IS_DEBUG ? error.message : (error as RpcError).code}`,
+          override: true,
         });
         lastErrorCode = errorCode;
       }
@@ -292,8 +306,16 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
         retrySignal.reset();
         try {
           this.result.value = await this.fetch({ ...this.params, onError });
-          retryCount = 0;
-          lastErrorCode = null;
+          if (retryCount > 0) {
+            toaster.info({
+              key: `connection:${this.meta.id}`,
+              title: "Reconnected",
+              text: `'${this.kind}:${this.meta.name}' reconnected.`,
+              override: true,
+            });
+            retryCount = 0;
+            lastErrorCode = null;
+          }
           this.isConnected.value = true;
         } catch (error) {
           onError(error as Error);
@@ -520,6 +542,18 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     this.activeConnection.togglePaused();
   }
 
+  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void): void {
+    immediateStopWatch(
+      () => this.connection.value?.result.value,
+      (stop) => {
+        if (predicate(this.connection.value?.result.value ?? null)) {
+          stop();
+          callback();
+        }
+      },
+    );
+  }
+
   get activeConnection(): GraphConnectionBase<K, T> {
     if (this.connection.value == null) throw new Error("no active connection");
     return this.connection.value;
@@ -655,6 +689,9 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
  */
 export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
+  options?: {
+    ignoreNotFound?: boolean;
+  },
 ): {
   graph: ReadNodeGraph;
   connection: GraphConnection<"get", T>;
@@ -673,11 +710,11 @@ export function useExistingConnection<T extends NodeType = any>(
       }
       if (nodeRef.value != null) {
         const newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
-        if (newConnection == null)
+        if (newConnection == null && !options?.ignoreNotFound)
           throw new Error(
             `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
           );
-        connection.value = newConnection as GraphConnectionBase<"get", T>;
+        connection.value = newConnection as GraphConnectionBase<"get", T> | null;
       }
       graph._graph.value = connection.value?.result.value?.graph ?? null;
     },

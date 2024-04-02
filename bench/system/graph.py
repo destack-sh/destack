@@ -251,7 +251,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        scopes = get_edited_scopes(request.edits)
+        scopes = get_verified_edited_scopes(request.edits)
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
@@ -396,9 +396,10 @@ class _EditScopes(NamedTuple):
     graph_scopes: tuple[GraphScope, ...]
 
 
-def get_edited_scopes(edits: list[EditData]) -> _EditScopes:
+def get_verified_edited_scopes(edits: list[EditData]) -> _EditScopes:
     """
     Gets the specific nodes (scopes) and broader graph scopes that are edited.
+    Also verifies that the edited scopes match the nodes data.
     """
     from bench.proto import wiring
 
@@ -410,19 +411,33 @@ def get_edited_scopes(edits: list[EditData]) -> _EditScopes:
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             # node scope is parent since we don't know this node yet
             if node_data.parent_ptr is not None:
-                node_scope = node_data.parent_ptr
+                if node_data.parent_ptr.id not in node_scopes_data:
+                    node_scope = node_data.parent_ptr
+                else:
+                    node_scope = node_scopes_data[node_data.parent_ptr.id]
             else:
                 raise ValidationError(node_data, "can't create orphan")
         else:
             # node scope is the edited node itself
             node_scope = NodeReference.from_node_data(node_data)
-        node_scopes_data[node_scope.id] = node_scope
+        node_scopes_data[node_data.id] = node_scope
 
         # graph scope
         graph_scope = edit.scope
         graph_scope_hash = hash((graph_scope.bench_id, graph_scope.package_id))
         if graph_scope_hash not in graph_scopes:
             graph_scopes[graph_scope_hash] = graph_scope
+
+        # validate node scope with data
+        # NOTE :Cleanup: not sure where to validate node *data* scopes
+        #  e.g., we want to check that bench_ptr and package_ptr are correct
+        #   but they are only present in NodeData, not in Nodes (where they are computed).
+        node_bench_id = node_data.bench_ptr.id if node_data.bench_ptr is not None else None
+        if node_bench_id != graph_scope.bench_id:
+            raise ValidationError(
+                node_data,
+                f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
+            )
 
     node_scopes: dict[UUID, NodeReference] = {
         to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_data.items()

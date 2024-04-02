@@ -33,57 +33,80 @@ export function useNow(updateInterval: TimeUpdateInterval) {
   return NOW_TRACKERS[updateInterval].now;
 }
 
-export type FormatDurationOptions = {
-  hideMillis?: boolean;
-  hideSeconds?: boolean;
-  absoluteDate?: DateTime;
-  absoluteDateCutoffMs?: number;
-  absoluteDateFormat?: DateFormat;
-};
+type TimeUnit = "ms" | "s" | "m" | "h" | "d" | "w" | "y";
 
-const FORMAT_DURATION_OPTIONS_DEFAULT: FormatDurationOptions = {
-  hideMillis: false,
-  hideSeconds: false,
-  absoluteDateCutoffMs: 1000 * 60 * 60 * 24 * 7 * 30, // 1 month
+const TIME_UNIT_MILLIS: Record<TimeUnit, number> = {
+  ms: 1,
+  s: 1000 * 1,
+  m: 1000 * 60,
+  h: 1000 * 60 * 60,
+  d: 1000 * 60 * 60 * 24,
+  w: 1000 * 60 * 60 * 24 * 7,
+  y: 1000 * 60 * 60 * 24 * 365.2425,
+};
+const TIME_UNIT_NAMES: Record<TimeUnit, string> = {
+  ms: "millisecond",
+  s: "second",
+  m: "minute",
+  h: "hour",
+  d: "day",
+  w: "week",
+  y: "year",
+};
+const TIME_UNITS: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
+
+type DurationFormat =
+  | "exact" // 1h, 2m, 3.1s
+  | "approximate" // this hour, last month, etc.
+  | "absolute"; // 2024-04-02 12:34:56
+
+export type FormatDurationOptions = {
+  format?: DurationFormat | ((duration: number) => DurationFormat);
+  minUnit?: TimeUnit;
+  maxUnit?: TimeUnit;
+  precision?: number;
 };
 
 /** Formats a time duration into a short string. */
 export function formatDuration(duration: number | Duration, options?: FormatDurationOptions): string {
-  if (duration instanceof Duration) duration = duration.as("milliseconds");
+  const durationMs = duration instanceof Duration ? duration.as("milliseconds") : duration;
 
-  const { hideMillis, hideSeconds, absoluteDate, absoluteDateCutoffMs } = {
-    ...FORMAT_DURATION_OPTIONS_DEFAULT,
-    ...options,
-  };
+  // eslint-disable-next-line prefer-const
+  let { format = "exact", minUnit = "s", maxUnit = "y", precision = 1 } = options ?? {};
+  if (typeof format == "function") format = format(durationMs);
 
-  // absolute date
-  if (absoluteDateCutoffMs && absoluteDate && duration < absoluteDateCutoffMs) {
-    return formatDt(absoluteDate, { format: options?.absoluteDateFormat ?? DateFormat.DATE });
-  }
-
-  // relative date
-  if (duration < 100 && !hideMillis) {
-    return `${Math.round(duration)}ms`;
-  } else if (duration < 60 * 1000 && !hideSeconds) {
-    if (hideMillis) {
-      if (duration < 1000) return "<1s";
-      else return `${Math.round(duration / 1000)}s`;
-    } else {
-      return `${(duration / 1000).toFixed(1)}s`;
+  if (format == "exact") {
+    // 1h, 2m, 3.1s
+    let unit = maxUnit;
+    let value = durationMs / TIME_UNIT_MILLIS[unit];
+    while (value < 1 && unit != minUnit) {
+      unit = TIME_UNITS[TIME_UNITS.indexOf(unit) - 1];
+      value = durationMs / TIME_UNIT_MILLIS[unit];
     }
-  } else if (duration < 60 * 60 * 1000) {
-    if (hideSeconds) {
-      if (duration < 60 * 1000) return "<1m";
-      else return `${Math.round(duration / 60000)}m`;
-    } else {
-      return `${(duration / 60000).toFixed(hideSeconds ? 0 : 1)}m`;
+    return `${value.toFixed(precision)}${unit}`;
+  } else if (format == "approximate") {
+    // this hour, last month, etc.
+    let unit = maxUnit;
+    let value = durationMs / TIME_UNIT_MILLIS[unit];
+    while (value < 1 && unit != minUnit) {
+      unit = TIME_UNITS[TIME_UNITS.indexOf(unit) - 1];
+      value = durationMs / TIME_UNIT_MILLIS[unit];
     }
-  } else if (duration < 60 * 60 * 24 * 1000) {
-    return `${(duration / 3600000).toFixed(1)}h`;
-  } else if (duration < 60 * 60 * 24 * 1000 * 7) {
-    return `${(duration / 86400000).toFixed(1)}d`;
+    // shift to the next higher unit
+    const unitIdx = TIME_UNITS.indexOf(unit);
+    if (unitIdx < TIME_UNITS.length - 1) {
+      unit = TIME_UNITS[unitIdx + 1];
+      value = durationMs / TIME_UNIT_MILLIS[unit];
+    }
+    if (value < 1) return `this ${TIME_UNIT_NAMES[unit]}`;
+    else if (value < 2) return `last ${TIME_UNIT_NAMES[unit]}`;
+    else return `${value.toFixed(0)} ${TIME_UNIT_NAMES[unit]}s ago`;
+  } else if (format == "absolute") {
+    // Oct 2, 2024
+    const dt = DateTime.now().minus(durationMs);
+    return dt.toLocaleString(DateTime.DATE_MED);
   } else {
-    return `${(duration / 604800000).toFixed(1)}w`;
+    throw new Error(`unexpected duration format: ${format}`);
   }
 }
 
@@ -91,20 +114,15 @@ export type FormatDurationRelativeOptions = FormatDurationOptions & {
   updateInterval?: TimeUpdateInterval;
 };
 
-const FORMAT_DURATION_RELATIVE_OPTIONS_DEFAULT: FormatDurationRelativeOptions = {
-  ...FORMAT_DURATION_OPTIONS_DEFAULT,
-  updateInterval: TimeUpdateInterval.MINUTE,
-};
-
 /** Formats a duration implied by a datetime in the past to now */
 export function formatDurationFromNow(dt: Timestamp | DateTime, options?: FormatDurationRelativeOptions) {
   if (!(dt instanceof DateTime)) dt = tsToDt(dt);
-  const interval = options?.updateInterval ?? FORMAT_DURATION_RELATIVE_OPTIONS_DEFAULT.updateInterval!;
+  const interval = options?.updateInterval ?? TimeUpdateInterval.MINUTE;
   const now = useNow(interval);
   const duration = now.value.diff(dt, "milliseconds").as("milliseconds");
 
-  if (interval == TimeUpdateInterval.SECOND) options = { ...options, hideMillis: true };
-  else if (interval == TimeUpdateInterval.MINUTE) options = { ...options, hideMillis: true, hideSeconds: true };
+  if (interval == TimeUpdateInterval.SECOND) options = { ...options, minUnit: "s" };
+  else if (interval == TimeUpdateInterval.MINUTE) options = { ...options, minUnit: "m" };
 
   return formatDuration(duration, options);
 }

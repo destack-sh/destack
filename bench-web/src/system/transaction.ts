@@ -17,8 +17,11 @@ import {
 import { getDefaultProtoValue, makeNode, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
 import { userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { toaster } from "@/system/toast";
+import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
+import type { RpcError } from "grpc-web";
 import { v4 } from "uuid";
 import { ref, watch, type Ref } from "vue";
 
@@ -369,19 +372,18 @@ export class SwapTransactionBuffer implements TransactionBuffer {
       });
       this.pendingTx = this.currentTx;
       this.currentTx = this.makeCurrentTx();
-      // nocheckin: retry / add back to buffer on failure?
       await this.client.commitTransaction(
-        {
-          edits: this.pendingTx.edits,
-          id: this.pendingTx.id,
-          scope: this.scope,
-        },
-        { suppressErrors: true } as OperationMetadata,
+        { edits: this.pendingTx.edits, id: this.pendingTx.id, scope: this.scope },
+        { suppressErrors: true, retry: true },
       );
-    } catch (e) {
+    } catch (error) {
       // rollback
-      log.error("transaction.commit.error", { scope: this.scope, error: e });
+      log.error("transaction.commit.error", { scope: this.scope, error });
       this.reset();
+      toaster.error({
+        title: "Synchronization error",
+        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}}`,
+      });
     } finally {
       this.pendingTx = null;
     }

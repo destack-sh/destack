@@ -151,7 +151,7 @@ export interface LocalStorage {
      */
     badges: BadgeInfo[];
     // 
-    // Space/bench
+    // Space/Bench
     // 
 
     /**
