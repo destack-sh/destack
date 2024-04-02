@@ -15,16 +15,10 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
     During local development, this may also launch the server node in the same process.
     """
 
-    def __init__(
-        self,
-        server_id: UUID,
-        bench_id: UUID | None,
-        package_id: UUID | None,
-    ):
+    def __init__(self, server_id: UUID, bench_id: UUID | None):
         super().__init__()
         self.server_id = server_id
         self.bench_id = bench_id
-        self.package_id = package_id
         self.processes: dict[UUID, Popen] = {}
         self._stopped = False
 

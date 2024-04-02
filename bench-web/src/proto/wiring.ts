@@ -35,7 +35,7 @@ export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | Type
 
 /** Short string representation of the node (pointer) */
 export function describeNode(node: {
-  metatype?: BenchType;
+  metatype?: NodeType | BenchType;
   type?: NodeType | BenchType | any;
   id?: string;
   ck?: string;

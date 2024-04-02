@@ -29,6 +29,7 @@ import {
   type Transaction,
   type TransactionBuffer,
   SwapTransactionBuffer,
+  newBufferId,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
@@ -69,9 +70,14 @@ const DEFAULT_CONNECTION_OPTIONS: ConnectionOptions = {
 type ConnectionMetadata = {
   /** Identifies the request/connection for logging. Client side only. */
   id: number;
+  /** Unique name of the connection. */
   name: string;
+  /** Whether to stream in live results/edits. */
   live: boolean;
+  /** Further options for the underlying connection. */
   options: ConnectionOptions;
+  /** Condensed printable current params for debugging. */
+  paramsPretty?: Ref<Record<string, any>>;
 };
 
 type GetConnectionParams<T extends NodeType> = {
@@ -167,15 +173,15 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   readonly isConnected: Readonly<Ref<boolean>>;
   /** Currently fetching (or re-fetching) from the underlying graph.  */
   readonly isFetching: Readonly<Ref<boolean>>;
-  /** Temporarily paused from re-connecting or receiving live updates. */
+  /** Temporarily paused from re-connecting or receiving live updates (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
 
-  /** Toggle isPaused. */
+  /** Toggle isPaused for debugging. */
   togglePaused(): void;
   /** Waits for a result matching the predicate */
-  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void): void;
+  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void>;
 };
 
 export abstract class GraphConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
@@ -219,6 +225,10 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   togglePaused(): void {
     this.isPaused.value = !this.isPaused.value;
     log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
+    toaster.debug({
+      title: this.isPaused.value ? "Connection paused" : "Connection resumed",
+      text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "not receiving anything" : "receiving data again"}.`,
+    });
   }
 
   get operationMeta(): OperationMetadata {
@@ -229,12 +239,14 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     };
   }
 
-  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void) {
-    const stop = immediateStopWatch(this.result, () => {
-      if (predicate(this.result.value)) {
-        stop();
-        callback();
-      }
+  async waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const stop = immediateStopWatch(this.result, () => {
+        if (predicate(this.result.value)) {
+          stop();
+          resolve();
+        }
+      });
     });
   }
 
@@ -504,7 +516,7 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
   readonly graph: ReadNodeGraph;
 
   constructor(meta: ConnectionMetadata, params: GetConnectionParams<T>, graph: WriteNodeGraph & ReadNodeGraph) {
-    super(meta, params, new ImmediateTransactionBuffer(graph.scope, graph));
+    super(meta, params, new ImmediateTransactionBuffer(newBufferId(), graph.scope, graph));
     this.graph = graph;
 
     // 'fuse' the connection
@@ -542,16 +554,18 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     this.activeConnection.togglePaused();
   }
 
-  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean, callback: () => void): void {
-    immediateStopWatch(
-      () => this.connection.value?.result.value,
-      (stop) => {
-        if (predicate(this.connection.value?.result.value ?? null)) {
-          stop();
-          callback();
-        }
-      },
-    );
+  async waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
+    return new Promise((resolve) => {
+      immediateStopWatch(
+        () => this.connection.value?.result.value,
+        (stop) => {
+          if (predicate(this.connection.value?.result.value ?? null)) {
+            stop();
+            resolve();
+          }
+        },
+      );
+    });
   }
 
   get activeConnection(): GraphConnectionBase<K, T> {

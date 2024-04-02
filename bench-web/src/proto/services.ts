@@ -45,10 +45,10 @@ export type OperationMetadata = {
   connectionId?: number;
   operationName?: string;
   suppressErrors?: boolean;
-  // nocheckin: retry on connection failure
   retry?: boolean;
 };
 export type OperationOptions = RpcOptions & OperationMetadata;
+// nocheckin: retry operations if 'retry' (on connection failure?)
 const RETRY_ON: GrpcStatusName[] = ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"];
 
 export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
@@ -82,7 +82,7 @@ export function humanizeError(error: OperationError): { title: string; text: str
 }
 
 const operationsTracker = {
-  RECENT_BUFFER_SIZE: 1000,
+  RECENT_OPERATION_BUFFER_SIZE: 1000,
 
   recentOps: [] as Operation<any, any>[],
   pendingOps: [] as Operation<any, any>[],
@@ -107,7 +107,7 @@ const operationsTracker = {
     const rpcName = `rpc.${op.name}`;
     this.pendingOps.push(op);
     this.recentOps.push(op);
-    if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
+    if (this.recentOps.length > this.RECENT_OPERATION_BUFFER_SIZE) {
       this.recentOps.shift();
     }
     log.trace(rpcName, op.request);
@@ -142,7 +142,7 @@ const operationsTracker = {
       });
       op.call.responses.onComplete(() => {
         terminate();
-        log.trace(rpcName, "completed", formatDuration(op.duration!));
+        log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: 'ms'}));
         remove();
       });
       op.call.responses.onError((error) => {
@@ -157,7 +157,7 @@ const operationsTracker = {
         .then((output) => {
           op.response = output;
           terminate();
-          log.trace(rpcName, "completed", formatDuration(op.duration!), output);
+          log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: 'ms'}), output);
         })
         .catch((error) => {
           op.error = error;

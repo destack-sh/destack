@@ -204,7 +204,9 @@ class Host(GraphIoService, HostBase):
         # apply edits to the nodes we have loaded
         for scope in scopes:
             if scope.package_id is not None:
-                root = self._packages[to_uuid(scope.package_id)]
+                root = self._packages.get(to_uuid(scope.package_id))
+                if root is None:
+                    continue  # not loaded
             else:
                 root = self._bench
             edits = filter_edits(root._read_options, edits)

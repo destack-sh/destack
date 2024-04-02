@@ -1,13 +1,12 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation } from "@/proto/wire";
 import { fireActionById } from "@/system/action";
-import local, { isDeveloperMode } from "@/system/client";
-import type { GraphConnection } from "@/system/connection";
+import { isDeveloperMode } from "@/system/client";
 import { graphConnections } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
 import { bench, hasLocalBench } from "@/system/space";
-import { client, clientsSorted, isAuthenticated, user, userGraph } from "@/system/user";
+import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
@@ -23,7 +22,6 @@ import { useElementSize, useFps, useMemory } from "@vueuse/core";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  spaceConnection: GraphConnection<"get", any>;
   box: { x: number; y: number; width: number; height: number };
 }>();
 
@@ -184,8 +182,15 @@ const USER_MENU_ITEMS = computed(() => {
         <!-- Connection -->
         <Popover placement="bottom" :reference-margin="8" :container-margin="4">
           <template #trigger="{ toggle }">
-            <button class="select-none text-success-700 hover:text-success-800" @click.stop="toggle">
-              <i class="fas fa-signal" />
+            <button class="select-none transition-colors" :disabled="!isDeveloperMode" @click.stop="toggle">
+              <i
+                class="fas"
+                :class="
+                  graphConnections.some((c) => !c.isConnected.value)
+                    ? 'fa-signal-slash text-warning-600 hover:text-warning-700'
+                    : 'fa-signal text-success-700 hover:text-success-800'
+                "
+              />
             </button>
           </template>
           <template #content="{ close }">
@@ -199,12 +204,12 @@ const USER_MENU_ITEMS = computed(() => {
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
               <Scroll
-                :size="{ width: 320, height: 200 }"
+                :size="{ width: 400, height: 400 }"
                 size-is-dynamic
                 :orientation="Orientation.VERTICAL"
                 :track-width="ScrollbarWidth.sm"
               >
-                <ul class="my-1.5 flex min-w-[280px] flex-col gap-y-1 px-3">
+                <ul class="my-1.5 min-w-[320px] flex flex-col gap-y-1 px-3">
                   <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
                     <!-- Metadata -->
                     <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
@@ -217,7 +222,7 @@ const USER_MENU_ITEMS = computed(() => {
                       <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
                         {{ connection.referenceCount }}
                       </span>
-                      <!-- Down -->
+                      <!-- Down (status & toggle) -->
                       <button class="rounded-md px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
                         <i
                           :class="
@@ -229,7 +234,7 @@ const USER_MENU_ITEMS = computed(() => {
                           "
                         />
                       </button>
-                      <!-- Up -->
+                      <!-- Up (status & toggle) -->
                       <button
                         class="rounded-md px-1 py-0.5 hover:bg-primary-200"
                         @click="connection.txBuffer.togglePaused()"
