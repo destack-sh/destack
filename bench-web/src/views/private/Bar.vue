@@ -320,7 +320,9 @@ const USER_MENU_ITEMS = computed(() => {
                     <span class="select-all">{{ c.operatingSystem }} - {{ c.browserName }}</span>
                     <span class="ml-auto">
                       <span v-if="c.id == client?.id">current</span>
-                      <span v-else-if="c.lastSeenAt">{{ formatDurationFromNow(c.lastSeenAt) }}</span>
+                      <span v-else-if="c.lastSeenAt">{{
+                        formatDurationFromNow(c.lastSeenAt, { format: "approximate" })
+                      }}</span>
                     </span>
                   </li>
                 </ul>

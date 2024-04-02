@@ -243,6 +243,13 @@ export * from './google/protobuf/timestamp';
     for path in Path(WIRE_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
 
+    # amend every .client.ts file with our OperationOptions
+    for path in Path(WIRE_TS_DIR).glob("**/*.client.ts"):
+        patched_file = path.read_text().replace(": RpcOptions", ": OperationOptions")
+        # append import
+        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/services";'
+        path.write_text(patched_file)
+
 
 @app.command()
 def regen():

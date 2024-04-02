@@ -12,10 +12,9 @@ import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/clien
 import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
-import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
-import { computed, nextTick, watch } from "vue";
+import { computed, watch } from "vue";
 
 // bench/packages
 export const {
@@ -47,70 +46,54 @@ export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalBench = computed(() => bench.value != null);
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
-export const spaceGraph = new ProxyNodeGraph(null);
+export const spaceGraph = new ProxyNodeGraph(spaceGraphLocal);
 export const space = spaceGraph.getRef(local.spacePtr);
-export const { connection: spaceConnection } = useExistingConnection(local.spacePtr);
+export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, { ignoreNotFound: true });
 export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.tx);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),
 );
 
-// find or create space for package
-watch(
-  [pkgConnection.isConnected, ownedSpacesInPkg, spacePtr],
-  () => {
-    /** Finds an owned Space or creates a new one if allowed */
-    const findOrCreateSpace = () => {
-      const spaceInPkg = ownedSpacesInPkg.value[0];
-      if (spaceInPkg != null) {
-        // switch to our space in the package
-        log.debug("space.switchToLocalSpace", { space: spaceInPkg });
-        local.setSpace(toNodeReference(spaceInPkg));
-        spaceGraph.graph = pkgGraph;
-      } else if (pkg.value != null && pkgAccess.can(EditType.CREATE, NodeType.SPACE)) {
-        // create new space
-        const pkgPtr = toNodeReference(pkg.value);
-        log.debug("space.createNeededSpace", { pkg: pkg.value });
-        const space = pkgConnection.tx.create({
-          metatype: NodeType.SPACE,
-          parentPtr: pkgPtr,
-          packagePtr: pkgPtr,
-        });
-        setupEmptyCanvas(pkgConnection.tx, space);
-        spaceGraph.graph = pkgGraph;
-      } else if (spacePtr.value.id != LOCAL_SPACE_ID) {
-        // reset to local space
-        local.setSpaceToLocal();
-        spaceGraph.graph = spaceGraphLocal;
-      }
-    };
+// spaceGraph should point to current space (may be reset from elsewhere)
+watch(spacePtr, () => {
+  if (spacePtr.value.id == LOCAL_SPACE_ID) {
+    spaceGraph.graph = spaceGraphLocal;
+  }
+});
 
-    // switch spaces if needed
-    const prevSpacePtr = spacePtr.value;
-    if (spacePtr.value.id == LOCAL_SPACE_ID) {
-      // current space is local
-      if (pkgConnection.isConnected.value && pkg.value != null) findOrCreateSpace();
-    } else {
-      // current space is 'remote' (comes from the package)
-      const spaceInPkg = spaceGraph.get(spacePtr.value);
-      if (spaceInPkg == null) {
-        // current space has been deleted, notify and switch
-        toaster.warning({ title: "Space deleted", text: "Your Space is gone. Switching." });
-        findOrCreateSpace();
-      } else {
-        // current space is remote
-        spaceGraph.graph = pkgGraph;
-      }
-    }
+/** Assigns a space in the current Package */
+function assignSpaceInPackage() {
+  if (pkg.value == null) throw new Error(`package not loaded`);
+  log.debug("space.assignSpaceInPackage", { pkg: pkg.value, space: spacePtr.value });
 
-    // refocus if we switched spaces
-    if (prevSpacePtr?.id != spacePtr.value?.id) {
-      nextTick(() => canvas.restoreComponentFocus());
-    }
-  },
-  { immediate: true },
-);
+  const spaceInPkg = pkgGraph.get(spacePtr.value);
+  if (spaceInPkg != null) {
+    // current space is already good
+    spaceGraph.graph = pkgGraph;
+    return;
+  }
+
+  if (ownedSpacesInPkg.value.length > 0) {
+    // we already have a space in the package
+    local.setSpace(toNodeReference(ownedSpacesInPkg.value[0]));
+    spaceGraph.graph = pkgGraph;
+  } else if (pkgAccess.can(EditType.CREATE, NodeType.SPACE)) {
+    // we can create a new space
+    const space = pkgConnection.tx.create({
+      metatype: NodeType.SPACE,
+      parentPtr: toNodeReference(pkg.value),
+      packagePtr: toNodeReference(pkg.value),
+    });
+    setupEmptyCanvas(pkgConnection.tx, space);
+    local.setSpace(toNodeReference(space));
+    spaceGraph.graph = pkgGraph;
+  } else {
+    // we can't create, so just use a local space
+    local.setSpaceToLocal();
+    spaceGraph.graph = spaceGraphLocal;
+  }
+}
 
 /** 'Goes' to a Bench and sets it as the current main Bench. **/
 export async function goToBench(go: {
@@ -137,6 +120,12 @@ export async function goToBench(go: {
     pkg: typeNodeReference(NodeType.PACKAGE, pkg),
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),
   });
+
+  // figure out space after package is loaded
+  pkgConnection.waitForResult(
+    (result) => result?.graph.get({ id: pkg.id }) != null,
+    () => assignSpaceInPackage(),
+  );
 }
 
 /** 'Goes' to a Space and sets it as the current main Space. */

@@ -78,10 +78,6 @@ class _PatchedMessage(BetterprotoMessage):
             "type",
             "name",
             "slug",
-            "bench_id",
-            "package_id",
-            "package_ptr",
-            "parent_ptr",
             "node_type",
             "epoch",
         ):

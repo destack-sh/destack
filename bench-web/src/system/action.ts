@@ -126,6 +126,8 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitDown",
   "view.layout.splitLeft",
   "view.layout.splitRight",
+  "view.layout.pinSplit",
+  "view.layout.unpinSplit",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -734,6 +736,16 @@ declareActionMap<"view">({
     icon: "fas fa-reflect-horizontal",
     title: "Split Right",
     text: "Split the current view horizontally (new split right)",
+  },
+  "view.layout.pinSplit": {
+    icon: "fas fa-lock",
+    title: "Pin Split",
+    text: "Pin the current split to an absolute size",
+  },
+  "view.layout.unpinSplit": {
+    icon: "fas fa-unlock",
+    title: "Unpin Split",
+    text: "Unpin the current split back to relative size",
   },
 });
 

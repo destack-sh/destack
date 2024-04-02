@@ -3,6 +3,7 @@ import { clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
+import { formatDuration } from "@/utils/time";
 import { GrpcStatusCode, GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 import {
   RpcError,
@@ -12,7 +13,7 @@ import {
   type UnaryCall,
 } from "@protobuf-ts/runtime-rpc";
 import { toRef } from "@vueuse/core";
-import { DateTime } from "luxon";
+import { DateTime, Duration } from "luxon";
 import { computed, shallowRef, watch, type Ref } from "vue";
 
 /** An operation is an RPC call which may be retried. */
@@ -30,7 +31,7 @@ export type Operation<I extends object, O extends object> = {
   startedAt: DateTime;
   updatedAt?: DateTime; // for streaming
   terminatedAt?: DateTime;
-  duration?: number; // in seconds
+  duration?: Duration;
 
   isStreaming: boolean;
   get isPending(): boolean;
@@ -43,9 +44,12 @@ export type GrpcStatusName = keyof typeof GrpcStatusCode;
 export type OperationMetadata = {
   connectionId?: number;
   operationName?: string;
-  operationText?: string;
   suppressErrors?: boolean;
+  // nocheckin: retry on connection failure
+  retry?: boolean;
 };
+export type OperationOptions = RpcOptions & OperationMetadata;
+const RETRY_ON: GrpcStatusName[] = ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"];
 
 export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   INVALID_ARGUMENT: "Invalid request",
@@ -100,25 +104,28 @@ const operationsTracker = {
       id,
       name: `${serviceName}.${opIn.method.name} [id=${id}]`,
     };
+    const rpcName = `rpc.${op.name}`;
     this.pendingOps.push(op);
     this.recentOps.push(op);
     if (this.RECENT_BUFFER_SIZE > 0 && this.recentOps.length > this.RECENT_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    log.trace(`rpc.${op.name}`, op.request);
+    log.trace(rpcName, op.request);
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
       if (index !== -1) this.pendingOps.splice(index, 1);
     };
+    const terminate = () => {
+      op.terminatedAt = DateTime.now();
+      op.duration = op.terminatedAt.diff(op.startedAt, "seconds");
+    };
     const onError = async (error: RpcError) => {
       const code = error.code;
-
       if (!(op.options as OperationMetadata).suppressErrors) {
-        log.error(`rpc.${op.name}`, code, error, op);
+        log.error(rpcName, code, error, op);
         toaster.error(humanizeError(error));
       }
-
       if (code == "UNAUTHENTICATED") {
         const { onAuthenticationError } = await import("@/system/user"); // recursive import
         onAuthenticationError(error);
@@ -130,19 +137,17 @@ const operationsTracker = {
       // streaming
       op.call.responses.onNext(() => {
         op.updatedAt = DateTime.now();
-        op.numResponses = (op.numResponses || 0) + 1;
-        log.trace(`rpc.${op.name}`, "update", op.numResponses);
+        op.numResponses = (op.numResponses ?? 0) + 1;
+        log.trace(rpcName, "update", op.numResponses);
       });
       op.call.responses.onComplete(() => {
-        op.terminatedAt = DateTime.now();
-        op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
-        log.trace(`rpc.${op.name}`, "completed");
+        terminate();
+        log.trace(rpcName, "completed", formatDuration(op.duration!));
         remove();
       });
       op.call.responses.onError((error) => {
         op.error = error;
-        op.terminatedAt = DateTime.now();
-        op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
+        terminate();
         onError(error as RpcError);
         remove();
       });
@@ -151,15 +156,15 @@ const operationsTracker = {
       op.call.response
         .then((output) => {
           op.response = output;
-          log.trace(`rpc.${op.name}`, "completed", output);
+          terminate();
+          log.trace(rpcName, "completed", formatDuration(op.duration!), output);
         })
         .catch((error) => {
           op.error = error;
+          terminate();
           onError(error);
         })
         .finally(() => {
-          op.terminatedAt = DateTime.now();
-          op.duration = op.terminatedAt.diff(op.startedAt, "seconds").seconds;
           remove();
         });
     }

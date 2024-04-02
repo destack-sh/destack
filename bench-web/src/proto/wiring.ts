@@ -162,7 +162,9 @@ export function newNodeIdFromCk(packageId: string, ck: string): string {
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties">> & { metatype: T },
+  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties">> & {
+    metatype: T;
+  },
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const node = {
@@ -184,6 +186,19 @@ export function makeNode<T extends NodeType>(
     } else {
       node.id = newNodeId();
     }
+  }
+
+  // assign default values to unset properties
+  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[data.metatype as unknown as BenchType]!;
+  let ord = 1; // skip metatype
+  for (const propName of Object.keys(properties)) {
+    if (!isNaN(Number(propName))) continue; // skip numeric keys
+    if (propName == "metatype") continue; // already set
+    if (!Object.prototype.hasOwnProperty.call(node, propName)) {
+      const field = messageType.fields[ord];
+      (node as any)[propName] = getDefaultProtoValue(field);
+    }
+    ord += 1;
   }
 
   return node;
@@ -252,8 +267,10 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
   // benchId
   if (node.metatype == BenchType.BENCH) {
     reference.benchId = node.id;
-  } else if ("packagePtr" in allProperties && "packagePtr" in node) {
+  } else if ("packagePtr" in node) {
     reference.benchId = node.packagePtr?.benchId;
+  } else if ("benchPtr" in node) {
+    reference.benchId = node.benchPtr?.id;
   } else {
     reference.benchId = node.parentPtr?.benchId;
   }

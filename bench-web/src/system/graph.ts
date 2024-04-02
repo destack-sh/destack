@@ -576,7 +576,7 @@ export class ProxyNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph 
   }
 
   public set graph(graph: ReadNodeGraph | null) {
-    this._graph.value = graph;
+    if (this._graph.value !== graph) this._graph.value = graph;
   }
 
   get scope(): GraphScope {

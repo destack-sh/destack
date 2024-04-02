@@ -1,7 +1,5 @@
 import asyncio
 import functools
-import urllib
-from datetime import datetime, timedelta
 from typing import Callable
 from uuid import UUID
 
@@ -26,7 +24,6 @@ from bench.language import (
 )
 from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
-from bench.language.file import GLOBAL_PROJECT_BUCKET_NAME
 from bench.language.graph import filter_edits
 from bench.language.query import PostgresEngine, StoreEngine
 from bench.proto.services import BenchServiceBase, RpcCallable
@@ -43,7 +40,7 @@ from bench.proto.wire import (
 )
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoService
-from bench.system.resource import get_s3_client, provision_pending_resources
+from bench.system.resource import provision_pending_resources
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -220,41 +217,12 @@ class Host(GraphIoService, HostBase):
     async def upload_files(
         self, subject: Subject, request: "UploadFilesRequest"
     ) -> "UploadFilesResponse":
-        expires_in = 60 * 60  # 1 hour
-        presigned_urls: list[str] = []
-        for file in request.files:
-            presigned = get_s3_client().generate_presigned_post(
-                Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-                Key=f"{file.id}",
-                ExpiresIn=expires_in,  # 1 hour
-                Fields={},
-            )
-            if "url" not in presigned:
-                raise RuntimeError(f"failed to generate presigned post for {self}: {presigned}")
-            # encode the url as a string (with parameters)
-            encoded_params = urllib.parse.urlencode(presigned["fields"])
-            encoded_url = f"{presigned['url']}?{encoded_params}"
-            presigned_urls.append(encoded_url)
-        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-        return UploadFilesResponse(post_urls=presigned_urls, expires_at=expires_at)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def download_files(
         self, subject: Subject, request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
-        expires_in = 60 * 60  # 1 hour
-        presigned_urls: list[str] = []
-        for file in request.files:
-            get_url = get_s3_client().generate_presigned_url(
-                ClientMethod="get_object",
-                Params={
-                    "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
-                    "Key": f"{file.id}",
-                },
-                ExpiresIn=expires_in,
-            )
-            presigned_urls.append(get_url)
-        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-        return DownloadFilesResponse(get_urls=presigned_urls, expires_at=expires_at)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Runs
