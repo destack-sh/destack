@@ -31,6 +31,7 @@ from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
+    AnyNodeData,
     CancelTransactionRequest,
     CancelTransactionResponse,
     CommitTransactionRequest,
@@ -251,7 +252,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        scopes = get_verified_edited_scopes(request.edits)
+        scopes = get_validated_edited_scopes(request.edits)
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
@@ -396,7 +397,16 @@ class _EditScopes(NamedTuple):
     graph_scopes: tuple[GraphScope, ...]
 
 
-def get_verified_edited_scopes(edits: list[EditData]) -> _EditScopes:
+def validate_node_scope(node_data: AnyNodeData, graph_scope: GraphScope):
+    node_bench_id = node_data.bench_ptr.id if getattr(node_data, "bench_ptr", None) else None
+    if node_bench_id != graph_scope.bench_id:
+        raise ValidationError(
+            node_data,
+            f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
+        )
+
+
+def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
     """
     Gets the specific nodes (scopes) and broader graph scopes that are edited.
     Also verifies that the edited scopes match the nodes data.
@@ -432,12 +442,7 @@ def get_verified_edited_scopes(edits: list[EditData]) -> _EditScopes:
         # NOTE :Cleanup: not sure where to validate node *data* scopes
         #  e.g., we want to check that bench_ptr and package_ptr are correct
         #   but they are only present in NodeData, not in Nodes (where they are computed).
-        node_bench_id = node_data.bench_ptr.id if node_data.bench_ptr is not None else None
-        if node_bench_id != graph_scope.bench_id:
-            raise ValidationError(
-                node_data,
-                f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
-            )
+        validate_node_scope(node_data, graph_scope)
 
     node_scopes: dict[UUID, NodeReference] = {
         to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_data.items()

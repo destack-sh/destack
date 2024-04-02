@@ -13,17 +13,28 @@ import {
   type EditData,
   type IGraphIOClient,
   type NodeTypeMapping,
+  PROPERTY_ENUM_BY_TYPE,
 } from "@/proto/wire";
-import { getDefaultProtoValue, makeNode, newStructId, unwrapSomeNode, wrapSomeNode } from "@/proto/wiring";
+import {
+  describeNode,
+  getDefaultProtoValue,
+  makeNode,
+  newStructId,
+  unwrapSomeNode,
+  wrapSomeNode,
+  type TypedNodeReferenceData,
+  nodeReference,
+} from "@/proto/wiring";
 import { userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
+import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import type { RpcError } from "grpc-web";
 import { v4 } from "uuid";
-import { ref, watch, type Ref } from "vue";
+import { ref, watch, type Ref, shallowRef, triggerRef } from "vue";
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -63,16 +74,18 @@ export type Transaction = {
 };
 
 export class TransactionBuilder implements Transaction {
-  scope: GraphScope;
-  id: string;
-  subject: NodeReferenceData | null;
-  edits: EditData[] = [];
-  subs: Array<(edit: EditData, debounced: boolean) => void> = [];
+  public readonly scope: GraphScope;
+  public readonly id: string;
+  public readonly subject: NodeReferenceData | null;
+  public readonly edits: EditData[] = [];
+  private subs: Array<(edit: EditData, debounced: boolean) => void> = [];
+  private benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
 
   constructor(scope: GraphScope, id: string, subject: NodeReferenceData | null) {
     this.scope = scope;
     this.id = id;
     this.subject = subject;
+    this.benchPtr = scope.benchId != null ? nodeReference(NodeType.BENCH, scope.benchId) : null;
   }
 
   describeSelf(): string {
@@ -96,7 +109,7 @@ export class TransactionBuilder implements Transaction {
       properties: properties ?? [],
       subject: this.subject ?? undefined,
       scope: {
-        benchId: "packagePtr" in node ? node.packagePtr?.benchId : undefined,
+        benchId: "packagePtr" in node ? node.benchPtr?.id : undefined,
         packageId: "packagePtr" in node ? node.packagePtr?.id : undefined,
         transactionId: this.id,
       },
@@ -115,9 +128,27 @@ export class TransactionBuilder implements Transaction {
   create<T extends NodeType>(
     nodeIn: { metatype: T | BenchType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
   ): NodeTypeMapping[T] {
-    // TODO :Cleanup: why doesn't Transaction.nodeIn typecheck properly (below for makeNode)?
+    // fill in scope
+    const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as BenchType]!;
+    if ("packagePtr" in properties && (nodeIn as any).packagePtr == null) {
+      throw new Error(`missing packagePtr in ${describeNode(nodeIn)}`); // can't infer package
+    }
+    if ("benchPtr" in properties) {
+      if ((nodeIn as any).benchPtr == null) {
+        (nodeIn as any).benchPtr = this.benchPtr; // infer bench
+      }
+      if ((nodeIn as any).benchPtr?.id != this.benchPtr?.id) {
+        throw new Error(
+          `node from other benchPtr: ${describeNode(nodeIn)} != ${this.benchPtr != null ? describeNode(this.benchPtr) : "<null>"}`,
+        );
+      }
+    }
+
+    // create node
+    // NOTE :Cleanup: why doesn't makeNode typecheck properly here?
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
+
     this._addEdit(EditType.CREATE, node);
     return node as NodeTypeMapping[T];
   }
@@ -263,20 +294,22 @@ export function editGraph(
  * A transaction buffer provides Transactions and applies them to the graph.
  */
 export interface TransactionBuffer {
+  readonly id: number;
   readonly tx: Transaction;
   readonly overlay: ReadNodeGraph;
 
   /** Commits the current transaction. */
-  commit(): void;
+  commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
-  reset(): void;
+  reset(): void | Promise<void>;
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
   /** Whether there are any pending commits */
   get isCommitting(): boolean;
-  /** Whether transactions are currently processed */
+  /** Whether transactions are currently processed (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
 
+  /** Toggle automatic flushing for debugging. */
   togglePaused(): void;
 }
 
@@ -284,13 +317,15 @@ export interface TransactionBuffer {
  * Applies transactions immediately to the graph.
  */
 export class ImmediateTransactionBuffer implements TransactionBuffer {
+  public readonly id: number;
   public readonly scope: GraphScope;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly overlay: ReadNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
   private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
-  constructor(scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
+  constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
+    this.id = id;
     this.scope = scope;
     this.graph = graph;
     this.overlay = new NodeGraph({ scope, isPartial: true }); // just leave it empty since we apply immediately
@@ -302,8 +337,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   }
 
   togglePaused() {
-    this.isPaused.value = !this.isPaused.value;
-    log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
+    // nothing to do
   }
 
   commit() {
@@ -335,6 +369,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
  * A buffer with one active & one pending transaction that is committed to a remote client.
  */
 export class SwapTransactionBuffer implements TransactionBuffer {
+  public readonly id: number;
   public readonly scope: GraphScope;
   public readonly client: IGraphIOClient;
   public readonly overlay: NodeGraph;
@@ -342,7 +377,8 @@ export class SwapTransactionBuffer implements TransactionBuffer {
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
 
-  constructor(scope: GraphScope, client: IGraphIOClient) {
+  constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
+    this.id = id;
     this.scope = scope;
     this.currentTx = null;
     this.pendingTx = null;
@@ -358,6 +394,11 @@ export class SwapTransactionBuffer implements TransactionBuffer {
 
   togglePaused() {
     this.isPaused.value = !this.isPaused.value;
+    log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
+    toaster.debug({
+      title: this.isPaused.value ? "Buffer paused" : "Buffer resumed",
+      text: `Buffer ${this.id} is ${this.isPaused.value ? "pausing transactions" : "resuming transactions"}.`,
+    });
   }
 
   async commit() {
@@ -413,40 +454,60 @@ export class SwapTransactionBuffer implements TransactionBuffer {
 }
 // nocheckin: track edit by origin (root) view? (for separate undo/redo)
 
-const globalTxBuffer: TransactionBuffer = new SwapTransactionBuffer({}, supervisor);
-const benchTxBuffers: Record<string, SwapTransactionBuffer> = {};
+let bufferId = 0;
+export function newBufferId() {
+  return bufferId++;
+}
+const globalTxBuffer: TransactionBuffer = new SwapTransactionBuffer(newBufferId(), {}, supervisor);
+const benchTxBuffers: Ref<Record<string, SwapTransactionBuffer>> = shallowRef({});
+const benchTxBuffersLocks: Record<string, AsyncEvent> = {};
 
 /** Gets the transaction buffer for the given scope (non-exclusively). */
 export async function getTransactionBuffer(scope: GraphScope): Promise<TransactionBuffer> {
   if (scope.benchId) {
-    if (!benchTxBuffers[scope.benchId]) {
-      const client = await getHostClient({ id: scope.benchId });
-      benchTxBuffers[scope.benchId] = new SwapTransactionBuffer(scope, client);
+    if (!benchTxBuffers.value[scope.benchId]) {
+      // synchronize so that only one buffer is created per bench even when called concurrently
+      if (!benchTxBuffersLocks[scope.benchId]) {
+        benchTxBuffersLocks[scope.benchId] = new AsyncEvent();
+      } else {
+        await benchTxBuffersLocks[scope.benchId].wait();
+      }
+      if (!benchTxBuffers.value[scope.benchId]) {
+        const client = await getHostClient({ id: scope.benchId });
+        benchTxBuffers.value[scope.benchId] = new SwapTransactionBuffer(newBufferId(), scope, client);
+        triggerRef(benchTxBuffers);
+        benchTxBuffersLocks[scope.benchId].set();
+        delete benchTxBuffersLocks[scope.benchId];
+      }
     }
-    return benchTxBuffers[scope.benchId];
+    return benchTxBuffers.value[scope.benchId];
   } else {
     return globalTxBuffer;
   }
 }
 
-/** Commits any pending transaction buffers. */
-export function flushTransactionBuffers() {
-  const buffers = [globalTxBuffer, ...Object.values(benchTxBuffers)];
+/** Commits any pending transactions in the current buffers. */
+export async function flushTransactionBuffers(options: { force: boolean } = { force: true }) {
+  const buffers = [globalTxBuffer, ...Object.values(benchTxBuffers.value)];
+  const commitPromises = [];
   for (const tx of buffers) {
-    if (tx.isDirty && !tx.isCommitting && !tx.isPaused.value) {
-      tx.commit();
+    if (tx.isDirty && !tx.isCommitting && (options.force || !tx.isPaused.value)) {
+      const ret = tx.commit();
+      if (ret instanceof Promise) commitPromises.push(ret);
     }
   }
+  await Promise.all(commitPromises);
 }
 
 let _setupTransactionManagement = false;
+/** Start automatic transaction rotation. */
 export function setupTransactionManagement() {
   if (_setupTransactionManagement) return;
-  // commit periodically
-  setInterval(() => flushTransactionBuffers(), 1000);
-  // commit on user change
-  watch(toValueRef(userPtr), () => flushTransactionBuffers());
-  // commit before exit
-  window.addEventListener("beforeunload", (e) => flushTransactionBuffers());
   _setupTransactionManagement = true;
+  // commit periodically
+  setInterval(() => flushTransactionBuffers({ force: false }), 1000);
+  // commit on user change
+  watch(toValueRef(userPtr), () => flushTransactionBuffers({ force: false }));
+  // commit before exit
+  window.addEventListener("beforeunload", (e) => flushTransactionBuffers({ force: false }));
 }

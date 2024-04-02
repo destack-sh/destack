@@ -29,7 +29,7 @@ export const isAuthenticated = computed(() => local.clientInfo.value?.accessToke
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
 export const { graph: userGraph, connection: userConnection } = useGetNodes(
-  { name: "user", live: true },
+  { name: "user", live: true, paramsPretty: computed(() => ({ slug: local.userInfo.value?.slug })) },
   computed(() => ({
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: {

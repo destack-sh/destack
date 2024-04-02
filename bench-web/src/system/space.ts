@@ -12,6 +12,7 @@ import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/clien
 import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
+import { flushTransactionBuffers } from "@/system/transaction";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, watch } from "vue";
@@ -22,7 +23,7 @@ export const {
   access: benchAccess,
   connection: benchConnection,
 } = useGetNodes(
-  { name: "bench", live: true },
+  { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
     roots: [local.benchPtr.value!],
     options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
@@ -35,7 +36,7 @@ export const {
   access: pkgAccess,
   connection: pkgConnection,
 } = useGetNodes(
-  { name: "pkg", live: true },
+  { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],
     options: { ancestorTypes: [NodeType.BENCH], descendantTypes: LOADED_SOURCE_NODE_TYPES },
@@ -63,7 +64,7 @@ watch(spacePtr, () => {
 });
 
 /** Assigns a space in the current Package */
-function assignSpaceInPackage() {
+async function assignSpaceInPackage() {
   if (pkg.value == null) throw new Error(`package not loaded`);
   log.debug("space.assignSpaceInPackage", { pkg: pkg.value, space: spacePtr.value });
 
@@ -88,6 +89,7 @@ function assignSpaceInPackage() {
     setupEmptyCanvas(pkgConnection.tx, space);
     local.setSpace(toNodeReference(space));
     spaceGraph.graph = pkgGraph;
+    await flushTransactionBuffers();
   } else {
     // we can't create, so just use a local space
     local.setSpaceToLocal();
@@ -121,11 +123,9 @@ export async function goToBench(go: {
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),
   });
 
-  // figure out space after package is loaded
-  pkgConnection.waitForResult(
-    (result) => result?.graph.get({ id: pkg.id }) != null,
-    () => assignSpaceInPackage(),
-  );
+  // figure out space once package is loaded
+  await pkgConnection.waitForResult((result) => result?.graph.get({ id: pkg.id }) != null);
+  await assignSpaceInPackage();
 }
 
 /** 'Goes' to a Space and sets it as the current main Space. */
