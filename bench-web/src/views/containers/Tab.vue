@@ -8,10 +8,10 @@ import { ICON_BY_NODE_TYPE } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
+import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import { type ContextMenuInfo, type MenuContext, menuActionsLike } from "@/utils/menu";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<

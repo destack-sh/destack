@@ -12,12 +12,12 @@ import {
 } from "@/proto/wire";
 import {
   copyNode,
+  describeNode,
   makeNode,
   makeStruct,
   toNodeReference,
   typeNodeReferenceMaybe,
   type TypedNodeReferenceData,
-  describeNode,
 } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
@@ -45,6 +45,17 @@ import {
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
   return (component as any).type.__name;
+}
+
+export function describeVueComponent(component: ComponentInstance<any>): string {
+  const id = (component as any).exposed?.self?.value?.id ?? (component as any).exposed?.id?.value;
+  return `${getVueComponentType(component)}:${id}`;
+}
+
+/** Gets a top down 'path' of a vue component (like Space:id->Split:id->Tabbed:id->Button:id) */
+export function describeVueComponentPath(component: ComponentInstance<any>): string {
+  const components = collectViewComponentsUp(component).reverse();
+  return components.map((c) => getVueComponentType(c) + ":" + getViewComponentId(c)).join("->");
 }
 
 export function isVueInstanceOf(component: ComponentInstance<any>, type: string | { __name?: string }): boolean {
@@ -361,11 +372,18 @@ export class ViewCanvas {
         const componentId = self.value?.id ?? id?.value!;
         const existingComponent = this.viewRefsById.value[componentId];
         if (existingComponent != null) {
-          // TODO :Robustness: check for duplicate component registration
-          // Duplicate component ids happen for two reasons:
-          //  1. When moving a view, the new component may be created before the old one is destroyed. This is fine.
-          //  2. We messed up naming our own internal/anonymous components. This is bad.
-          // Currently not sure how to distinguish these two cases.
+          // NOTE: checking for duplicate components only works reliably on next tick
+          //  because we may be registering a new component before the old component is unmounted
+          nextTick(() => {
+            if (
+              (existingComponent as any).vnode?.el != null &&
+              document.body.contains((existingComponent as any).vnode.el) // is this really the fastest way to check if it's still mounted?
+            ) {
+              const thisPath = describeVueComponentPath(instance);
+              const existingPath = describeVueComponentPath(existingComponent);
+              throw new Error(`duplicate components for id ${componentId}: ${thisPath} vs ${existingPath}`);
+            }
+          });
         }
         this.viewRefsById.value[componentId] = instance;
         triggerRef(this.viewRefsById);
