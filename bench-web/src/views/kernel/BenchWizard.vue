@@ -49,10 +49,7 @@ async function submit() {
       isMain: true,
     });
     await goToBench({ bench: toNodeReference(bench) });
-  } catch (e) {
-    // already handled
   } finally {
-    state.value = "all-set";
     isActive.value = false;
   }
 }

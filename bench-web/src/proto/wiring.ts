@@ -184,7 +184,6 @@ export function makeNode<T extends NodeType>(
     revision: 0,
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
-
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
 
   // assign id/ck/scope
@@ -198,9 +197,9 @@ export function makeNode<T extends NodeType>(
       node.id = newNodeId();
     }
   }
-  if ("benchPtr" in properties && (node as any).benchPtr == null) {
+  if ("benchPtr" in properties && !Object.prototype.hasOwnProperty.call(node, "benchPtr")) {
     const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
-    if (benchId == null) throw new Error(`missing benchId to make sub-bench node ${NodeType[data.metatype]}`);
+    if (benchId == null) throw new Error(`missing benchId to make potential sub-bench node ${NodeType[data.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
 

@@ -1,4 +1,4 @@
-import { supervisor } from "@/proto/services";
+import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   BenchData,
   BenchType,
@@ -65,6 +65,7 @@ function makeCurrentClient(): ClientData {
     {
       metatype: NodeType.CLIENT,
       placeId: persistentInfo.value!.placeId,
+      benchPtr: undefined,
       ...local.clientMeta.value,
     },
     { omit: ["id"] },
@@ -90,15 +91,22 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
 /**
  * Sign up a new user and simultaneously log in as the current client.
  */
-export async function signUp(userIn: { name?: string; slug: string; email: string }, password: string) {
+export async function signUp(
+  userIn: { name?: string; slug: string; email: string },
+  password: string,
+  options?: OperationOptions,
+) {
   if (isAuthenticated.value) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
-  } = await supervisor.signupUser({
-    ...userIn,
-    password,
-    client: makeCurrentClient(),
-  });
+  } = await supervisor.signupUser(
+    {
+      ...userIn,
+      password,
+      client: makeCurrentClient(),
+    },
+    options,
+  );
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.info({ icon: "fas fa-right-from-bracket", title: "Signed Up", text: `Welcome, ${user.slug}.` });
@@ -110,11 +118,12 @@ export async function signUp(userIn: { name?: string; slug: string; email: strin
 export async function logIn(
   userIn: { slug: string } | { email: string },
   password: string,
+  options?: OperationOptions,
 ): Promise<{ user: UserData; client: ClientData }> {
   if (local.clientInfo.value != null) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
-  } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() });
+  } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() }, options);
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged In", text: `Welcome back, ${user.slug}.` });
@@ -124,15 +133,18 @@ export async function logIn(
 /**
  * Logs out clients (may include current).
  */
-export async function logOut(options?: { all?: boolean; clients?: { id: string }[] }) {
+export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[] }, options?: OperationOptions) {
   if (local.clientInfo.value == null) throw new Error("not logged in");
-  await supervisor.logoutUser({
-    clients: options?.clients?.map((c) => nodeReference(NodeType.CLIENT, c.id!)) ?? [],
-    logoutAll: options?.all,
-  });
-  if (options == null || options?.all || options?.clients?.some((c) => c.id == local.clientInfo.value?.id)) {
+  await supervisor.logoutUser(
+    {
+      clients: logOut?.clients?.map((c) => nodeReference(NodeType.CLIENT, c.id!)) ?? [],
+      logoutAll: logOut?.all,
+    },
+    options,
+  );
+  if (logOut == null || logOut?.all || logOut?.clients?.some((c) => c.id == local.clientInfo.value?.id)) {
     // logged out current client
-    log.info("user.logout", options);
+    log.info("user.logout", logOut);
     local.clearUser();
     if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
       // reset local space
@@ -149,16 +161,19 @@ export function onAuthenticationError(error: RpcError) {
   local.clearUser();
 }
 
-export async function createBench(benchIn: {
-  owner: NodeReferenceData;
-  slug: string;
-  region: Region;
-  isMain: boolean;
-}): Promise<{ bench: BenchData }> {
+export async function createBench(
+  benchIn: {
+    owner: NodeReferenceData;
+    slug: string;
+    region: Region;
+    isMain: boolean;
+  },
+  options?: OperationOptions,
+): Promise<{ bench: BenchData }> {
   if (local.clientInfo.value == null) throw new Error("not logged in");
   const {
     response: { bench },
-  } = await supervisor.createBench({ ...benchIn });
+  } = await supervisor.createBench({ ...benchIn }, options);
   if (bench == null) throw new Error("failed to create bench");
   return { bench };
 }
