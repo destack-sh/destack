@@ -1420,8 +1420,8 @@ async def pg_write_edits(
                 updated_properties=updated_properties,
                 selected_properties=(cur_node_cls.id, cur_node_cls.revision),
             )
+            # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
             new_revisions_by_id = {node.id: node.revision for node in batch_changed_nodes}
-            assert len(new_revisions_by_id) == len(cur_batch), f"duplicates: {edits!r}"
             for edit in cur_batch:
                 node = wiring.unwrap_some_node(edit.node)
                 all_new_revisions.append(new_revisions_by_id[node.id])
