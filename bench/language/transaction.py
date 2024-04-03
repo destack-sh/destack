@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import structlog
 
 from bench.language.const import EMPTY_SCOPE, AccessKind, BenchError, EditType, NodeType
-from bench.language.node import Node, Property, new_struct_id
+from bench.language.node import Node, Property
 from bench.language.query import StoreConnection, StoreEngine
 from bench.proto.wire import EditData, GraphScope
 from bench.utils.dt import utcnow_with_tz
@@ -21,6 +21,10 @@ logger = structlog.get_logger(__name__)
 
 dcfield = dataclasses.field
 EditSubject = Union["User", "Run"]  # noqa
+
+
+def new_edit_id() -> str:
+    return str(uuid4())
 
 
 @dataclasses.dataclass(slots=True)
@@ -131,7 +135,7 @@ class Transaction:
         else:
             scope = EMPTY_SCOPE
         edit = EditData(
-            id=new_struct_id(),
+            id=new_edit_id(),
             type=wiring.pack_enum(EditType, type),
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),

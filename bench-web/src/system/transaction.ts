@@ -19,13 +19,12 @@ import {
   describeNode,
   getDefaultProtoValue,
   makeNode,
-  newStructId,
   nodeReference,
   unwrapSomeNode,
   wrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { userPtr } from "@/system/client";
+import { nonce, origin, userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
 import { AsyncEvent } from "@/utils/functools";
@@ -33,11 +32,21 @@ import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import type { RpcError } from "grpc-web";
-import { v4 } from "uuid";
+import { v4, v5 } from "uuid";
 import { ref, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
 const CONSTANT_IN_UPDATE_PROPERTIES = [...CONSTANT_PROPERTIES, "parentPtr", "archivedAt", "deletedAt"];
+
+let editNumber = 0;
+function newEditNumber() {
+  return editNumber++;
+}
+
+/** Generates a new 64-bit edit id (first half is client nonce, second half is successive) */
+function newEditId(): string {
+  return v5(newEditNumber().toString(), nonce);
+}
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -112,17 +121,18 @@ export class TransactionBuilder implements Transaction {
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
 
     const edit: EditData = {
-      id: newStructId(),
+      id: newEditId(),
       type,
-      node: wrapSomeNode(node),
-      nodeType: node.metatype as unknown as NodeType,
-      properties: properties ?? [],
-      subject: this.subject ?? undefined,
+      origin: origin.value,
       scope: {
         benchId,
         packageId,
         transactionId: this.id,
       },
+      nodeType: node.metatype as unknown as NodeType,
+      node: wrapSomeNode(node),
+      properties: properties ?? [],
+      subject: this.subject ?? undefined,
     };
     return edit;
   }
@@ -291,7 +301,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
       let existingNode = graph.get({ id: nodeData.id }) as Readonly<Partial<AnyNodeData>> | undefined;
       if (!existingNode) {
         if (options?.isOverlay) existingNode = nodeData;
-        else throw new Error(`missing node for ${EditType[edit.type]}: ${nodeData.id}`);
+        else throw new Error(`missing node for ${EditType[edit.type]}: ${describeNode(nodeData)}`);
       }
 
       const updatedNode = { setProperties: [], ...existingNode } as AnyNodeData; // clone
@@ -317,20 +327,23 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
  */
 export interface TransactionBuffer {
   readonly id: number;
+  /** Current active Transaction. */
   readonly tx: Transaction;
+  /** Overlay of unconfirmed edits in active or pending transactions. */
   readonly overlay: ReadNodeGraph;
 
   /** Commits the current transaction. */
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
+  /** Subscribes to *confirmed* edits from this buffer */
+  subscribe(sub: (edits: EditData[]) => void): () => void;
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
   /** Whether there are any pending commits */
   get isCommitting(): boolean;
   /** Whether transactions are currently processed (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
-
   /** Toggle automatic flushing for debugging. */
   togglePaused(): void;
 }
@@ -344,6 +357,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly overlay: ReadNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
+  private subs: Array<(edits: EditData[]) => void> = [];
   private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
@@ -358,10 +372,6 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     return this.currentTx!; // set in constructor
   }
 
-  togglePaused() {
-    // nothing to do
-  }
-
   commit() {
     // nothing to do
   }
@@ -371,11 +381,27 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     // immediately apply and reset the transaction
     newTx.subscribe((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
+      // apply edit directly
       canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.graph, [edit]);
+      // notify
+      this.subs.forEach((sub) => sub([edit]));
+      // 'reset'
       newTx.edits.length = 0;
     });
     this.currentTx = newTx;
+  }
+
+  subscribe(sub: (edits: EditData[]) => void): () => void {
+    this.subs.push(sub);
+    return () => {
+      const idx = this.subs.indexOf(sub);
+      if (idx >= 0) this.subs.splice(idx, 1);
+    };
+  }
+
+  togglePaused() {
+    // nothing to do
   }
 
   get isDirty() {
@@ -390,12 +416,13 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
 /**
  * A buffer with one active & one pending transaction that is committed to a remote client.
  */
-export class SwapTransactionBuffer implements TransactionBuffer {
+export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScope;
   public readonly client: IGraphIOClient;
   public readonly overlay: NodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
+  private subs: Array<(edits: EditData[]) => void> = [];
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
 
@@ -414,33 +441,30 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     return this.currentTx;
   }
 
-  togglePaused() {
-    this.isPaused.value = !this.isPaused.value;
-    log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
-    toaster.debug({
-      title: this.isPaused.value ? "Buffer paused" : "Buffer resumed",
-      text: `Buffer ${this.id} is ${this.isPaused.value ? "pausing transactions" : "resuming transactions"}.`,
-    });
-  }
-
   async commit() {
     if (this.currentTx == null) throw new Error("no active transaction");
     if (this.pendingTx != null) throw new Error(`transaction ${this.pendingTx.describeSelf()} is already committing`);
     try {
-      // swap & commit
-      log.trace("transaction.commit", {
-        scope: this.scope,
-        id: this.currentTx.id,
-        edits: this.currentTx.edits,
-      });
+      log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
+
+      // swap
+      const edits = this.currentTx.edits;
       this.pendingTx = this.currentTx;
       this.currentTx = this.makeCurrentTx();
-      await this.client.commitTransaction(
-        { edits: this.pendingTx.edits, id: this.pendingTx.id, scope: this.scope },
+
+      // commit
+      const {
+        response: { epoch, revisions },
+      } = await this.client.commitTransaction(
+        { edits, id: this.pendingTx.id, scope: this.scope },
         { suppressErrors: true, retry: true },
       );
-      // nocheckin: accept edits into real graph somewhere? (can't wait for them to stream back)
-      // also nocheckin: ignore own edits in connection.watch
+      for (let i = 0; i < edits.length; i++) {
+        edits[i].revision = revisions[i];
+      }
+
+      // notify on success
+      this.subs.forEach((sub) => sub(edits));
     } catch (error) {
       // rollback
       log.error("transaction.commit.error", { scope: this.scope, error });
@@ -469,6 +493,23 @@ export class SwapTransactionBuffer implements TransactionBuffer {
     return tx;
   }
 
+  subscribe(sub: (edits: EditData[]) => void): () => void {
+    this.subs.push(sub);
+    return () => {
+      const idx = this.subs.indexOf(sub);
+      if (idx >= 0) this.subs.splice(idx, 1);
+    };
+  }
+
+  togglePaused() {
+    this.isPaused.value = !this.isPaused.value;
+    log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
+    toaster.debug({
+      title: this.isPaused.value ? "Buffer paused" : "Buffer resumed",
+      text: `Buffer ${this.id} is ${this.isPaused.value ? "pausing transactions" : "resuming transactions"}.`,
+    });
+  }
+
   get isDirty() {
     return this.currentTx != null && this.currentTx.edits.length > 0;
   }
@@ -483,8 +524,8 @@ let bufferId = 0;
 export function newBufferId() {
   return bufferId++;
 }
-const globalTxBuffer: TransactionBuffer = new SwapTransactionBuffer(newBufferId(), {}, supervisor);
-const benchTxBuffers: Ref<Record<string, SwapTransactionBuffer>> = shallowRef({});
+const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), {}, supervisor);
+const benchTxBuffers: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
 const benchTxBuffersLocks: Record<string, AsyncEvent> = {};
 
 /** Gets the transaction buffer for the given scope (non-exclusively). */
@@ -499,7 +540,7 @@ export async function getTransactionBuffer(scope: GraphScope): Promise<Transacti
       }
       if (!benchTxBuffers.value[scope.benchId]) {
         const client = await getHostClient({ id: scope.benchId });
-        benchTxBuffers.value[scope.benchId] = new SwapTransactionBuffer(newBufferId(), scope, client);
+        benchTxBuffers.value[scope.benchId] = new RemoteTransactionBuffer(newBufferId(), scope, client);
         triggerRef(benchTxBuffers);
         benchTxBuffersLocks[scope.benchId].set();
         delete benchTxBuffersLocks[scope.benchId];

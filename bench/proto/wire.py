@@ -2749,8 +2749,9 @@ class EditData(betterproto.Message):
      (Manually defined here since inline Node properties inside structs aren't supported.)
     """
 
-    id: int = betterproto.int32_field(2)
+    id: str = betterproto.string_field(2)
     type: "EditType" = betterproto.enum_field(30)
+    origin: Optional["ClientOrigin"] = betterproto.message_field(31, optional=True)
     scope: "GraphScope" = betterproto.message_field(32)
     node_type: "NodeType" = betterproto.enum_field(33)
     node: "SomeNodeData" = betterproto.message_field(35)
@@ -4491,7 +4492,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.02.3"
+VERSION = "2024.04.03.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

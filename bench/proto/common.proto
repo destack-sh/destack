@@ -44,8 +44,9 @@ message GraphScope {
 // Edit describes an edit to a Node.
 // (Manually defined here since inline Node properties inside structs aren't supported.)
 message EditData {
-  int32 id = 2;
+  string id = 2;
   EditType type = 30;
+  optional ClientOrigin origin = 31;
   GraphScope scope = 32;
   NodeType node_type = 33;
   SomeNodeData node = 35;
