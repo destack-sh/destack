@@ -25,6 +25,7 @@ module.exports = {
       files: ["*.ts", "*.tsx", "*.js", "*.jsx", "*.vue"],
       rules: {
         "@typescript-eslint/no-unused-vars": "off",
+        "prefer-const": "warn",
       },
     },
   ],

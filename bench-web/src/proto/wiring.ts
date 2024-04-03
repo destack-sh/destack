@@ -50,8 +50,8 @@ export function describeNode(node: {
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (node.title) nodeParts.push(`title='${node.title}'`);
-  if ("parentPtr" in node)
-    nodeParts.push(`parent=${toCasing(NodeType[node.parentPtr!.type], Casing.CAMEL)}:${node.parentPtr?.id}`);
+  if (node.parentPtr)
+    nodeParts.push(`parent=${toCasing(NodeType[node.parentPtr.type], Casing.CAMEL)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;

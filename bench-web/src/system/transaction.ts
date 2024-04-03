@@ -490,8 +490,8 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
+      // nocheckin: derive overlay from outstanding edits from this buffer only
       editGraph(this.overlay, [edit], { isOverlay: true });
-      console.log("edit overlay nocheckin", edit);
     });
     return tx;
   }
