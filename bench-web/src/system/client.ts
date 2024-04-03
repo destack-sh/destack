@@ -1,4 +1,4 @@
-import { BenchType, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
+import { BenchType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
 import { describeNode, nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
@@ -92,6 +92,17 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 //
 // Auth
 //
+
+export const nonce = v4(); // changes per page load
+export const origin: Readonly<Ref<ClientOrigin>> = pretendReadonly(
+  computed(() => ({
+    id: _clientInfo.value?.id ?? nonce,
+    nonce,
+  })),
+);
+export function isSameOrigin(other: ClientOrigin): boolean {
+  return origin.value.id == other.id && origin.value.nonce == other.nonce;
+}
 
 const _persistentInfo = useLocal("persistentInfo");
 const _userInfo = useLocal("userInfo");

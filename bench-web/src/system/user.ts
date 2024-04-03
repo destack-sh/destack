@@ -20,10 +20,7 @@ import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { v4 } from "uuid";
 import { computed, ref } from "vue";
-
-export const nonce = v4();
 
 export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
 export const isUnauthenticated = computed(() => !isAuthenticated.value);

@@ -102,13 +102,17 @@ export interface GraphScope {
  */
 export interface EditData {
     /**
-     * @generated from protobuf field: int32 id = 2;
+     * @generated from protobuf field: string id = 2;
      */
-    id: number;
+    id: string;
     /**
      * @generated from protobuf field: symbolx.bench.EditType type = 30;
      */
     type: EditType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 31;
+     */
+    origin?: ClientOrigin;
     /**
      * @generated from protobuf field: symbolx.bench.GraphScope scope = 32;
      */
@@ -408,8 +412,9 @@ export const GraphScope = new GraphScope$Type();
 class EditData$Type extends MessageType<EditData> {
     constructor() {
         super("symbolx.bench.EditData", [
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
+            { no: 31, name: "origin", kind: "message", T: () => ClientOrigin },
             { no: 32, name: "scope", kind: "message", T: () => GraphScope },
             { no: 33, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 35, name: "node", kind: "message", T: () => SomeNodeData },
@@ -421,7 +426,7 @@ class EditData$Type extends MessageType<EditData> {
     }
     create(value?: PartialMessage<EditData>): EditData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.id = 0;
+        message.id = "";
         message.type = 0;
         message.nodeType = 0;
         message.properties = [];
@@ -434,11 +439,14 @@ class EditData$Type extends MessageType<EditData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
+                case /* string id */ 2:
+                    message.id = reader.string();
                     break;
                 case /* symbolx.bench.EditType type */ 30:
                     message.type = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ClientOrigin origin */ 31:
+                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
                     break;
                 case /* symbolx.bench.GraphScope scope */ 32:
                     message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
@@ -477,12 +485,15 @@ class EditData$Type extends MessageType<EditData> {
         return message;
     }
     internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
         /* symbolx.bench.EditType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbolx.bench.ClientOrigin origin = 31; */
+        if (message.origin)
+            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.GraphScope scope = 32; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(32, WireType.LengthDelimited).fork(), options).join();

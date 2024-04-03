@@ -15,6 +15,7 @@ import {
   type NodeReferenceData,
   type NodeTypeMapping,
   type ReadOptionsData,
+  EditData,
 } from "@/proto/wire";
 import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
@@ -28,7 +29,7 @@ import {
   getTransactionBuffer,
   type Transaction,
   type TransactionBuffer,
-  SwapTransactionBuffer,
+  RemoteTransactionBuffer,
   newBufferId,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
@@ -145,9 +146,21 @@ function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<
   throw new Error(`cannot determine scope from params: ${JSON.stringify(params)}`);
 }
 
-function applyRemoteEdits(rep: WatchEditsResponse, graph: ReadNodeGraph & WriteNodeGraph): void {
-  canonicalizeEdits(Timestamp.now(), rep.edits);
-  editGraph(graph, rep.edits);
+/** Filter, canonicalize and apply the given edits */
+function applyRemoteEdits<T extends NodeType>(
+  params: GetConnectionParams<T> | SearchConnectionParams<T>,
+  edits: EditData[],
+  graph: ReadNodeGraph & WriteNodeGraph,
+): void {
+  // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
+  // node types included?
+  const includedNodeTypes = [...(params.options?.ancestorTypes ?? []), ...(params.options?.descendantTypes ?? [])];
+  if ("roots" in params) includedNodeTypes.push(...params.roots.map((r) => r.type));
+  if ("nodeType" in params) includedNodeTypes.push(params.nodeType);
+
+  const filteredEdits = edits.filter((e) => includedNodeTypes.includes(e.nodeType));
+  canonicalizeEdits(Timestamp.now(), filteredEdits);
+  editGraph(graph, filteredEdits);
 }
 
 //
@@ -184,12 +197,14 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void>;
 };
 
+type ConnectionInternalResult = { subs?: (() => void)[] };
+
 export abstract class GraphConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
   abstract readonly kind: K;
 
   readonly meta: ConnectionMetadata;
   readonly params: ConnectionParamsMapping<T>[K];
-  readonly result: ShallowRef<ConnectionResultMapping<T>[K] | null> = shallowRef(null);
+  readonly result: ShallowRef<(ConnectionResultMapping<T>[K] & ConnectionInternalResult) | null> = shallowRef(null);
   readonly txBuffer: TransactionBuffer;
 
   readonly isConnected: Ref<boolean> = shallowRef(false);
@@ -317,7 +332,12 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       while (!this.isClosed.value) {
         retrySignal.reset();
         try {
-          this.result.value = await this.fetch({ ...this.params, onError });
+          const newResult = await this.fetch({ ...this.params, onError });
+          if (this.result.value != null) {
+            this.result.value.subs?.forEach((sub) => sub());
+          }
+          this.result.value = newResult;
+
           if (retryCount > 0) {
             toaster.info({
               key: `connection:${this.meta.id}`,
@@ -346,7 +366,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
    * */
   async fetch(
     params: ConnectionParamsMapping<T>[K] & { scope?: GraphScope; onError?: (error: Error) => void },
-  ): Promise<ConnectionResultMapping<T>[K]> {
+  ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult> {
     if (this.isFetching.value) this.abortController?.abort();
 
     log.debug(`graph.${this.kind}`, this.meta.name, params);
@@ -379,12 +399,12 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     params: ConnectionParamsMapping<T>[K],
     abort: AbortSignal,
     onError: (error: Error) => void,
-  ): Promise<ConnectionResultMapping<T>[K]>;
+  ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult>;
 
   /** Whether this connection is a superset of the given connection */
   supports(params: ConnectionParamsMapping<T>[K]): boolean {
     if (this.kind == "get") {
-      // TODO :Broken: Connection.supports is incorrect sometimes (assumes mostly non-overlapping GET requests)
+      // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
@@ -420,10 +440,11 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
     params: GetConnectionParams<T>,
     abort: AbortSignal,
     onError: (error: Error) => void,
-  ): Promise<GetConnectionResult<T>> {
+  ): Promise<GetConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope });
     const options = makeReadOptions(params.options ?? {});
+    const subs: (() => void)[] = [];
 
     // fetch nodes
     const {
@@ -444,11 +465,14 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
         },
         { abort, ...this.operationMeta },
       );
-      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(rep, graph));
+      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(params, rep.edits, graph));
       editStream.responses.onError(onError);
+    } else {
+      // otherwise directly apply confirmed edits
+      subs.push(this.txBuffer.subscribe((edits) => applyRemoteEdits(params, edits, graph)));
     }
 
-    return { graph, access, roots: graph.getManyRef(params.roots) };
+    return { graph, access, roots: graph.getManyRef(params.roots), subs };
   }
 }
 
@@ -460,10 +484,11 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     params: SearchConnectionParams<T>,
     abort: AbortSignal,
     onError: (error: Error) => void,
-  ): Promise<SearchConnectionResult<T>> {
+  ): Promise<SearchConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope });
     const options = makeReadOptions(params.options ?? {});
+    const subs: (() => void)[] = [];
 
     // fetch nodes
     const {
@@ -489,7 +514,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     );
     graph.extend(...nodes.map(unwrapSomeNode));
 
-    // TODO :Broken? :Feature: watch search, not just edits to initial results
+    // TODO :Incomplete? :Feature: watch search, not just edits to initial results
     const roots = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
     const access = accessFromMatrix(accessMatrix!);
     const page = shallowRef({
@@ -511,11 +536,14 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
         },
         { abort, ...this.operationMeta },
       );
-      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(rep, graph));
+      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(params, rep.edits, graph));
       editStream.responses.onError(onError);
+    } else {
+      // otherwise directly apply confirmed edits
+      subs.push(this.txBuffer.subscribe((edits) => applyRemoteEdits(params, edits, graph)));
     }
 
-    return { graph, access, roots, page };
+    return { graph, access, roots, page, subs };
   }
 }
 
@@ -629,6 +657,7 @@ export function addGraphConnection(connection: GraphConnectionBase<any, any>): v
 function releaseConnection(connection: GraphConnectionBase<any, any>): void {
   connection.referenceCount--;
   // TODO :Broken: GC connections without references after some time
+  // TODO :Performance: cache/store connections (results) locally for initial hydration
 }
 
 /** Finds an existing connection and acquires it (RC+=1) */
