@@ -19,7 +19,13 @@ import {
 import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
 import { LOCAL_SPACE_PTR, spaceGraphLocal } from "@/system/client";
-import { LayerNodeGraph, NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import {
+  DEFAULT_NODE_FILTER,
+  LayerNodeGraph,
+  NodeGraph,
+  type ReadNodeGraph,
+  type WriteNodeGraph,
+} from "@/system/graph";
 import { toaster } from "@/system/toast";
 import {
   ImmediateTransactionBuffer,
@@ -737,7 +743,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 function connectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
-  const graph = new LayerNodeGraph();
+  const graph = new LayerNodeGraph({ filter: DEFAULT_NODE_FILTER });
   watch(
     () => connection.value?.result.value,
     () => {

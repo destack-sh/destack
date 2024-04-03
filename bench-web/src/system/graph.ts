@@ -87,7 +87,10 @@ export interface WriteNodeGraph {
   clear(): void;
 }
 
+// NOTE :Performance: will probably differentiate node updates for :NodeFiltering later
+//  (e.g. update, move, update:visibility, create/delete, etc.)
 type NodeGraphCallback = () => void;
+
 export type NodeGraphFilter = {
   includeHidden: boolean;
 };
@@ -163,6 +166,20 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     callback: NodeGraphCallback,
   ): () => void;
 
+  protected subscribeAncestors(
+    key: NodeKey<any>,
+    graph: ReadNodeGraph,
+    subs: Array<() => void>,
+    trigger: NodeGraphCallback,
+  ) {
+    // subscribe to all ancestors :NodeFiltering
+    let node = graph.get(key);
+    while (node != null) {
+      subs.push(graph.subscribe({ id: node.id }, trigger));
+      node = node.parentPtr != null ? graph.get(node.parentPtr) : null;
+    }
+  }
+
   getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): SubRef<NodeTypeMapping[T] | null> {
     const keyRef = toRef(key) as Ref<NodeKey<T> | null>;
     let sub: (() => void) | null = null;
@@ -209,8 +226,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
   }
 
   getChildrenRef<T extends NodeType>(parent: MaybeRef<NodeKey<any> | null>, metatype: T): SubRef<NodeTypeMapping[T][]> {
-    // TODO :Performance: trigger getChildrenRef more selectively
-    // (discriminate parent update, individual node updates, ...)
+    // TODO :Performance: trigger getChildrenRef more selectively :NodeFiltering
     const parentRef = toRef(parent);
     let sub: (() => void) | null = null;
     const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
@@ -477,6 +493,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
  * TODO :Performance: filtering node graphs is somewhat inefficient because we throw away and recompute a lot of info
  *  For instance, currently we only need deletedAt & archivedAt but we assemble all properties.
  *  Also we subscribe to any change in the ancestors, not just a visibility change?
+ *  see :NodeFiltering
  * */
 abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
   public readonly filter: ShallowRef<NodeGraphFilter>;
@@ -505,6 +522,96 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
 }
 
 /**
+ * A proxy to a single graph (like a LayerNodeGraph with a single layer).
+ */
+export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNodeGraph {
+  readonly _graph: ShallowRef<ReadNodeGraph | null>;
+
+  constructor(init: { graph: MaybeRef<ReadNodeGraph | null>; filter?: MaybeRef<NodeGraphFilter> } = { graph: null }) {
+    super(init.filter);
+    this._graph = isRef(init.graph) ? init.graph : shallowRef(init.graph);
+  }
+
+  public get graph(): ReadNodeGraph | null {
+    return this._graph.value;
+  }
+
+  public set graph(graph: ReadNodeGraph | null) {
+    if (this._graph.value !== graph) this._graph.value = graph;
+  }
+
+  get scope(): GraphScope {
+    return this._graph.value?.scope ?? {};
+  }
+
+  get isPartial(): boolean {
+    return this._graph.value?.isPartial ?? false;
+  }
+
+  get nodes(): AnyNodeData[] {
+    return this._graph.value?.nodes ?? [];
+  }
+
+  get size(): number {
+    return this._graph.value?.size ?? 0;
+  }
+
+  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
+    const node = this._graph.value?.get(key);
+    if (node == null || !this.isNodeVisibleAbsolute(node)) return null;
+    else return node;
+  }
+
+  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
+    if (!this.get(parent)) return [];
+    const children = this._graph.value?.getChildren(parent, metatype)?.filter((n) => this.isNodeVisibleSelf(n)) ?? [];
+    return children;
+  }
+
+  subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: NodeGraphCallback): () => void {
+    const subs: Array<() => void> = [];
+    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
+    watch(
+      this._graph,
+      () => {
+        callback();
+        unsub();
+        if (this._graph.value != null) {
+          subs.push(this._graph.value.subscribe(key, callback));
+          this.subscribeAncestors(key, this._graph.value, subs, callback);
+        }
+      },
+      { immediate: true, flush: "sync" },
+    );
+    watch(this.filter, callback, { flush: "sync" });
+    return unsub;
+  }
+
+  subscribeChildren<T extends NodeType>(
+    parent: { id?: string | undefined; ck?: string | undefined },
+    metatype: T,
+    callback: NodeGraphCallback,
+  ): () => void {
+    const subs: Array<() => void> = [];
+    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
+    watch(
+      this._graph,
+      () => {
+        callback();
+        unsub();
+        if (this._graph.value != null) {
+          subs.push(this._graph.value?.subscribeChildren(parent, metatype, callback));
+          this.subscribeAncestors(parent, this._graph.value, subs, callback);
+        }
+      },
+      { immediate: true, flush: "sync" },
+    );
+    watch(this.filter, callback, { flush: "sync" });
+    return unsub;
+  }
+}
+
+/**
  * A graph composed of multiple (potentially overlapping subgraphs).
  * Nodes are merged from the layers in order, with later layers taking precedence.
  */
@@ -513,9 +620,9 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
   //  (so we only need to acquire refs from layers with the requested scope)
   public readonly layers: ShallowRef<ReadNodeGraph[]>;
 
-  constructor(init: { layers: MaybeRef<ReadNodeGraph[]>; filter?: MaybeRef<NodeGraphFilter> } = { layers: [] }) {
+  constructor(init: { layers?: MaybeRef<ReadNodeGraph[]>; filter?: MaybeRef<NodeGraphFilter> } = { layers: [] }) {
     super(init.filter);
-    this.layers = !isRef(init.layers) ? shallowRef(init.layers) : init.layers;
+    this.layers = !isRef(init.layers) ? shallowRef(init.layers ?? []) : init.layers;
   }
 
   get isPartial(): boolean {
@@ -573,7 +680,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const mergedChildrenById: { [id: string]: NodeTypeMapping[T] } = {};
     for (const layer of this.layers.value) {
       // check whether children are still at the same parent in this layer
-      // NOTE :Performance: cross-checking layers for every child seems inefficient
+      // NOTE :Performance: cross-checking layers for every child seems inefficient :NodeFiltering
       for (const childId of Object.keys(mergedChildrenById)) {
         const child = layer.get({ id: childId });
         if (child != null && child.parentPtr?.id != parent.id) {
@@ -604,11 +711,13 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       () => {
         callback();
         unsub();
-        this.layers.value.forEach((layer) => subs.push(layer.subscribe(key, callback)));
+        this.layers.value.forEach((layer) => {
+          subs.push(layer.subscribe(key, callback));
+        });
       },
       { immediate: true, flush: "sync" },
     );
-    watch(this.filter, () => callback(), { flush: "sync" });
+    watch(this.filter, callback, { flush: "sync" });
     return () => subs.forEach((sub) => sub());
   }
 
@@ -624,96 +733,14 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       () => {
         callback();
         unsub();
-        this.layers.value.forEach((layer) => subs.push(layer.subscribeChildren(parent, metatype, callback)));
+        this.layers.value.forEach((layer) => {
+          subs.push(layer.subscribeChildren(parent, metatype, callback));
+        });
       },
       { immediate: true, flush: "sync" },
     );
-    watch(this.filter, () => callback(), { flush: "sync" });
+    watch(this.filter, callback, { flush: "sync" });
     return () => subs.forEach((sub) => sub());
-  }
-}
-
-/**
- * A proxy to a single graph (like a LayerNodeGraph with a single layer).
- */
-export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNodeGraph {
-  readonly _graph: ShallowRef<ReadNodeGraph | null>;
-
-  constructor(init: { graph: MaybeRef<ReadNodeGraph | null>; filter?: MaybeRef<NodeGraphFilter> } = { graph: null }) {
-    super(init.filter);
-    this._graph = isRef(init.graph) ? init.graph : shallowRef(init.graph);
-  }
-
-  public get graph(): ReadNodeGraph | null {
-    return this._graph.value;
-  }
-
-  public set graph(graph: ReadNodeGraph | null) {
-    if (this._graph.value !== graph) this._graph.value = graph;
-  }
-
-  get scope(): GraphScope {
-    return this._graph.value?.scope ?? {};
-  }
-
-  get isPartial(): boolean {
-    return this._graph.value?.isPartial ?? false;
-  }
-
-  get nodes(): AnyNodeData[] {
-    return this._graph.value?.nodes ?? [];
-  }
-
-  get size(): number {
-    return this._graph.value?.size ?? 0;
-  }
-
-  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    const node = this._graph.value?.get(key);
-    if (node == null || !this.isNodeVisibleAbsolute(node)) return null;
-    else return node;
-  }
-
-  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
-    if (!this.get(parent)) return [];
-    const children = this._graph.value?.getChildren(parent, metatype)?.filter((n) => this.isNodeVisibleSelf(n)) ?? [];
-    return children;
-  }
-
-  subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: NodeGraphCallback): () => void {
-    let sub: (() => void) | null;
-    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
-    watch(
-      this._graph,
-      () => {
-        callback();
-        unsub();
-        sub = this._graph.value?.subscribe(key, callback) ?? null;
-      },
-      { immediate: true, flush: "sync" },
-    );
-    watch(this.filter, () => callback(), { flush: "sync" });
-    return unsub;
-  }
-
-  subscribeChildren<T extends NodeType>(
-    parent: { id?: string | undefined; ck?: string | undefined },
-    metatype: T,
-    callback: NodeGraphCallback,
-  ): () => void {
-    let sub: (() => void) | null;
-    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
-    watch(
-      this._graph,
-      () => {
-        callback();
-        unsub();
-        sub = this._graph.value?.subscribeChildren(parent, metatype, callback) ?? null;
-      },
-      { immediate: true, flush: "sync" },
-    );
-    watch(this.filter, () => callback(), { flush: "sync" });
-    return unsub;
   }
 }
 
