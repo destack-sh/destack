@@ -13,6 +13,7 @@ from bench.language.query import StoreConnection, StoreEngine
 from bench.proto.wire import EditData, GraphScope
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import uuid_to_str
+from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Session
@@ -24,7 +25,7 @@ EditSubject = Union["User", "Run"]  # noqa
 
 
 def new_edit_id() -> str:
-    return str(uuid4())
+    return str(UUIDT())
 
 
 @dataclasses.dataclass(slots=True)
@@ -32,11 +33,9 @@ class Transaction:
     """
     A transaction in the Bench state graph.
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
-    TODO :Cleanup: Transaction should maybe be a Struct (or maybe even Node?) (along with Edit?)
-      (also we don't have a simple way of representing Edit.node/Edit.properties yet)
     """
 
-    id: UUID = dcfield(default_factory=uuid4)
+    id: UUID = dcfield(default_factory=UUIDT)
     session: "Session" = dcfield(default=None)
     is_readonly: bool = dcfield(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)

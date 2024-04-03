@@ -31,21 +31,21 @@ import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
+import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
-import { v4, v5 } from "uuid";
 import { ref, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
 const CONSTANT_IN_UPDATE_PROPERTIES = [...CONSTANT_PROPERTIES, "parentPtr", "archivedAt", "deletedAt"];
 
-let editNumber = 0;
-function newEditNumber() {
-  return editNumber++;
+const nonce8BytesPostfix = nonce.replace("-", "").slice(0, 16);
+
+function newEditId(): string {
+  return uuidt({ nonce: nonce8BytesPostfix });
 }
 
-/** Generates a new 64-bit edit id (first half is client nonce, second half is successive) */
-function newEditId(): string {
-  return v5(newEditNumber().toString(), nonce);
+function newTransactionId(): string {
+  return uuidt({ nonce: nonce8BytesPostfix });
 }
 
 /** A transaction on the Bench state graph. */
@@ -377,7 +377,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   }
 
   reset() {
-    const newTx = new TransactionBuilder(this.scope, v4(), userPtr.value);
+    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: nonce8BytesPostfix }), userPtr.value);
     // immediately apply and reset the transaction
     newTx.subscribe((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
@@ -484,7 +484,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   private makeCurrentTx() {
-    const tx = new TransactionBuilder(this.scope, v4(), userPtr.value);
+    const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       editGraph(this.overlay, [edit], { isOverlay: true });

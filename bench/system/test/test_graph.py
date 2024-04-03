@@ -10,7 +10,7 @@ import structlog
 from bench.conftest import raises_grpc_error
 from bench.language import Node, Property, User
 from bench.language.const import EditType, NodeType, PrimitiveType, UserStatus
-from bench.language.node import new_struct_id
+from bench.language.transaction import new_edit_id
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     CommitTransactionRequest,
@@ -97,7 +97,7 @@ class EditProducer:
                 node_data = wiring.pack_node(node)
                 setattr(node_data, prop.name, new_value)
                 edit = EditData(
-                    id=new_struct_id(),
+                    id=new_edit_id(),
                     type=wiring.pack_enum(EditType, edit_type),
                     node_type=wiring.pack_enum(NodeType, node.metatype),
                     node=wiring.wrap_some_node(node_data),
@@ -253,7 +253,7 @@ async def test_supervisor_invalid_node(some_user: UserHandle, supervisor: Superv
     user = some_user.user
     user.name = "thisiswaytoolong" * 64
     edit = EditData(
-        id=new_struct_id(),
+        id=new_edit_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),
         node_type=wiring.pack_enum(NodeType, NodeType.USER),
         node=wiring.wrap_some_node(wiring.pack_node(user)),
