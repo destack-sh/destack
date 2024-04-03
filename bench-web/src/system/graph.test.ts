@@ -336,13 +336,7 @@ describe("proxy node graph", () => {
   });
 });
 
-function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {}
-
-describe("filtered proxy graph", () => {
-  const base = new NodeGraph();
-  const graph = new ProxyNodeGraph({ graph: base, filter: NO_NODE_FILTER });
-  // testFilteredGraph(base, graph);
-
+function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
   let package1 = fabricate(BenchType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
   let space11 = fabricate(BenchType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
@@ -369,8 +363,11 @@ describe("filtered proxy graph", () => {
   const package1SpacesRef = graph.getChildrenRef(package1, NodeType.SPACE);
   const space11Ref = graph.getRef(space11);
   const space11ViewsRef = graph.getChildrenRef(space11, NodeType.VIEW);
+  const view111Ref = graph.getRef({ id: view111.id });
+  const view112Ref = graph.getRef({ id: view112.id });
   const space12Ref = graph.getRef(space12);
   const space12ViewsRef = graph.getChildrenRef(space12, NodeType.VIEW);
+  const view121Ref = graph.getRef({ id: view121.id });
 
   function hide<T extends AnyNodeData>(obj: T): T {
     return { ...obj, archivedAt: null, deletedAt: new Date().toISOString() } as T;
@@ -389,8 +386,11 @@ describe("filtered proxy graph", () => {
     // no filter -> get all
     graph.filter.value = NO_NODE_FILTER;
     expect(graph.get({ id: view111.id })).toEqual(view111);
+    expect(view111Ref.value).toEqual(view111);
     expect(graph.get({ id: space12.id })).toEqual(space12);
+    expect(space12Ref.value).toEqual(space12);
     expect(graph.get({ id: view121.id })).toEqual(view121);
+    expect(view121Ref.value).toEqual(view121);
     expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view111, view112]);
     expect(space11ViewsRef.value).toEqual([view111, view112]);
     expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
@@ -399,21 +399,64 @@ describe("filtered proxy graph", () => {
     // enable filter -> get unfiltered
     graph.filter.value = DEFAULT_NODE_FILTER;
     expect(graph.get({ id: view111.id })).toBeNull();
+    expect(view111Ref.value).toBeNull();
     expect(graph.get({ id: space12.id })).toBeNull();
+    expect(space12Ref.value).toBeNull();
     expect(graph.get({ id: view121.id })).toBeNull();
+    expect(view121Ref.value).toBeNull();
     expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view112]);
     expect(space11ViewsRef.value).toEqual([view112]);
     expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([]);
     expect(space12ViewsRef.value).toEqual([]);
 
-    // hide/show (ensure reactivity)
-    // nocheckin: test filtered graph
+    // show & re-hide leaf
+    view111 = show(view111);
+    base.update(view111);
+    expect(graph.get({ id: view111.id })).toEqual(view111);
+    expect(view111Ref.value).toEqual(view111);
+    view111 = hide(view111);
+    base.update(view111);
+    expect(graph.get({ id: view111.id })).toBeNull();
+    expect(view111Ref.value).toBeNull();
+
+    // show & re-hide parent
+    space12 = show(space12);
+    base.update(space12);
+    expect(graph.get({ id: space12.id })).toEqual(space12);
+    expect(space12Ref.value).toEqual(space12);
+    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
+    expect(space12ViewsRef.value).toEqual([view121]);
+    expect(graph.get({ id: view121.id })).toEqual(view121);
+    expect(view121Ref.value).toEqual(view121);
+    space12 = hide(space12);
+    base.update(space12);
+    expect(graph.get({ id: space12.id })).toBeNull();
+    expect(space12Ref.value).toBeNull();
+    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([]);
+    expect(space12ViewsRef.value).toEqual([]);
+    expect(graph.get({ id: view121.id })).toBeNull();
+    expect(view121Ref.value).toBeNull();
+
+    // hide root
+    package1 = hide(package1);
+    base.update(package1);
+    expect(graph.get({ id: package1.id })).toBeNull();
+    expect(package1Ref.value).toBeNull();
+    expect(graph.getChildren(package1, NodeType.SPACE)).toEqual([]);
+    expect(package1SpacesRef.value).toEqual([]);
+    expect(graph.get({ id: space11.id })).toBeNull();
+    expect(space11Ref.value).toBeNull();
   });
+}
+
+describe("filtered proxy graph", () => {
+  const base = new NodeGraph();
+  const graph = new ProxyNodeGraph({ graph: base, filter: NO_NODE_FILTER });
+  testFilteredGraph(base, graph);
 });
 
-// nocheckin
-// describe("filtered layered graph", () => {
-//   const base = new NodeGraph();
-//   const graph = new LayerNodeGraph({ layers: [base], filter: NO_NODE_FILTER });
-//   testFilteredGraph(base, graph);
-// });
+describe("filtered layered graph", () => {
+  const base = new NodeGraph();
+  const graph = new LayerNodeGraph({ layers: [base], filter: NO_NODE_FILTER });
+  testFilteredGraph(base, graph);
+});
