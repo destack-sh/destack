@@ -915,7 +915,7 @@ async def pg_update_variable(
                 for c in returning
             )
         )
-    logger.debug(
+    logger.trace(
         "pg.update_variable",
         table=table,
         query=sql_to_str(cur, statement),

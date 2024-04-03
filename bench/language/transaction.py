@@ -3,7 +3,7 @@ import dataclasses
 from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 
@@ -303,7 +303,7 @@ class Transaction:
                     edit.revision = new_revision
                 if len(pending_edits) > 0:
                     pending_edits.clear()
-        log.debug("transaction.commit", duration=asyncio.get_running_loop().time() - start)
+        log.trace("transaction.commit", duration=asyncio.get_running_loop().time() - start)
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""

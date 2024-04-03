@@ -187,7 +187,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                     request = await stream.recv_message()
                     self._validate_request(subject, request)
                     async for response in func(subject, request):
-                        log.debug(f"{rpc_name}.stream", response=response)
+                        log.trace(f"{rpc_name}.stream", response=response)
                         await stream.send_message(response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")

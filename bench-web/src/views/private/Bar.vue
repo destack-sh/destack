@@ -178,16 +178,23 @@ const USER_MENU_ITEMS = computed(() => {
       </Popover>
 
       <!-- Status -->
-      <div class="flex flex-row gap-x-3">
+      <div class="flex flex-row items-center gap-x-3">
         <!-- Connection -->
         <Popover placement="bottom" :reference-margin="8" :container-margin="4">
           <template #trigger="{ toggle }">
-            <button class="select-none transition-colors" :disabled="!isDeveloperMode" @click.stop="toggle">
+            <button
+              class="select-none border-2 rounded-md px-1 py-0.5 transition-colors"
+              :class="
+                graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value) ? 'border-danger-600' : 'border-transparent'
+              "
+              :disabled="!isDeveloperMode"
+              @click.stop="toggle"
+            >
               <i
                 class="fas"
                 :class="
                   graphConnections.some((c) => !c.isConnected.value)
-                    ? 'fa-signal-slash text-warning-600 hover:text-warning-700'
+                    ? 'fa-signal-slash animate-pulse text-warning-600 hover:text-warning-700'
                     : 'fa-signal text-success-700 hover:text-success-800'
                 "
               />
@@ -209,7 +216,7 @@ const USER_MENU_ITEMS = computed(() => {
                 :orientation="Orientation.VERTICAL"
                 :track-width="ScrollbarWidth.sm"
               >
-                <ul class="my-1.5 min-w-[320px] flex flex-col gap-y-1 px-3">
+                <ul class="my-1.5 flex min-w-[320px] flex-col gap-y-1 px-3">
                   <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
                     <!-- Metadata -->
                     <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">

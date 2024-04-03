@@ -4,7 +4,7 @@ import {
   NodeReferenceData,
   type AnyNodeData,
   type AnyPropertyType,
-  type NodeType,
+  NodeType,
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode } from "@/proto/wiring";
@@ -268,7 +268,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     const existing = this.nodesById[node.id];
     if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
 
-    if (existing != null && existing?.parentPtr?.id != node.parentPtr?.id) {
+    if (existing?.parentPtr?.id != node.parentPtr?.id) {
       // move
       if (existing?.parentPtr != null) this._removeFromParent(existing!);
       if (node.parentPtr != null) this._addToParent(node);
@@ -599,11 +599,13 @@ export class ProxyNodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph 
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    return this._graph.value?.get(key) ?? null;
+    const node = this._graph.value?.get(key) ?? null;
+    return node;
   }
 
   getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
-    return this._graph.value?.getChildren(parent, metatype) ?? [];
+    const children = this._graph.value?.getChildren(parent, metatype) ?? [];
+    return children;
   }
 
   subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: () => void): () => void {

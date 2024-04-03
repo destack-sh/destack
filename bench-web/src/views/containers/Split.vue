@@ -6,7 +6,6 @@ import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { useEventListener } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -20,6 +19,7 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW);
+
 const focusedSplitIdx: Ref<number | null> = computed(() => {
   if (splits.value.length == 0) return null;
   if (props.focus?.nodesPtr.length ?? 0 > 0) {

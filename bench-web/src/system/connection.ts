@@ -241,8 +241,10 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     this.isPaused.value = !this.isPaused.value;
     log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
     toaster.debug({
+      key: `connection.togglePaused:${this.meta.id}`,
       title: this.isPaused.value ? "Connection paused" : "Connection resumed",
       text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "not receiving anything" : "receiving data again"}.`,
+      override: true,
     });
   }
 
@@ -733,71 +735,6 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   return connection;
 }
 
-/**
- * Gets the current connection for the given scope. Does not acquire any new connections.
- * NOTE: for performance the graph/connection proxies are 'lazy' (batched per tick as regular refs).
- *  That means changing 'node' will change connection/graph only on the next tick.
- */
-export function useExistingConnection<T extends NodeType = any>(
-  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
-  options?: {
-    isGlobal?: boolean;
-  },
-): {
-  graph: ReadNodeGraph;
-  connection: GraphConnection<"get", T>;
-} {
-  const nodeRef = toRef(node) as Ref<NodeReferenceData>;
-  const graph = new ProxyNodeGraph(null);
-  const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
-
-  // route to the appropriate connection
-  const refreshConnection = () => {
-    const oldConnection = connection.value;
-    let newConnection = null;
-    if (connection.value) {
-      releaseConnection(connection.value);
-    }
-    if (nodeRef.value != null) {
-      newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
-      if (newConnection == null && !options?.isGlobal)
-        throw new Error(
-          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
-        );
-    }
-    if (newConnection !== oldConnection) {
-      connection.value = newConnection as GraphConnectionBase<"get", T> | null;
-    }
-    graph._graph.value = connection.value?.result.value?.graph ?? null;
-  };
-  watch(toValueRef(nodeRef), refreshConnection, { immediate: true });
-
-  // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
-  //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
-  if (options?.isGlobal) {
-    let stopGlobalWatch = null as (() => void) | null;
-    watch(
-      connection,
-      () => {
-        stopGlobalWatch?.();
-        if (!connection.value) {
-          stopGlobalWatch = watch(_graphConnections, refreshConnection);
-        }
-      },
-      { immediate: true },
-    );
-  }
-
-  // sync result
-  watch(
-    () => connection.value?.result.value,
-    () => (graph.graph = connection.value?.result.value?.graph ?? null),
-  );
-
-  return { graph, connection: new ProxyConnection(connection) };
-}
-
-// nocheckin: use tx buffer overlay (and filter) in connections
 /** The graph of a node connection overlaid with its local buffer */
 function connectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
@@ -815,6 +752,60 @@ function connectionOverlayGraph<T extends NodeType>(
     { immediate: true },
   );
   return graph;
+}
+
+/**
+ * Gets the current connection for the given scope. Does not acquire any new connections.
+ * NOTE: for performance the graph/connection proxies are 'lazy' (batched per tick as regular refs).
+ *  That means changing 'node' will change connection/graph only on the next tick.
+ */
+export function useExistingConnection<T extends NodeType = any>(
+  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
+  options?: {
+    isGlobal?: boolean;
+  },
+): {
+  graph: ReadNodeGraph;
+  connection: GraphConnection<"get", T>;
+} {
+  const nodeRef = toRef(node) as Ref<NodeReferenceData>;
+  const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
+  const graph = connectionOverlayGraph(connection);
+
+  // route to the appropriate connection
+  const refreshConnection = () => {
+    const oldConnection = connection.value;
+    let newConnection = null;
+    if (connection.value) releaseConnection(connection.value);
+
+    if (nodeRef.value != null) {
+      newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
+      if (newConnection == null && !options?.isGlobal)
+        throw new Error(
+          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
+        );
+    }
+    if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;
+  };
+  watch(toValueRef(nodeRef), refreshConnection, { immediate: true });
+
+  // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
+  //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
+  if (options?.isGlobal) {
+    let stopGlobalWatch = null as (() => void) | null;
+    watch(
+      connection,
+      () => {
+        stopGlobalWatch?.();
+        if (!connection.value) {
+          stopGlobalWatch = watch(_graphConnections, refreshConnection);
+        }
+      },
+      { immediate: true, flush: "sync" },
+    );
+  }
+
+  return { graph, connection: new ProxyConnection(connection) };
 }
 
 /**

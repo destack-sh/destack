@@ -190,7 +190,7 @@ export class TransactionBuilder implements Transaction {
     let propertiesNames: string[];
     if (Array.isArray(update)) {
       patchedNode = { ...node };
-      propertiesNames = Object.keys(allProperties);
+      propertiesNames = update as string[];
       for (const propName of update) {
         if (propName === "id" || propName === "metatype") {
           // keep as is (but not part of the 'update')
@@ -211,11 +211,14 @@ export class TransactionBuilder implements Transaction {
     }
 
     // map properties
-    const properties = Object.keys(update)
-      .filter((p) => !CONSTANT_IN_UPDATE_PROPERTIES.includes(p as any))
-      .map((propName) => allProperties[propName as keyof typeof allProperties]);
-    if (properties.length != Object.keys(update).length)
-      throw new Error(`bad update properties for ${describeNode(node)}: ${Object.keys(update).join(", ")}`);
+    const properties = [];
+    for (const propName of propertiesNames) {
+      if (CONSTANT_PROPERTIES.includes(propName))
+        throw new Error(`cannot update constant property for ${describeNode(node)}: ${propName}`);
+      const propId = (allProperties as any)[propName];
+      if (propId == null) throw new Error(`missing property id for ${describeNode(node)}: ${propName as string}`);
+      properties.push(propId);
+    }
 
     this._addEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
   }
@@ -505,8 +508,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.isPaused.value = !this.isPaused.value;
     log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
     toaster.debug({
+      key: `transaction.togglePaused.${this.id}`,
       title: this.isPaused.value ? "Buffer paused" : "Buffer resumed",
       text: `Buffer ${this.id} is ${this.isPaused.value ? "pausing transactions" : "resuming transactions"}.`,
+      override: true,
     });
   }
 
