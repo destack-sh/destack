@@ -80,8 +80,6 @@ async function submit() {
       throw new Error(`unexpected registration state: ${state.value}`);
     }
     clear();
-  } catch (e) {
-    // already handled
   } finally {
     isActive.value = false;
   }

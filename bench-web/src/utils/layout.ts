@@ -8,7 +8,7 @@ import { computed, ref, watch, type Ref, type MaybeRef, toRef, watchEffect, next
 const _isDragging = ref(false);
 export const isDragging = computed(() => _isDragging.value);
 
-export const MIN_SPLIT_SIZE = 200;
+export const MIN_SPLIT_SIZE = 250;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
 export const DEFAULT_RELATIVE_UNITS = 1;
 

@@ -268,8 +268,10 @@ export class ViewCanvas {
       component = view as ViewComponent;
       viewData = component.exposed?.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
     }
-    if (viewData == null) throw new Error(`no view data for view ${view}`);
-    if (component == null) throw new Error(`no component for view ${describeNode(viewData)}`);
+    if (component == null) {
+      const viewPtr = viewData ?? (view as ViewComponent).exposed?.self.value;
+      throw new Error(`no component for view ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`);
+    }
 
     // if no anchor is given, try to use existing focus state
     if (anchor == null && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
