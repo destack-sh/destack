@@ -26,11 +26,14 @@ from bench.system.test.conftest import UserHandle, make_existing_user_handle, ma
 # TODO :Robustness! :Test: test GraphIO much more thoroughly (see FoundationDB)
 #  eventually we'll offer some of our testing tools to users as well
 
-NUM_CLIENTS = 3
-NUM_ROUNDS = 3
-NUM_EDITS_PER_ROUND = 1
-
 logger = structlog.get_logger(__name__)
+
+
+class SimulationConfig(NamedTuple):
+    seed: int
+    num_clients: int
+    num_rounds: int
+    num_edits_per_round: int
 
 
 class Epoch(NamedTuple):
@@ -83,7 +86,7 @@ class EditProducer:
         self.update_properties = update_properties
 
     def _make_edit(self, round: int, rng: random.Random) -> EditData:
-        # TODO :Incomplete :Test make EditProducer more general & diverse
+        # TODO :Incomplete :Test!: make EditProducer more general & diverse
         node = rng.choice(self.seed_nodes)
         edit_type = rng.choice(self.edit_types)
 
@@ -127,12 +130,12 @@ async def run_and_check_simulation(
     producers: list[EditProducer],
     graph: GraphIoStub,
     scope: GraphScope,
-    seed: int,
+    config: SimulationConfig,
 ):
     await run_simulation(
-        consumers=consumers, graph=graph, producers=producers, scope=scope, seed=seed
+        consumers=consumers, graph=graph, producers=producers, scope=scope, config=config
     )
-    check_simulation(consumers=consumers, producers=producers)
+    check_simulation(consumers=consumers, producers=producers, config=config)
 
 
 async def run_simulation(
@@ -141,7 +144,7 @@ async def run_simulation(
     graph: GraphIoStub,
     producers: list[EditProducer],
     scope: GraphScope,
-    seed: int,
+    config: SimulationConfig,
 ):
     try:
         # start consumers
@@ -149,12 +152,12 @@ async def run_simulation(
             await consumer.start(graph, scope=scope, since_epoch=None)
 
         # run producers per round
-        rng = random.Random(seed)
-        for round in range(NUM_ROUNDS):
+        rng = random.Random(config.seed)
+        for round in range(config.num_rounds):
             shuffled_producers = rng.sample(producers, k=len(producers))
             for producer in shuffled_producers:
                 await producer.produce(
-                    graph, scope=scope, rng=rng, round=round, num_edits=NUM_EDITS_PER_ROUND
+                    graph, scope=scope, rng=rng, round=round, num_edits=config.num_edits_per_round
                 )
     finally:
         # stop consumers
@@ -162,10 +165,12 @@ async def run_simulation(
             consumer.stop()
 
 
-def check_simulation(*, consumers: list[EditConsumer], producers: list[EditProducer]):
+def check_simulation(
+    *, consumers: list[EditConsumer], producers: list[EditProducer], config: SimulationConfig
+):
     # all edits have been produced
     for producer in producers:
-        assert len(producer.edits) == NUM_ROUNDS * NUM_EDITS_PER_ROUND
+        assert len(producer.edits) == config.num_rounds * config.num_edits_per_round
 
     # all edits have been consumed by all consumers in the same order
     assert len(consumers) > 0, "no consumers"
@@ -174,14 +179,14 @@ def check_simulation(*, consumers: list[EditConsumer], producers: list[EditProdu
         assert consumer.edits == edits
 
 
-async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
-    """Simultaneously update a User's name & text."""
-
-    random_slug = secrets.token_hex(8)
+async def make_clients(
+    supervisor: SupervisorStub, config: SimulationConfig
+) -> tuple[User, list[UserHandle]]:
+    user_slug = secrets.token_hex(8)
     user = User(
         name="",
-        slug=random_slug,
-        email=random_slug + "@symbolx.com",
+        slug=user_slug,
+        email=user_slug + "@symbolx.com",
         status=UserStatus.REGISTERED,
     )
     password = secrets.token_hex(8)
@@ -190,15 +195,22 @@ async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
         await make_existing_user_handle(
             supervisor, user, password=password, client_name=f"client_{i}"
         )
-        for i in range(NUM_CLIENTS)
+        for i in range(config.num_clients)
     ]
+    return user, clients
+
+
+async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
+    """Simultaneously update a User's name."""
+    config = SimulationConfig(seed=42, num_clients=2, num_rounds=3, num_edits_per_round=1)
+    user, clients = await make_clients(supervisor, config)
     consumers = [EditConsumer(client) for client in clients]
     producers = [
         EditProducer(
             client,
             seed_nodes=[user],
             edit_types=[EditType.UPDATE],
-            node_types=[NodeType.USER],
+            node_types=[],
             update_properties={NodeType.USER: [User.name]},
         )
         for client in clients
@@ -208,7 +220,30 @@ async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
         producers=producers,
         graph=cast(GraphIoStub, supervisor),
         scope=GraphScope(),
-        seed=42,
+        config=config,
+    )
+
+
+async def test_supervisor_multiple_successive_updates(supervisor: SupervisorStub):
+    config = SimulationConfig(seed=42, num_clients=1, num_rounds=1, num_edits_per_round=3)
+    user, clients = await make_clients(supervisor, config)
+    consumers = [EditConsumer(client) for client in clients]
+    producers = [
+        EditProducer(
+            client,
+            seed_nodes=[user],
+            edit_types=[EditType.UPDATE],
+            node_types=[],
+            update_properties={NodeType.USER: [User.name]},
+        )
+        for client in clients
+    ]
+    await run_and_check_simulation(
+        consumers=consumers,
+        producers=producers,
+        graph=cast(GraphIoStub, supervisor),
+        scope=GraphScope(),
+        config=config,
     )
 
 
