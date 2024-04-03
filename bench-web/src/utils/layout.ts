@@ -1,12 +1,19 @@
 import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
-import { useElementSize, useEventListener, useMouseInElement, useMousePressed, useScroll } from "@vueuse/core";
+import {
+  useElementSize,
+  useEventListener,
+  useMouseInElement,
+  useMousePressed,
+  useScroll,
+  whenever,
+} from "@vueuse/core";
 import { computed, ref, watch, type Ref, type MaybeRef, toRef, watchEffect, nextTick } from "vue";
 
 // our own 'dragging' state so we can block pointer events at the root component
-const _isDragging = ref(false);
-export const isDragging = computed(() => _isDragging.value);
+const _isDraggingGlobal = ref(false);
+export const isDraggingGlobal = computed(() => _isDraggingGlobal.value);
 
 export const MIN_SPLIT_SIZE = 250;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
@@ -160,24 +167,36 @@ export function useSplitView(
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
   const draggingIdx = ref<number | null>(null);
 
-  watch([mousePressed.pressed, draggingIdx, mouseRelativeX, mouseRelativeY], () => {
-    if (draggingIdx.value == null) return;
-    if (!mousePressed.pressed.value) {
-      // NOTE: sometimes the event listener for 'draggingIdx' fires after 'mousePressed',
-      //  so we don't want to stop dragging immediately.
-      nextTick(() => {
-        if (draggingIdx.value == null && !mousePressed.pressed.value) draggingIdx.value = null;
-      });
-      return;
-    }
-    const draggedToPx =
-      layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
-    const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-    graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: true });
-    graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: true });
-  });
+  // track dragging state
+  // NOTE: draggingIdx may be set before 'mousePressed' is true, so we wait for both.
+  whenever(
+    // wait for mouse press once to start dragging
+    computed(() => draggingIdx.value != null && mousePressed.pressed.value),
+    () => {
+      _isDraggingGlobal.value = true;
 
-  watch(draggingIdx, () => (_isDragging.value = draggingIdx.value != null));
+      // apply dragging
+      const stop = watch([mouseRelativeX, mouseRelativeY], () => {
+        if (draggingIdx.value == null) return;
+        const draggedToPx =
+          layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
+        const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
+        graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: true });
+        graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: true });
+      });
+
+      // and stop dragging once mouse is released
+      whenever(
+        computed(() => !mousePressed.pressed.value),
+        () => {
+          draggingIdx.value = null;
+          _isDraggingGlobal.value = false;
+          stop();
+        },
+        { once: true },
+      );
+    },
+  );
 
   return { sizedViews, draggingIdx };
 }
@@ -295,7 +314,7 @@ export function useScrollArea(area: {
       isManualScrolling.value = false;
     }
   });
-  watch(isManualScrolling, () => (_isDragging.value = isManualScrolling.value));
+  watch(isManualScrolling, () => (_isDraggingGlobal.value = isManualScrolling.value));
 
   return { thumb, setThumb, moveThumb, isManualScrolling, isNativeScrolling: scroll.isScrolling, isOverflown };
 }

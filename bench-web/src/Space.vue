@@ -1,12 +1,11 @@
 <script lang="ts" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { describeNode, toNodeReference } from "@/proto/wiring";
+import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
-import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
-import { isDragging } from "@/utils/layout";
+import { isDraggingGlobal } from "@/utils/layout";
 import Split from "@/views/containers/Split.vue";
 import Bar from "@/views/private/Bar.vue";
 import MenuOverlay from "@/views/private/MenuOverlay.vue";
@@ -65,7 +64,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDragging ? 'yselect-none pointer-events-none' : '']"
+    :class="[isDraggingGlobal ? 'yselect-none pointer-events-none' : '']"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
