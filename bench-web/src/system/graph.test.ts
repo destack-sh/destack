@@ -1,4 +1,5 @@
 import {
+  BENCH_TYPES,
   BENCH_TYPE_BY_MESSAGE_TYPE_NAME,
   BenchType,
   ClientData,
@@ -6,17 +7,25 @@ import {
   MESSAGE_TYPE_BY_BENCH_TYPE,
   NodeType,
   PROPERTY_ENUM_BY_TYPE,
-  StructType,
   UserData,
+  type AnyNodeData,
   type AnyPropertyType,
   type AnyTypeMapping,
-  BENCH_TYPES,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { LayerNodeGraph, NodeGraph, ProxyNodeGraph } from "@/system/graph";
+import {
+  LayerNodeGraph,
+  NO_NODE_FILTER,
+  type NodeGraphFilter,
+  NodeGraph,
+  ProxyNodeGraph,
+  type ReadNodeGraph,
+  DEFAULT_NODE_FILTER,
+} from "@/system/graph";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
+import type { Ref } from "vue";
 
 const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
   [ScalarType.DOUBLE]: () => Math.random(),
@@ -54,10 +63,10 @@ export function fabricate<T extends BenchType>(
 
   function fabricateScalarProp(propName: string, field: FieldInfo): any {
     let value: any;
-    if (options?.unset?.includes(propName as any)) {
-      value = undefined;
-    } else if (options?.set != null && (options.set as any)[propName] !== undefined) {
+    if (options?.set != null && (options.set as any)[propName] !== undefined) {
       value = (options.set as any)[propName];
+    } else if (options?.unset?.includes(propName as any)) {
+      value = undefined;
     } else if (field.name.endsWith("id") || field.name.endsWith("ck")) {
       value = v4();
     } else if (field.kind == "scalar" && SCALAR_GENERATORS[field.T] != null) {
@@ -180,18 +189,20 @@ describe("node graph", () => {
 describe("layered node graph", () => {
   const base = new NodeGraph();
   const overlay = new NodeGraph({ isPartial: true });
-  const graph = new LayerNodeGraph([base]);
+  const graph = new LayerNodeGraph({ layers: [base] });
 
   let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
   let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
   const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
   const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
+  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
+  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
   const clientARef = graph.getRef(clientA);
 
-  test("crud", async () => {
+  test("crud", () => {
     // create base
     base.extend(user1, clientA);
     expect(graph.get({ id: user1.id })).toEqual(user1);
@@ -235,19 +246,36 @@ describe("layered node graph", () => {
     expect(clientBRef.value).toEqual(clientB);
     expect(clientCRef.value).toBeNull();
 
-    // add more nodes
+    // add clientC
     overlay.extend(clientC);
     expect(graph.get({ id: clientC.id })).toEqual(clientC);
     expect(clientCRef.value).toEqual(clientC);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB, clientC]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB, clientC]);
+
+    // move clientA to user 2
+    const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
+    base.extend(user2);
+    clientA = { ...clientA, parentPtr: toNodeReference(user2) } as ClientData;
+    overlay.update(clientA);
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientB, clientC]);
+    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientA]);
+    expect(user1ClientsRef.value).toEqual([clientB, clientC]);
+    expect(user2ClientsRef.value).toEqual([clientA]);
+
+    // remove in overlay that exists in overlay
+    overlay.remove(clientB);
+    expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientC]);
+    expect(user1ClientsRef.value).toEqual([clientC]);
+
+    // nocheckin: remove in overlay that doesn't exist in overlay (tombsone? fake-set 'deletedAt' (assumes filter)?)
   });
 });
 
 describe("proxy node graph", () => {
   const baseA = new NodeGraph();
   const baseB = new NodeGraph();
-  const graph = new ProxyNodeGraph(null);
+  const graph = new ProxyNodeGraph();
 
   let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
   const clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
@@ -259,7 +287,7 @@ describe("proxy node graph", () => {
   const user2Ref = graph.getRef(user2);
   const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
 
-  test("crud", async () => {
+  test("crud", () => {
     expect(user1Ref.value).toBeNull();
     expect(user1ClientsRef.value).toEqual([]);
     expect(user2Ref.value).toBeNull();
@@ -307,3 +335,85 @@ describe("proxy node graph", () => {
     expect(user2ClientsRef.value).toEqual([]);
   });
 });
+
+function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {}
+
+describe("filtered proxy graph", () => {
+  const base = new NodeGraph();
+  const graph = new ProxyNodeGraph({ graph: base, filter: NO_NODE_FILTER });
+  // testFilteredGraph(base, graph);
+
+  let package1 = fabricate(BenchType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
+  let space11 = fabricate(BenchType.SPACE, {
+    unset: ["archivedAt", "deletedAt"],
+    set: { parentPtr: toNodeReference(package1), orderKey: "a0" },
+  });
+  let view111 = fabricate(BenchType.VIEW, {
+    unset: ["archivedAt", "deletedAt"],
+    set: { parentPtr: toNodeReference(space11), orderKey: "a0" },
+  });
+  const view112 = fabricate(BenchType.VIEW, {
+    unset: ["archivedAt", "deletedAt"],
+    set: { parentPtr: toNodeReference(space11), orderKey: "a1" },
+  });
+  let space12 = fabricate(BenchType.SPACE, {
+    unset: ["archivedAt", "deletedAt"],
+    set: { parentPtr: toNodeReference(package1), orderKey: "a1" },
+  });
+  let view121 = fabricate(BenchType.VIEW, {
+    unset: ["archivedAt", "deletedAt"],
+    set: { parentPtr: toNodeReference(space12), orderKey: "a0" },
+  });
+
+  const package1Ref = graph.getRef(package1);
+  const package1SpacesRef = graph.getChildrenRef(package1, NodeType.SPACE);
+  const space11Ref = graph.getRef(space11);
+  const space11ViewsRef = graph.getChildrenRef(space11, NodeType.VIEW);
+  const space12Ref = graph.getRef(space12);
+  const space12ViewsRef = graph.getChildrenRef(space12, NodeType.VIEW);
+
+  function hide<T extends AnyNodeData>(obj: T): T {
+    return { ...obj, archivedAt: null, deletedAt: new Date().toISOString() } as T;
+  }
+  function show<T extends AnyNodeData>(obj: T): T {
+    return { ...obj, archivedAt: null, deletedAt: null } as T;
+  }
+
+  test("crud", () => {
+    view111 = hide(view111);
+    space12 = hide(space12);
+
+    // create
+    base.extend(package1, space11, view111, view112, space12, view121);
+
+    // no filter -> get all
+    graph.filter.value = NO_NODE_FILTER;
+    expect(graph.get({ id: view111.id })).toEqual(view111);
+    expect(graph.get({ id: space12.id })).toEqual(space12);
+    expect(graph.get({ id: view121.id })).toEqual(view121);
+    expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view111, view112]);
+    expect(space11ViewsRef.value).toEqual([view111, view112]);
+    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
+    expect(space12ViewsRef.value).toEqual([view121]);
+
+    // enable filter -> get unfiltered
+    graph.filter.value = DEFAULT_NODE_FILTER;
+    expect(graph.get({ id: view111.id })).toBeNull();
+    expect(graph.get({ id: space12.id })).toBeNull();
+    expect(graph.get({ id: view121.id })).toBeNull();
+    expect(graph.getChildren(space11, NodeType.VIEW)).toEqual([view112]);
+    expect(space11ViewsRef.value).toEqual([view112]);
+    expect(graph.getChildren(space12, NodeType.VIEW)).toEqual([]);
+    expect(space12ViewsRef.value).toEqual([]);
+
+    // hide/show (ensure reactivity)
+    // nocheckin: test filtered graph
+  });
+});
+
+// nocheckin
+// describe("filtered layered graph", () => {
+//   const base = new NodeGraph();
+//   const graph = new LayerNodeGraph({ layers: [base], filter: NO_NODE_FILTER });
+//   testFilteredGraph(base, graph);
+// });

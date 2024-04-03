@@ -7,30 +7,28 @@ import {
 import {
   AggregationData,
   BenchType,
+  EditData,
   ExpressionData,
   NodeType,
   Timestamp,
-  WatchEditsResponse,
   type GraphScope,
   type NodeReferenceData,
   type NodeTypeMapping,
   type ReadOptionsData,
-  EditData,
 } from "@/proto/wire";
 import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
 import { LOCAL_SPACE_PTR, spaceGraphLocal } from "@/system/client";
-import { LayerNodeGraph, NodeGraph, ProxyNodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { LayerNodeGraph, NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
 import {
   ImmediateTransactionBuffer,
   canonicalizeEdits,
   editGraph,
   getTransactionBuffer,
+  newBufferId,
   type Transaction,
   type TransactionBuffer,
-  RemoteTransactionBuffer,
-  newBufferId,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
@@ -739,7 +737,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 function connectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
-  const graph = new LayerNodeGraph([]);
+  const graph = new LayerNodeGraph();
   watch(
     () => connection.value?.result.value,
     () => {

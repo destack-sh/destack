@@ -182,11 +182,7 @@ export type BenchUnaryCall<I extends object, O extends object> = UnaryCall<I, O>
 };
 
 /**
- * Extend the standard grpc-web fetch clients with:
- *  - authentication using our RpcMetadata
- *  - automatic retries
- *  - error logging
- *  - instrumentation
+ * Extend the standard grpc-web fetch clients with auth, instrumentation, retries, etc.
  */
 class BenchGrpcWebTransport extends GrpcWebFetchTransport {
   mergeOptions(options?: Partial<RpcOptions> | undefined): RpcOptions {
@@ -221,6 +217,7 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     input: I,
     options: RpcOptions,
   ): BenchUnaryCall<I, O> {
+    // nocheckin: figure out why some unary ops fail when multiple tabs are open?
     const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
     const op = operationsTracker.track({
       method,
