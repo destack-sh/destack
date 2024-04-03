@@ -9,7 +9,7 @@ from bench.conftest import raises_grpc_error
 from bench.language import Client, ReadOptions, User
 from bench.language.const import PUBLIC_NODE_TYPES, ROOT_NODE_TYPES, EditType, NodeType
 from bench.language.expression import A
-from bench.language.node import new_struct_id
+from bench.language.transaction import new_edit_id
 from bench.language.user import UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -139,7 +139,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             target_data = target._to_data()
             target_data.name = f"{actor.name}'s Puppet"
             edit = EditData(
-                id=new_struct_id(),
+                id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_type=wire.NodeType.USER,
                 node=wiring.wrap_some_node(target_data),
@@ -158,7 +158,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             target_data = target_handle.client._to_data()
             target_data.device_name = f"{actor.name}'s Puppet Device"
             edit = EditData(
-                id=new_struct_id(),
+                id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_type=wire.NodeType.CLIENT,
                 node=wiring.wrap_some_node(target_data),
@@ -228,7 +228,7 @@ async def test_root_node_create_denied(
     # try create
     for edit_type in (EditType.CREATE, EditType.UPSERT):
         edit = EditData(
-            id=new_struct_id(),
+            id=new_edit_id(),
             type=edit_type,
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
