@@ -5,7 +5,7 @@ import { isDeveloperMode } from "@/system/client";
 import { graphConnections } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { bench, hasLocalBench } from "@/system/space";
+import { bench, hasLocalBench, spaceConnection } from "@/system/space";
 import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";

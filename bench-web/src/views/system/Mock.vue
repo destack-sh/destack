@@ -9,11 +9,10 @@ import { toRef } from "vue";
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "text" | "icon" | "nodePtr"
+    "name" | "title" | "text" | "icon" | "nodePtr" | "archivedAt" | "deletedAt"
   >
 >();
 const emit = defineEmits(viewEmits());
-
 const self = toRef(props, "self");
 
 canvas.registerView(self);
@@ -23,6 +22,8 @@ defineExpose({ self });
   <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md">
     <div class="flex h-[150%] w-full flex-col items-center justify-center bg-secondary-100">
       <span class="text-xl">{{ self.id }}</span>
+      <span v-if="archivedAt">archived:{{ archivedAt }}</span>
+      <span v-if="deletedAt">deleted:{{ deletedAt }}</span>
       <span class="text-3xl font-bold">{{ size }}</span>
     </div>
   </Scroll>
