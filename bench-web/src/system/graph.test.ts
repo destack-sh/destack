@@ -269,6 +269,9 @@ describe("layered node graph", () => {
     expect(user1ClientsRef.value).toEqual([clientC]);
 
     // nocheckin: remove in overlay that doesn't exist in overlay (tombsone? fake-set 'deletedAt' (assumes filter)?)
+    // base.extend(clientD);
+    // overlay.remove(clientC);
+
   });
 });
 
@@ -338,7 +341,7 @@ describe("proxy node graph", () => {
 
 function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
   let package1 = fabricate(BenchType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
-  let space11 = fabricate(BenchType.SPACE, {
+  const space11 = fabricate(BenchType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(package1), orderKey: "a0" },
   });
@@ -354,7 +357,7 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(package1), orderKey: "a1" },
   });
-  let view121 = fabricate(BenchType.VIEW, {
+  const view121 = fabricate(BenchType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(space12), orderKey: "a0" },
   });

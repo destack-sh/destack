@@ -253,6 +253,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
         scopes = get_validated_edited_scopes(request.edits)
+        start = asyncio.get_event_loop().time()
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
@@ -310,6 +311,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 request=request,
                 edits=session.tx.edits,
                 epoch=self.epoch,
+                duration=asyncio.get_event_loop().time() - start,
             )
             self.on_graph_edited(scopes.graph_scopes, request.edits)
 

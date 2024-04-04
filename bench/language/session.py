@@ -538,7 +538,7 @@ class Session(Node):
             self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
-    # nocheckin: track sessions/runs (and signals/logs)
+    # TODO :Broken: track sessions/runs (and signals/logs)
     #  what should session nodes be scoped to? what parent?
 
 

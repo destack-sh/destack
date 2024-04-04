@@ -1,16 +1,16 @@
 import "./assets/index.css";
 
-import { createApp } from "vue";
-import Space from "./Space.vue";
+import { toaster } from "@/system/toast";
+import { setupTransactionManagement } from "@/system/transaction";
+import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { keytrap } from "@/utils/keymap";
+import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
+import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
+import { registerViewComponents } from "@/views";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
-import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
-import { registerViewComponents } from "@/views";
-import { toaster } from "@/system/toast";
-import { keytrap } from "@/utils/keymap";
-import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
-import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
-import { flushTransactionBuffers, setupTransactionManagement } from "@/system/transaction";
+import { createApp } from "vue";
+import Space from "./Space.vue";
 
 async function init() {
   const app = createApp(Space);
