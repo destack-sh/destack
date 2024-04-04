@@ -82,6 +82,7 @@ export type Transaction = {
   restore(node: AnyNodeData): void;
   /**
    * @deprecated use softDelete (not actually deprecated, but to be used deliberately)
+   * also NOTE: Transaction.delete is not handled optimistically in our transaction buffer overlays
    */
   delete(node: AnyNodeData): void;
 };
@@ -269,7 +270,7 @@ export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
     } else if (edit.type == EditType.RESTORE) {
       node.deletedAt = undefined;
     } else if (edit.type == EditType.DELETE) {
-      node.deletedAt = now;
+      node.deletedAt = now; // just pretend it's deleted
     }
   }
 }
@@ -284,7 +285,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     const nodeData = unwrapSomeNode(edit.node);
     if (edit.type == EditType.CREATE || (edit.type == EditType.UPSERT && !graph.get({ id: nodeData.id }))) {
       graph.add(nodeData);
-    } else if (edit.type == EditType.DELETE) {
+    } else if (edit.type == EditType.DELETE && !options?.isOverlay) {
       graph.remove(nodeData);
     } else {
       let properties: number[];
@@ -295,7 +296,7 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
         properties = [nodeProperties.parentPtr];
       } else if (edit.type == EditType.ARCHIVE || edit.type == EditType.UNARCHIVE) {
         properties = [nodeProperties.archivedAt];
-      } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.RESTORE) {
+      } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.DELETE || edit.type == EditType.RESTORE) {
         properties = [nodeProperties.deletedAt];
       } else {
         throw new Error(`unexpected edit type: ${EditType[edit.type]}`);
@@ -491,6 +492,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       // nocheckin: derive overlay from outstanding edits from this buffer only
+      canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.overlay, [edit], { isOverlay: true });
     });
     return tx;

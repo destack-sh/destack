@@ -23,6 +23,7 @@ import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
   NodeGraph,
+  ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
 } from "@/system/graph";
@@ -399,6 +400,9 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     }
   }
 
+  // TODO :Robustness: split doFetch into doFetch and doFetchLive?
+  //  so we can retry doFetchLive if that connection breaks without refetching everything?
+  //  but how would we know where to resume the watch (the epoch is local to the server)
   /** Actually fetch in the relevant connection type. */
   protected abstract doFetch(
     scope: GraphScope,
@@ -558,9 +562,14 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
 
   readonly graph: ReadNodeGraph;
 
-  constructor(meta: ConnectionMetadata, params: GetConnectionParams<T>, graph: WriteNodeGraph & ReadNodeGraph) {
-    super(meta, params, new ImmediateTransactionBuffer(newBufferId(), graph.scope, graph));
-    this.graph = graph;
+  constructor(
+    meta: ConnectionMetadata,
+    params: GetConnectionParams<T>,
+    readGraph: ReadNodeGraph,
+    writeGraph: ReadNodeGraph & WriteNodeGraph,
+  ) {
+    super(meta, params, new ImmediateTransactionBuffer(newBufferId(), readGraph.scope, writeGraph));
+    this.graph = readGraph;
 
     // 'fuse' the connection
     this.isConnected.value = true;
@@ -650,7 +659,9 @@ const _graphConnections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
   new LocalGetConnection(
     { id: newConnectionId(), name: "local.space", live: true, options: {} },
     { roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
-    spaceGraphLocal as WriteNodeGraph & ReadNodeGraph, // we export it as read-only but it's actually writable
+    new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER }),
+    // we export it as read-only but it's actually writable
+    spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
   ),
 ]);
 export const graphConnections = pretendReadonly(_graphConnections);
@@ -740,7 +751,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 }
 
 /** The graph of a node connection overlaid with its local buffer */
-function connectionOverlayGraph<T extends NodeType>(
+function useConnectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
   const graph = new LayerNodeGraph({ filter: DEFAULT_NODE_FILTER });
@@ -760,7 +771,7 @@ function connectionOverlayGraph<T extends NodeType>(
 
 /**
  * Gets the current connection for the given scope. Does not acquire any new connections.
- * NOTE: for performance the graph/connection proxies are 'lazy' (batched per tick as regular refs).
+ * NOTE: for performance the graph/connection proxies are 'lazy' (just regular refs, so they get batch-processed per tick).
  *  That means changing 'node' will change connection/graph only on the next tick.
  */
 export function useExistingConnection<T extends NodeType = any>(
@@ -774,7 +785,7 @@ export function useExistingConnection<T extends NodeType = any>(
 } {
   const nodeRef = toRef(node) as Ref<NodeReferenceData>;
   const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
-  const graph = connectionOverlayGraph(connection);
+  const graph = useConnectionOverlayGraph(connection);
 
   // route to the appropriate connection
   const refreshConnection = () => {
@@ -791,7 +802,7 @@ export function useExistingConnection<T extends NodeType = any>(
     }
     if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;
   };
-  watch(toValueRef(nodeRef), refreshConnection, { immediate: true });
+  watch(toValueRef(nodeRef), refreshConnection, { immediate: true }); // <-- this is 'lazy' flushed
 
   // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
   //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
@@ -801,9 +812,7 @@ export function useExistingConnection<T extends NodeType = any>(
       connection,
       () => {
         stopGlobalWatch?.();
-        if (!connection.value) {
-          stopGlobalWatch = watch(_graphConnections, refreshConnection);
-        }
+        if (!connection.value) stopGlobalWatch = watch(_graphConnections, refreshConnection);
       },
       { immediate: true, flush: "sync" },
     );
@@ -825,7 +834,7 @@ export function useGetNodes<T extends NodeType>(
 
   // map results
   // TODO :Cleanup: mapping connection results is a deep ref chain?
-  const graph = connectionOverlayGraph(connection);
+  const graph = useConnectionOverlayGraph(connection);
   const access = new AccessProxy(
     computed(() => connection.value?.result?.value?.access ?? null),
     { default: accessFull() },
@@ -852,7 +861,7 @@ export function useSearchNodes<T extends NodeType>(
   const connection = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
-  const graph = connectionOverlayGraph(connection);
+  const graph = useConnectionOverlayGraph(connection);
   const access = new AccessProxy(
     computed(() => connection.value?.result?.value?.access ?? null),
     { default: accessFull() },

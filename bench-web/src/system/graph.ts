@@ -95,7 +95,7 @@ export type NodeGraphFilter = {
   includeHidden: boolean;
 };
 export const DEFAULT_NODE_FILTER = { includeHidden: false };
-export const NO_NODE_FILTER = { includeHidden: true };
+export const PASSTHROUGH_NODE_FILTER = { includeHidden: true };
 
 /**
  * Helper mixin for managing in a graph.
@@ -498,7 +498,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
   public readonly filter: ShallowRef<NodeGraphFilter>;
 
-  constructor(filter: MaybeRef<NodeGraphFilter> = NO_NODE_FILTER) {
+  constructor(filter: MaybeRef<NodeGraphFilter> = PASSTHROUGH_NODE_FILTER) {
     super();
     this.filter = isRef(filter) ? filter : shallowRef(filter);
   }

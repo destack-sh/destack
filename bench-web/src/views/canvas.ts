@@ -511,7 +511,7 @@ export class ViewCanvas {
   removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
     log.debug("canvas.remove", view);
     const parent = graph.get(view.parentPtr!) as ViewData;
-    tx.delete(view); // should soft delete?
+    tx.softDelete(view);
     this.cleanupRootView(tx, graph, parent);
   }
 
@@ -657,7 +657,7 @@ function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
 export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceData) {
   const roots = graph.getChildren(space, NodeType.VIEW);
   for (const root of roots) {
-    tx.delete(root);
+    tx.softDelete(root);
   }
 }
 
