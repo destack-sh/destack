@@ -30,16 +30,29 @@ const selectedResultId: Ref<string | null> = ref(null);
 const indices = computed(() => {
   const m = mode.value;
   const indices: Record<string, SearchIndex<any>> = {};
+
+  // actions
   if (m == "everywhere" || m == "actions") indices["actions"] = actionIndex();
+
+  // views
   if (m == "everywhere" || m == "space" || m == "views")
     indices["views"] = graphIndex({
       graph: spaceGraph,
       metatypes: [NodeType.VIEW],
+      // only tabs for now
       filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
     });
+
+  // package
+  if (m == "everywhere" || m == "bench" || m == "package" || m == "views")
+    indices["package"] = graphIndex({
+      graph: spaceGraph,
+      metatypes: [NodeType.BLOCK, NodeType.FIELD],
+    });
+
   return indices;
 });
-const { candidates, results } = useSearch({ query, enabled: isActive, indices });
+const { candidates, results, updateCandidates } = useSearch({ query, enabled: isActive, indices });
 const resultsRefs: Record<string, HTMLElement | null> = {};
 const showResultCategory = computed(() => query.value.length === 0);
 
@@ -95,6 +108,7 @@ function open(inMode: OmnibarMode = "everywhere") {
   isActive.value = true;
   clear();
   mode.value = inMode;
+  updateCandidates();
   select(candidates.value[0]?.id ?? null);
   nextTick(focus);
 }

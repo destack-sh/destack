@@ -126,12 +126,12 @@ test.each(BENCH_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
 
 describe("node graph", () => {
   const graph = new NodeGraph();
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
-  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  let clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
-  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2) } });
-  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2) } });
+  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  let clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
+  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
+  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientC" } });
+  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientD" } });
   const nodes = [user1, clientA, clientB, user2, clientC, clientD];
 
   // take first refs
@@ -172,17 +172,17 @@ describe("node graph", () => {
     clientB = { ...clientB, parentPtr: toNodeReference(user2) } as ClientData;
     graph.update(clientB);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
-    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientC, clientD, clientB]);
+    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientB, clientC, clientD]);
     expect(user1ClientsRef.value).toEqual([clientA]);
-    expect(user2ClientsRef.value).toEqual([clientC, clientD, clientB]);
+    expect(user2ClientsRef.value).toEqual([clientB, clientC, clientD]);
 
     // delete
     graph.remove(user1);
     expect(graph.get({ id: user1.id })).toBeNull();
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([]);
     graph.remove(clientC);
-    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientD, clientB]);
-    expect(user2ClientsRef.value).toEqual([clientD, clientB]);
+    expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientB, clientD]);
+    expect(user2ClientsRef.value).toEqual([clientB, clientD]);
   });
 });
 
@@ -191,12 +191,12 @@ describe("layered node graph", () => {
   const overlay = new NodeGraph({ isPartial: true });
   const graph = new LayerNodeGraph({ layers: [base] });
 
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
-  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
+  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
+  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientC" } });
+  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientD" } });
+  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);

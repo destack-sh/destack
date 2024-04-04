@@ -1,4 +1,4 @@
-import type { AnyNodeData, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
+import type { AnyNodeData, BenchType, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
@@ -11,7 +11,7 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   id: string;
   metatype: "node";
   path: string; // the ancestor path to display
-  pathIndexed?: string; // alternative path to index for searching (length must match path for highlighting!)
+  pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
   icon: IconData;
   title: string;
@@ -19,7 +19,7 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
 export type ActionItem = Omit<Action, "title"> & {
   title: string;
   path?: string;
-  pathIndexed?: string;
+  pathToIndex?: string;
   metatype: "action";
 };
 export type SearchItem = (NodeItem | ActionItem) & { title: string; category?: string };
@@ -59,7 +59,7 @@ const HIDDEN_UNNAMED = ` \\ `;
 export function graphIndex(toIndex: {
   graph: ReadNodeGraph;
   metatypes: NodeType[];
-  filter: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
   maxDepth?: MaybeRef<number>;
 }): SearchIndex<NodeItem> {
   const maxDepthRef = toRef(toIndex.maxDepth) as Ref<number | undefined>;
@@ -74,40 +74,44 @@ export function graphIndex(toIndex: {
       pathParts.push((ancestor as any).title ?? (ancestor as any).name);
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
-    const pathIndexed = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR); // lengths must match
+    const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR); // lengths must match for highlighting
     const ref = toNodeReference(node);
     if (ref.id == null) throw new Error(`node has no id: ${node}`);
 
-    // assemble item
+    // make item
     const item: NodeItem = {
       ...(ref as NodeReferenceData & { id: string }),
       metatype: "node",
       node,
       path,
-      pathIndexed,
+      pathToIndex,
       title: (node as any).title ?? (node as any).name,
       icon: getNodeTypeIcon(node.metatype as unknown as NodeType),
       ancestors: ancestors,
     };
     const items = [];
-    if (toIndex.filter(node, ancestors)) items.push(item);
+    if (
+      toIndex.metatypes.includes(node.metatype as unknown as NodeType) &&
+      (toIndex.filter == null || toIndex.filter(node, ancestors))
+    )
+      items.push(item);
+
+    // descend
     const nextAncestors = [item, ...ancestors];
     if (maxDepthRef.value == null || ancestors.length < maxDepthRef.value) {
-      for (const metatype of toIndex.metatypes) {
-        for (const child of toIndex.graph.getChildren(node, metatype)) {
-          items.push(...walkGraph(child, nextAncestors));
-        }
+      for (const child of toIndex.graph.getChildren(node)) {
+        items.push(...walkGraph(child, nextAncestors));
       }
     }
+
     return items;
   }
 
   const index: SearchIndex<NodeItem> = {
     candidates: () => {
       const candidates: NodeItem[] = [];
-      // nocheckin: fix graph search
-      console.log("toIndex.graph.roots", toIndex.graph.roots);
-      for (const root of toIndex.graph.roots) {
+      const roots = toIndex.graph.roots;
+      for (const root of roots) {
         candidates.push(...walkGraph(root, []));
       }
       return candidates;
@@ -138,83 +142,86 @@ export function useSearch(search: {
 }): {
   candidates: Ref<SearchCandidate[]>;
   results: Ref<SearchResult[]>;
+  updateCandidates: () => void;
+  updateResults: () => void;
 } {
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
   const uf = new uFuzzy({ intraMode: 1 });
 
+  function updateCandidates() {
+    const candidates: SearchCandidate[] = [];
+    for (const [category, index] of Object.entries(search.indices.value)) {
+      candidates.push(
+        ...index.candidates().map((item) => ({
+          ...item,
+          candidate: item.name ?? item.id,
+          category: item.category ?? category,
+        })),
+      );
+    }
+    candidatesRef.value = candidates;
+  }
+
+  function updateResults() {
+    if (!search.enabled?.value) {
+      resultsRef.value = [];
+      return;
+    }
+    const candidates = candidatesRef.value;
+    if (!search.query.value) {
+      resultsRef.value = candidates;
+      return;
+    }
+
+    // search
+    const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
+    const [idxs, info, order] = uf.search(
+      candidates.map((c) => getIndexedStr(c).str),
+      search.query.value,
+      options.outOfOrder,
+    );
+    // collect
+    const results: SearchResult[] = [];
+    if (idxs && order) {
+      for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
+        const infoIdx = order[orderIdx];
+        const candidate = candidates[idxs[infoIdx]];
+        const result = { ...candidate } as SearchResult;
+        // highlight
+        const { str: indexedStr } = getIndexedStr(candidate);
+        result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
+          start: indexedStr.length - candidate.title.length,
+          end: indexedStr.length,
+        });
+        if (candidate.path != null) {
+          result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
+            start: 0,
+            end: indexedStr.length - candidate.title.length - HIDDEN_SEPARATOR.length,
+          });
+        }
+        results.push(result);
+      }
+    }
+    resultsRef.value = results;
+  }
+
   function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
     if (item.path != null) {
       // index path (which excludes item itself) + title
-      return { str: (item.pathIndexed ?? item.path) + HIDDEN_SEPARATOR + item.title, isPathIncluded: true };
+      return { str: (item.pathToIndex ?? item.path) + HIDDEN_SEPARATOR + item.title, isPathIncluded: true };
     } else {
       return { str: item.title, isPathIncluded: false };
     }
   }
 
-  watch(
-    [search.enabled, search.indices, search.query],
-    () => {
-      if (!search.enabled?.value) {
-        candidatesRef.value = [];
-        resultsRef.value = [];
-        return;
-      }
+  // refresh candidates on index change
+  watch([search.enabled, search.indices], updateCandidates, { immediate: true });
 
-      // update candidates
-      const candidates: SearchCandidate[] = [];
-      for (const [category, index] of Object.entries(search.indices.value)) {
-        candidates.push(
-          ...index.candidates().map((item) => ({
-            ...item,
-            candidate: item.name ?? item.id,
-            category: item.category ?? category,
-          })),
-        );
-      }
-      candidatesRef.value = candidates;
+  // update results on query change
+  watch([search.enabled, search.indices, search.query], updateResults, { immediate: true });
 
-      // update results
-      if (search.query.value) {
-        const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
-        const [idxs, info, order] = uf.search(
-          candidates.map((c) => getIndexedStr(c).str),
-          search.query.value,
-          options.outOfOrder,
-        );
-        const results: SearchResult[] = [];
-        if (idxs && order) {
-          // collect results
-          for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
-            const infoIdx = order[orderIdx];
-            const candidate = candidates[idxs[infoIdx]];
-            const result = { ...candidate } as SearchResult;
-
-            // highlight
-            const { str: indexedStr } = getIndexedStr(candidate);
-            result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
-              start: indexedStr.length - candidate.title.length,
-              end: indexedStr.length,
-            });
-            if (candidate.path != null) {
-              result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
-                start: 0,
-                end: indexedStr.length - candidate.title.length - HIDDEN_SEPARATOR.length,
-              });
-            }
-
-            results.push(result);
-          }
-        }
-        resultsRef.value = results;
-      } else {
-        resultsRef.value = candidates;
-      }
-    },
-    { immediate: true },
-  );
-
-  return { candidates: candidatesRef, results: resultsRef };
+  return { candidates: candidatesRef, results: resultsRef, updateCandidates, updateResults };
 }
 
 /**
