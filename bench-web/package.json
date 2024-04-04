@@ -23,7 +23,7 @@
     "@protobuf-ts/runtime": "^2.9.3",
     "@protobuf-ts/runtime-rpc": "^2.9.3",
     "@sentry/vue": "^7.103.0",
-    "@vueuse/core": "^10.8.0",
+    "@vueuse/core": "^10.9.0",
     "codemirror": "^6.0.1",
     "cron-parser": "^4.9.0",
     "cronstrue": "^2.48.0",
@@ -33,7 +33,7 @@
     "posthog-js": "^1.108.2",
     "prosemirror": "^0.11.1",
     "uuid": "^9.0.1",
-    "vue": "^3.4.20"
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@protobuf-ts/plugin": "^2.9.3",

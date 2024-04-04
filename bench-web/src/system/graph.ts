@@ -2,16 +2,16 @@ import {
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
+  NodeType,
   type AnyNodeData,
   type AnyPropertyType,
-  NodeType,
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode } from "@/proto/wiring";
 import { defaultSort } from "@/system/lang";
-import { manualSubRef, type SubRef } from "@/utils/ref";
-import { tryOnBeforeUnmount, whenever } from "@vueuse/core";
-import { isRef, ref, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { deepValueEquals, manualSubRef, type SubRef } from "@/utils/ref";
+import { tryOnBeforeUnmount } from "@vueuse/core";
+import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type?: T };
@@ -88,7 +88,7 @@ export interface WriteNodeGraph {
 }
 
 // NOTE :Performance: will probably differentiate node updates for :NodeFiltering later
-//  (e.g. update, move, update:visibility, create/delete, etc.)
+//  (e.g. full, update, move, update:visibility, create/delete, etc.)
 type NodeGraphCallback = () => void;
 
 export type NodeGraphFilter = {
@@ -213,9 +213,10 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     watch(
       keysRef,
       (newKeys, oldKeys) => {
-        if (newKeys != oldKeys) {
+        if (!deepValueEquals(newKeys, oldKeys)) {
           if (oldKeys) unsub();
-          if (newKeys) newKeys.filter((key) => key != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
+          if (newKeys)
+            newKeys.filter((key) => key != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
         }
         trigger();
       },
@@ -236,7 +237,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     watch(
       parentRef,
       (newParent, oldParent) => {
-        if (newParent != oldParent) {
+        if (!deepValueEquals(newParent, oldParent)) {
           unsub();
           if (newParent) sub = this.subscribeChildren(newParent, metatype, trigger);
         }
@@ -336,7 +337,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     this.nodesByCk = {};
     this.nodesByParentIdAndType = {};
 
-    // notify (and clear) all subs
+    // notify all subs (they unsubscribe themselves)
     for (const id in this.subsById) {
       this.subsById[id].forEach((sub) => sub());
     }
@@ -348,9 +349,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
         this.subsByParentIdAndType[parentId][metatype].forEach((sub) => sub());
       }
     }
-    this.subsById = {};
-    this.subsByCk = {};
-    this.subsByParentIdAndType = {};
   }
 
   private _addToParent(node: AnyNodeData) {
@@ -361,12 +359,9 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
           `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
         );
       }
-      if (!this.nodesByParentIdAndType[parentId]) {
-        this.nodesByParentIdAndType[parentId] = {};
-      }
-      if (!this.nodesByParentIdAndType[parentId][node.metatype]) {
+      if (!this.nodesByParentIdAndType[parentId]) this.nodesByParentIdAndType[parentId] = {};
+      if (!this.nodesByParentIdAndType[parentId][node.metatype])
         this.nodesByParentIdAndType[parentId][node.metatype] = [];
-      }
       this.nodesByParentIdAndType[parentId][node.metatype].push(node.id);
     } else {
       this.rootsIds.push(node.id);
@@ -443,6 +438,24 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
       }
     };
   }
+  
+  countSubscribers() {
+    return this.countDirectSubscribers() + this.countChildrenSubscribers();
+  }
+
+  countDirectSubscribers() {
+    return Object.keys(this.subsById).length + Object.keys(this.subsByCk).length;
+  }
+
+  countChildrenSubscribers() {
+    let count = 0;
+    for (const parentId in this.subsByParentIdAndType) {
+      for (const metatype in this.subsByParentIdAndType[parentId]) {
+        count += this.subsByParentIdAndType[parentId][metatype].length;
+      }
+    }
+    return count;
+  }
 
   subscribeChildren<T extends NodeType>(
     parent: { id?: string; ck?: string },
@@ -457,18 +470,14 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
     // unsubscribe
     return () => {
-      if (parent.id == null) throw new Error("parent must have an id");
-      if (this.subsByParentIdAndType[parent.id] && this.subsByParentIdAndType[parent.id][metatype]) {
-        this.subsByParentIdAndType[parent.id][metatype].splice(
-          this.subsByParentIdAndType[parent.id][metatype].indexOf(callback),
-          1,
-        );
-        // cleanup
-        if (this.subsByParentIdAndType[parent.id][metatype].length == 0)
-          delete this.subsByParentIdAndType[parent.id][metatype];
-        if (Object.keys(this.subsByParentIdAndType[parent.id]).length == 0)
-          delete this.subsByParentIdAndType[parent.id];
-      }
+      if (!parent.id) throw new Error("parent must have an id");
+      const idx = this.subsByParentIdAndType[parent.id]?.[metatype]?.indexOf(callback);
+      if (idx == null || idx < 0) throw new Error("callback not found");
+      this.subsByParentIdAndType[parent.id][metatype].splice(idx, 1);
+      // cleanup
+      if (this.subsByParentIdAndType[parent.id][metatype].length == 0)
+        delete this.subsByParentIdAndType[parent.id][metatype];
+      if (Object.keys(this.subsByParentIdAndType[parent.id]).length == 0) delete this.subsByParentIdAndType[parent.id];
     };
   }
 
@@ -527,9 +536,9 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
 export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNodeGraph {
   readonly _graph: ShallowRef<ReadNodeGraph | null>;
 
-  constructor(init: { graph: MaybeRef<ReadNodeGraph | null>; filter?: MaybeRef<NodeGraphFilter> } = { graph: null }) {
+  constructor(init: { graph?: MaybeRef<ReadNodeGraph | null>; filter?: MaybeRef<NodeGraphFilter> } = { graph: null }) {
     super(init.filter);
-    this._graph = isRef(init.graph) ? init.graph : shallowRef(init.graph);
+    this._graph = isRef(init.graph) ? init.graph : shallowRef(init.graph ?? null);
   }
 
   public get graph(): ReadNodeGraph | null {
@@ -570,19 +579,19 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
   subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: NodeGraphCallback): () => void {
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    watch(
-      this._graph,
-      () => {
-        callback();
-        unsub();
-        if (this._graph.value != null) {
-          subs.push(this._graph.value.subscribe(key, callback));
-          this.subscribeAncestors(key, this._graph.value, subs, callback);
-        }
-      },
-      { immediate: true, flush: "sync" },
-    );
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      if (this._graph.value != null) {
+        subs.push(this._graph.value.subscribe(key, callback));
+        this.subscribeAncestors(key, this._graph.value, subs, callback);
+      }
+    };
+    update();
+    watch(this._graph, () => (callback(), update()), { flush: "sync" });
     watch(this.filter, callback, { flush: "sync" });
     return unsub;
   }
@@ -593,19 +602,19 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     callback: NodeGraphCallback,
   ): () => void {
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    watch(
-      this._graph,
-      () => {
-        callback();
-        unsub();
-        if (this._graph.value != null) {
-          subs.push(this._graph.value?.subscribeChildren(parent, metatype, callback));
-          this.subscribeAncestors(parent, this._graph.value, subs, callback);
-        }
-      },
-      { immediate: true, flush: "sync" },
-    );
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      if (this._graph.value != null) {
+        subs.push(this._graph.value.subscribeChildren(parent, metatype, callback));
+        this.subscribeAncestors(parent, this._graph.value, subs, callback);
+      }
+    };
+    update();
+    watch(this._graph, () => (callback(), update()), { flush: "sync" });
     watch(this.filter, callback, { flush: "sync" });
     return unsub;
   }
@@ -705,20 +714,20 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
   subscribe(key: { id?: string | undefined; ck?: string | undefined }, callback: NodeGraphCallback): () => void {
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    watch(
-      this.layers,
-      () => {
-        callback();
-        unsub();
-        this.layers.value.forEach((layer) => {
-          subs.push(layer.subscribe(key, callback));
-        });
-      },
-      { immediate: true, flush: "sync" },
-    );
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      this.layers.value.forEach((layer) => {
+        subs.push(layer.subscribe(key, callback));
+      });
+    };
+    update();
+    watch(this.layers, () => (callback(), update()), { flush: "sync" });
     watch(this.filter, callback, { flush: "sync" });
-    return () => subs.forEach((sub) => sub());
+    return unsub;
   }
 
   subscribeChildren<T extends NodeType>(
@@ -727,20 +736,20 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     callback: NodeGraphCallback,
   ): () => void {
     const subs: Array<() => void> = [];
-    const unsub = () => subs.forEach((sub) => sub(), subs.splice(0, subs.length));
-    watch(
-      this.layers,
-      () => {
-        callback();
-        unsub();
-        this.layers.value.forEach((layer) => {
-          subs.push(layer.subscribeChildren(parent, metatype, callback));
-        });
-      },
-      { immediate: true, flush: "sync" },
-    );
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      this.layers.value.forEach((layer) => {
+        subs.push(layer.subscribeChildren(parent, metatype, callback));
+      });
+    };
+    update();
+    watch(this.layers, () => (callback(), update()), { flush: "sync" });
     watch(this.filter, callback, { flush: "sync" });
-    return () => subs.forEach((sub) => sub());
+    return unsub;
   }
 }
 

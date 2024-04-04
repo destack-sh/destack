@@ -125,26 +125,24 @@ export type ManualComputedRef<T> = Ref<T> & {
 /** A computed ref that is only triggered manually. */
 export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> {
   let value: T = undefined!;
-  let track: Fn;
   let trigger: Fn;
-  const dirty = ref(true);
+  let dirty = true;
 
   const update = () => {
-    dirty.value = true;
+    dirty = true;
     trigger();
   };
 
   const result = customRef<T>((_track, _trigger) => {
-    track = _track;
     trigger = _trigger;
 
     return {
       get() {
-        if (dirty.value) {
+        if (dirty) {
           value = get();
-          dirty.value = false;
+          dirty = false;
         }
-        track();
+        _track();
         return value;
       },
       set(v) {
@@ -162,9 +160,7 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
  * Run a callback when the component is unmounted, error if not in a component.
  */
 export function onUnmountedStrict(callback: () => void) {
-  if (!getCurrentInstance()) {
-    throw new Error("onUnmountedStrict can only be used in a component");
-  }
+  if (!getCurrentInstance()) throw new Error("onUnmountedStrict can only be used in a component");
   onUnmounted(callback);
 }
 

@@ -106,7 +106,7 @@ export class TransactionBuilder implements Transaction {
     return `Transaction(${this.id}, ${this.edits.length} edits)`;
   }
 
-  subscribe(sub: (edit: EditData, debounced: boolean) => void): () => void {
+  onEdit(sub: (edit: EditData, debounced: boolean) => void): () => void {
     this.subs.push(sub);
     return () => {
       const idx = this.subs.indexOf(sub);
@@ -138,7 +138,7 @@ export class TransactionBuilder implements Transaction {
     return edit;
   }
 
-  _addEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced?: boolean) {
+  _addEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced: boolean = false) {
     const edit = this._makeEdit(type, node, properties);
     this.edits.push(edit);
     for (const sub of this.subs) {
@@ -326,6 +326,8 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
   }
 }
 
+// TODO :Incomplete: track edit by origin (root) view? (for separate undo/redo)
+
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
  */
@@ -385,7 +387,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   reset() {
     const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: nonce8BytesPostfix }), userPtr.value);
     // immediately apply and reset the transaction
-    newTx.subscribe((edit) => {
+    newTx.onEdit((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
       // apply edit directly
       canonicalizeEdits(Timestamp.now(), [edit]);
@@ -498,13 +500,12 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   private makeCurrentTx() {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
-    tx.subscribe((edit) => {
+    tx.onEdit((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       this.pendingEdits[edit.id] = edit;
       canonicalizeEdits(Timestamp.now(), [edit]);
       // directly update overlay since we know this edit is 'last'
       editGraph(this.overlay, [edit], { isOverlay: true });
-      console.log("edit", Object.values(this.pendingEdits).length, edit); // nocheckin
     });
     return tx;
   }
@@ -521,7 +522,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       // re-derive overlay from pending edits
       this.overlay.clear();
       editGraph(this.overlay, Object.values(this.pendingEdits), { isOverlay: true });
-      console.log("accept", Object.values(this.pendingEdits).length); // nocheckin
     }
   }
 
@@ -552,7 +552,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     return this.pendingTx != null;
   }
 }
-// nocheckin: track edit by origin (root) view? (for separate undo/redo)
 
 let bufferId = 0;
 export function newBufferId() {

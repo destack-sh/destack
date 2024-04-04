@@ -13,7 +13,7 @@ import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch, watchEffect } from "vue";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -64,7 +64,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDraggingGlobal ? 'select-none pointer-events-none' : '']"
+    :class="[isDraggingGlobal ? 'pointer-events-none select-none' : '']"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
