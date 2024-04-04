@@ -805,7 +805,7 @@ def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditD
             node = graph.get(node_id)
             graph.remove(node)
         else:
-            raise NotImplementedError("nocheckin edit_graph.update (in place)")
+            raise NotImplementedError("TODO :Broken: edit_graph.update (in place)")
 
 
 def edit_data_graph(

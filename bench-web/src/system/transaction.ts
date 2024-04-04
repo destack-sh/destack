@@ -520,7 +520,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   get isCommitting() {
-    return false;
+    return this.pendingTx != null;
   }
 }
 // nocheckin: track edit by origin (root) view? (for separate undo/redo)

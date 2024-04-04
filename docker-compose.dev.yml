@@ -45,6 +45,12 @@ services:
     restart: on-failure
     volumes:
       - ./infra/envoy.yaml:/etc/envoy/envoy.yaml
+      # certificates are generated with openssl for local development:
+      #  openssl req -x509 -newkey rsa:4096 -keyout infra/local_cert.key -out infra/local_cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
+      # and to make MacOS happy:
+      #  security import infra/local_cert.pem -k ~/Library/Keychains/login.keychain-db
+      #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
+      - ./infra/local_cert.key:/etc/envoy/ssl/cert.key
     # can't use network_mode: host because it's only supported on Linux
     ports:
       - '8080:8080'

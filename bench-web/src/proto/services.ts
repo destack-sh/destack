@@ -217,7 +217,6 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     input: I,
     options: RpcOptions,
   ): BenchUnaryCall<I, O> {
-    // nocheckin: figure out why some unary ops fail when multiple tabs are open?
     const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
     const op = operationsTracker.track({
       method,
