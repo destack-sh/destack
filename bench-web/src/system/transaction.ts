@@ -340,8 +340,10 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
+  /** Accepts the given edits from an external source (does not trigger onAccepted) */
+  accept(edits: EditData[]): void;
   /** Subscribes to *confirmed* edits from this buffer */
-  subscribe(sub: (edits: EditData[]) => void): () => void;
+  onAccepted(sub: (edits: EditData[]) => void): () => void;
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
   /** Whether there are any pending commits */
@@ -361,7 +363,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly overlay: ReadNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private subs: Array<(edits: EditData[]) => void> = [];
+  private acceptedSubs: Array<(edits: EditData[]) => void> = [];
   private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
@@ -389,18 +391,22 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
       canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.graph, [edit]);
       // notify
-      this.subs.forEach((sub) => sub([edit]));
+      this.acceptedSubs.forEach((sub) => sub([edit]));
       // 'reset'
       newTx.edits.length = 0;
     });
     this.currentTx = newTx;
   }
 
-  subscribe(sub: (edits: EditData[]) => void): () => void {
-    this.subs.push(sub);
+  accept(edits: EditData[]) {
+    // nothing to do
+  }
+
+  onAccepted(sub: (edits: EditData[]) => void): () => void {
+    this.acceptedSubs.push(sub);
     return () => {
-      const idx = this.subs.indexOf(sub);
-      if (idx >= 0) this.subs.splice(idx, 1);
+      const idx = this.acceptedSubs.indexOf(sub);
+      if (idx >= 0) this.acceptedSubs.splice(idx, 1);
     };
   }
 
@@ -426,9 +432,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly client: IGraphIOClient;
   public readonly overlay: NodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private subs: Array<(edits: EditData[]) => void> = [];
+  private acceptedSubs: Array<(edits: EditData[]) => void> = [];
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
+  private pendingEdits: Record<string, EditData> = {};
 
   constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
     this.id = id;
@@ -468,41 +475,61 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       }
 
       // notify on success
-      this.subs.forEach((sub) => sub(edits));
+      this.acceptedSubs.forEach((sub) => sub(edits));
     } catch (error) {
       // rollback
       log.error("transaction.commit.error", { scope: this.scope, error });
-      this.reset();
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
         text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}`,
       });
+      this.reset();
     } finally {
       this.pendingTx = null;
     }
   }
 
   async reset() {
-    this.overlay.clear();
     this.currentTx = this.makeCurrentTx();
+    this.pendingEdits = {};
+    this.pendingTx = null;
+    this.overlay.clear();
   }
 
   private makeCurrentTx() {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
     tx.subscribe((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
-      // nocheckin: derive overlay from outstanding edits from this buffer only
+      this.pendingEdits[edit.id] = edit;
       canonicalizeEdits(Timestamp.now(), [edit]);
+      // directly update overlay since we know this edit is 'last'
       editGraph(this.overlay, [edit], { isOverlay: true });
+      console.log("edit", Object.values(this.pendingEdits).length, edit); // nocheckin
     });
     return tx;
   }
 
-  subscribe(sub: (edits: EditData[]) => void): () => void {
-    this.subs.push(sub);
+  accept(edits: EditData[]): void {
+    let pendingEditsChanged = false;
+    for (const edit of edits) {
+      if (this.pendingEdits[edit.id]) {
+        delete this.pendingEdits[edit.id];
+        pendingEditsChanged = true;
+      }
+    }
+    if (pendingEditsChanged) {
+      // re-derive overlay from pending edits
+      this.overlay.clear();
+      editGraph(this.overlay, Object.values(this.pendingEdits), { isOverlay: true });
+      console.log("accept", Object.values(this.pendingEdits).length); // nocheckin
+    }
+  }
+
+  onAccepted(sub: (edits: EditData[]) => void): () => void {
+    this.acceptedSubs.push(sub);
     return () => {
-      const idx = this.subs.indexOf(sub);
-      if (idx >= 0) this.subs.splice(idx, 1);
+      const idx = this.acceptedSubs.indexOf(sub);
+      if (idx >= 0) this.acceptedSubs.splice(idx, 1);
     };
   }
 

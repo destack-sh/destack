@@ -402,7 +402,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
 
   // TODO :Robustness: split doFetch into doFetch and doFetchLive?
   //  so we can retry doFetchLive if that connection breaks without refetching everything?
-  //  but how would we know where to resume the watch (the epoch is local to the server)
+  //  but how would we know where to resume the watch (the epoch is local to the server, so it has to be the same server)?
   /** Actually fetch in the relevant connection type. */
   protected abstract doFetch(
     scope: GraphScope,
@@ -475,11 +475,16 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
         },
         { abort, ...this.operationMeta },
       );
-      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(params, rep.edits, graph));
+      editStream.responses.onNext((rep) => {
+        if (rep != null) {
+          applyRemoteEdits(params, rep.edits, graph);
+          this.txBuffer.accept(rep.edits);
+        }
+      });
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribe((edits) => applyRemoteEdits(params, edits, graph)));
+      subs.push(this.txBuffer.onAccepted((edits) => applyRemoteEdits(params, edits, graph)));
     }
 
     return { graph, access, roots: graph.getManyRef(params.roots), subs };
@@ -546,11 +551,16 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
         },
         { abort, ...this.operationMeta },
       );
-      editStream.responses.onNext((rep) => rep != null && applyRemoteEdits(params, rep.edits, graph));
+      editStream.responses.onNext((rep) => {
+        if (rep != null) {
+          applyRemoteEdits(params, rep.edits, graph);
+          this.txBuffer.accept(rep.edits);
+        }
+      });
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribe((edits) => applyRemoteEdits(params, edits, graph)));
+      subs.push(this.txBuffer.onAccepted((edits) => applyRemoteEdits(params, edits, graph)));
     }
 
     return { graph, access, roots, page, subs };

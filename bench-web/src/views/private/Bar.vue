@@ -8,7 +8,7 @@ import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
 import { bench, hasLocalBench, spaceConnection } from "@/system/space";
 import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
-import { ScrollbarWidth } from "@/utils/layout";
+import { ScrollbarWidth, isDraggingGlobal } from "@/utils/layout";
 import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
 import { humanizeBytes } from "@/utils/string";
 import { formatDurationFromNow } from "@/utils/time";
@@ -183,9 +183,11 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom" :reference-margin="8" :container-margin="4">
           <template #trigger="{ toggle }">
             <button
-              class="select-none border-2 rounded-md px-1 py-0.5 transition-colors"
+              class="select-none rounded-md border-2 px-1 py-0.5 transition-colors"
               :class="
-                graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value) ? 'border-danger-600' : 'border-transparent'
+                graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
+                  ? 'border-danger-600'
+                  : 'border-transparent'
               "
               :disabled="!isDeveloperMode"
               @click.stop="toggle"
@@ -272,6 +274,7 @@ const USER_MENU_ITEMS = computed(() => {
             <span v-if="memory.isSupported.value && memory.memory.value?.usedJSHeapSize" class="ml-1">
               {{ humanizeBytes(memory.memory.value?.usedJSHeapSize, { cutoff: 1000 }) }}
             </span>
+            <span v-if="isDraggingGlobal" class="ml-1"><i class="fas fa-droplet" /></span>
           </span>
         </div>
       </div>
