@@ -147,7 +147,7 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       ref="headerRef"
       class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
-      :class="[activeHeaderDropZone != null ? 'bg-gray-100' : 'bg-gray-200']"
+      :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-gray-100 px-2.5 transition-colors duration-75 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-white px-2.5 transition-colors duration-75 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : 'hover:text-primary-900',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md' : '',
@@ -208,7 +208,7 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tab body -->
     <div
       ref="bodyRef"
-      class="absolute"
+      class="absolute bg-gray-100"
       :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
       data-root-element="true"
     >

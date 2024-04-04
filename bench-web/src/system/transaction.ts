@@ -14,6 +14,7 @@ import {
   type EditData,
   type IGraphIOClient,
   type NodeTypeMapping,
+  CommitTransactionRequest,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -489,7 +490,20 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         response: { epoch, revisions },
       } = await this.client.commitTransaction(
         { edits, id: this.pendingTx.id, scope: this.scope },
-        { suppressErrors: true, retry: true },
+        {
+          suppressErrors: true,
+          retry: {
+            amendRetry: (request: CommitTransactionRequest) => {
+              // swap again to include new pending edits in next attempt
+              const pendingTx = this.currentTx;
+              if (pendingTx == null) throw new Error("no current transaction");
+              const newEdits = pendingTx.edits;
+              request = { ...request, id: pendingTx.id, edits: [...request.edits, ...newEdits] };
+              this.currentTx = this.makeCurrentTx();
+              return request;
+            },
+          },
+        },
       );
       for (let i = 0; i < edits.length; i++) {
         edits[i].revision = revisions[i];

@@ -56,13 +56,13 @@ const HIDDEN_UNNAMED = ` \\ `;
 /**
  * Search nodes in a graph.
  */
-export function graphIndex(
-  graph: ReadNodeGraph,
-  metatypes: NodeType[],
-  filter: (node: AnyNodeData, ancestors: NodeItem[]) => boolean,
-  maxDepth?: MaybeRef<number>,
-): SearchIndex<NodeItem> {
-  const maxDepthRef = toRef(maxDepth) as Ref<number | undefined>;
+export function graphIndex(toIndex: {
+  graph: ReadNodeGraph;
+  metatypes: NodeType[];
+  filter: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  maxDepth?: MaybeRef<number>;
+}): SearchIndex<NodeItem> {
+  const maxDepthRef = toRef(toIndex.maxDepth) as Ref<number | undefined>;
   /**
    * Walks the descendants from a node.
    */
@@ -90,11 +90,11 @@ export function graphIndex(
       ancestors: ancestors,
     };
     const items = [];
-    if (filter(node, ancestors)) items.push(item);
+    if (toIndex.filter(node, ancestors)) items.push(item);
     const nextAncestors = [item, ...ancestors];
     if (maxDepthRef.value == null || ancestors.length < maxDepthRef.value) {
-      for (const metatype of metatypes) {
-        for (const child of graph.getChildren(node, metatype)) {
+      for (const metatype of toIndex.metatypes) {
+        for (const child of toIndex.graph.getChildren(node, metatype)) {
           items.push(...walkGraph(child, nextAncestors));
         }
       }
@@ -105,7 +105,9 @@ export function graphIndex(
   const index: SearchIndex<NodeItem> = {
     candidates: () => {
       const candidates: NodeItem[] = [];
-      for (const root of graph.roots) {
+      // nocheckin: fix graph search
+      console.log("toIndex.graph.roots", toIndex.graph.roots);
+      for (const root of toIndex.graph.roots) {
         candidates.push(...walkGraph(root, []));
       }
       return candidates;

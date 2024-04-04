@@ -33,4 +33,3 @@ const actionRefs: Ref<Record<string, Component<typeof Button>>> = ref({});
     </template>
   </div>
 </template>
-@/utils/overlay@/utils/tooltip
