@@ -63,7 +63,6 @@ export type Transaction = {
   upsert(node: AnyNodeData): void;
   /**
    * Update regular properties in this node. If we already have an update for this node, update it.
-   * nocheckin :Broken: handle debounce updates somehow?
    */
   update<T extends AnyNodeData>(
     node: T,
@@ -92,6 +91,7 @@ export class TransactionBuilder implements Transaction {
   public readonly id: string;
   public readonly subject: NodeReferenceData | null;
   public readonly edits: EditData[] = [];
+  private readonly debouncedUpdates: Record<string, EditData> = {};
   private subs: Array<(edit: EditData, debounced: boolean) => void> = [];
   private benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
 
@@ -141,8 +141,13 @@ export class TransactionBuilder implements Transaction {
   _addEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced: boolean = false) {
     const edit = this._makeEdit(type, node, properties);
     this.edits.push(edit);
+    this._notifyEdit(edit, debounced);
+    return edit;
+  }
+
+  _notifyEdit(edit: EditData, debounced: boolean) {
     for (const sub of this.subs) {
-      sub(edit, debounced ?? false);
+      sub(edit, debounced);
     }
   }
 
@@ -187,25 +192,19 @@ export class TransactionBuilder implements Transaction {
     const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[node.metatype as unknown as BenchType]!;
 
     // map update values
-    let patchedNode: T;
     let propertiesNames: string[];
     if (Array.isArray(update)) {
-      patchedNode = { ...node };
       propertiesNames = update as string[];
-      for (const propName of update) {
-        if (propName === "id" || propName === "metatype") {
-          // keep as is (but not part of the 'update')
-        } else if (propName == "parentPtr" || propName == "archivedAt" || propName == "deletedAt") {
-          // ignore, cannot be updated directly - error?
-        } else {
+      update = {};
+      for (const propName of propertiesNames) {
+        if (!CONSTANT_IN_UPDATE_PROPERTIES.includes(propName as any)) {
           const propId = (allProperties as any)[propName];
           if (propId == null) throw new Error(`missing property id for ${propName as string}`);
           const value = getDefaultProtoValue(messageType.fields[propId]);
-          if (value !== undefined) (patchedNode as any)[propName] = value;
+          if (value !== undefined) (update as any)[propName] = value;
         }
       }
     } else if (typeof update == "object") {
-      patchedNode = { ...node, ...update };
       propertiesNames = Object.keys(update);
     } else {
       throw new Error(`unexpected update type: ${update}`);
@@ -221,7 +220,27 @@ export class TransactionBuilder implements Transaction {
       properties.push(propId);
     }
 
-    this._addEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
+    if (options?.debounce && this.debouncedUpdates[node.id]) {
+      // merge into existing edit & notify directly
+      const debouncedEdit = this.debouncedUpdates[node.id];
+      properties
+        .filter((propId) => !debouncedEdit.properties.includes(propId))
+        .forEach((i) => debouncedEdit.properties.push(i));
+      const prevNode = unwrapSomeNode(debouncedEdit.node!);
+      for (const propName of propertiesNames) {
+        (prevNode as any)[propName] = (update as any)[propName];
+      }
+      debouncedEdit.node = wrapSomeNode(prevNode);
+      this._notifyEdit(debouncedEdit, true);
+    } else {
+      // create new edit
+      const patchedNode = { ...node, ...update } as T;
+      const edit = this._addEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
+
+      if (options?.debounce) {
+        this.debouncedUpdates[node.id] = edit;
+      }
+    }
   }
 
   move(node: AnyNodeData) {
