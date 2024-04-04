@@ -5,7 +5,7 @@ import { isDeveloperMode } from "@/system/client";
 import { graphConnections } from "@/system/connection";
 import { IconInline, makeIcon } from "@/system/icon";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE } from "@/system/lang";
-import { bench, hasLocalBench, spaceConnection } from "@/system/space";
+import { bench, hasLocalBench } from "@/system/space";
 import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { ScrollbarWidth, isDraggingGlobal } from "@/utils/layout";
@@ -19,7 +19,7 @@ import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
 import { useElementSize, useFps, useMemory } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { computed, ref, watchEffect } from "vue";
 
 const props = defineProps<{
   box: { x: number; y: number; width: number; height: number };

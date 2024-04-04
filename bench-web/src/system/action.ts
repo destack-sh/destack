@@ -21,6 +21,8 @@ import {
   type MaybeRef,
   toValue,
 } from "vue";
+import { graphConnections } from "@/system/connection";
+import { flushTransactionBuffers } from "@/system/transaction";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -140,6 +142,11 @@ export const ACTION_BUILTIN_IDS = [
   "organization.create",
   // developer
   "developer.misc.toggleDeveloperMode",
+  "developer.tx.pauseAllConnections",
+  "developer.tx.resumeAllConnections",
+  "developer.tx.pauseAllBuffers",
+  "developer.tx.resumeAllBuffers",
+  "developer.tx.flushBuffers",
   "developer.view.addMockView",
   "developer.view.resetCanvasEmpty",
   "developer.view.resetCanvasDefault",
@@ -774,6 +781,49 @@ contributeActionMap<"developer">({
       });
     },
     shortcuts: ["alt+f12", "f12"],
+  },
+  "developer.tx.pauseAllConnections": {
+    enabled: isDeveloperMode,
+    icon: "fas fa-bug",
+    title: "Pause All Connections",
+    text: "Pause all active connections",
+    action: () => graphConnections.value.filter((c) => !c.isPaused.value).forEach((c) => c.togglePaused()),
+  },
+  "developer.tx.resumeAllConnections": {
+    enabled: isDeveloperMode,
+    icon: "fas fa-bug",
+    title: "Resume All Connections",
+    text: "Resume all paused connections",
+    action: () => graphConnections.value.filter((c) => c.isPaused.value).forEach((c) => c.togglePaused()),
+  },
+  "developer.tx.pauseAllBuffers": {
+    enabled: isDeveloperMode,
+    icon: "fas fa-bug",
+    title: "Pause All Buffers",
+    text: "Pause all active transaction buffers",
+    action: () =>
+      graphConnections.value
+        .map((c) => c.txBuffer)
+        .filter((b) => !b.isPaused.value)
+        .forEach((b) => b.togglePaused()),
+  },
+  "developer.tx.resumeAllBuffers": {
+    enabled: isDeveloperMode,
+    icon: "fas fa-bug",
+    title: "Resume All Buffers",
+    text: "Resume all paused transaction buffers",
+    action: () =>
+      graphConnections.value
+        .map((c) => c.txBuffer)
+        .filter((b) => b.isPaused.value)
+        .forEach((b) => b.togglePaused()),
+  },
+  "developer.tx.flushBuffers": {
+    enabled: isDeveloperMode,
+    icon: "fas fa-bug",
+    title: "Flush Buffers",
+    text: "Flush all transaction buffers",
+    action: () => flushTransactionBuffers({ force: true }),
   },
   "developer.view.addMockView": {
     enabled: isDeveloperMode,

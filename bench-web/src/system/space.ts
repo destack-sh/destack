@@ -46,7 +46,7 @@ export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalBench = computed(() => bench.value != null);
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
-export const spaceGraph = new ProxyNodeGraph(spaceGraphLocal);
+export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
 export const space = spaceGraph.getRef(local.spacePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isGlobal: true,

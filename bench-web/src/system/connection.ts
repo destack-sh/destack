@@ -248,7 +248,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     toaster.debug({
       key: `connection.togglePaused:${this.meta.id}`,
       title: this.isPaused.value ? "Connection paused" : "Connection resumed",
-      text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "not receiving anything" : "receiving data again"}.`,
+      text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "disconnected" : "reconnected"}.`,
       override: true,
     });
   }
