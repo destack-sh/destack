@@ -41,15 +41,20 @@ export type Operation<I extends object, O extends object> = {
 export type OperationError = RpcError | Error;
 export type GrpcStatusName = keyof typeof GrpcStatusCode;
 
-export type OperationMetadata = {
+type RetryOptions<T extends object> = {
+  retryOn?: GrpcStatusName[];
+  maxRetries?: number;
+  maxTimeMs?: number;
+  amendRetry?: (request: T, error: RpcError, numRetries: number) => T;
+};
+const DEFAULT_RETRY_ON: GrpcStatusName[] = ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN", "CANCELLED"];
+export type OperationMetadata<T extends object> = {
   connectionId?: number;
   operationName?: string;
   suppressErrors?: boolean;
-  retry?: boolean;
+  retry?: RetryOptions<T>;
 };
-export type OperationOptions = RpcOptions & OperationMetadata;
-// nocheckin: retry operations if 'retry' (on connection failure?)
-const RETRY_ON: GrpcStatusName[] = ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"];
+export type OperationOptions = RpcOptions & OperationMetadata<any>;
 
 export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   INVALID_ARGUMENT: "Invalid request",
@@ -122,7 +127,7 @@ const operationsTracker = {
     };
     const onError = async (error: RpcError) => {
       const code = error.code;
-      if (!(op.options as OperationMetadata).suppressErrors) {
+      if (!(op.options as OperationMetadata<any>).suppressErrors) {
         log.error(rpcName, code, error, op);
         toaster.error(humanizeError(error));
       }
@@ -142,7 +147,7 @@ const operationsTracker = {
       });
       op.call.responses.onComplete(() => {
         terminate();
-        log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: 'ms'}));
+        log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: "ms" }));
         remove();
       });
       op.call.responses.onError((error) => {
@@ -157,7 +162,7 @@ const operationsTracker = {
         .then((output) => {
           op.response = output;
           terminate();
-          log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: 'ms'}), output);
+          log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: "ms" }), output);
         })
         .catch((error) => {
           op.error = error;
@@ -194,8 +199,9 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
   serverStreaming<I extends object, O extends object>(
     method: MethodInfo<I, O>,
     input: I,
-    options: RpcOptions,
+    options: OperationOptions,
   ): BenchServerStreamingCall<I, O> {
+    if (options.retry) throw new Error("serverStreaming does not support retry options");
     const call = super.serverStreaming(method, input, options) as BenchServerStreamingCall<I, O>;
     const op = operationsTracker.track({
       method,
@@ -215,8 +221,18 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
   unary<I extends object, O extends object>(
     method: MethodInfo<I, O>,
     input: I,
-    options: RpcOptions,
+    options: OperationOptions,
   ): BenchUnaryCall<I, O> {
+    const {
+      retryOn = DEFAULT_RETRY_ON,
+      maxRetries = options.retry ? undefined : 1,
+      maxTimeMs,
+      amendRetry,
+    } = options.retry ?? {};
+    
+    // nocheckin: retry operations if 'retry' (on connection failure?)
+    let numRetries = 0;
+
     const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
     const op = operationsTracker.track({
       method,
@@ -232,53 +248,6 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     call.operation = op;
     return call;
   }
-}
-
-export function reactiveUnaryCall<I extends object, O extends object>(
-  client: any, // TODO :Cleanup: type 'client' in reactiveUnaryCall
-  method: (input: I, options?: RpcOptions) => UnaryCall<I, O>,
-  input: Ref<I> | I,
-  options?: RpcOptions & { noswr?: boolean },
-): {
-  result: Ref<O | null>;
-  error: Ref<Error | null>;
-  pending: Ref<Operation<I, O> | null>;
-  terminated: Ref<Operation<I, O> | null>;
-} {
-  /** Call a unary RPC, and call again every time the input changes.*/
-
-  const result: Ref<O | null> = shallowRef(null);
-  const error: Ref<Error | null> = shallowRef(null);
-  const pending: Ref<Operation<I, O> | null> = shallowRef(null);
-  const terminated: Ref<Operation<I, O> | null> = shallowRef(null);
-
-  // call method whenever input changes
-  const inputRef = toRef(input);
-  method = method.bind(client);
-  const call = () => {
-    if (options?.noswr) {
-      result.value = null;
-      error.value = null;
-    }
-    const call = method(inputRef.value, options);
-    pending.value = (call as BenchUnaryCall<I, O>).operation;
-    call.response
-      .then((output) => {
-        result.value = output;
-        error.value = null;
-      })
-      .catch((err) => {
-        result.value = null;
-        error.value = err;
-      })
-      .finally(() => {
-        terminated.value = pending.value;
-        pending.value = null;
-      });
-  };
-  watch(inputRef, call, { immediate: true });
-
-  return { result, error, pending, terminated };
 }
 
 //
@@ -329,18 +298,16 @@ export const supervisor = new SupervisorClient(
 
 /** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
-  if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) {
-    return _CACHED_HOST_CLIENTS[bench.id];
-  } else {
-    // TODO :Scalability: fallback: lookup bench host via supervisor :SingleHostService
-    // const hostInfo = await supervisor.getHost({
-    //   bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
-    // }).response;
-    const hostInfo = { host: SUPERVISOR_URL };
-    const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: hostInfo.host }));
-    _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
-    return hostClient;
-  }
+  if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) return _CACHED_HOST_CLIENTS[bench.id];
+
+  // TODO :Scalability: lookup bench host via supervisor :SingleHostService
+  // const hostInfo = await supervisor.getHost({
+  //   bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
+  // }).response;
+  const hostInfo = { host: SUPERVISOR_URL };
+  const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: hostInfo.host }));
+  _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
+  return hostClient;
 }
 
 /** Gets the Graph client for a given scope */

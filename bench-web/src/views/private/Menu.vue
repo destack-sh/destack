@@ -188,7 +188,7 @@ defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-sm shadow-gray-700"
+    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-700 bg-white py-1 text-gray-900 shadow-md shadow-gray-700"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"

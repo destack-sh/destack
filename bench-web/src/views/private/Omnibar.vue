@@ -32,11 +32,11 @@ const indices = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
   if (m == "everywhere" || m == "actions") indices["actions"] = actionIndex();
   if (m == "everywhere" || m == "space" || m == "views")
-    indices["views"] = graphIndex(
-      spaceGraph,
-      [NodeType.VIEW],
-      (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
-    );
+    indices["views"] = graphIndex({
+      graph: spaceGraph,
+      metatypes: [NodeType.VIEW],
+      filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
+    });
   return indices;
 });
 const { candidates, results } = useSearch({ query, enabled: isActive, indices });
@@ -190,7 +190,7 @@ defineExpose({ isActive, open });
         <div
           v-if="isActive /* trigger inner transition */"
           ref="containerRef"
-          class="z-60 fixed h-fit rounded-md border border-gray-700 bg-white text-sm opacity-100 shadow-md shadow-gray-700 transition-transform duration-150"
+          class="fixed z-60 h-fit rounded-md border border-gray-700 bg-white text-sm opacity-100 shadow-md shadow-gray-700 transition-transform duration-150"
           :style="{
             top: box.top + 'px',
             width: PANEL_WIDTH + 'px',

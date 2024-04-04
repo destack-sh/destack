@@ -23,6 +23,7 @@ import {
 } from "vue";
 import { graphConnections } from "@/system/connection";
 import { flushTransactionBuffers } from "@/system/transaction";
+import { generateRandomName } from "@/utils/naming";
 
 // :OmnibarModes
 export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
@@ -830,7 +831,10 @@ contributeActionMap<"developer">({
     icon: "fas fa-bug",
     title: "Add Mock View",
     text: "Adds a debug view to the current root",
-    action: () => canvas.addView({ type: ViewType.MOCK }),
+    action: () => {
+      const name = toCasing(generateRandomName(), Casing.CAMEL, true);
+      canvas.addView({ type: ViewType.MOCK, name, title: name });
+    },
   },
   "developer.view.resetCanvasEmpty": {
     enabled: computed(() => isDeveloperMode.value && space.value != null),

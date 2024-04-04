@@ -19,8 +19,8 @@ canvas.registerView(self);
 defineExpose({ self });
 </script>
 <template>
-  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md">
-    <div class="flex h-[150%] w-full flex-col items-center justify-center bg-secondary-100">
+  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md" class="bg-white">
+    <div class="flex h-[150%] w-full flex-col items-center justify-center">
       <span class="text-xl">{{ self.id }}</span>
       <span v-if="archivedAt">archived:{{ archivedAt }}</span>
       <span v-if="deletedAt">deleted:{{ deletedAt }}</span>

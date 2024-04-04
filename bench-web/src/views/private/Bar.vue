@@ -121,7 +121,7 @@ const USER_MENU_ITEMS = computed(() => {
 </script>
 <template>
   <div
-    class="flex w-full flex-row items-center justify-between gap-x-4 bg-gray-100 px-4 text-sm text-gray-900"
+    class="flex w-full flex-row items-center justify-between gap-x-4 px-4 text-sm text-gray-900"
     data-outside-view="true"
   >
     <!-- Left -->
@@ -186,7 +186,7 @@ const USER_MENU_ITEMS = computed(() => {
               class="select-none rounded-md border-2 px-1 py-0.5 transition-colors"
               :class="
                 graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
-                  ? 'border-danger-600'
+                  ? 'border-secondary-600'
                   : 'border-transparent'
               "
               :disabled="!isDeveloperMode"
@@ -195,9 +195,9 @@ const USER_MENU_ITEMS = computed(() => {
               <i
                 class="fas"
                 :class="
-                  graphConnections.some((c) => !c.isConnected.value)
-                    ? 'fa-signal-slash animate-pulse text-warning-600 hover:text-warning-700'
-                    : 'fa-signal text-success-700 hover:text-success-800'
+                  graphConnections.every((c) => c.isConnected.value)
+                    ? 'fa-cloud text-success-700 hover:text-success-800'
+                    : 'fa-cloud-slash text-warning-600 hover:text-warning-700'
                 "
               />
             </button>
@@ -231,6 +231,17 @@ const USER_MENU_ITEMS = computed(() => {
                       <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
                         {{ connection.referenceCount }}
                       </span>
+                      <!-- Connected (status) -->
+                      <span class="rounded-md px-1 py-0.5">
+                        <i
+                          class="fas"
+                          :class="
+                            connection.isConnected.value
+                              ? 'fa-check text-success-600'
+                              : 'fa-exclamation-circle text-warning-600'
+                          "
+                        />
+                      </span>
                       <!-- Down (status & toggle) -->
                       <button class="rounded-md px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
                         <i
@@ -239,18 +250,18 @@ const USER_MENU_ITEMS = computed(() => {
                               ? 'fas fa-spinner-third animate-spin text-gray-500'
                               : connection.isLive && !connection.isPaused.value
                                 ? 'fas fa-down text-success-600'
-                                : 'fas fa-down text-gray-500'
+                                : 'fas fa-down text-secondary-500'
                           "
                         />
                       </button>
-                      <!-- Up (status & toggle) -->
+                      <!-- Up (toggle) -->
                       <button
                         class="rounded-md px-1 py-0.5 hover:bg-primary-200"
                         @click="connection.txBuffer.togglePaused()"
                       >
                         <i
                           class="fas fa-up"
-                          :class="connection.txBuffer.isPaused.value ? 'text-gray-500' : 'text-success-600'"
+                          :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"
                         />
                       </button>
                     </span>
@@ -284,7 +295,7 @@ const USER_MENU_ITEMS = computed(() => {
     <!-- Middle -->
     <div
       ref="middleRef"
-      class="absolute flex flex-1 flex-shrink-0 items-center justify-center bg-gray-100 -sm:hidden"
+      class="absolute flex flex-1 flex-shrink-0 items-center justify-center -sm:hidden"
       :style="{ left: middlePosition.x + 'px', top: middlePosition.y + 'px' }"
     >
       <!-- Dock -->

@@ -35,7 +35,7 @@ const isWindow = computed(() => props.type == ViewType.WINDOW);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
 const hasFocusedSplit = computed(() => focusedSplitIdx.value != null);
 
-const BORDER_SIZE = 2;
+const BORDER_SIZE = 1;
 const DRAGGABLE_SIZE = 4;
 const splitLayout: Ref<SplitLayout> = computed(() => ({
   orientation: orientation.value,

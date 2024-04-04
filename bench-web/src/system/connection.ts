@@ -191,7 +191,7 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   readonly isConnected: Readonly<Ref<boolean>>;
   /** Currently fetching (or re-fetching) from the underlying graph.  */
   readonly isFetching: Readonly<Ref<boolean>>;
-  /** Temporarily paused from re-connecting or receiving live updates (for debugging). */
+  /** Temporarily paused from re-connecting and receiving live updates (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
@@ -253,7 +253,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     });
   }
 
-  get operationMeta(): OperationMetadata {
+  get operationMeta(): OperationMetadata<any> {
     return {
       connectionId: this.meta.id,
       operationName: `${this.kind}:${this.meta.name}`,
@@ -358,6 +358,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
           this.isConnected.value = true;
         } catch (error) {
           onError(error as Error);
+          this.isConnected.value = false;
         }
         await retrySignal.wait();
       }
