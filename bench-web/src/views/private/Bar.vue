@@ -196,7 +196,7 @@ const USER_MENU_ITEMS = computed(() => {
                 class="fas"
                 :class="
                   graphConnections.every((c) => c.isConnected.value)
-                    ? 'fa-cloud text-success-700 hover:text-success-800'
+                    ? 'fa-cloud text-success-600 hover:text-success-700'
                     : 'fa-cloud-slash text-warning-600 hover:text-warning-700'
                 "
               />

@@ -63,13 +63,18 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
 }
 
 /**
- * Sorts the given nodes using explicit order keys if available.
+ * Sorts the given nodes using explicit order keys if available, createdAt otherwise, then id.
  */
-export function defaultSort<T extends NodeType>(metatype: T, nodes: NodeTypeMapping[T][]) {
-  const properties = NODE_PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-  if ("orderKey" in properties)
-    nodes.sort((a, b) => ((a as any).orderKey ?? "").localeCompare((b as any).orderKey ?? ""));
-  else nodes.sort((a, b) => (b.createdAt?.nanos ?? 0) - (a.createdAt?.nanos ?? 0));
+export function defaultSort(nodes: AnyNodeData[]): void {
+  nodes.sort((a, b) => {
+    if ((a as any).orderKey != null && (b as any).orderKey != null && (a as any).orderKey != (b as any).orderKey) {
+      return (a as any).orderKey.localeCompare((b as any).orderKey);
+    } else if (a.createdAt != null && b.createdAt != null && a.createdAt.seconds != b.createdAt.seconds) {
+      return Number(b.createdAt.seconds - a.createdAt.seconds);
+    } else {
+      return a.id.localeCompare(b.id);
+    }
+  });
 }
 
 /**

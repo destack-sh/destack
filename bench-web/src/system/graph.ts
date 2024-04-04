@@ -33,14 +33,14 @@ export interface ReadNodeGraph {
   /** Gets the current node with that given key (error if not found) */
   getOrFail<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
   /** Gets the children of the given parent with the given metatype (not reactive) */
-  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
+  getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
 
   /**
    * General helpers
    */
   /** Gets the current node with the key if the key is given */
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
-  /** * Gets all ancestors of the given node with the given or any metatypes. */
+  /**Gets all ancestors of the given node with the given or any metatypes. */
   getAncestors(node: NodeKey<any>, metatypes?: NodeType[]): AnyNodeData[];
   /**
    * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
@@ -103,7 +103,7 @@ export const PASSTHROUGH_NODE_FILTER = { includeHidden: true };
 abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPartial" | "size"> {
   abstract nodes: AnyNodeData[];
   abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
-  abstract getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][];
+  abstract getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
 
   get roots() {
     return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);
@@ -215,8 +215,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
       (newKeys, oldKeys) => {
         if (!deepValueEquals(newKeys, oldKeys)) {
           if (oldKeys) unsub();
-          if (newKeys)
-            newKeys.filter((key) => key != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
+          if (newKeys) newKeys.filter((key) => key != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
         }
         trigger();
       },
@@ -409,12 +408,21 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     return keys.map((key) => this.get(key)).filter((n) => n != null) as NodeTypeMapping[T][];
   }
 
-  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
-    const childrenIds = this.nodesByParentIdAndType[parent.id!]?.[metatype];
-    if (!childrenIds) return [];
-    const children = childrenIds.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
-    defaultSort(metatype, children);
-    return children;
+  getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][] {
+    if (metatype == null) {
+      const children = [];
+      for (const metatype in this.nodesByParentIdAndType[parent.id!]) {
+        children.push(...this.nodesByParentIdAndType[parent.id!][metatype].map((id) => this.nodesById[id]));
+      }
+      defaultSort(children);
+      return children as NodeTypeMapping[T][];
+    } else {
+      const childrenIds = this.nodesByParentIdAndType[parent.id!]?.[metatype];
+      if (!childrenIds) return [];
+      const children = childrenIds.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
+      defaultSort(children);
+      return children;
+    }
   }
 
   subscribe(key: { id?: string; ck?: string }, callback: NodeGraphCallback): () => void {
@@ -438,7 +446,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
       }
     };
   }
-  
+
   countSubscribers() {
     return this.countDirectSubscribers() + this.countChildrenSubscribers();
   }
@@ -571,7 +579,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     else return node;
   }
 
-  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
+  getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][] {
     if (!this.get(parent)) return [];
     const children = this._graph.value?.getChildren(parent, metatype)?.filter((n) => this.isNodeVisibleSelf(n)) ?? [];
     return children;
@@ -684,7 +692,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     else return mergedNode;
   }
 
-  getChildren<T extends NodeType>(parent: NodeKey<any>, metatype: T): NodeTypeMapping[T][] {
+  getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][] {
     if (!this.get(parent)) return [];
     const mergedChildrenById: { [id: string]: NodeTypeMapping[T] } = {};
     for (const layer of this.layers.value) {
@@ -708,7 +716,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       }
     }
     const children = Object.values(mergedChildrenById).filter((n) => this.isNodeVisibleSelf(n));
-    defaultSort(metatype, children);
+    defaultSort(children);
     return children;
   }
 
