@@ -22,7 +22,7 @@ const self = toRef(props, "self");
 
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW);
+const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 
 const focusedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) return null;
