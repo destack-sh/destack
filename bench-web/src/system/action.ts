@@ -351,7 +351,10 @@ export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null 
       }
     }
     log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
-    toaster.debug({ title: "Action is unavailable", text: `No active view supports "${toValue(action.title)}".` });
+    toaster.debug({
+      title: `${toValue(action.title)} is unavailable`,
+      text: `No active view supports ${action.id}.`,
+    });
     return false; // no action found
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -845,17 +848,6 @@ contributeActionMap<"developer">({
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value!);
       setupEmptyCanvas(tx, space.value!);
-    },
-  },
-  "developer.view.resetCanvasDefault": {
-    enabled: computed(() => isDeveloperMode.value && space.value != null),
-    icon: "fas fa-bug",
-    title: "Reset Canvas (Default)",
-    text: "Reset the canvas to the default state",
-    action: () => {
-      const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value!);
-      setupDefaultCanvas(tx, space.value!);
     },
   },
 });
