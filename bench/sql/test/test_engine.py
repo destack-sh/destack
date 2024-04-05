@@ -140,9 +140,13 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
-    # update with dynamic values
-    update_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(1, 4))
-    target_rows = target_rows[:1] + list(update_rows) + target_rows[4:]
+    # update with dynamic values (only some columns are updated)
+    update_rows: list[RowIn] = []
+    for id in range(1, 4):
+        row = _generate_row(id)
+        row = {k: v for k, v in row.items() if k == "id" or random.random() < 0.5}
+        update_rows.append(row)
+        target_rows[id] = {**target_rows[id], **row}
     db_rows = await pg_update_variable(
         cur=test_cur,
         table=table,
@@ -176,9 +180,6 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     db_rows.sort(key=lambda r: r["id"])
     assert db_rows == target_rows
-
-
-# TODO :Test: test node-level operations more generally (maybe as part of graph testing)
 
 
 async def test_crud_node_pointers(fabricator: "Fabricator"):

@@ -881,7 +881,12 @@ async def pg_update_variable(
     static_values: RowIn = None,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table with a list of values (corresponding to rows). Expects values to be adapted and wrapped."""
+    """
+    Updates the given table with a list of values (corresponding to rows).
+    Expects values to be adapted and wrapped.
+    If a column is in dynamic_columns but not in dynamic_values for a row, keep the current value.
+    """
+
     if not any(c.is_primary_key for c in dynamic_columns):
         raise ValueError(
             f"dynamic_columns {dynamic_columns!r} do not contain {table._primary_key!r}"
@@ -896,8 +901,9 @@ async def pg_update_variable(
         )
         for k, v in static_values.items()
     )
+    # only set dynamic columns if they are in the row (otherwise keep current value)
     dynamic_values_sql = (
-        sqlstr("{} = {}").format(
+        sqlstr(f"{{}} = CASE WHEN %(__{c.name}_set)s THEN {{}} ELSE {c.name} END").format(
             sql.Identifier(c.name), _pg_wrap_write_column(c, sqlstr(f"%({c.name})s"))
         )
         for c in dynamic_columns
@@ -922,19 +928,22 @@ async def pg_update_variable(
         rows=len(dynamic_values),
     )
 
-    if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple(
-            {
-                **row,
-                "pk": row.get(table._primary_key.name),
-                "PG_CRYPTO_KEY": current_pg_crypto_key(),
-            }
-            for row in dynamic_values
-        )
-    else:
-        templated_values = tuple(
-            {**row, "pk": row.get(table._primary_key.name)} for row in dynamic_values
-        )
+    is_any_encrypted = any(c.is_encrypted for c in table.columns)
+    pg_crypto_key = current_pg_crypto_key()
+    templated_values: list[RowIn] = []
+    for row in dynamic_values:
+        pk = row.get(table._primary_key.name)
+        if not pk:
+            raise ValueError(f"missing primary key {table._primary_key!r} in row {row!r}")
+        templated_value = {**row, "pk": pk}
+        if is_any_encrypted:
+            templated_value["PG_CRYPTO_KEY"] = pg_crypto_key
+        for column in dynamic_columns:
+            row_has_column = column.name in row
+            templated_value[f"__{column.name}_set"] = row_has_column
+            if not row_has_column:
+                templated_value[column.name] = None
+        templated_values.append(templated_value)
     try:
         await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
@@ -1507,19 +1516,14 @@ async def _pg_write_edit_batch(
                 row = {"id": node.id, "updated_at": node.updated_at}
                 _pg_pack_node_reference_into_row(node_cls.updated_by, row, node.updated_by_ptr)
                 # user supplied updated properties
-                for prop in updated_properties:
-                    if prop.id in edit.properties:  # this seems inefficient?
-                        # property is changed in edit
-                        if prop.is_node_reference:
-                            value = getattr(node, prop.reference_wired_ptr.name)
-                            _pg_pack_node_reference_into_row(prop, row, value)
-                        else:
-                            value = getattr(node, prop.name)
-                            value = _pack_struct_data_prop(prop, value, ignore_array=False)
-                            row[prop.name] = value
+                for prop_id in edit.properties:
+                    prop = node_cls.__properties_by_id__[prop_id]
+                    if prop.is_node_reference:
+                        value = getattr(node, prop.reference_wired_ptr.name)
+                        _pg_pack_node_reference_into_row(prop, row, value)
                     else:
-                        # property is unchanged, keep old value
-                        value = f"{table.name}.{prop.name}"
+                        value = getattr(node, prop.name)
+                        value = _pack_struct_data_prop(prop, value, ignore_array=False)
                         row[prop.name] = value
                 dynamic_values.append(row)
         elif edit_type == EditType.MOVE:
