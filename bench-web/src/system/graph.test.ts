@@ -338,23 +338,23 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
   let package1 = fabricate(BenchType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
   const space11 = fabricate(BenchType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(package1), orderKey: "a0" },
+    set: { parentPtr: toNodeReference(package1), id: "space11", orderKey: "a0" },
   });
   let view111 = fabricate(BenchType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space11), orderKey: "a0" },
+    set: { parentPtr: toNodeReference(space11), id: "view111", orderKey: "a0" },
   });
   const view112 = fabricate(BenchType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space11), orderKey: "a1" },
+    set: { parentPtr: toNodeReference(space11), id: "view112", orderKey: "a1" },
   });
   let space12 = fabricate(BenchType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(package1), orderKey: "a1" },
+    set: { parentPtr: toNodeReference(package1), id: "space12", orderKey: "a1" },
   });
   const view121 = fabricate(BenchType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space12), orderKey: "a0" },
+    set: { parentPtr: toNodeReference(space12), id: "view121", orderKey: "a0" },
   });
 
   const package1Ref = graph.getRef(package1);
@@ -447,15 +447,13 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
   });
 }
 
-// nocheckin: filter graphs reactively (and test it)
 describe("filtered proxy graph", () => {
   const base = new NodeGraph();
   const graph = new ProxyNodeGraph({ graph: base, filter: PASSTHROUGH_NODE_FILTER });
   testFilteredGraph(base, graph);
 });
-
-// describe("filtered layered graph", () => {
-//   const base = new NodeGraph();
-//   const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
-//   testFilteredGraph(base, graph);
-// });
+describe("filtered layered graph", () => {
+  const base = new NodeGraph();
+  const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
+  testFilteredGraph(base, graph);
+});
