@@ -229,10 +229,10 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tab body split drop overlay -->
     <Transition
       appear
-      enter-active-class="transition-opacity ease-in duration-300"
+      enter-active-class="transition-opacity ease-in duration-200"
       enter-from-class="opacity-0"
       enter-to-class="opacity-100"
-      leave-active-class="transition-opacity ease-out duration-300"
+      leave-active-class="transition-opacity ease-out duration-200"
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
@@ -243,7 +243,7 @@ defineExpose<ViewExposed>({ self, actions });
       >
         <div class="relative h-full w-full">
           <div
-            class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-300"
+            class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-200"
             :class="activeBodyDropZone.splitClass"
           />
         </div>
