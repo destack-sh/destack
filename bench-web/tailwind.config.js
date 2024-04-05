@@ -20,9 +20,9 @@ export default {
       "inset-xl": "inset 0 8px 0 0 rgba(0, 0, 0, 0.1)",
     },
     fontFamily: {
-      sans: ["ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Helvetica", "Arial", "sans-serif"],
+      sans: ["IBM Plex Sans", "ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Helvetica", "Arial", "sans-serif"],
       serif: ["IBM Plex Serif", "Georgia", "Cambria", "Times New Roman", "Times", "serif"],
-      mono: ["Droid Sans Mono", "monospace"],
+      mono: ["IBM Plex Mono", "Droid Sans Mono", "monospace"],
     },
     extend: {
       zIndex: {

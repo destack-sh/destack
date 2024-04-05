@@ -229,9 +229,11 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
       maxTimeMs,
       amendRetry,
     } = options.retry ?? {};
-    
-    // nocheckin: retry operations if 'retry' (on connection failure?)
+
+    // TODO :Robustness!: retry operations if 'retry' (on connection failure?)
+    //  (Not quite sure how to do this without promise chaining madness?)
     let numRetries = 0;
+    const startTimeMs = Date.now();
 
     const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
     const op = operationsTracker.track({
