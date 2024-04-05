@@ -8,8 +8,8 @@ import grpclib
 import structlog
 
 from bench.conftest import raises_grpc_error
-from bench.language import Node, Property, User
-from bench.language.const import EditType, NodeType, PrimitiveType, UserStatus
+from bench.language import Node, Property, User, Text
+from bench.language.const import EditType, NodeType, PrimitiveType, UserStatus, StructType
 from bench.language.transaction import new_edit_id
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -94,18 +94,22 @@ class EditProducer:
             prop = rng.choice(self.update_properties[node.metatype])
             if prop.primitive_type == PrimitiveType.STRING:
                 new_value = f"{prop.name} {self.client.client.name}:{round}"
-                node_data = wiring.pack_node(node)
-                setattr(node_data, prop.name, new_value)
-                edit = EditData(
-                    id=new_edit_id(),
-                    type=wiring.pack_enum(EditType, edit_type),
-                    node_type=wiring.pack_enum(NodeType, node.metatype),
-                    node=wiring.wrap_some_node(node_data),
-                    properties=[prop.id],
-                )
-                return edit
+            elif prop.reference_struct == StructType.TEXT:
+                new_value = Text.plain(f"{prop.name} {self.client.client.name}:{round}")._to_data()
+            else:
+                raise ValueError(f"unsupported primitive type: {prop.primitive_type.name}")
+            node_data = wiring.pack_node(node)
+            setattr(node_data, prop.name, new_value)
+            edit = EditData(
+                id=new_edit_id(),
+                type=wiring.pack_enum(EditType, edit_type),
+                node_type=wiring.pack_enum(NodeType, node.metatype),
+                node=wiring.wrap_some_node(node_data),
+                properties=[prop.id],
+            )
+            return edit
 
-        raise ValueError(f"unsupported edit type: {edit_type}")
+        raise ValueError(f"unsupported edit type: {edit_type.name}")
 
     async def produce(
         self,
@@ -200,8 +204,9 @@ async def make_clients(
     return user, clients
 
 
-async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
-    """Simultaneously update a User's name."""
+async def test_graph_converge_single_node_conflicts(supervisor: SupervisorStub):
+    """Simultaneously update a User's name from multiple clients, should converge."""
+
     config = SimulationConfig(seed=42, num_clients=2, num_rounds=3, num_edits_per_round=1)
     user, clients = await make_clients(supervisor, config)
     consumers = [EditConsumer(client) for client in clients]
@@ -224,8 +229,10 @@ async def test_supervisor_single_node_conflict(supervisor: SupervisorStub):
     )
 
 
-async def test_supervisor_multiple_successive_updates(supervisor: SupervisorStub):
-    config = SimulationConfig(seed=42, num_clients=1, num_rounds=1, num_edits_per_round=3)
+async def test_graph_handle_successive_updates(supervisor: SupervisorStub):
+    """Update a node multiple times in the same transaction in succession, should converge."""
+
+    config = SimulationConfig(seed=42, num_clients=1, num_rounds=1, num_edits_per_round=10)
     user, clients = await make_clients(supervisor, config)
     consumers = [EditConsumer(client) for client in clients]
     producers = [
@@ -234,7 +241,7 @@ async def test_supervisor_multiple_successive_updates(supervisor: SupervisorStub
             seed_nodes=[user],
             edit_types=[EditType.UPDATE],
             node_types=[],
-            update_properties={NodeType.USER: [User.name]},
+            update_properties={NodeType.USER: [User.name, User.text]},
         )
         for client in clients
     ]
@@ -247,7 +254,7 @@ async def test_supervisor_multiple_successive_updates(supervisor: SupervisorStub
     )
 
 
-async def test_supervisor_invalid_node(some_user: UserHandle, supervisor: SupervisorStub):
+async def test_graph_create_invalid_node(some_user: UserHandle, supervisor: SupervisorStub):
     """Update a User property to an invalid value, should be rejected."""
 
     user = some_user.user

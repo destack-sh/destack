@@ -275,10 +275,10 @@ describe("proxy node graph", () => {
   const baseB = new NodeGraph();
   const graph = new ProxyNodeGraph();
 
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
-  const clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1) } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"] });
-  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2) } });
+  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  const clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
+  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientB" } });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
