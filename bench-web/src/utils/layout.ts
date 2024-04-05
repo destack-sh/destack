@@ -17,7 +17,7 @@ export const isDraggingGlobal = computed(() => _isDraggingGlobal.value);
 
 export const MIN_SPLIT_SIZE = 250;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
-export const DEFAULT_RELATIVE_UNITS = 1;
+export const DEFAULT_RELATIVE_UNITS = 1000;
 
 export type SizedView = {
   view: ViewData;
@@ -57,8 +57,8 @@ export function splitView(
     return layoutRef.value.orientation == Orientation.HORIZONTAL ? view.size?.widthRelative : view.size?.heightRelative;
   };
 
+  /* Figure out assigned space */
   function getTotals() {
-    // figure out assigned space
     const px =
       layoutRef.value.orientation === Orientation.HORIZONTAL ? containerRef.value.width : containerRef.value.height;
     const absolutePx = viewsRef.value.reduce((acc, view) => (getAbsolutePx(view) ?? 0) + acc, 0);
@@ -180,7 +180,7 @@ export function useSplitView(
         if (draggingIdx.value == null) return;
         const draggedToPx =
           layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
-        const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
+          const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
         graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: true });
         graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: true });
       });

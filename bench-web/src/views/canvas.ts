@@ -702,7 +702,7 @@ export function setupDefaultCanvas(
     orderKey: "a1",
     name: "Primary",
     title: "Primary",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1.5 }),
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
   });
   tx.create(primary);
   const secondary = makeNode({
@@ -713,7 +713,7 @@ export function setupDefaultCanvas(
     orderKey: "a2",
     name: "Secondary",
     title: "Secondary",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1 }),
+    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1000 }),
   });
   tx.create(secondary);
   return { side, primary, secondary };
