@@ -512,19 +512,22 @@ export class ViewCanvas {
     log.debug("canvas.remove", view);
     const parent = graph.get(view.parentPtr!) as ViewData;
     tx.softDelete(view);
-    this.cleanupRootView(tx, graph, parent);
+    this.cleanupRootViews(tx, graph, parent);
   }
 
   /**
-   * Cleanup previously split root views that are no longer needed.
+   * Cleanup previously split (sub-)root views that are no longer needed.
+   * NOTE: righ tnow we only close sub root views because it's annoying to have your layout change because you accidentally closed a tab.
+   *  (and the 'layout' is usually your root splits)
    */
-  cleanupRootView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+  cleanupRootViews(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
     if (!ROOT_VIEW_TYPES.includes(view.type)) return;
     if (
       graph.getChildren(view, NodeType.VIEW).length == 0 &&
-      graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1
+      graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1 &&
+      graph.get({ type: NodeType.VIEW, id: view.parentPtr!.id })?.type == ViewType.SPLIT
     ) {
-      // TODO :UX: re-distribute space if cleaning up after a split
+      // NOTE :UX: should we re-distribute space if cleaning up after a split?
       this.removeView(tx, graph, view);
     }
   }
@@ -540,7 +543,7 @@ export class ViewCanvas {
     anchor: "start" | "end",
     referenceId: string | null,
   ) {
-    log.debug("canvas.add", { self, child, anchor, referenceId });
+    log.debug("canvas.move", { self, child, anchor, referenceId });
     // move & update order
     if (child.id != referenceId) {
       updateOrderKey({
@@ -553,8 +556,8 @@ export class ViewCanvas {
     }
     if (child.parentPtr?.id != self.id) {
       tx.move({ ...child, parentPtr: toNodeReference(self) });
+      this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
     }
-    this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }
 
   /**
@@ -636,7 +639,7 @@ export class ViewCanvas {
       tx.update(child, { size: halfSize, orderKey: "a0" });
       tx.update(parent, { size: halfSize });
     }
-    this.cleanupRootView(tx, graph, graph.get(child.parentPtr!) as ViewData);
+    this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }
 }
 
@@ -691,7 +694,7 @@ export function setupDefaultCanvas(
     orderKey: "a0",
     name: "Side",
     title: "Side",
-    size: makeStruct({ metatype: StructType.BOX, width: 300 }),
+    size: makeStruct({ metatype: StructType.BOX, width: 320 }),
   });
   tx.create(side);
   const primary = makeNode({

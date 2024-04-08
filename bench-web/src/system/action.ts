@@ -26,17 +26,8 @@ import { flushTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
 
 // :OmnibarModes
-export type OmnibarMode = "everywhere" | "actions" | "space" | "views" | "view" | "module" | "package" | "bench";
-export const OMNIBAR_MODES: OmnibarMode[] = [
-  "everywhere",
-  "actions",
-  "space",
-  "views",
-  "view",
-  "module",
-  "package",
-  "bench",
-];
+export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
+export type OmnibarMode = (typeof OMNIBAR_MODES)[number];
 
 export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
@@ -55,9 +46,6 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.space",
   "space.omnibar.views",
   "space.omnibar.view",
-  "space.omnibar.module",
-  "space.omnibar.package",
-  "space.omnibar.bench",
   "space.launch.chat",
   "space.launch.inspector",
   "space.launch.library",
@@ -68,7 +56,6 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.discord",
   "space.launch.notifications",
   "space.edit.create",
-  "space.edit.resetCanvasDefault",
   // common
   "common.edit.undo",
   "common.edit.redo",
@@ -131,6 +118,7 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitRight",
   "view.layout.pinSplit",
   "view.layout.unpinSplit",
+  "view.canvas.resetDefault",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -759,6 +747,17 @@ declareActionMap<"view">({
     text: "Unpin the current split back to relative size",
   },
 });
+contributeActionMap<"view">({
+  // canvas
+  "view.canvas.resetDefault": {
+    title: "Reset Canvas",
+    text: "Reset the canvas to the default layout",
+    icon: "fas fa-browser",
+    action: () => {
+      setupDefaultCanvas(canvas.txFactory(), space.value!);
+    },
+  },
+});
 
 // developer actions
 contributeActionMap<"developer">({
@@ -913,14 +912,6 @@ contributeActionMap<"space">({
     text: "Create a new separate Space",
     icon: "fas fa-plus",
     action: ACTION_COMING_SOON,
-  },
-  "space.edit.resetCanvasDefault": {
-    title: "Reset Canvas (Default)",
-    text: "Reset the canvas to the default state",
-    icon: "fas fa-bug",
-    action: () => {
-      setupDefaultCanvas(canvas.txFactory(), space.value!);
-    },
   },
 });
 

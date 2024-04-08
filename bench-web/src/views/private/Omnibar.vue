@@ -93,7 +93,7 @@ function select(option: string | number | null) {
 }
 
 // auto-select first result if nothing matches (anymore)
-watch([results], () => {
+watch(results, () => {
   if (selectedResultId.value == null || !results.value.some((r) => r.id === selectedResultId.value)) {
     selectedResultId.value = results.value[0]?.id ?? null;
   }
@@ -152,9 +152,6 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   space: "Search across this Space",
   views: "Search active Views in this Space",
   view: "Search the focused View in the Space",
-  module: "Search the current Module",
-  package: "Search the current Package",
-  bench: "Search the current Bench",
 };
 const IN_BENCH_MODES: OmnibarMode[] = ["module", "package", "bench"];
 for (const inMode of OMNIBAR_MODES) {
