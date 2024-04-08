@@ -42,13 +42,12 @@ class ViewType(IdEnum):
     FIELD = 103
     DATABASE = 104
     EXPLORER = 120
-    HISTORY = 121
-    RESOURCE = 122
+    OUTLINE = 121
     INSPECTOR = 123
-    LIBRARY = 124
-    LOG = 125
-    ACCESS = 126
-    CLIENT = 127
+    HISTORY = 127
+    RESOURCE = 130
+    LIBRARY = 135
+    LOG = 137
 
     #
     # General

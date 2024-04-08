@@ -51,6 +51,7 @@ services:
       #  security import infra/local_cert.pem -k ~/Library/Keychains/login.keychain-db
       #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
       - ./infra/local_cert.key:/etc/envoy/ssl/cert.key
+      - ./infra/local_cert.pem:/etc/envoy/ssl/cert.pem
     # can't use network_mode: host because it's only supported on Linux
     ports:
       - '8080:8080'

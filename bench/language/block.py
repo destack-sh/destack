@@ -123,24 +123,24 @@ class Block(Node, HasValues):
         36, default=None, require=False, array=True, references=NodeType.BLOCK
     )
     builtin_base: Optional["TypeInfo"] = p_regular(37, default=None, struct=StructType.TYPE_INFO)
+    dynamic_key: str | None = p_internal(38, default=None)
 
-    dynamic_key: str | None = p_internal(40, default=None)
     text: Optional["Text"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.TEXT
+        40, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    code: Optional["Code"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.CODE
     )
     value_packed: Any = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
     value = p_value_runtime(42, 43)
-    code: Optional["Code"] = p_regular(
-        44, default=None, require=False, array=False, struct=StructType.CODE
-    )
     icon: Optional["Icon"] = p_regular(
-        45, default=None, require=False, array=False, struct=StructType.ICON
+        44, default=None, require=False, array=False, struct=StructType.ICON
     )
     reference: Optional["Block"] = p_regular(
-        46, require=False, array=False, references=NodeType.BLOCK
+        45, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] = p_regular(47, array=True, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] = p_regular(46, array=True, struct=StructType.POLICY)
 
     # flags
     is_page: bool = p_regular(60, default=False)  # on its own page

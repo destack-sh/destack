@@ -19,6 +19,10 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // system
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
   [ViewType.MOCK]: import("@/views/system/Mock.vue"),
+  [ViewType.EXPLORER]: import("@/views/system/Explorer.vue"),
+  [ViewType.OUTLINE]: import("@/views/system/Explorer.vue"), // shared with Explorer
+  [ViewType.INSPECTOR]: import("@/views/system/Inspector.vue"),
+  [ViewType.LIBRARY]: import("@/views/system/Library.vue"),
   // containers
   [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),

@@ -805,13 +805,12 @@ class ViewType(betterproto.Enum):
     FIELD = 103
     DATABASE = 104
     EXPLORER = 120
-    HISTORY = 121
-    RESOURCE = 122
+    OUTLINE = 121
     INSPECTOR = 123
-    LIBRARY = 124
-    LOG = 125
-    ACCESS = 126
-    CLIENT = 127
+    HISTORY = 127
+    RESOURCE = 130
+    LIBRARY = 135
+    LOG = 137
     WINDOW = 500
     TAB = 502
     SPLIT = 503
@@ -1637,18 +1636,18 @@ class BlockData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(35)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(36)
     builtin_base: Optional["TypeInfoData"] = betterproto.message_field(37, optional=True)
-    dynamic_key: Optional[str] = betterproto.string_field(40, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
+    dynamic_key: Optional[str] = betterproto.string_field(38, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(40, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
     secret_value_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(43, optional=True)
-    code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(45, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(46, optional=True)
-    delegated_policies: List["PolicyData"] = betterproto.message_field(47)
+    icon: Optional["IconData"] = betterproto.message_field(44, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(46)
     is_page: bool = betterproto.bool_field(60)
     is_module: bool = betterproto.bool_field(61)
     is_unique: bool = betterproto.bool_field(62)
@@ -4492,7 +4491,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.03.0"
+VERSION = "2024.04.08.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

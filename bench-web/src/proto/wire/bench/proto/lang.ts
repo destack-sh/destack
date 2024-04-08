@@ -1962,13 +1962,17 @@ export interface BlockData {
      */
     builtinBase?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional string dynamic_key = 40;
+     * @generated from protobuf field: optional string dynamic_key = 38;
      */
     dynamicKey?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 41;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 40;
      */
     text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 41;
+     */
+    code?: CodeData;
     /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
      */
@@ -1978,19 +1982,15 @@ export interface BlockData {
      */
     secretValuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 44;
-     */
-    code?: CodeData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 45;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 44;
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 46;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 45;
      */
     referencePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 47;
+     * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 46;
      */
     delegatedPolicies: PolicyData[];
     /**
@@ -7974,33 +7974,29 @@ export enum ViewType {
      */
     EXPLORER = 120,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 121;
+     * @generated from protobuf enum value: VIEW_TYPE_OUTLINE = 121;
      */
-    HISTORY = 121,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 122;
-     */
-    RESOURCE = 122,
+    OUTLINE = 121,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 123;
      */
     INSPECTOR = 123,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIBRARY = 124;
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 127;
      */
-    LIBRARY = 124,
+    HISTORY = 127,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LOG = 125;
+     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 130;
      */
-    LOG = 125,
+    RESOURCE = 130,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACCESS = 126;
+     * @generated from protobuf enum value: VIEW_TYPE_LIBRARY = 135;
      */
-    ACCESS = 126,
+    LIBRARY = 135,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CLIENT = 127;
+     * @generated from protobuf enum value: VIEW_TYPE_LOG = 137;
      */
-    CLIENT = 127,
+    LOG = 137,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */
@@ -12725,14 +12721,14 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 36, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 37, name: "builtin_base", kind: "message", T: () => TypeInfoData },
-            { no: 40, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "text", kind: "message", T: () => TextData },
+            { no: 38, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "text", kind: "message", T: () => TextData },
+            { no: 41, name: "code", kind: "message", T: () => CodeData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "secret_value_packed", kind: "message", T: () => Struct },
-            { no: 44, name: "code", kind: "message", T: () => CodeData },
-            { no: 45, name: "icon", kind: "message", T: () => IconData },
-            { no: 46, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 47, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 44, name: "icon", kind: "message", T: () => IconData },
+            { no: 45, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 46, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 60, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_module", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_unique", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -12841,11 +12837,14 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.TypeInfoData builtin_base */ 37:
                     message.builtinBase = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.builtinBase);
                     break;
-                case /* optional string dynamic_key */ 40:
+                case /* optional string dynamic_key */ 38:
                     message.dynamicKey = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData text */ 41:
+                case /* optional symbolx.bench.TextData text */ 40:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 41:
+                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 42:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
@@ -12853,16 +12852,13 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional google.protobuf.Struct secret_value_packed */ 43:
                     message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
                     break;
-                case /* optional symbolx.bench.CodeData code */ 44:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* optional symbolx.bench.IconData icon */ 45:
+                case /* optional symbolx.bench.IconData icon */ 44:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 46:
+                case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 45:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
                     break;
-                case /* repeated symbolx.bench.PolicyData delegated_policies */ 47:
+                case /* repeated symbolx.bench.PolicyData delegated_policies */ 46:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* bool is_page */ 60:
@@ -12968,30 +12964,30 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.TypeInfoData builtin_base = 37; */
         if (message.builtinBase)
             TypeInfoData.internalBinaryWrite(message.builtinBase, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional string dynamic_key = 40; */
+        /* optional string dynamic_key = 38; */
         if (message.dynamicKey !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.dynamicKey);
-        /* optional symbolx.bench.TextData text = 41; */
+            writer.tag(38, WireType.LengthDelimited).string(message.dynamicKey);
+        /* optional symbolx.bench.TextData text = 40; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.text, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeData code = 41; */
+        if (message.code)
+            CodeData.internalBinaryWrite(message.code, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct secret_value_packed = 43; */
         if (message.secretValuePacked)
             Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData code = 44; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.IconData icon = 45; */
+        /* optional symbolx.bench.IconData icon = 44; */
         if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData reference_ptr = 46; */
+            IconData.internalBinaryWrite(message.icon, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData reference_ptr = 45; */
         if (message.referencePtr)
-            NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData delegated_policies = 47; */
+            NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PolicyData delegated_policies = 46; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
-            PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+            PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(46, WireType.LengthDelimited).fork(), options).join();
         /* bool is_page = 60; */
         if (message.isPage !== false)
             writer.tag(60, WireType.Varint).bool(message.isPage);
@@ -20828,14 +20824,14 @@ export enum BlockProperty {
   policies = 35,
   basesPtr = 36,
   builtinBase = 37,
-  dynamicKey = 40,
-  text = 41,
+  dynamicKey = 38,
+  text = 40,
+  code = 41,
   valuePacked = 42,
   secretValuePacked = 43,
-  code = 44,
-  icon = 45,
-  referencePtr = 46,
-  delegatedPolicies = 47,
+  icon = 44,
+  referencePtr = 45,
+  delegatedPolicies = 46,
   isPage = 60,
   isModule = 61,
   isUnique = 62,

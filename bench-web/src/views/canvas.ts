@@ -686,18 +686,19 @@ export function setupDefaultCanvas(
   space: SpaceData,
 ): { side: ViewData; primary: ViewData; secondary: ViewData } {
   const window = makeMainWindow(space, tx);
-  const side = makeNode({
+  // root splits
+  const side = tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.TAB,
+    type: ViewType.SPLIT,
     parentPtr: toNodeReference(window),
     packagePtr: space.packagePtr,
+    orientation: Orientation.VERTICAL,
     orderKey: "a0",
     name: "Side",
     title: "Side",
     size: makeStruct({ metatype: StructType.BOX, width: 320 }),
   });
-  tx.create(side);
-  const primary = makeNode({
+  const primary = tx.create({
     metatype: NodeType.VIEW,
     type: ViewType.TAB,
     parentPtr: toNodeReference(window),
@@ -707,8 +708,7 @@ export function setupDefaultCanvas(
     title: "Primary",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
   });
-  tx.create(primary);
-  const secondary = makeNode({
+  const secondary = tx.create({
     metatype: NodeType.VIEW,
     type: ViewType.TAB,
     parentPtr: toNodeReference(window),
@@ -718,6 +718,67 @@ export function setupDefaultCanvas(
     title: "Secondary",
     size: makeStruct({ metatype: StructType.BOX, widthRelative: 1000 }),
   });
-  tx.create(secondary);
+
+  // side
+  const sideTop = tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(side),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Top",
+    title: "Top",
+  });
+  const sideBottom = tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.TAB,
+    parentPtr: toNodeReference(side),
+    packagePtr: space.packagePtr,
+    orderKey: "a1",
+    name: "Bottom",
+    title: "Bottom",
+  });
+  tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.EXPLORER,
+    parentPtr: toNodeReference(sideTop),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Explorer",
+    title: "Explorer",
+  });
+  tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.OUTLINE,
+    parentPtr: toNodeReference(sideBottom),
+    packagePtr: space.packagePtr,
+    orderKey: "a1",
+    name: "Outline",
+    title: "Outline",
+  });
+
+  // primary
+  // ...?
+
+  // secondary
+  tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.INSPECTOR,
+    parentPtr: toNodeReference(secondary),
+    packagePtr: space.packagePtr,
+    orderKey: "a0",
+    name: "Inspector",
+    title: "Inspector",
+  });
+  tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.LIBRARY,
+    parentPtr: toNodeReference(secondary),
+    packagePtr: space.packagePtr,
+    orderKey: "a1",
+    name: "Library",
+    title: "Library",
+  });
+
   return { side, primary, secondary };
 }

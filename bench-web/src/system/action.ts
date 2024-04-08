@@ -119,6 +119,7 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.pinSplit",
   "view.layout.unpinSplit",
   "view.canvas.resetDefault",
+  "view.canvas.resetEmpty",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -137,8 +138,6 @@ export const ACTION_BUILTIN_IDS = [
   "developer.tx.resumeAllBuffers",
   "developer.tx.flushBuffers",
   "developer.view.addMockView",
-  "developer.view.resetCanvasEmpty",
-  "developer.view.resetCanvasDefault",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -749,12 +748,26 @@ declareActionMap<"view">({
 });
 contributeActionMap<"view">({
   // canvas
+  "view.canvas.resetEmpty": {
+    enabled: computed(() => isDeveloperMode.value && space.value != null),
+    icon: "fas fa-window",
+    title: "Clear Canvas",
+    text: "Clear the canvas and start blank",
+    action: () => {
+      const tx = canvas.txFactory();
+      clearCanvas(tx, canvas.graph, space.value!);
+      setupEmptyCanvas(tx, space.value!);
+    },
+  },
   "view.canvas.resetDefault": {
-    title: "Reset Canvas",
+    enabled: hasLocalBench,
+    title: "Restore Default Canvas",
     text: "Reset the canvas to the default layout",
     icon: "fas fa-browser",
     action: () => {
-      setupDefaultCanvas(canvas.txFactory(), space.value!);
+      const tx = canvas.txFactory();
+      clearCanvas(tx, canvas.graph, space.value!);
+      setupDefaultCanvas(tx, space.value!);
     },
   },
 });
@@ -838,17 +851,6 @@ contributeActionMap<"developer">({
       canvas.addView({ type: ViewType.MOCK, name, title: name });
     },
   },
-  "developer.view.resetCanvasEmpty": {
-    enabled: computed(() => isDeveloperMode.value && space.value != null),
-    icon: "fas fa-bug",
-    title: "Reset Canvas (Empty)",
-    text: "Clear the canvas and start blank",
-    action: () => {
-      const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value!);
-      setupEmptyCanvas(tx, space.value!);
-    },
-  },
 });
 
 // space actions
@@ -856,7 +858,7 @@ contributeActionMap<"space">({
   "space.launch.inspector": {
     title: "Inspect Node",
     text: "Open the Inspector View",
-    icon: "fas fa-eye-dropper",
+    icon: "fas fa-eye",
     action: ACTION_COMING_SOON,
   },
   "space.launch.library": {
