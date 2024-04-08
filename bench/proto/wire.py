@@ -1659,7 +1659,7 @@ class BlockData(betterproto.Message):
     type: "BlockType" = betterproto.enum_field(30)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
-    visibility: "NodeVisibility" = betterproto.enum_field(34)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(36)
     builtin_base: Optional["TypeInfoData"] = betterproto.message_field(37, optional=True)
@@ -4559,7 +4559,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.08.3"
+VERSION = "2024.04.08.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject

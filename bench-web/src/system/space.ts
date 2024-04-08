@@ -46,9 +46,9 @@ export const {
 export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalBench = computed(() => bench.value != null);
 pkgConnection.onError(e => {
-  if (e == "NOT_FOUND") {
+  if (e == "NOT_FOUND" || e == "PERMISSION_DENIED") {
     toaster.error({
-      title: "Bench not found",
+      title: "Bench unavailable",
       text: "That Bench is no longer accessible.",
     })
     local.clearBench();
@@ -60,7 +60,7 @@ export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
 export const space = spaceGraph.getRef(local.spacePtr);
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
-  isGlobal: true,
+  isOptional: true,
 });
 export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.tx);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);

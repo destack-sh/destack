@@ -1478,7 +1478,7 @@ message BlockData {
   BlockType type = 30;
   optional string name = 32;
   string order_key = 33;
-  NodeVisibility visibility = 34;
+  optional NodeVisibility visibility = 34;
   repeated PolicyData policies = 35;
   repeated NodeReferenceData bases_ptr = 36;
   optional TypeInfoData builtin_base = 37;
