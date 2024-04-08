@@ -1,7 +1,16 @@
-import { ViewType, type IconData, type NodeReferenceData, type TextData, LogLevel } from "@/proto/wire";
+import {
+  ViewType,
+  type IconData,
+  type NodeReferenceData,
+  type TextData,
+  LogLevel,
+  NodeType,
+  BlockType,
+  BlockData,
+} from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
-import { isDeveloperMode } from "@/system/client";
-import { canvas, hasLocalBench, space } from "@/system/space";
+import { isDeveloperMode, packagePtr } from "@/system/client";
+import { canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
@@ -24,6 +33,7 @@ import {
 import { graphConnections } from "@/system/connection";
 import { flushTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
+import { generateKeyBetween } from "@/utils/fractional";
 
 // :OmnibarModes
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
@@ -64,7 +74,10 @@ export const ACTION_BUILTIN_IDS = [
   "common.create.field.option",
   "common.create.field.input",
   "common.create.field.output",
-
+  "common.create.record",
+  "common.create.query",
+  "common.create.view",
+  "common.create.step",
   "common.edit.undo",
   "common.edit.redo",
   "common.edit.delete",
@@ -861,6 +874,28 @@ contributeActionMap<"developer">({
       canvas.addView({ type: ViewType.MOCK, name, title: name });
     },
   },
+  "developer.create.addRootPages": {
+    enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
+    icon: "fas fa-bug",
+    title: "Add Root Pages",
+    text: "Add some root pages to the space",
+    action: () => {
+      const tx = pkgConnection.tx;
+      const pages: BlockData[] = [];
+      const existingRootNames = pkgGraph.getChildren(packagePtr.value!, NodeType.BLOCK).map((b) => b.name);
+      for (const pageName of ["System", "Mirror", "Library", "Applications", "Sandbox"]) {
+        if (existingRootNames.includes(pageName)) continue;
+        tx.create({
+          metatype: NodeType.BLOCK,
+          type: BlockType.PAGE,
+          parentPtr: packagePtr.value!,
+          packagePtr: packagePtr.value!,
+          name: pageName,
+          orderKey: generateKeyBetween(pages[pages.length - 1]?.orderKey ?? null, null),
+        });
+      }
+    },
+  },
 });
 
 // space actions
@@ -869,25 +904,36 @@ contributeActionMap<"space">({
     title: "Inspect Node",
     text: "Open the Inspector View",
     icon: "fas fa-eye",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView(
+        { type: ViewType.INSPECTOR, name: "Inspector", title: "Inspector" },
+        { ifPresent: "upsertAndFocus" },
+      );
+    },
   },
   "space.launch.library": {
     title: "View Library",
     text: "Get building blocks from the library",
     icon: "fas fa-books",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.LIBRARY, name: "Library", title: "Library" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.explorer": {
     title: "View Explorer",
-    text: "Explore nodes in the space",
+    text: "Navigate nodes in the space",
     icon: "fas fa-compass",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.EXPLORER, name: "Explorer", title: "Explorer" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.outline": {
     title: "View Outline",
-    text: "View the outline of the space",
+    text: "Navigate an outline of nodes",
     icon: "fas fa-list-tree",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.OUTLINE, name: "Outline", title: "Outline" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.docs": {
     title: "View Documentation",

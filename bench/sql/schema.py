@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.08.3"
+VERSION = "2024.04.08.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -607,7 +607,7 @@ BLOCK_TABLE = Table(
         Column("type", PrimitiveType.INT16, default="2"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("visibility", PrimitiveType.INT16, default="10"),
+        Column("visibility", PrimitiveType.INT16, is_nullable=True, default="10"),
         Column("policies", PrimitiveType.JSON, is_array=True),
         Column("bases_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("bases_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),

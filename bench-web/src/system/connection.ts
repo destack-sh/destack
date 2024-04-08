@@ -723,20 +723,28 @@ function releaseConnection(connection: GraphConnectionBase<any, any>): void {
   // TODO :Performance: cache/store connections (results) locally for initial hydration
 }
 
+type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> = {
+  predicate?: (c: GraphConnectionBase<K, T>) => boolean;
+};
+
 /** Finds an existing connection and acquires it (RC+=1) */
 function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
   params: ConnectionParamsMapping<T>[K],
+  match?: ConnectionMatchOptions<K, T>,
 ): GraphConnectionBase<K, T> | null {
-  const connection = _graphConnections.value.find((c) => c.kind == kind && c.supports(params)) ?? null;
-  if (connection) connection.referenceCount++;
-  return connection;
+  const matchingConnections =
+    _graphConnections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ??
+    null;
+  if (matchingConnections.length == 0) return null;
+  if (matchingConnections.length > 1) {
+    // TODO :Broken: find the best connection match somehow :ConnectionMatching
+  }
+  return matchingConnections[0];
 }
 
-export function clearConnections(): void {
-  _graphConnections.value.forEach((c) => {
-    c.close();
-  });
+export async function clearConnections(): Promise<void> {
+  await Promise.all(_graphConnections.value.map((c) => c.close()));
   _graphConnections.value = [];
 }
 
@@ -777,6 +785,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   kind: K,
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<ConnectionParamsMapping<T>[K]>,
+  match?: ConnectionMatchOptions<K, T>,
 ): Ref<GraphConnectionBase<K, T> | null> {
   const connection: ShallowRef<GraphConnectionBase<K, T> | null> = shallowRef(null);
   const paramsRef = toRef(params) as Ref<ConnectionParamsMapping<T>[K]>;
@@ -793,7 +802,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
       if (paramsRef.value.enabled === false) return; // disabled
 
       // if the existing connection can support the new query, we'll just acquire it again
-      const existing = acquireExistingConnection(kind, paramsRef.value);
+      const existing = acquireExistingConnection(kind, paramsRef.value, match);
       if (existing) connection.value = existing;
       else connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
     },
@@ -830,13 +839,15 @@ function useConnectionOverlayGraph<T extends NodeType>(
 export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null | undefined>,
   options?: {
-    isGlobal?: boolean;
+    isEnabled?: Ref<boolean>;
+    isOptional?: boolean;
+    match?: ConnectionMatchOptions<"get", T>;
   },
 ): {
   graph: ReadNodeGraph;
   connection: GraphConnection<"get", T>;
 } {
-  const nodeRef = toRef(node) as Ref<NodeReferenceData>;
+  const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionOverlayGraph(connection);
 
@@ -846,20 +857,24 @@ export function useExistingConnection<T extends NodeType = any>(
     let newConnection = null;
     if (connection.value) releaseConnection(connection.value);
 
-    if (nodeRef.value != null) {
-      newConnection = acquireExistingConnection("get", { roots: [nodeRef.value as TypedNodeReferenceData<T>] });
-      if (newConnection == null && !options?.isGlobal)
+    if (nodeRef.value != null && options?.isEnabled?.value !== false) {
+      newConnection = acquireExistingConnection(
+        "get",
+        { roots: [nodeRef.value as TypedNodeReferenceData<T>] },
+        options?.match,
+      );
+      if (newConnection == null && !options?.isOptional)
         throw new Error(
           `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
         );
     }
     if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;
   };
-  watch(toValueRef(nodeRef), refreshConnection, { immediate: true }); // <-- this is 'lazy' flushed
+  watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
 
   // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
   //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
-  if (options?.isGlobal) {
+  if (options?.isOptional) {
     let stopGlobalWatch = null as (() => void) | null;
     watch(
       connection,

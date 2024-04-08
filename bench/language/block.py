@@ -117,7 +117,7 @@ class Block(Node, HasValues):
     # custom type..?
     name: str | None = p_regular(32, default=None, validate=validate_name)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    visibility: NodeVisibility = p_regular(34, default=NodeVisibility.ALL)
+    visibility: Optional[NodeVisibility] = p_regular(34, require=False, default=NodeVisibility.ALL)
     policies: list["Policy"] = p_regular(35, array=True, struct=StructType.POLICY)
     bases: list["Block"] = p_regular(
         36, default=None, require=False, array=True, references=NodeType.BLOCK

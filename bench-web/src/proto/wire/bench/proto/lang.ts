@@ -1981,9 +1981,9 @@ export interface BlockData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 34;
      */
-    visibility: NodeVisibility;
+    visibility?: NodeVisibility;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 35;
      */
@@ -13021,7 +13021,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 34, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 36, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 37, name: "builtin_base", kind: "message", T: () => TypeInfoData },
@@ -13052,7 +13052,6 @@ class BlockData$Type extends MessageType<BlockData> {
         message.setProperties = [];
         message.type = 0;
         message.orderKey = "";
-        message.visibility = 0;
         message.policies = [];
         message.basesPtr = [];
         message.delegatedPolicies = [];
@@ -13129,7 +13128,7 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.NodeVisibility visibility */ 34:
+                case /* optional symbolx.bench.NodeVisibility visibility */ 34:
                     message.visibility = reader.int32();
                     break;
                 case /* repeated symbolx.bench.PolicyData policies */ 35:
@@ -13256,8 +13255,8 @@ class BlockData$Type extends MessageType<BlockData> {
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.NodeVisibility visibility = 34; */
-        if (message.visibility !== 0)
+        /* optional symbolx.bench.NodeVisibility visibility = 34; */
+        if (message.visibility !== undefined)
             writer.tag(34, WireType.Varint).int32(message.visibility);
         /* repeated symbolx.bench.PolicyData policies = 35; */
         for (let i = 0; i < message.policies.length; i++)
