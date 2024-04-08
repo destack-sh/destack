@@ -197,7 +197,7 @@ class BlockType(IdEnum):
     ALIAS = 4  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     CLASS = 10  # define a class type with fields
-    CHOICE = 11  # define a choice type with fields
+    CHOICE = 11  # define a choice type with fields (as literal options)
     # TAG = 12  # define a tag type with fields
     SIGNAL = 13  # define a signal type with fields
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields

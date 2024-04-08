@@ -310,14 +310,11 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="flex flex-row items-center rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+              class="rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600"
               :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
-              <span class="mr-2 rounded-md border border-gray-300 bg-primary-300 px-0.5">
-                <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
-              </span>
-              <span>{{ user.name ?? user.slug }}</span>
+              <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
             </button>
           </template>
           <template v-slot:content="{ close }">

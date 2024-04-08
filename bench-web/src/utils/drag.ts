@@ -154,7 +154,7 @@ export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
 export const SPLIT_EDGE_ZONE_FRACTION = 0.15;
 
 /*
- * Track split container view drop events.
+ * Track 'split' container drop events.
  * The left/top/right/bottom fraction percent are the respective zones, the rest is the center zone.
  * If the cursor is in two zones at once, the edge we're closest to wins.
  */
@@ -220,14 +220,14 @@ export function useSplitDropZone(options: {
     return { anchor, splitClass };
   }
 
-  const activeDropZone: Ref<{ anchor: SplitAnchor, splitClass: string } | null> = computed(() =>
+  const activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null> = computed(() =>
     isInDropZone.value ? getActiveDropZone() : null,
   );
   return { activeDropZone };
 }
 
 /**
- * Track certain drop zone events across dynamic target regions in a single container.
+ * Track certain drop zone events across dynamic target regions in a single parent container.
  */
 export function useMultiDropZone(options: {
   container: Ref<HTMLElement | null | undefined>;
@@ -250,9 +250,9 @@ export function useMultiDropZone(options: {
 
   function getActiveDropZone(): { anchor: "start" | "end"; targetId: string | null } {
     // find directly hit zone
+    const cursor = { x: position.x.value, y: position.y.value };
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
       const targetRect = targetEl.getBoundingClientRect();
-      const cursor = { x: position.x.value, y: position.y.value };
       const isOver =
         options.orientation == Orientation.HORIZONTAL
           ? cursor.x > targetRect.left && cursor.x < targetRect.right
@@ -277,8 +277,12 @@ export function useMultiDropZone(options: {
       return options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
     });
     if (targetsSorted.length > 0) {
-      if (singleDropZone.anchor == "start") return { targetId: targetsSorted[0][0], anchor: "start" };
-      else return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
+      // anchor=end assumes that targets are positioned start to end in the container
+      if (singleDropZone.anchor == "start") {
+        return { targetId: targetsSorted[0][0], anchor: "end"};
+      } else {
+        return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
+      }
     }
 
     // else we attribute to entire container
