@@ -18,6 +18,7 @@ defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div class="h-full w-full bg-white">
+		<!-- nocheckin :Incomplete: explorer -->
     {{ ViewType[type] }}
   </div>
 </template>

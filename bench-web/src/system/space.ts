@@ -12,6 +12,7 @@ import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/clien
 import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
+import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import { ViewCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { computed, nextTick, watch } from "vue";
@@ -44,10 +45,20 @@ export const {
 );
 export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalBench = computed(() => bench.value != null);
+pkgConnection.onError(e => {
+  if (e == "NOT_FOUND") {
+    toaster.error({
+      title: "Bench not found",
+      text: "That Bench is no longer accessible.",
+    })
+    local.clearBench();
+  }
+})
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
 export const space = spaceGraph.getRef(local.spacePtr);
+export const inspectionPtr = computed(() => space.value?.inspectionPtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isGlobal: true,
 });

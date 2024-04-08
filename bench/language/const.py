@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.08.1"
+VERSION = "2024.04.08.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -46,8 +46,8 @@ class NodeType(IdEnum):
     RECORD = 33  # (local, based)
     QUERY = 34
     VIEW = 35
+    STEP = 36
     # TAG?  (not sure what to do with tags yet)
-    # STEP = ...
     # COMMENT = ...
     # REACTION = ...
     # LOCK?
@@ -154,8 +154,10 @@ class StructType(IdEnum):
     # code
     CODE = 590
     CODE_LINE = 591
-    RUN_CODE_FRAME = 600
-    RUN_ERROR = 601
+    # flow
+    STEP_CONNECTION = 600
+    RUN_CODE_FRAME = 610
+    RUN_ERROR = 611
     # CURSOR?
 
     RESOURCE_CREDENTIAL = 632

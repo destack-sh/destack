@@ -57,6 +57,14 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.notifications",
   "space.edit.create",
   // common
+  "common.create.link",
+  "common.create.block",
+  "common.create.trigger",
+  "common.create.field",
+  "common.create.field.option",
+  "common.create.field.input",
+  "common.create.field.output",
+
   "common.edit.undo",
   "common.edit.redo",
   "common.edit.delete",
@@ -138,6 +146,8 @@ export const ACTION_BUILTIN_IDS = [
   "developer.tx.resumeAllBuffers",
   "developer.tx.flushBuffers",
   "developer.view.addMockView",
+  "developer.create.addRootPages",
+  "developer.create.addRandomBlocks",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),

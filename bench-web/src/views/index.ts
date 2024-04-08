@@ -35,7 +35,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 };
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 let didRegisterComponents = false;
-
 export async function registerViewComponents() {
   if (didRegisterComponents) throw new Error("components already registered");
   for (const [viewType, component] of Object.entries(COMPONENT_BY_VIEW_TYPE_LAZY)) {

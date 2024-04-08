@@ -96,6 +96,7 @@ class BenchType(betterproto.Enum):
     RECORD = 33
     QUERY = 34
     VIEW = 35
+    STEP = 36
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -143,8 +144,9 @@ class BenchType(betterproto.Enum):
     SELECTION = 563
     CODE = 590
     CODE_LINE = 591
-    RUN_CODE_FRAME = 600
-    RUN_ERROR = 601
+    STEP_CONNECTION = 600
+    RUN_CODE_FRAME = 610
+    RUN_ERROR = 611
     RESOURCE_CREDENTIAL = 632
     TEXT = 660
     TEXT_LINE = 661
@@ -436,6 +438,7 @@ class NodeType(betterproto.Enum):
     RECORD = 33
     QUERY = 34
     VIEW = 35
+    STEP = 36
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -676,6 +679,16 @@ class SortOp(betterproto.Enum):
     DESCENDING = 201
 
 
+class StepType(betterproto.Enum):
+    UNSPECIFIED = 0
+    BLANK = 1
+    TRIGGER = 10
+    RUN_BLOCK = 20
+    BRANCH = 30
+    FILTER = 31
+    LOOP = 32
+
+
 class StoreEngineType(betterproto.Enum):
     UNSPECIFIED = 0
     INMEMORY = 1
@@ -721,8 +734,9 @@ class StructType(betterproto.Enum):
     SELECTION = 563
     CODE = 590
     CODE_LINE = 591
-    RUN_CODE_FRAME = 600
-    RUN_ERROR = 601
+    STEP_CONNECTION = 600
+    RUN_CODE_FRAME = 610
+    RUN_ERROR = 611
     RESOURCE_CREDENTIAL = 632
     TEXT = 660
     TEXT_LINE = 661
@@ -1415,6 +1429,19 @@ class SelectionData(betterproto.Message):
     nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
     from_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     to_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class StepConnectionData(betterproto.Message):
+    """A connection between to a Step in a Flow."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: Optional[int] = betterproto.int32_field(2, optional=True)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(5, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    source_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -2492,6 +2519,46 @@ class SpaceData(betterproto.Message):
     order_key: str = betterproto.string_field(33)
     policies: List["PolicyData"] = betterproto.message_field(34)
     focus: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
+    inspection_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class StepData(betterproto.Message):
+    """
+    A logic, data or control flow unit in a Flow (Block).
+     NOTE: steps only track connections coming in.
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
+    source: "NodeSource" = betterproto.enum_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    type: "StepType" = betterproto.enum_field(30)
+    name: Optional[str] = betterproto.string_field(32, optional=True)
+    order_key: str = betterproto.string_field(33)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
+    connections: List["StepConnectionData"] = betterproto.message_field(36)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        41, optional=True
+    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(42, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2678,26 +2745,27 @@ class SomeNodeData(betterproto.Message):
     record: "RecordData" = betterproto.message_field(14, group="node")
     query: "QueryData" = betterproto.message_field(15, group="node")
     view: "ViewData" = betterproto.message_field(16, group="node")
-    badge: "BadgeData" = betterproto.message_field(17, group="node")
-    role: "RoleData" = betterproto.message_field(18, group="node")
-    identity: "IdentityData" = betterproto.message_field(19, group="node")
-    membership: "MembershipData" = betterproto.message_field(20, group="node")
-    invite: "InviteData" = betterproto.message_field(21, group="node")
-    session: "SessionData" = betterproto.message_field(22, group="node")
-    run: "RunData" = betterproto.message_field(23, group="node")
-    pause: "PauseData" = betterproto.message_field(24, group="node")
-    signal: "SignalData" = betterproto.message_field(25, group="node")
-    log: "LogData" = betterproto.message_field(26, group="node")
-    notification: "NotificationData" = betterproto.message_field(27, group="node")
-    server: "ServerData" = betterproto.message_field(28, group="node")
-    store: "StoreData" = betterproto.message_field(29, group="node")
-    drive: "DriveData" = betterproto.message_field(30, group="node")
-    cache: "CacheData" = betterproto.message_field(31, group="node")
-    file_content: "FileContentData" = betterproto.message_field(32, group="node")
-    handle: "HandleData" = betterproto.message_field(33, group="node")
-    user: "UserData" = betterproto.message_field(34, group="node")
-    organization: "OrganizationData" = betterproto.message_field(35, group="node")
-    client: "ClientData" = betterproto.message_field(36, group="node")
+    step: "StepData" = betterproto.message_field(17, group="node")
+    badge: "BadgeData" = betterproto.message_field(18, group="node")
+    role: "RoleData" = betterproto.message_field(19, group="node")
+    identity: "IdentityData" = betterproto.message_field(20, group="node")
+    membership: "MembershipData" = betterproto.message_field(21, group="node")
+    invite: "InviteData" = betterproto.message_field(22, group="node")
+    session: "SessionData" = betterproto.message_field(23, group="node")
+    run: "RunData" = betterproto.message_field(24, group="node")
+    pause: "PauseData" = betterproto.message_field(25, group="node")
+    signal: "SignalData" = betterproto.message_field(26, group="node")
+    log: "LogData" = betterproto.message_field(27, group="node")
+    notification: "NotificationData" = betterproto.message_field(28, group="node")
+    server: "ServerData" = betterproto.message_field(29, group="node")
+    store: "StoreData" = betterproto.message_field(30, group="node")
+    drive: "DriveData" = betterproto.message_field(31, group="node")
+    cache: "CacheData" = betterproto.message_field(32, group="node")
+    file_content: "FileContentData" = betterproto.message_field(33, group="node")
+    handle: "HandleData" = betterproto.message_field(34, group="node")
+    user: "UserData" = betterproto.message_field(35, group="node")
+    organization: "OrganizationData" = betterproto.message_field(36, group="node")
+    client: "ClientData" = betterproto.message_field(37, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4491,7 +4559,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.08.1"
+VERSION = "2024.04.08.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4518,6 +4586,7 @@ AnyNodeData = Union[
     RecordData,
     QueryData,
     ViewData,
+    StepData,
     BadgeData,
     RoleData,
     IdentityData,
@@ -4567,6 +4636,7 @@ AnyStructData = Union[
     SelectionData,
     CodeData,
     CodeLineData,
+    StepConnectionData,
     RunCodeFrameData,
     RunErrorData,
     ResourceCredentialData,

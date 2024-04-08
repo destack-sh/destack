@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import NODE_TYPES, NodeType, StructType
 from bench.language.expression import Selection
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, node_component, struct
 from bench.language.property import (
@@ -395,7 +395,7 @@ class View(HasViews, HasValues):
     focus: Optional[Selection] = p_regular(
         71, default=None, require=False, struct=StructType.SELECTION
     )
-    ...  # behavior/effects/...
+    ...  # behavior/actions/effects/...
 
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)
@@ -427,4 +427,7 @@ class Space(HasViews):
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION
+    )
+    inspection: Optional[Node] = p_regular(
+        75, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )

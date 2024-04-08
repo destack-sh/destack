@@ -165,8 +165,20 @@ export const DEFAULT_VIEW_ICON = makeIcon({ name: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ name: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ name: "fas fa-fort" });
 
-export const ROOT_VIEW_TYPES = [ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT];
-export const ROOT_VIEW_COMPONENT_NAMES = ROOT_VIEW_TYPES.map((t) => toCasing(ViewType[t], Casing.CAMEL));
+export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
+export const ROOT_VIEW_COMPONENT_NAMES = new Set(
+  Array.from(ROOT_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
+);
+// views that have a white background
+export const FULL_VIEW_TYPES = new Set([
+  ViewType.PAGE,
+  ViewType.BLOCK,
+  ViewType.DATABASE,
+  ViewType.EXPLORER,
+  ViewType.OUTLINE,
+  ViewType.LIBRARY,
+  ViewType.INSPECTOR,
+]);
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
   return Object.fromEntries(
@@ -192,7 +204,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.NOTICE]: "fas fa-square-exclamation",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.TRIGGER]: "fas fa-bolt",
-  // [NodeType.FIELD]: "fas fa-font",
+  [NodeType.FIELD]: "fas fa-font",
   [NodeType.RECORD]: "fas fa-database",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
@@ -350,8 +362,17 @@ export function getBlockTypeIcon(blockType: BlockType) {
   return ICON_BY_BLOCK_TYPE[blockType] ?? DEFAULT_MISSING_ICON;
 }
 
+export function getViewTypeIcon(viewType: ViewType) {
+  return ICON_BY_VIEW_TYPE[viewType] ?? DEFAULT_VIEW_ICON;
+}
+
 export function getNodeIcon(node: { metatype: BenchType; type?: BlockType | ViewType }) {
-  // TODO :Incomplete: view type icons
-  if (node.metatype == BenchType.BLOCK) return getBlockTypeIcon(node.type! as BlockType);
-  else return getNodeTypeIcon(node.metatype as unknown as NodeType);
+  if (node.metatype == BenchType.BLOCK) {
+    const icon = getBlockTypeIcon(node.type! as BlockType);
+    if (icon != null) return icon;
+  } else if (node.metatype == BenchType.VIEW) {
+    const icon = getViewTypeIcon(node.type! as ViewType);
+    if (icon != null) return icon;
+  }
+  return getNodeTypeIcon(node.metatype as unknown as NodeType);
 }

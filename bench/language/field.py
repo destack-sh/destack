@@ -30,7 +30,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, Icon, Text
+    from bench.language import Block, Expression, Icon, Step, Text
     from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
@@ -206,7 +206,7 @@ class TypeInfo(TypeInfoBase):
 class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     """A used-defined attribute of some value."""
 
-    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
+    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str = p_internal(31, default=INTEGER_ZERO)
     dynamic_key: str | None = p_internal(32, default=None)

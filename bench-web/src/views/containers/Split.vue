@@ -167,6 +167,6 @@ defineExpose<ViewExposed>({ self, actions });
       />
     </template>
     <!-- No frames -->
-    <Empty v-if="sizedViews.length === 0" class="h-full w-full" />
+    <Empty v-if="sizedViews.length === 0" class="flex h-full w-full flex-col items-center justify-center" />
   </div>
 </template>

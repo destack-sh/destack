@@ -4,7 +4,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE } from "@/system/lang";
+import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, FULL_VIEW_TYPES } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
@@ -164,6 +164,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 transition-colors duration-75 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'bg-white text-primary-900  shadow-primary-900' : 'border-b hover:text-primary-900',
+          i == focusedTabIdx && !FULL_VIEW_TYPES.has(tab.type) ? 'border-b' : '',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md' : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
         ]"
@@ -230,7 +231,7 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- missing view -->
         <span v-if="IS_DEBUG || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
       </div>
-      <Empty v-else class="h-full w-full" />
+      <Empty v-else class="flex h-full w-full flex-col items-center justify-center" />
     </div>
     <!-- Tab body split drop overlay -->
     <Transition

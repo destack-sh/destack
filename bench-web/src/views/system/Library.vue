@@ -17,5 +17,8 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div class="h-full w-full bg-white">Library</div>
+  <div class="h-full w-full bg-white">
+    <!-- nocheckin :Incomplete: library -->
+    Library
+  </div>
 </template>

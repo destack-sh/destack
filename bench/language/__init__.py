@@ -1,7 +1,3 @@
-from .graph import ValueList
-from .property import Property
-from .setup import _complete_bench_setup
-from .value import Context, Value
 from ..sql.core import PrimitiveType
 from .access import (
     Access,
@@ -46,36 +42,35 @@ from .expression import (
 )
 from .field import Field, TypeInfo
 from .file import File, Icon
+from .flow import Step, StepType
+from .graph import ValueList
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
 from .path import Path
 from .projection import NodeVisitor
+from .property import Property
 from .query import Query
 from .render import render
 from .resource import (
     Cache,
     Drive,
     FileContent,
-    Server,
-    Store,
     Region,
-    Tenancy,
-    ServerProfile,
     Resource,
     ResourceStatus,
+    Server,
+    ServerProfile,
+    Store,
+    Tenancy,
 )
-from .session import (
-    Log,
-    Session,
-    Signal,
-    Transaction,
-    Run,
-)
+from .session import Log, Run, Session, Signal, Transaction
+from .setup import _complete_bench_setup
 from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .view import Space, View, ViewType, ColorShade, ColorType, Color
+from .value import Context, Value
+from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -149,6 +144,8 @@ __all__ = [
     "SortMode",
     "SortOp",
     "Space",
+    "Step",
+    "StepType",
     "Store",
     "StoreEngineType",
     "StoreKind",
