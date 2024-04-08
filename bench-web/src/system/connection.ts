@@ -196,8 +196,12 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
 
+  /** Closes this connection forever. */
+  close(): Promise<void>;
   /** Toggle isPaused for debugging. */
   togglePaused(): void;
+  /** Get notified on errors */
+  onError: (handler: (status: GrpcStatusName) => void) => void;
   /** Waits for a result matching the predicate */
   waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void>;
 };
@@ -217,6 +221,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   readonly isPaused: Ref<boolean> = shallowRef(false);
   readonly isClosed: Ref<boolean> = shallowRef(false);
 
+  private onErrorSubs: ((status: GrpcStatusName) => void)[] = [];
   private abortController: AbortController | null = null; // for active fetch
   referenceCount: number = 0;
 
@@ -242,6 +247,12 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     return this.txBuffer.tx;
   }
 
+  async close(): Promise<void> {
+    this.isClosed.value = true;
+    log.debug(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
+    this.abortController?.abort();
+  }
+
   togglePaused(): void {
     this.isPaused.value = !this.isPaused.value;
     log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
@@ -258,6 +269,14 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       connectionId: this.meta.id,
       operationName: `${this.kind}:${this.meta.name}`,
       suppressErrors: true, // handled by connection
+    };
+  }
+
+  onError(handler: (status: GrpcStatusName) => void): () => void {
+    this.onErrorSubs.push(handler);
+    return () => {
+      const index = this.onErrorSubs.indexOf(handler);
+      if (index >= 0) this.onErrorSubs.splice(index, 1);
     };
   }
 
@@ -300,6 +319,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
       // notify
       log.error(`graph.${this.kind}.error`, { name: this.meta.name, error });
       const errorCode = (error as RpcError).code ?? "UNKNOWN";
+      if (errorCode) this.onErrorSubs.forEach((sub) => sub(errorCode as GrpcStatusName));
       const retry = shouldRetry(error);
       if (errorCode != lastErrorCode) {
         toaster.error({
@@ -613,8 +633,23 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
   }
 
+  close(): Promise<void> {
+    return this.activeConnection.close();
+  }
+
   togglePaused(): void {
     this.activeConnection.togglePaused();
+  }
+
+  onError(handler: (status: GrpcStatusName) => void): () => void {
+    let sub: (() => void) | null = null;
+    watch(this.connection, () => {
+      if (sub) sub();
+      if (this.connection.value != null) sub = this.connection.value.onError(handler);
+    });
+    return () => {
+      if (sub) sub();
+    };
   }
 
   async waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
@@ -696,6 +731,13 @@ function acquireExistingConnection<K extends GraphConnectionKind, T extends Node
   const connection = _graphConnections.value.find((c) => c.kind == kind && c.supports(params)) ?? null;
   if (connection) connection.referenceCount++;
   return connection;
+}
+
+export function clearConnections(): void {
+  _graphConnections.value.forEach((c) => {
+    c.close();
+  });
+  _graphConnections.value = [];
 }
 
 type ConnectionMetadataIn = Pick<ConnectionMetadata, "name"> & Partial<ConnectionMetadata>;
@@ -786,7 +828,7 @@ function useConnectionOverlayGraph<T extends NodeType>(
  *  That means changing 'node' will change connection/graph only on the next tick.
  */
 export function useExistingConnection<T extends NodeType = any>(
-  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null>,
+  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null | undefined>,
   options?: {
     isGlobal?: boolean;
   },

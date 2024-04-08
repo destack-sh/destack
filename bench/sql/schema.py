@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.08.1"
+VERSION = "2024.04.08.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -423,6 +423,23 @@ SPACE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
+        Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("inspection_type", PrimitiveType.INT16, is_nullable=True),
+        Column(
+            "inspection_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("inspection_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column(
+            "inspection_base_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
@@ -695,6 +712,13 @@ FIELD_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "parent_step_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_step",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("package_ck", PrimitiveType.UUID),
         Column("bench_ck", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
@@ -748,7 +772,7 @@ FIELD_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL)",
+            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
         ),
     ),
 )
@@ -895,6 +919,71 @@ VIEW_TABLE = Table(
             "bench_check_one_parent",
             ConstraintType.CHECK,
             condition="(parent_space_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
+        ),
+    ),
+)
+
+STEP_TABLE = Table(
+    "bench_step",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column(
+            "parent_block_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_block",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_step_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_step",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("package_ck", PrimitiveType.UUID),
+        Column("bench_ck", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("set_properties", PrimitiveType.INT32, is_array=True),
+        Column("type", PrimitiveType.INT16, default="1"),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
+        Column("connections", PrimitiveType.JSON, is_array=True),
+        Column("value_type", PrimitiveType.JSON, is_nullable=True),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("node_ck", PrimitiveType.UUID, is_nullable=True),
+        Column(
+            "node_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("condition", PrimitiveType.JSON, is_nullable=True),
+    ),
+    indexes=(
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
         ),
     ),
 )

@@ -14,7 +14,7 @@ import {
 import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
-import { useGetNodes } from "@/system/connection";
+import { clearConnections, useGetNodes } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
@@ -147,6 +147,7 @@ export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[
       // reset local space
       local.clearBench();
     }
+    clearConnections();
     toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }

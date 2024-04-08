@@ -82,6 +82,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 33;
   BENCH_TYPE_QUERY = 34;
   BENCH_TYPE_VIEW = 35;
+  BENCH_TYPE_STEP = 36;
   BENCH_TYPE_BADGE = 60;
   BENCH_TYPE_ROLE = 61;
   BENCH_TYPE_IDENTITY = 62;
@@ -129,8 +130,9 @@ enum BenchType {
   BENCH_TYPE_SELECTION = 563;
   BENCH_TYPE_CODE = 590;
   BENCH_TYPE_CODE_LINE = 591;
-  BENCH_TYPE_RUN_CODE_FRAME = 600;
-  BENCH_TYPE_RUN_ERROR = 601;
+  BENCH_TYPE_STEP_CONNECTION = 600;
+  BENCH_TYPE_RUN_CODE_FRAME = 610;
+  BENCH_TYPE_RUN_ERROR = 611;
   BENCH_TYPE_RESOURCE_CREDENTIAL = 632;
   BENCH_TYPE_TEXT = 660;
   BENCH_TYPE_TEXT_LINE = 661;
@@ -418,6 +420,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 33;
   NODE_TYPE_QUERY = 34;
   NODE_TYPE_VIEW = 35;
+  NODE_TYPE_STEP = 36;
   NODE_TYPE_BADGE = 60;
   NODE_TYPE_ROLE = 61;
   NODE_TYPE_IDENTITY = 62;
@@ -645,6 +648,16 @@ enum SortOp {
   SORT_OP_DESCENDING = 201;
 }
 
+enum StepType {
+  STEP_TYPE_UNSPECIFIED = 0;
+  STEP_TYPE_BLANK = 1;
+  STEP_TYPE_TRIGGER = 10;
+  STEP_TYPE_RUN_BLOCK = 20;
+  STEP_TYPE_BRANCH = 30;
+  STEP_TYPE_FILTER = 31;
+  STEP_TYPE_LOOP = 32;
+}
+
 enum StoreEngineType {
   STORE_ENGINE_TYPE_UNSPECIFIED = 0;
   STORE_ENGINE_TYPE_INMEMORY = 1;
@@ -690,8 +703,9 @@ enum StructType {
   STRUCT_TYPE_SELECTION = 563;
   STRUCT_TYPE_CODE = 590;
   STRUCT_TYPE_CODE_LINE = 591;
-  STRUCT_TYPE_RUN_CODE_FRAME = 600;
-  STRUCT_TYPE_RUN_ERROR = 601;
+  STRUCT_TYPE_STEP_CONNECTION = 600;
+  STRUCT_TYPE_RUN_CODE_FRAME = 610;
+  STRUCT_TYPE_RUN_ERROR = 611;
   STRUCT_TYPE_RESOURCE_CREDENTIAL = 632;
   STRUCT_TYPE_TEXT = 660;
   STRUCT_TYPE_TEXT_LINE = 661;
@@ -1276,6 +1290,17 @@ message SelectionData {
   repeated NodeReferenceData nodes_ptr = 31;
   optional NodeReferenceData from_node_ptr = 32;
   optional NodeReferenceData to_node_ptr = 33;
+}
+
+// A connection between to a Step in a Flow.
+message StepConnectionData {
+  BenchType metatype = 1;
+  optional int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 5;
+  repeated int32 set_properties = 22;
+  NodeReferenceData source_ptr = 30;
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -2189,6 +2214,38 @@ message SpaceData {
   string order_key = 33;
   repeated PolicyData policies = 34;
   optional SelectionData focus = 70;
+  optional NodeReferenceData inspection_ptr = 75;
+}
+
+// A logic, data or control flow unit in a Flow (Block).
+// NOTE: steps only track connections coming in.
+message StepData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData package_ptr = 6;
+  NodeReferenceData bench_ptr = 7;
+  NodeSource source = 8;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional NodeReferenceData created_by_ptr = 17;
+  optional NodeReferenceData updated_by_ptr = 18;
+  repeated int32 set_properties = 22;
+  StepType type = 30;
+  optional string name = 32;
+  string order_key = 33;
+  optional TextData text = 34;
+  optional CodeData code = 35;
+  repeated StepConnectionData connections = 36;
+  optional TypeInfoData value_type = 40;
+  optional google.protobuf.Struct value_packed = 41;
+  optional google.protobuf.Struct secret_value_packed = 42;
+  optional NodeReferenceData node_ptr = 43;
+  optional ExpressionData condition = 46;
 }
 
 // A store for database-like storage in a Bench.
@@ -2355,26 +2412,27 @@ message SomeNodeData {
     RecordData record = 14;
     QueryData query = 15;
     ViewData view = 16;
-    BadgeData badge = 17;
-    RoleData role = 18;
-    IdentityData identity = 19;
-    MembershipData membership = 20;
-    InviteData invite = 21;
-    SessionData session = 22;
-    RunData run = 23;
-    PauseData pause = 24;
-    SignalData signal = 25;
-    LogData log = 26;
-    NotificationData notification = 27;
-    ServerData server = 28;
-    StoreData store = 29;
-    DriveData drive = 30;
-    CacheData cache = 31;
-    FileContentData file_content = 32;
-    HandleData handle = 33;
-    UserData user = 34;
-    OrganizationData organization = 35;
-    ClientData client = 36;
+    StepData step = 17;
+    BadgeData badge = 18;
+    RoleData role = 19;
+    IdentityData identity = 20;
+    MembershipData membership = 21;
+    InviteData invite = 22;
+    SessionData session = 23;
+    RunData run = 24;
+    PauseData pause = 25;
+    SignalData signal = 26;
+    LogData log = 27;
+    NotificationData notification = 28;
+    ServerData server = 29;
+    StoreData store = 30;
+    DriveData drive = 31;
+    CacheData cache = 32;
+    FileContentData file_content = 33;
+    HandleData handle = 34;
+    UserData user = 35;
+    OrganizationData organization = 36;
+    ClientData client = 37;
   };
 }
 

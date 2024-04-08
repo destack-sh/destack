@@ -13,7 +13,7 @@ export type Dragged =
       selection: SelectionData;
     }
   | {
-      kind: "file";
+      kind: "file"; // native browser file
       files: File[];
     };
 
@@ -151,7 +151,7 @@ export function useSingleDropZone(options: {
 }
 
 export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
-export const SPLIT_EDGE_ZONE_FRACTION = 0.15;
+export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
 
 /*
  * Track 'split' container drop events.

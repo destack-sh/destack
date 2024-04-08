@@ -74,7 +74,7 @@ export function isIdentifiedViewComponent(
 }
 
 export function isRootViewComponent(component: ComponentInstance<any>): boolean {
-  return ROOT_VIEW_COMPONENT_NAMES.includes(getVueComponentType(component));
+  return ROOT_VIEW_COMPONENT_NAMES.has(getVueComponentType(component));
 }
 
 export function getViewComponentId(component: ViewComponent): string {
@@ -411,7 +411,7 @@ export class ViewCanvas {
     let view = this.graph.get(this.focusedViewPtr.value);
     if (view == null) return null;
     while (view.parentPtr?.id != null) {
-      if (ROOT_VIEW_TYPES.includes(view.type)) return view;
+      if (ROOT_VIEW_TYPES.has(view.type)) return view;
       view = this.graph.get(view.parentPtr) as ViewData;
     }
     return null; // not found
@@ -421,13 +421,16 @@ export class ViewCanvas {
   get currentFrames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
     const getFrames = (view: ViewData): ViewData[] => {
-      if (view.type == ViewType.WINDOW) {
+      if (view.type == ViewType.WINDOW || view.type == ViewType.SPLIT) {
         return this.graph.getChildren(view, NodeType.VIEW).flatMap(getFrames);
       } else {
         return [view];
       }
     };
-    const frames = this.graph.getChildren(this.spacePtr.value, NodeType.VIEW).flatMap(getFrames);
+    const frames = this.graph
+      .getChildren(this.spacePtr.value, NodeType.VIEW)
+      .flatMap(getFrames)
+      .filter((v) => v.type != ViewType.SPLIT);
     return frames;
   }
 
@@ -521,7 +524,7 @@ export class ViewCanvas {
    *  (and the 'layout' is usually your root splits)
    */
   cleanupRootViews(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
-    if (!ROOT_VIEW_TYPES.includes(view.type)) return;
+    if (!ROOT_VIEW_TYPES.has(view.type)) return;
     if (
       graph.getChildren(view, NodeType.VIEW).length == 0 &&
       graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1 &&
