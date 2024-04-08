@@ -1,17 +1,19 @@
 <script lang="tsx" setup>
-import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
-import { ICON_BY_NODE_TYPE } from "@/system/lang";
+import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { setDragData, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
+import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Empty from "@/views/private/Empty.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -146,7 +148,7 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tabs header -->
     <Scroll
       ref="headerRef"
-      class="scrollbar-none relative flex w-full flex-row border-b border-gray-300"
+      class="scrollbar-none relative flex w-full flex-row"
       :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
@@ -159,11 +161,11 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 bg-white px-2.5 transition-colors duration-75 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 transition-colors duration-75 hover:cursor-pointer"
         :class="[
-          i == focusedTabIdx ? 'text-primary-900  shadow-primary-900' : 'hover:text-primary-900',
+          i == focusedTabIdx ? 'bg-white text-primary-900  shadow-primary-900' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md' : '',
-          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-500') : '',
+          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
         ]"
         @click="focus(tab)"
         :draggable="true"
@@ -177,7 +179,7 @@ defineExpose<ViewExposed>({ self, actions });
       >
         <!-- Tab header  -->
         <IconInline
-          v-bind="tab.icon ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
+          v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
@@ -199,6 +201,8 @@ defineExpose<ViewExposed>({ self, actions });
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </button>
+      <!-- Remaining space -->
+      <div class="flex-1 border-b border-gray-300" />
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
@@ -219,12 +223,14 @@ defineExpose<ViewExposed>({ self, actions });
         :self="toNodeReference(tabs[focusedTabIdx])"
         v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />
-      <div v-else-if="focusedTabIdx != null" class="h-full w-full">
+      <div
+        v-else-if="focusedTabIdx != null"
+        class="flex h-full w-full flex-col justify-center bg-danger-200 text-center"
+      >
         <!-- missing view -->
+        <span v-if="IS_DEBUG || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
       </div>
-      <div v-else class="h-full w-full">
-        <!-- empty state -->
-      </div>
+      <Empty v-else class="h-full w-full" />
     </div>
     <!-- Tab body split drop overlay -->
     <Transition

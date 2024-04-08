@@ -113,7 +113,7 @@ class TypeInfoBase(HasValues):
     length: Optional[int] = p_regular(47, require=False, default=None)
     precision: Optional[int] = p_regular(48, require=False, default=None)
     scale: Optional[int] = p_regular(49, require=False, default=None)
-    # default for this type :GeneralizeHasValue
+    # default for this type
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50)
 

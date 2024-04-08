@@ -254,6 +254,94 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.IDENTITY]: "fas fa-image-user",
 });
 
+export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
+  //
+  // Intrinsics
+  //
+
+  // kernel
+  [ViewType.USER_WIZARD]: "fas fa-user",
+  [ViewType.BENCH_WIZARD]: "fas fa-fort",
+  [ViewType.CHALLENGE_WIZARD]: "fas fa-trophy",
+  [ViewType.KEYMAP]: "fas fa-keyboard",
+  [ViewType.MOCK]: "fas fa-bug",
+
+  // system
+  [ViewType.PAGE]: "fas fa-page",
+  [ViewType.BLOCK]: "fas fa-cube",
+  [ViewType.FIELD]: "fas fa-font",
+  [ViewType.DATABASE]: "fas fa-database",
+  [ViewType.EXPLORER]: "fas fa-compass",
+  [ViewType.OUTLINE]: "fas fa-list-tree",
+  [ViewType.INSPECTOR]: "fas fa-eye",
+  [ViewType.HISTORY]: "fas fa-history",
+  [ViewType.RESOURCE]: "fas fa-box",
+  [ViewType.LIBRARY]: "fas fa-books",
+  [ViewType.LOG]: "fas fa-file-alt",
+
+  //
+  // General
+  //
+
+  // containers (root)
+  [ViewType.WINDOW]: "fas fa-window",
+  [ViewType.TAB]: "fas fa-sidebar",
+  [ViewType.SPLIT]: "fas fa-reflect-horizontal",
+  [ViewType.SPLIT_COLLAPSIBLE]: "fas fa-reflect-horizontal",
+  // containers (layout)
+  [ViewType.WIZARD]: "fas fa-hat-wizard",
+  [ViewType.STACK]: "fas fa-layer-group",
+  [ViewType.COLLAPSIBLE]: "fas fa-chevron-circle-down",
+  [ViewType.GRID]: "fas fa-table-cells-large",
+  [ViewType.ROW]: "fas fa-table-rows",
+  [ViewType.COLUMN]: "fas fa-table-columns",
+  // containers (data)
+  [ViewType.LIST]: "fas fa-list",
+  [ViewType.TABLE]: "fas fa-table",
+  [ViewType.FEED]: "fas fa-list-timeline",
+  // containers (group)
+  [ViewType.GROUP]: "fas fa-object-group",
+  [ViewType.SECTION]: "fas fa-xmark-lines",
+
+  // presentation
+  [ViewType.SPACER]: "fas fa-square-dashed",
+  [ViewType.DIVIDER]: "fas fa-horizontal-rule",
+  [ViewType.SHAPE]: "fas fa-shapes",
+  [ViewType.PROGRESS]: "fas fa-spinner",
+  [ViewType.AVATAR]: "fas fa-user-circle",
+  [ViewType.BADGE]: "fas fa-badge",
+  [ViewType.CHART]: "fas fa-chart-pie",
+
+  // controls
+  [ViewType.BUTTON]: "fas fa-hand-pointer",
+  [ViewType.MULTI_BUTTON]: "fas fa-hand-pointer",
+  [ViewType.LINK]: "fas fa-link",
+
+  // content
+  [ViewType.VALUE]: "fas fa-box",
+  // numeric
+  [ViewType.NUMBER]: "fas fa-hashtag",
+  [ViewType.SLIDER]: "fas fa-slider",
+  // stringy
+  [ViewType.PLAIN_TEXT]: "fas fa-text",
+  [ViewType.TEXT]: "fas fa-font",
+  [ViewType.CODE]: "fas fa-code",
+  [ViewType.JSON]: "fas fa-brackets-curly",
+  // selection
+  [ViewType.TOGGLE]: "fas fa-toggle-large-on",
+  [ViewType.PICKER]: "fas fa-caret-circle-down",
+  [ViewType.DATE]: "fas fa-calendar-days",
+  [ViewType.TIME]: "fas fa-clock",
+  [ViewType.CALENDAR]: "fas fa-calendar",
+  [ViewType.COLOR]: "fas fa-palette",
+  // file
+  [ViewType.FILE]: "fas fa-file",
+  [ViewType.ICON]: "fas fa-icons",
+  [ViewType.IMAGE]: "fas fa-image",
+  [ViewType.VIDEO]: "fas fa-video",
+  [ViewType.AUDIO]: "fas fa-volume",
+});
+
 export function getNodeTypeIcon(nodeType: NodeType) {
   return ICON_BY_NODE_TYPE[nodeType] ?? DEFAULT_MISSING_ICON;
 }

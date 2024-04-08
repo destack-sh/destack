@@ -7,6 +7,7 @@ import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } f
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
+import Empty from "@/views/private/Empty.vue";
 
 const props = defineProps<
   {
@@ -166,8 +167,6 @@ defineExpose<ViewExposed>({ self, actions });
       />
     </template>
     <!-- No frames -->
-    <div v-if="sizedViews.length === 0" class="h-full w-full">
-      <!-- empty state -->
-    </div>
+    <Empty v-if="sizedViews.length === 0" class="h-full w-full" />
   </div>
 </template>

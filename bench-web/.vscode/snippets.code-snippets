@@ -14,7 +14,7 @@
 		"description": "A Bench View as a Vue SFC. Detachable = can be used without 'self' view identity.",
 		"body": [
 			"<script lang=\"tsx\" setup>",
-			"import { ViewData, NodeReferenceData } from \"@/proto/wire/\";",
+			"import { ViewData, NodeReferenceData } from \"@/proto/wire\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",
 			"import { canvas } from \"@/system/space\";",
 			"import { useExistingConnection } from \"@/system/connection\";",
@@ -39,7 +39,7 @@
 		"description": "A Bench View as a Vue SFC. Detachable = can be used without 'self' view identity.",
 		"body": [
 			"<script lang=\"tsx\" setup>",
-			"import { ViewData, NodeReferenceData } from \"@/proto/wire/\";",
+			"import { ViewData, NodeReferenceData } from \"@/proto/wire\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",
 			"import { canvas } from \"@/system/space\";",
 			"import { toRef } from \"vue\";",

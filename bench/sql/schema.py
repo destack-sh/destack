@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.03.0"
+VERSION = "2024.04.08.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -597,9 +597,9 @@ BLOCK_TABLE = Table(
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("reference_ck", PrimitiveType.UUID, is_nullable=True),
         Column(
