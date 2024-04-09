@@ -243,7 +243,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-folder",
-  [BlockType.BLANK]: "fas fa-square",
+  [BlockType.BLANK]: "fas fa-cube",
   [BlockType.TEXT]: "fas fa-font",
   [BlockType.ALIAS]: "fas fa-link",
 
