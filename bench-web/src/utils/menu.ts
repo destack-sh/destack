@@ -6,17 +6,18 @@ import {
   isActionImplemented,
   type Action,
   type ActionBuiltinId,
+  type ActionContext,
   type ActionFilter,
 } from "@/system/action";
 import { canvas } from "@/system/space";
 import { findFloatingContainer, type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp } from "@/views/canvas";
+import { collectViewComponentsUp, findViewComponent } from "@/views/canvas";
 import type { MaybeElement } from "@vueuse/core";
 import { shallowRef, toValue, type Directive, type Ref } from "vue";
 
-export type MenuContext = {
+export type MenuContext = ActionContext & {
   triggerElement?: MaybeElement;
 };
 
@@ -42,7 +43,7 @@ export type MenuItem = {
 export type MenuItemContextSource = "current" | "trigger-element";
 
 /** Gets the view context for a given menu (item) */
-export function getMenuContextViews(contextSource: MenuItemContextSource, context?: MenuContext): ViewComponent[] {
+function getMenuContextViews(contextSource: MenuItemContextSource, context?: MenuContext): ViewComponent[] {
   if (contextSource == "current") {
     return canvas.focusedViewComponents;
   } else if (contextSource == "trigger-element") {
@@ -76,9 +77,11 @@ export function menuItemFromAction(
     // default to subcategory since we usually group menus by category(ish)
     category: action.subcategory ?? action.category,
     action: (menu: MenuInfo) => {
+      const actionContext: ActionContext | undefined =
+        typeof context == "object" ? { ...menu.context, ...context } : menu.context;
       const contextViews =
         context == "current" ? canvas.focusedViewComponents : getMenuContextViews("trigger-element", menu.context);
-      fireAction(action, contextViews);
+      fireAction(action, contextViews, actionContext);
     },
     ...override,
   };
@@ -126,7 +129,8 @@ export function createContextMenu(
   info: ContextMenuInfo | ((ctx: MenuContext) => ContextMenuInfo),
 ): ContextMenuInstance {
   const container = findFloatingContainer(trigger) ?? undefined;
-  const context = { triggerElement: trigger };
+  const triggerNode = canvas.findViewData(trigger) ?? undefined;
+  const context: MenuContext = { triggerElement: trigger, triggerNode };
   const currentInfo: ContextMenuInfo = {
     ...CONTEXT_MENU_DEFAULT_FLOATING_OPTIONS,
     ...(typeof info === "function" ? info(context) : info),
@@ -148,23 +152,21 @@ export function destroyContextMenu(instance?: ContextMenuInstance) {
 }
 
 /** Simple context menu directive that creates a context menu on the element on click */
-export const CONTEXTMENU_DIRECTIVE: Directive<
-  MaybeElement,
-  ContextMenuInfo | ((ctx: MenuContext) => ContextMenuInfo)
-> = {
-  mounted(el, binding) {
-    const triggerEl = el as ContextMenuTriggerElement;
-    triggerEl.contextMenuOnContextMenu = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const reference = { x: e.clientX, y: e.clientY };
-      createContextMenu(triggerEl, reference, binding.value);
-    };
-    triggerEl.addEventListener("contextmenu", triggerEl.contextMenuOnContextMenu);
-  },
+export const CONTEXTMENU_DIRECTIVE: Directive<MaybeElement, ContextMenuInfo | ((ctx: MenuContext) => ContextMenuInfo)> =
+  {
+    mounted(el, binding) {
+      const triggerEl = el as ContextMenuTriggerElement;
+      triggerEl.contextMenuOnContextMenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const reference = { x: e.clientX, y: e.clientY };
+        createContextMenu(triggerEl, reference, binding.value);
+      };
+      triggerEl.addEventListener("contextmenu", triggerEl.contextMenuOnContextMenu);
+    },
 
-  unmounted(el) {
-    const triggerEl = el as ContextMenuTriggerElement;
-    triggerEl.removeEventListener("contextmenu", triggerEl.contextMenuOnContextMenu!);
-  },
-};
+    unmounted(el) {
+      const triggerEl = el as ContextMenuTriggerElement;
+      triggerEl.removeEventListener("contextmenu", triggerEl.contextMenuOnContextMenu!);
+    },
+  };

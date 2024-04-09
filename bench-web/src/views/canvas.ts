@@ -234,6 +234,11 @@ export class ViewCanvas {
     else return this.graph.get(view as NodeKey<NodeType.VIEW>) as ViewData | null;
   }
 
+  findViewData(el: HTMLElement | ComponentInstance<any>): ViewData | null {
+    const component = findViewComponent(el, isIdentifiedViewComponent);
+    return component?.exposed.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
+  }
+
   /** Inspects the given node */
   inspect(
     tx: Transaction,

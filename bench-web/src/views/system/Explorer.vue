@@ -239,7 +239,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Nodes -->
-    <ul v-if="type == ViewType.EXPLORER || inspectionPtr != null" class="my-1 flex flex-col text-gray-900">
+    <ul v-if="expandedNodes.length > 0" class="my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
         :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
@@ -262,7 +262,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           @click.stop="toggleExpanded(node), _doFocus(node)"
         >
           <i
-            class="fas fa-chevron-right transition-transform duration-75"
+            class="fas fa-chevron-right dxuration-75 transition-transform"
             :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0']"
           />
         </button>
@@ -284,8 +284,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- ... -->
       </li>
     </ul>
+    <div
+      v-else-if="type == ViewType.EXPLORER || inspectionPtr != null"
+      class="flex h-full w-full flex-col justify-center bg-white text-center"
+    >
+      <!-- Empty state -->
+      <i class="fas fa-empty-set text-gray-500" />
+      <span class="text-gray-600">Nothing Here</span>
+    </div>
     <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
-      <!-- Empty/missing state -->
+      <!-- Missing state -->
       <i class="fas fa-empty-set text-gray-500" />
       <span class="text-gray-600">Select Node to Inspect</span>
     </div>

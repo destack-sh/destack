@@ -42,10 +42,12 @@ export type SearchIndex<T extends SearchItem> = {
 export type SearchOptions = {
   /** Term permutations */
   outOfOrder?: number;
+  maxResults?: number;
 };
 
 const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
   outOfOrder: 2,
+  maxResults: 40,
 };
 
 const HIDDEN_SEPARATOR = ` ; `;
@@ -142,11 +144,13 @@ export function useSearch(search: {
 }): {
   candidates: Ref<SearchCandidate[]>;
   results: Ref<SearchResult[]>;
+  resultsTotal: Ref<number>;
   updateCandidates: () => void;
   updateResults: () => void;
 } {
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
+  const resultsTotal = shallowRef(0);
   const uf = new uFuzzy({ intraMode: 1 });
 
   function updateCandidates() {
@@ -166,11 +170,13 @@ export function useSearch(search: {
   function updateResults() {
     if (!search.enabled?.value) {
       resultsRef.value = [];
+      resultsTotal.value = 0;
       return;
     }
     const candidates = candidatesRef.value;
     if (!search.query.value) {
       resultsRef.value = candidates;
+      resultsTotal.value = candidates.length;
       return;
     }
 
@@ -182,9 +188,10 @@ export function useSearch(search: {
       options.outOfOrder,
     );
     // collect
-    const results: SearchResult[] = [];
     if (idxs && order) {
-      for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
+      const results: SearchResult[] = [];
+      const maxResults = Math.min(options.maxResults, order.length);
+      for (let orderIdx = 0; orderIdx < maxResults; orderIdx++) {
         const infoIdx = order[orderIdx];
         const candidate = candidates[idxs[infoIdx]];
         const result = { ...candidate } as SearchResult;
@@ -202,8 +209,12 @@ export function useSearch(search: {
         }
         results.push(result);
       }
+      resultsTotal.value = order.length;
+      resultsRef.value = results;
+    } else {
+      resultsTotal.value = 0;
+      resultsRef.value = [];
     }
-    resultsRef.value = results;
   }
 
   function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
@@ -221,7 +232,7 @@ export function useSearch(search: {
   // update results on query change
   watch([search.enabled, search.indices, search.query], updateResults, { immediate: true });
 
-  return { candidates: candidatesRef, results: resultsRef, updateCandidates, updateResults };
+  return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
 }
 
 /**

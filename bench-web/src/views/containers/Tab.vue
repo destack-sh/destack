@@ -1,7 +1,7 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { type ActionMapImplementation } from "@/system/action";
+import { type Action, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, FULL_VIEW_TYPES } from "@/system/lang";
@@ -97,9 +97,13 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
 
 // actions
 const hasMultipleTabs = computed(() => tabs.value.length > 1);
+const getTabFromContext = (ctx: ActionContext | undefined) => {
+  const matchingTab = tabs.value.find((t) => t.id == ctx?.triggerNode?.id);
+  return matchingTab ?? tabs.value[focusedTabIdx.value!];
+};
 const splitAction = (anchor: SplitAnchor) => ({
-  action: () => {
-    const focusedTab = tabs.value[focusedTabIdx.value!];
+  action: (action: Action, ctx?: ActionContext) => {
+    const focusedTab = getTabFromContext(ctx);
     if (focusedTab == null) return false;
     const selfData = spaceGraph.get(props.self) as ViewData;
     canvas.splitView(spaceConnection.tx, spaceGraph, selfData, focusedTab, anchor);
@@ -109,28 +113,38 @@ const splitAction = (anchor: SplitAnchor) => ({
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
     enabled: computed(() => focusedTabIdx.value != null),
-    action: () => remove(tabs.value[focusedTabIdx.value!]),
+    action: (action, ctx) => {
+      const focusedTab = getTabFromContext(ctx);
+      if (focusedTab) remove(focusedTab);
+      return focusedTab != null;
+    },
   },
   "view.navigate.closeOtherTabs": {
     enabled: hasMultipleTabs,
-    action: () => {
-      const focusedTab = tabs.value[focusedTabIdx.value!];
+    action: (action, ctx) => {
+      const focusedTab = getTabFromContext(ctx);
+      if (focusedTab == null) return false;
       for (const tab of tabs.value) {
         if (tab != focusedTab) canvas.removeView(spaceConnection.tx, spaceGraph, tab);
       }
+      return true;
     },
   },
   "view.navigate.focusPreviousTab": {
     enabled: hasMultipleTabs,
-    action: () => {
-      const newIdx = focusedTabIdx.value == 0 ? tabs.value.length - 1 : (focusedTabIdx.value ?? 1) - 1;
+    action: (action, ctx) => {
+      const focusedTab = getTabFromContext(ctx);
+      if (focusedTab == null) return false;
+      const newIdx = (tabs.value.indexOf(focusedTab) - 1 + tabs.value.length) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
   },
   "view.navigate.focusNextTab": {
     enabled: hasMultipleTabs,
-    action: () => {
-      const newIdx = focusedTabIdx.value == tabs.value.length - 1 ? 0 : (focusedTabIdx.value ?? -1) + 1;
+    action: (action, ctx) => {
+      const focusedTab = getTabFromContext(ctx);
+      if (focusedTab == null) return false;
+      const newIdx = (tabs.value.indexOf(focusedTab) + 1) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
   },
@@ -176,7 +190,7 @@ defineExpose<ViewExposed>({ self, actions });
             e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
           }
         "
-        v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context})} as ContextMenuInfo)"
+        v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context: { ...context, triggerNode: tab}})} as ContextMenuInfo)"
       >
         <!-- Tab header  -->
         <IconInline
