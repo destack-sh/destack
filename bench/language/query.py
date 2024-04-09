@@ -417,7 +417,7 @@ class QueryBuilder(
 
     @_auto_async_to_sync
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
-        from bench.proto.wiring import unpack_nodes_graph
+        from bench.proto.wiring import unpack_roots
 
         tx = active_tx()
         connection = await tx.connect_store(
@@ -425,9 +425,7 @@ class QueryBuilder(
         )
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
-        roots = unpack_nodes_graph(
-            data_graph, parent=self._base, session=tx.session, roots=result.roots
-        )
+        roots = unpack_roots(data_graph, parent=self._base, session=tx.session, roots=result.roots)
         return roots
 
     tolist = fetch

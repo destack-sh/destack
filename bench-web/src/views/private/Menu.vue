@@ -1,13 +1,12 @@
 <script lang="tsx" setup>
 import { IconInline, toIconMaybe } from "@/system/icon";
+import { highlightMatches } from "@/system/search";
 import { useFloating, type FloatingPlacement } from "@/utils/floating";
 import { log } from "@/utils/log";
 import type { MenuInfo, MenuItem } from "@/utils/menu";
 import { Shortcut } from "@/utils/tooltip";
-import { useEventListener } from "@vueuse/core";
-import { computed, onMounted, ref, type ComponentPublicInstance, type Ref, nextTick, shallowRef, watch } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { highlightMatches } from "@/system/search";
+import { computed, nextTick, onMounted, ref, shallowRef, watch, type ComponentPublicInstance, type Ref } from "vue";
 
 const SHOW_NESTED_DELAY = 200;
 

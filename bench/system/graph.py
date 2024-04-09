@@ -252,13 +252,13 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # figure out the node (scopes) we need to evaluate the edit
-        scopes = get_validated_edited_scopes(request.edits)
+        edited_scopes = get_validated_edited_scopes(request.edits)
         start = asyncio.get_event_loop().time()
         async with self.session() as session:
             session: Session
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
-            for node_type, node_references in scopes.node_scopes_by_type.items():
+            for node_type, node_references in edited_scopes.node_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # TODO :Performance: select only require properties for edit eval (id/policies/...?)
                 options = adapt_read_options(subject, node_type, ReadOptions.default())
@@ -298,8 +298,11 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 edits=request.edits,
                 update_nodes_in_place=False,
             )
-            nodes = wiring.unpack_nodes_graph(data_graph)
-            for node in nodes:
+            unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
+            for node_id in edited_scopes.node_scopes_by_id:
+                node = unpacked_graph.get(node_id)
+                if node is None:
+                    raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), on_invalid=on_invalid_raise)
 
             # apply edits
@@ -313,7 +316,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 epoch=self.epoch,
                 duration=asyncio.get_event_loop().time() - start,
             )
-            self.on_graph_edited(scopes.graph_scopes, request.edits)
+            self.on_graph_edited(edited_scopes.graph_scopes, request.edits)
 
         accepted_revisions = [e.revision for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -402,6 +405,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
 class _EditScopes(NamedTuple):
     node_scopes_by_type: dict[NodeType, list[NodeReference]]
+    node_scopes_by_id: dict[UUID, NodeReference]
     graph_scopes: tuple[GraphScope, ...]
 
 
@@ -421,7 +425,7 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
     """
     from bench.proto import wiring
 
-    node_scopes_data: dict[str, "NodeReferenceData"] = {}
+    node_scopes_by_id: dict[str, "NodeReferenceData"] = {}
     graph_scopes: dict[int, "GraphScope"] = {}
     just_created_nodes_id: set[str] = set()
     for edit in edits:
@@ -430,10 +434,10 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             # node scope is parent since we don't know this node yet
             if node_data.parent_ptr is not None:
-                if node_data.parent_ptr.id not in node_scopes_data:
+                if node_data.parent_ptr.id not in node_scopes_by_id:
                     node_scope = node_data.parent_ptr
                 else:
-                    node_scope = node_scopes_data[node_data.parent_ptr.id]
+                    node_scope = node_scopes_by_id[node_data.parent_ptr.id]
             else:
                 raise ValidationError(node_data, "can't create orphan")
             just_created_nodes_id.add(node_data.id)
@@ -443,7 +447,7 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
                 continue  # skip just created nodes
             else:
                 node_scope = NodeReference.from_node_data(node_data)
-        node_scopes_data[node_data.id] = node_scope
+        node_scopes_by_id[node_data.id] = node_scope
 
         # graph scope
         graph_scope = edit.scope
@@ -458,7 +462,7 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
         validate_node_scope(node_data, graph_scope)
 
     node_scopes: dict[UUID, NodeReference] = {
-        to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_data.items()
+        to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
-    return _EditScopes(node_scopes_by_type, tuple(graph_scopes.values()))
+    return _EditScopes(node_scopes_by_type, node_scopes, tuple(graph_scopes.values()))

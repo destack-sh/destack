@@ -95,7 +95,7 @@ async def test_user_activate(some_bench: BenchHandle):
     )
     read_bench_rep = await some_bench.host.get_nodes(read_bench_req, metadata=some_bench.headers)
     node_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
-    bench: Bench = wiring.unpack_nodes_graph(node_graph)[0]
+    bench: Bench = wiring.unpack_roots(node_graph)[0]
     assert bench.owner_id == some_bench.owner.id
     assert bench.main_environment.store
     assert bench.main_environment.search

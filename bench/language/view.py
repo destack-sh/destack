@@ -395,6 +395,9 @@ class View(HasViews, HasValues):
     focus: Optional[Selection] = p_regular(
         71, default=None, require=False, struct=StructType.SELECTION
     )
+    expansion: Optional[Selection] = p_regular(
+        72, default=None, require=False, struct=StructType.SELECTION
+    )
     ...  # behavior/actions/effects/...
 
     # flags

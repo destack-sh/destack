@@ -1197,7 +1197,7 @@ class Struct(abc.ABC):
     def _validate_inner(
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
-        """Validate properties for illegal values that shouldn't or cannot be stored."""
+        """Validate properties for illegal values that should not or cannot be stored."""
 
         if properties == ():  # validate all
             properties = self.__tracked_properties__.values()

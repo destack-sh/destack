@@ -7,6 +7,7 @@ import {
   NodeType,
   BlockType,
   BlockData,
+  BenchType,
 } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { isDeveloperMode, packagePtr } from "@/system/client";
@@ -34,6 +35,7 @@ import { graphConnections } from "@/system/connection";
 import { flushTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
 import { generateKeyBetween } from "@/utils/fractional";
+import { toNodeReference } from "@/proto/wiring";
 
 // :OmnibarModes
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
@@ -885,13 +887,40 @@ contributeActionMap<"developer">({
       const existingRootNames = pkgGraph.getChildren(packagePtr.value!, NodeType.BLOCK).map((b) => b.name);
       for (const pageName of ["System", "Mirror", "Library", "Applications", "Sandbox"]) {
         if (existingRootNames.includes(pageName)) continue;
-        tx.create({
+        const page = tx.create({
           metatype: NodeType.BLOCK,
           type: BlockType.PAGE,
           parentPtr: packagePtr.value!,
           packagePtr: packagePtr.value!,
           name: pageName,
           orderKey: generateKeyBetween(pages[pages.length - 1]?.orderKey ?? null, null),
+        });
+        pages.push(page);
+      }
+    },
+  },
+  "developer.create.addRandomBlocks": {
+    enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
+    icon: "fas fa-bug",
+    title: "Add Random Blocks",
+    text: "Add some random blocks to the space",
+    action: () => {
+      const n = 10;
+      const tx = pkgConnection.tx;
+      const existingNodes = pkgGraph.nodes.filter(
+        (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
+      );
+      for (let i = 0; i < n; i++) {
+        const name = generateRandomName();
+        const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
+        const existingChildren = pkgGraph.getChildren(parent);
+        const node = tx.create({
+          metatype: NodeType.BLOCK,
+          type: BlockType.BLANK,
+          parentPtr: toNodeReference(parent),
+          packagePtr: packagePtr.value!,
+          name,
+          orderKey: generateKeyBetween((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
         });
       }
     },

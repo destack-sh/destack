@@ -2721,6 +2721,7 @@ class ViewData(betterproto.Message):
     alignment: Optional["Alignment"] = betterproto.enum_field(65, optional=True)
     selection: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     focus: Optional["SelectionData"] = betterproto.message_field(71, optional=True)
+    expansion: Optional["SelectionData"] = betterproto.message_field(72, optional=True)
     is_visible: Optional[bool] = betterproto.bool_field(80, optional=True)
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
     is_loading: Optional[bool] = betterproto.bool_field(82, optional=True)
@@ -4559,7 +4560,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.08.4"
+VERSION = "2024.04.09.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
