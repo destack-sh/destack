@@ -58,10 +58,7 @@ export interface ReadNodeGraph {
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
   /**Gets all ancestors of the given node with the given or any metatypes. */
   getAncestors(node: NodeKey<any>, metatypes?: NodeType[]): AnyNodeData[];
-  /**
-   * Gets all descendants of the given parent with the given metatypes, matching a certain filter.
-   * The filter must depend on only the given node.
-   */
+  /** Gets all descendants of the given parent with the given metatypes, matching a certain filter. */
   getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter?: (node: AnyNodeData) => boolean): AnyNodeData[];
 
   //

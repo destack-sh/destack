@@ -161,7 +161,7 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 transition-colors duration-75 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'bg-white text-primary-900  shadow-primary-900' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && !FULL_VIEW_TYPES.has(tab.type) ? 'border-b' : '',
@@ -189,7 +189,7 @@ defineExpose<ViewExposed>({ self, actions });
         </span>
         <!-- Close tab -->
         <button
-          class="ml-1.5 transition-colors duration-75 group-hover:text-gray-400"
+          class="ml-1.5 group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >

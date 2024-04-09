@@ -16,11 +16,14 @@ import {
   ViewType,
   IconData,
   BlockType,
+  BlockData,
+  ViewData,
 } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
+import type { AnyNode } from "postcss";
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
@@ -366,12 +369,12 @@ export function getViewTypeIcon(viewType: ViewType) {
   return ICON_BY_VIEW_TYPE[viewType] ?? DEFAULT_VIEW_ICON;
 }
 
-export function getNodeIcon(node: { metatype: BenchType; type?: BlockType | ViewType }) {
+export function getNodeIcon(node: AnyNodeData | { metatype: BenchType; type?: BlockType | ViewType }) {
   if (node.metatype == BenchType.BLOCK) {
-    const icon = getBlockTypeIcon(node.type! as BlockType);
+    const icon = getBlockTypeIcon((node as BlockData).type! as BlockType);
     if (icon != null) return icon;
   } else if (node.metatype == BenchType.VIEW) {
-    const icon = getViewTypeIcon(node.type! as ViewType);
+    const icon = getViewTypeIcon((node as ViewData).type! as ViewType);
     if (icon != null) return icon;
   }
   return getNodeTypeIcon(node.metatype as unknown as NodeType);

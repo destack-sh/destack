@@ -905,7 +905,7 @@ contributeActionMap<"developer">({
     title: "Add Random Blocks",
     text: "Add some random blocks to the space",
     action: () => {
-      const n = 10;
+      const n = 20;
       const tx = pkgConnection.tx;
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
