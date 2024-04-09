@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType, type AnyNodeData } from "@/proto/wire";
+import { describeNode } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -8,6 +9,7 @@ import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
+import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
 import { toValueRef } from "@/utils/ref";
 import { makeSelection, collapseSelection, expandSelection } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -78,10 +80,10 @@ function updateExpandedNodes(): void {
   function walkDescendants(node: AnyNodeData, depth: number) {
     const children = nodeTypes.value.flatMap((type) => inspectedGraph.getChildren(node, type));
     const item = { node, depth, isFocusedAbsolute: false, canExpand: children.length > 0 };
-
     if (depth >= 0) items.push(item); // ignore root
 
-    if (isExpanded(node)) {
+    // descend
+    if (depth < 0 || isExpanded(node)) {
       children.forEach((child) => walkDescendants(child, depth + 1));
       nodeTypes.value.forEach((nodeType) =>
         subs.push(inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true })),
@@ -92,10 +94,9 @@ function updateExpandedNodes(): void {
   const root = inspectedGraph.getMaybe(rootPtr.value);
   subs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
   if (root != null) walkDescendants(root, -1);
-
   expandedNodes.value = items;
 }
-watch([rootPtr, toRef(props, "focus"), toRef(props, "expansion")], updateExpandedNodes, {
+watch(() => [rootPtr.value, props.focus, props.expansion], updateExpandedNodes, {
   immediate: true,
 });
 
@@ -145,15 +146,19 @@ function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenc
   } else if (typeof anchor == "number") {
     toFocus = expandedNodes.value[anchor];
   }
-  if (toFocus != null) _doFocus(toFocus.node);
+  if (toFocus != null) doFocus(toFocus.node);
   else queryRef.value?.focus();
 }
 
-function _doFocus(node: AnyNodeData | NodeReferenceData) {
+function doFocus(node: AnyNodeData | NodeReferenceData) {
   const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
   spaceConnection.tx.update(selfNode, { focus: makeSelection([node]) });
+  focusInComponent(node.id!);
+}
+
+function focusInComponent(nodeId: string) {
   queryRef.value?.focus();
-  expandedNodesRefs[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
+  expandedNodesRefs[nodeId]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 function clear() {
@@ -205,13 +210,13 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       }
     },
   },
+  // <!-- nocheckin :Incomplete: explorer/outline actions -->
 };
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
-  <!-- nocheckin :Incomplete: explorer/outline -->
   <Scroll
     :size="size"
     :orientation="Orientation.VERTICAL"
@@ -253,13 +258,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"
         @click.stop="fire(node)"
+        v-contextmenu="(context: MenuContext) => (doFocus(node), {items: menuActionsLike({wildcard: ['common.sense.*','common.edit.*']}), context: {...context, triggerNode: node}})"
       >
         <!-- Expand button (or placeholder) -->
         <button
           v-if="canExpand"
           class="group mr-1 w-5 rounded-md hover:bg-gray-200 hover:text-primary-900"
           :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
-          @click.stop="toggleExpanded(node), _doFocus(node)"
+          @click.stop="toggleExpanded(node), doFocus(node)"
         >
           <i
             class="fas fa-chevron-right dxuration-75 transition-transform"

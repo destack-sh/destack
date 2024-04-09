@@ -637,7 +637,8 @@ export function setupTransactionManagement() {
   if (_setupTransactionManagement) return;
   _setupTransactionManagement = true;
   // commit periodically
-  setInterval(() => flushTransactionBuffers({ force: false }), 1000);
+  // TODO :UX: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
+  setInterval(() => flushTransactionBuffers({ force: false }), 250);
   // commit on user change
   watch(toValueRef(userPtr), () => flushTransactionBuffers({ force: false }));
   // commit before exit

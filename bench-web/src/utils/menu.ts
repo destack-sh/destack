@@ -126,9 +126,9 @@ let contextMenuId = 0;
 export function createContextMenu(
   trigger: HTMLElement,
   reference: { x: number; y: number },
+  container: HTMLElement | SVGElement | undefined,
   info: ContextMenuInfo | ((ctx: MenuContext) => ContextMenuInfo),
 ): ContextMenuInstance {
-  const container = findFloatingContainer(trigger) ?? undefined;
   const triggerNode = canvas.findViewData(trigger) ?? undefined;
   const context: MenuContext = { triggerElement: trigger, triggerNode };
   const currentInfo: ContextMenuInfo = {
@@ -160,7 +160,7 @@ export const CONTEXTMENU_DIRECTIVE: Directive<MaybeElement, ContextMenuInfo | ((
         e.preventDefault();
         e.stopPropagation();
         const reference = { x: e.clientX, y: e.clientY };
-        createContextMenu(triggerEl, reference, binding.value);
+        createContextMenu(triggerEl, reference, undefined, binding.value);
       };
       triggerEl.addEventListener("contextmenu", triggerEl.contextMenuOnContextMenu);
     },

@@ -68,6 +68,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.logs",
   "space.launch.discord",
   "space.launch.notifications",
+  "space.edit.inspect",
   "space.edit.create",
   // common
   "common.create.link",
@@ -81,8 +82,8 @@ export const ACTION_BUILTIN_IDS = [
   "common.create.query",
   "common.create.view",
   "common.create.step",
-  "common.edit.undo",
-  "common.edit.redo",
+  "common.history.undo",
+  "common.history.redo",
   "common.edit.delete",
   "common.edit.copy",
   "common.edit.cut",
@@ -430,13 +431,13 @@ watch(
 // declare common actions
 declareActionMap<"common">({
   // edit
-  "common.edit.undo": {
+  "common.history.undo": {
     icon: "fas fa-arrow-turn-left",
     title: "Undo",
     text: "Undo the last action or edit",
     shortcuts: ["mod+z"],
   },
-  "common.edit.redo": {
+  "common.history.redo": {
     icon: "fas fa-arrow-turn-right",
     title: "Redo",
     text: "Redo the last undone action or edit",
@@ -619,7 +620,7 @@ declareActionMap<"common">({
     title: "Go to Definition",
     text: "Go to definition of the current node",
     shortcuts: ["mod+b"],
-  },
+  }, 
   "common.sense.findReferences": {
     icon: "fas fa-turn-down-left",
     title: "Find References",
@@ -941,7 +942,7 @@ contributeActionMap<"developer">({
 // space actions
 contributeActionMap<"space">({
   "space.launch.inspector": {
-    title: "Inspect Node",
+    title: "View Inspector",
     text: "Open the Inspector View",
     icon: "fas fa-eye",
     action: () => {
@@ -1005,6 +1006,12 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   // edit
+  "space.edit.inspect": {
+    title: "Inspect Node",
+    text: "Inspect a selected node",
+    icon: "fas fa-eye-dropper",
+    action: ACTION_COMING_SOON,
+  },
   "space.edit.create": {
     title: "Create Space",
     text: "Create a new separate Space",
