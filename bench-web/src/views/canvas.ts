@@ -250,7 +250,7 @@ export class ViewCanvas {
         : toNodeReference(inspect.node as AnyNodeData);
     if (inspectionPtr.value?.id != nodeRef.id) {
       const space = this.graph.getOrFail(this.spacePtr.value!);
-      tx.update(space, { inspectionPtr: nodeRef });
+      tx.updateDebounced(space, { inspectionPtr: nodeRef });
     }
 
     // open inspector
@@ -278,7 +278,7 @@ export class ViewCanvas {
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     while (parent?.metatype == BenchType.VIEW || parent?.metatype == BenchType.SPACE) {
-      tx.update(parent, { focus: makeSelection([child]) });
+      tx.updateDebounced(parent, { focus: makeSelection([child]) });
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
     }
@@ -286,7 +286,7 @@ export class ViewCanvas {
     // reset focus 'down' from view
     if (focus.clearDown) {
       const descendants = this.graph.getDescendants(child, [NodeType.VIEW]) as ViewData[];
-      descendants.filter((v) => v.focus != null).forEach((v) => tx.update(v, { focus: undefined }));
+      descendants.filter((v) => v.focus != null).forEach((v) => tx.updateDebounced(v, { focus: undefined }));
     }
   }
 

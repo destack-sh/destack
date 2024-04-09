@@ -1,6 +1,5 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType, type AnyNodeData } from "@/proto/wire";
-import { describeNode } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -9,9 +8,9 @@ import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
-import { toValueRef } from "@/utils/ref";
-import { makeSelection, collapseSelection, expandSelection } from "@/views/canvas";
+import { menuActionsLike, type MenuContext } from "@/utils/menu";
+import { manualSubRef, toValueRef } from "@/utils/ref";
+import { collapseSelection, expandSelection, makeSelection } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
@@ -60,23 +59,18 @@ const { graph: inspectedGraph, connection: inspectedConnection } = useExistingCo
 //
 
 type NodeTreeItem = { node: AnyNodeData; depth: number; isFocusedAbsolute: boolean; canExpand: boolean };
-const expandedNodes: Ref<NodeTreeItem[]> = ref([]);
 const expandedNodesRefs: Record<string, HTMLElement> = {};
 
 const _expandedNodesSubs: Array<() => void> = [];
-function updateExpandedNodes(): void {
-  // unsub
-  const subs = _expandedNodesSubs;
-  subs.forEach((sub) => sub());
-  subs.length = 0;
-
-  if (rootPtr.value == null) {
-    expandedNodes.value = [];
-    return;
-  }
+const _expandedNodesUnsub = () => {
+  _expandedNodesSubs.forEach((sub) => sub());
+  _expandedNodesSubs.length = 0;
+};
+function getExpandedNodes(): NodeTreeItem[] {
+  _expandedNodesUnsub();
+  if (rootPtr.value == null) return [];
 
   const items: NodeTreeItem[] = [];
-
   function walkDescendants(node: AnyNodeData, depth: number) {
     const children = nodeTypes.value.flatMap((type) => inspectedGraph.getChildren(node, type));
     const item = { node, depth, isFocusedAbsolute: false, canExpand: children.length > 0 };
@@ -86,19 +80,21 @@ function updateExpandedNodes(): void {
     if (depth < 0 || isExpanded(node)) {
       children.forEach((child) => walkDescendants(child, depth + 1));
       nodeTypes.value.forEach((nodeType) =>
-        subs.push(inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true })),
+        _expandedNodesSubs.push(
+          inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true }),
+        ),
       );
     }
   }
 
   const root = inspectedGraph.getMaybe(rootPtr.value);
-  subs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
+  _expandedNodesSubs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
   if (root != null) walkDescendants(root, -1);
-  expandedNodes.value = items;
+
+  return items;
 }
-watch(() => [rootPtr.value, props.focus, props.expansion], updateExpandedNodes, {
-  immediate: true,
-});
+const { ref: expandedNodes, trigger: updateExpandedNodes } = manualSubRef(getExpandedNodes, _expandedNodesUnsub);
+watch(() => [rootPtr.value, props.focus, props.expansion], updateExpandedNodes);
 
 const focusedNode = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
@@ -116,11 +112,11 @@ const focusedNode = computed(() => {
 function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
   const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
   if (isExpanded(node)) {
-    spaceConnection.tx.update(selfNode, {
+    spaceConnection.tx.updateDebounced(selfNode, {
       expansion: collapseSelection(selfNode.expansion!, [node]),
     });
   } else {
-    spaceConnection.tx.update(selfNode, {
+    spaceConnection.tx.updateDebounced(selfNode, {
       expansion: expandSelection(selfNode.expansion, [node]),
     });
   }
@@ -152,7 +148,7 @@ function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenc
 
 function doFocus(node: AnyNodeData | NodeReferenceData) {
   const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
-  spaceConnection.tx.update(selfNode, { focus: makeSelection([node]) });
+  spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
   focusInComponent(node.id!);
 }
 
@@ -250,7 +246,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
         v-for="({ node, depth, isFocusedAbsolute: isItemFocusedAbsolute, canExpand }, i) in expandedNodes"
         :key="node.id"
-        class="group mx-1 flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:bg-primary-50 hover:text-primary-900"
+        class="group mx-1 flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-300' : 'border-transparent',
           isItemFocusedAbsolute ? 'bg-gray-100' : '',
@@ -263,7 +259,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Expand button (or placeholder) -->
         <button
           v-if="canExpand"
-          class="group mr-1 w-5 rounded-md hover:bg-gray-200 hover:text-primary-900"
+          class="group mr-1 w-5 rounded-md hover:bg-primary-200 hover:text-primary-900"
           :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
           @click.stop="toggleExpanded(node), doFocus(node)"
         >

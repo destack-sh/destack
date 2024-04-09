@@ -29,7 +29,7 @@ import { nonce, origin, userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { toaster } from "@/system/toast";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEBUG } from "@/utils/globals";
+import { IS_DEBUG, TRANSACTION_FLUSH_INTERVAL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
@@ -62,20 +62,26 @@ export type Transaction = {
   ): NodeTypeMapping[T];
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
-  /**
-   * Update regular properties in this node. If we already have an update for this node, update it.
-   */
+
+  /** Update regular properties in this node. v*/
   update<T extends AnyNodeData>(
     node: T,
     update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
     options?: { debounce?: boolean },
   ): void;
+  /** Convenience debounced update. */
+  updateDebounced<T extends AnyNodeData>(
+    node: T,
+    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
+  ): void;
   /** Move node between parents */
   move(node: AnyNodeData): void;
+
   /** Archive node (incl. descendants) */
   archive(node: AnyNodeData): void;
   /** Restore node from archive (incl. descendants) */
   unarchive(node: AnyNodeData): void;
+
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
   softDelete(node: AnyNodeData): void;
   /** Restore node from soft delete */
@@ -181,7 +187,7 @@ export class TransactionBuilder implements Transaction {
   }
 
   upsert(node: AnyNodeData) {
-    this._addEdit(EditType.UPSERT, node);
+    this._addEdit(EditType.UPSERT, { ...node });
   }
 
   update<T extends AnyNodeData>(
@@ -244,28 +250,32 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
+  updateDebounced<T extends AnyNodeData>(node: T, update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[]) {
+    this.update(node, update, { debounce: true });
+  }
+
   move(node: AnyNodeData) {
-    this._addEdit(EditType.MOVE, node);
+    this._addEdit(EditType.MOVE, { ...node });
   }
 
   archive(node: AnyNodeData) {
-    this._addEdit(EditType.ARCHIVE, node);
+    this._addEdit(EditType.ARCHIVE, { ...node });
   }
 
   unarchive(node: AnyNodeData) {
-    this._addEdit(EditType.UNARCHIVE, node);
+    this._addEdit(EditType.UNARCHIVE, { ...node });
   }
 
   softDelete(node: AnyNodeData) {
-    this._addEdit(EditType.SOFT_DELETE, node);
+    this._addEdit(EditType.SOFT_DELETE, { ...node });
   }
 
   restore(node: AnyNodeData) {
-    this._addEdit(EditType.RESTORE, node);
+    this._addEdit(EditType.RESTORE, { ...node });
   }
 
   delete(node: AnyNodeData) {
-    this._addEdit(EditType.DELETE, node);
+    this._addEdit(EditType.DELETE, { ...node });
   }
 }
 
@@ -638,7 +648,15 @@ export function setupTransactionManagement() {
   _setupTransactionManagement = true;
   // commit periodically
   // TODO :UX: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
-  setInterval(() => flushTransactionBuffers({ force: false }), 250);
+  let flushInterval: any | null = null;
+  watch(
+    TRANSACTION_FLUSH_INTERVAL,
+    () => {
+      if (flushInterval) clearInterval(flushInterval);
+      flushInterval = setInterval(() => flushTransactionBuffers({ force: false }), TRANSACTION_FLUSH_INTERVAL.value);
+    },
+    { immediate: true },
+  );
   // commit on user change
   watch(toValueRef(userPtr), () => flushTransactionBuffers({ force: false }));
   // commit before exit
