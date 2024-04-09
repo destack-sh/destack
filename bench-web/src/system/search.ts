@@ -1,5 +1,5 @@
 import type { AnyNodeData, BenchType, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getNodeTypeIcon } from "@/system/lang";
@@ -61,7 +61,9 @@ const HIDDEN_UNNAMED = ` \\ `;
 export function graphIndex(toIndex: {
   graph: ReadNodeGraph;
   metatypes: NodeType[];
+  roots?: AnyNodeData[];
   filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  skipDepth?: number;
   maxDepth?: MaybeRef<number>;
 }): SearchIndex<NodeItem> {
   const maxDepthRef = toRef(toIndex.maxDepth) as Ref<number | undefined>;
@@ -71,13 +73,13 @@ export function graphIndex(toIndex: {
   function walkGraph(node: AnyNodeData, ancestors: NodeItem[]): NodeItem[] {
     // title is composed of nodes in path
     const pathParts = [];
-    for (let i = ancestors.length - 1; i >= 0; i--) {
-      const ancestor = ancestors[i];
-      pathParts.push((ancestor as any).title ?? (ancestor as any).name);
+    for (let i = ancestors.length - 1 - (toIndex.skipDepth ?? 0); i >= 0; i--) {
+      pathParts.push(ancestors[i].title);
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
     const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR); // lengths must match for highlighting
     const ref = toNodeReference(node);
+
     if (ref.id == null) throw new Error(`node has no id: ${node}`);
 
     // make item
@@ -94,7 +96,8 @@ export function graphIndex(toIndex: {
     const items = [];
     if (
       toIndex.metatypes.includes(node.metatype as unknown as NodeType) &&
-      (toIndex.filter == null || toIndex.filter(node, ancestors))
+      (toIndex.filter == null || toIndex.filter(node, ancestors)) &&
+      (toIndex.skipDepth == null || ancestors.length >= toIndex.skipDepth)
     )
       items.push(item);
 
@@ -112,7 +115,7 @@ export function graphIndex(toIndex: {
   const index: SearchIndex<NodeItem> = {
     candidates: () => {
       const candidates: NodeItem[] = [];
-      const roots = toIndex.graph.roots;
+      const roots = toIndex.roots ?? toIndex.graph.roots;
       for (const root of roots) {
         candidates.push(...walkGraph(root, []));
       }

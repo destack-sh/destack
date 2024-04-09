@@ -19,7 +19,7 @@ import Dock from "@/views/private/Dock.vue";
 import Menu from "@/views/private/Menu.vue";
 import Popover from "@/views/private/Popover.vue";
 import { useElementSize, useFps, useMemory } from "@vueuse/core";
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   box: { x: number; y: number; width: number; height: number };
@@ -63,7 +63,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
-      action: { items: menuActionsLike({ prefix: ["common.edit", "common.move", "common.search"] }) },
+      action: { items: menuActionsLike({ prefix: ["common.history", "common.edit", "common.move", "common.search"] }) },
     },
     {
       id: "sense",

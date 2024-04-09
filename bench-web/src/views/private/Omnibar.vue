@@ -2,9 +2,10 @@
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
+import { packagePtr, spacePtr } from "@/system/client";
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
-import { bench, spaceGraph, canvas } from "@/system/space";
+import { bench, spaceGraph, canvas, pkgGraph, space } from "@/system/space";
 import { nowOrNextTick } from "@/utils/functools";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
@@ -36,10 +37,12 @@ const indices = computed(() => {
   if (["everywhere", "actions"].includes(m)) indices["actions"] = actionIndex();
 
   // views
-  if (["everywhere", "space", "views"].includes(m))
+  if (space.value != null && ["everywhere", "space", "views"].includes(m))
     indices["views"] = graphIndex({
       graph: spaceGraph,
       metatypes: [NodeType.VIEW],
+      roots: [space.value],
+      skipDepth: 1, 
       // only tabs for now
       filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
     });
@@ -48,8 +51,10 @@ const indices = computed(() => {
   // NOTE: we only search package if we have a query for :Performance
   if (!isQueryEmpty.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["package"] = graphIndex({
-      graph: spaceGraph,
-      metatypes: [NodeType.BLOCK, NodeType.FIELD],
+      graph: pkgGraph,
+      metatypes: [NodeType.BLOCK],
+      roots: [spaceGraph.getOrFail(packagePtr.value!)],
+      skipDepth: 1,
     });
 
   return indices;
