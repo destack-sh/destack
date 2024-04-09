@@ -8,6 +8,7 @@ import {
   BlockType,
   BlockData,
   BenchType,
+  type AnyNodeData,
 } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import { isDeveloperMode, packagePtr } from "@/system/client";
@@ -35,7 +36,7 @@ import { graphConnections } from "@/system/connection";
 import { flushTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
 import { generateKeyBetween } from "@/utils/fractional";
-import { toNodeReference } from "@/proto/wiring";
+import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 
 // :OmnibarModes
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
@@ -171,7 +172,13 @@ export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_
 export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
-export type ActionCallable = (action: Action) => void | boolean | Promise<void> | Promise<boolean>;
+export type ActionContext = {
+  triggerNode?: AnyNodeData | AnyNodeReferenceData;
+};
+export type ActionCallable = (
+  action: Action,
+  context?: ActionContext,
+) => void | boolean | Promise<void> | Promise<boolean>;
 export type ActionKind = "static" | "virtual";
 export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
   toaster.debug({ title: "Coming soon", text: `"${toValue(action.title)}" is not yet available.`, icon: action.icon });
@@ -310,13 +317,13 @@ function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement 
   return null;
 }
 
-export function fireActionById(id: ActionBuiltinId) {
+export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
   const action = getAction(id);
-  fireAction(action);
+  fireAction(action, canvas.focusedViewComponents, context);
 }
 
 /** Triggers the bound action from a keyboard event. */
-export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
+export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: ActionContext): boolean {
   if (action.enabled != null && !action.enabled.value) {
     log.debug("action.disabled", action.id);
     return false;
@@ -327,7 +334,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
     return false;
   }
   const chain = collectViewComponentsUp(e.target as HTMLElement);
-  return fireAction(action, chain);
+  return fireAction(action, chain, context);
 }
 
 /**
@@ -344,12 +351,16 @@ export function isActionImplemented(action: Action, context: ViewComponent[]): b
 }
 
 /** Triggers the bound action from a given view (as starting point). */
-export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents) {
+export function fireAction(
+  action: Action,
+  viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
+  context?: ActionContext,
+) {
   if (action.enabled != null && !action.enabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly
     log.info("action.static", action.id);
-    const ret = action.action(action);
+    const ret = action.action(action, context);
     return typeof ret === "boolean" ? ret : true;
   } else if (action.kind == "virtual") {
     // virtual: find first component implementing that action
@@ -357,7 +368,7 @@ export function fireAction(action: Action, viewsInOrder: ViewComponent[] | null 
       const impl = view.exposed?.actions?.[action.id];
       if (impl != null && (impl.enabled == null || impl.enabled.value == true)) {
         log.info("action.virtual", action.id);
-        const ret = impl.action(action);
+        const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
         /** else: keep searching up */
       }

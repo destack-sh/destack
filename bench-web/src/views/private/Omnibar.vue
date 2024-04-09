@@ -13,7 +13,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const PANEL_WIDTH = 600;
-const PANEL_MAX_HEIGHT = 400;
+const PANEL_MAX_HEIGHT = 420;
 const PANEL_HEADER_HEIGHT = 38;
 const DEFAULT_ACTION_ICON = makeIcon({ name: "fas fas fa-arrow-right" });
 
@@ -54,7 +54,7 @@ const indices = computed(() => {
 
   return indices;
 });
-const { candidates, results, updateCandidates } = useSearch({ query, enabled: isActive, indices });
+const { candidates, results, resultsTotal, updateCandidates } = useSearch({ query, enabled: isActive, indices });
 const resultsRefs: Record<string, HTMLElement | null> = {};
 const showResultCategory = computed(() => query.value.length === 0);
 
@@ -254,7 +254,7 @@ defineExpose({ isActive, open });
           >
             <!-- Results -->
             <ul v-if="results.length > 0" class="flex w-full select-none flex-col px-2 py-1 text-gray-900">
-              <template v-for="(result, i) in results" :key="result.id">
+              <template v-for="(result, i) in results" :key="i">
                 <!-- Category -->
                 <div
                   v-if="showResultCategory && (i === 0 || results[i - 1].category !== result.category)"
@@ -298,11 +298,22 @@ defineExpose({ isActive, open });
                 </li>
               </template>
             </ul>
+            <!-- Too many results (truncated) -->
+            <div v-if="results.length < resultsTotal" class="my-1 px-5 pb-2 text-gray-500">
+              <i class="fas fas fa-ellipsis" />
+              <span class="ml-2.5">
+                <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results for
+                <span class="font-semibold">{{ query }}</span>
+                (showing {{ results.length }})
+              </span>
+            </div>
             <!-- Help -->
-            <div v-if="results.length == 0" class="my-1 px-2 py-1">
+            <!-- NOTE: the horizontal spacing of 'too many' and 'no results' is intentionally different
+               to align with the results & input respectively -->
+            <div v-else-if="results.length == 0" class="my-1 px-2 py-1">
               <!-- Nothing found -->
-              <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
-                <i class="fas fa-face-monocle text-gray-600" />
+              <div v-if="results.length === 0" class="px-2.5 py-1 text-gray-500">
+                <i class="fas fa-empty-set text-gray-600" />
                 <span class="ml-1">
                   No results
                   <span v-if="query">
