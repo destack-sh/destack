@@ -1086,7 +1086,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         # pointer id/cks
         for stored_prop in prop.reference_stored_ptrs:
             ids = row.get(stored_prop.name)
-            for id in ids:
+            for id in ids or ():
                 ptr = NodeReferenceData(
                     metatype=wire.StructType.NODE_REFERENCE,
                     id=str(id),

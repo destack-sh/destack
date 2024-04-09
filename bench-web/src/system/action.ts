@@ -917,12 +917,11 @@ contributeActionMap<"developer">({
     title: "Add Random Blocks",
     text: "Add some random blocks to the space",
     action: () => {
-      const n = 20;
       const tx = pkgConnection.tx;
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
       );
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < 10; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);
