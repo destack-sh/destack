@@ -725,7 +725,9 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             EditType.CREATE,
             EditType.UPSERT,
             EditType.SOFT_DELETE,
+            EditType.RESTORE,
             EditType.ARCHIVE,
+            EditType.UNARCHIVE,
             EditType.DELETE,
         )
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),

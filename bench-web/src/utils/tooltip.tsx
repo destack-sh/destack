@@ -128,10 +128,11 @@ function destroyTooltip(instance: TooltipInstance) {
 }
 
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
-export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
+export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo | (() => TooltipInfo)> = {
   mounted(el, binding) {
     const triggerEl = el as TooltipTriggerElement;
-    const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = binding.value;
+    const info = typeof binding.value === "function" ? binding.value() : binding.value;
+    const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = info;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
       if (e.target == triggerEl) {
@@ -139,7 +140,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
         const container = findFloatingContainer(triggerEl) ?? undefined;
         if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
         triggerEl.tooltipShowTimeout = window.setTimeout(() => {
-          triggerEl.tooltipInstance = createTooltip(triggerEl, binding.value, container);
+          triggerEl.tooltipInstance = createTooltip(triggerEl, info, container);
         }, showDelay);
       } else if (triggerEl.tooltipInstance != null) {
         // some part of the tooltip is hovered, so cancel the hide timeout
@@ -159,7 +160,8 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   updated(el, binding) {
     const tooltipEl = el as TooltipTriggerElement;
     if (tooltipEl.tooltipInstance != null) {
-      tooltipEl.tooltipInstance.info = binding.value;
+      const info = typeof binding.value === "function" ? binding.value() : binding.value;
+      tooltipEl.tooltipInstance.info = info;
     }
   },
 

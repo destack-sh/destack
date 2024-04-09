@@ -250,29 +250,27 @@ def pack_node_graph(root: Node, exclude: set[NodeType] = None) -> tuple[NodeData
     return packed_by_id[root.id], list(packed_by_id.values())
 
 
-def unpack_nodes_graph(
+def unpack_node_graph(
     data_graph: NodeDataGraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
-    roots: Collection[NodeReferenceData] = None,
-) -> tuple[Node, ...] | list[Node]:
-    """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
+) -> NodeGraph:
+    """Unpacks the node data(s) into a node graph."""
 
     parent_id = parent.id if parent is not None else None
     exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
     source_roots = data_graph.find_roots()
+    unpacked_graph = NodeGraph()
+
     for root_data in source_roots:
-        root_data_graph = NodeDataGraph()
-        unpacked_graph = NodeGraph()
         # unpack all nodes top down (breadth first)
         for node_data in chain(
             (root_data,), data_graph.iter_descendants(root_data, recursive=True)
         ):
             if node_data.metatype in exclude:
                 continue
-            root_data_graph.add(node_data)
             node_parent_id: UUID | None = (
                 to_uuid(node_data.parent_ptr.id) if node_data.parent_ptr is not None else None
             )
@@ -295,12 +293,13 @@ def unpack_nodes_graph(
 
             unpacked_graph.add(node)
 
-        # index & recover node lists
-        root = unpacked_graph.find_root()
+    # index & recover node lists
+    for source_root in source_roots:
+        root = unpacked_graph.get(to_uuid(source_root.id))
         if root is None:
-            raise ValueError(f"no root found in {unpacked_graph!r}")
+            raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
-        root._data_graph = root_data_graph
+        root._data_graph = data_graph
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = InterpStatus.SOURCE
@@ -311,18 +310,31 @@ def unpack_nodes_graph(
                 node._track_self(session)
         unpacked_roots.append(root)
 
+    return unpacked_graph
+
+
+def unpack_roots(
+    data_graph: NodeDataGraph,
+    parent: Node | None = None,
+    session: Session | None = None,
+    exclude: set[NodeType] = None,
+    roots: Collection[NodeReferenceData] = None,
+) -> tuple[Node, ...] | list[Node]:
+    """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
+
+    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude)
+
     if roots:
         # recover roots if specified (may not be actual roots)
         recovered_roots = []
         for root in roots:
-            for found_root in unpacked_roots:  # somewhat inefficient...
-                recovered = found_root._root_graph.get(to_uuid(root.id))
-                if recovered is not None:
-                    recovered_roots.append(recovered)
-                    break
+            recovered = node_graph.get(to_uuid(root.id))
+            if recovered is not None:
+                recovered_roots.append(recovered)
+                break
         return recovered_roots
     else:
-        return unpacked_roots
+        return node_graph.find_roots()
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:

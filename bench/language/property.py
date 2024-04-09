@@ -22,7 +22,7 @@ from bench.language.const import (
 )
 from bench.language.graph import InMemoryGraphNodeList, NodeList, ValueList
 from bench.language.setup import BENCH_CLASSES_BY_NAME, STRUCT_CLASS_BY_TYPE, _on_completing_setup
-from bench.language.validation import PropertyValidationHandler
+from bench.language.validation import PropertyValidationHandler, parent_validator
 from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
 from bench.utils.utils import frozendict
@@ -64,7 +64,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
-    custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
+    custom_validate: Callable[
+        ["Property", Any, "PropertyValidationHandler"], bool | None
+    ] | None = None
 
     # flags
     is_list: bool = UNSET
@@ -725,7 +727,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def validate(self, value: Any, on_notice: "PropertyValidationHandler") -> bool | None:
         """Validates a non-None value of this property"""
         if self.custom_validate is not None:
-            return self.custom_validate(value, on_notice)
+            return self.custom_validate(self, value, on_notice)
         else:
             return None
 
@@ -841,6 +843,7 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False):
         is_stored=False,
         is_list=False,
         is_system=is_system,
+        custom_validate=parent_validator(),
     )
 
 

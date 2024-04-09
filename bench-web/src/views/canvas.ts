@@ -9,6 +9,8 @@ import {
   StructType,
   ViewData,
   ViewType,
+  type AnyNodeData,
+  SelectionData,
 } from "@/proto/wire";
 import {
   copyNode,
@@ -247,13 +249,7 @@ export class ViewCanvas {
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     while (parent?.metatype == BenchType.VIEW || parent?.metatype == BenchType.SPACE) {
-      tx.update(parent, {
-        focus: {
-          metatype: BenchType.SELECTION,
-          kind: SelectionKind.LIST,
-          nodesPtr: [toNodeReference(child)],
-        },
-      });
+      tx.update(parent, { focus: makeSelection([child]) });
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
     }
@@ -500,9 +496,10 @@ export class ViewCanvas {
    * If it's a view node, we focus it in the space graph (it must exist).
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
-  goToNode(node: NodeReferenceData, options?: {}) {
-    if (node.type == NodeType.VIEW) {
-      this.focus(this.txFactory(), { view: node });
+  goToNode(node: AnyNodeData | NodeReferenceData, options?: {}) {
+    const nodeRef = node.metatype == BenchType.NODE_REFERENCE ? node as NodeReferenceData : toNodeReference(node as AnyNodeData);
+    if (nodeRef.type == NodeType.VIEW) {
+      this.focus(this.txFactory(), { view: nodeRef });
     } else {
       throw new Error("not yet implemented");
     }
@@ -784,4 +781,42 @@ export function setupDefaultCanvas(
   });
 
   return { side, primary, secondary };
+}
+
+export function makeSelection(nodes: (AnyNodeData | NodeReferenceData)[]): SelectionData {
+  return {
+    metatype: BenchType.SELECTION,
+    kind: SelectionKind.LIST,
+    nodesPtr: nodes.map((n) =>
+      n.metatype == BenchType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
+    ),
+  };
+}
+
+export function expandSelection(
+  selection: SelectionData | undefined | null,
+  nodes: (AnyNodeData | NodeReferenceData)[],
+): SelectionData {
+  return {
+    ...(selection ?? { metatype: BenchType.SELECTION, kind: SelectionKind.LIST }),
+    nodesPtr: [
+      ...(selection?.nodesPtr ?? []),
+      ...nodes.map((n) =>
+        n.metatype == BenchType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
+      ),
+    ],
+  };
+}
+
+export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData | NodeReferenceData)[]): SelectionData {
+  return {
+    ...selection,
+    nodesPtr: selection.nodesPtr.filter(
+      (n) =>
+        !nodes.some((m) => {
+          if (m.metatype == BenchType.NODE_REFERENCE) return m.id == n.id;
+          else return m.id == n.id;
+        }),
+    ),
+  };
 }

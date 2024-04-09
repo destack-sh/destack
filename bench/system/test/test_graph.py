@@ -8,8 +8,8 @@ import grpclib
 import structlog
 
 from bench.conftest import raises_grpc_error
-from bench.language import Node, Property, User, Text
-from bench.language.const import EditType, NodeType, PrimitiveType, UserStatus, StructType
+from bench.language import Node, Property, Text, User
+from bench.language.const import EditType, NodeType, PrimitiveType, StructType, UserStatus
 from bench.language.transaction import new_edit_id
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -254,7 +254,9 @@ async def test_graph_handle_successive_updates(supervisor: SupervisorStub):
     )
 
 
-async def test_graph_create_invalid_node(some_user: UserHandle, supervisor: SupervisorStub):
+async def test_graph_update_node_with_invalid_property(
+    some_user: UserHandle, supervisor: SupervisorStub
+):
     """Update a User property to an invalid value, should be rejected."""
 
     user = some_user.user
