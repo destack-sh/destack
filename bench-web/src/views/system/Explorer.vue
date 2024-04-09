@@ -8,6 +8,7 @@ import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
+import { toValueRef } from "@/utils/ref";
 import { makeSelection, collapseSelection, expandSelection } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -28,13 +29,20 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 
-const rootPtr = computed(() => {
-  if (props.nodePtr != null) return props.nodePtr;
-  else if (props.type == ViewType.EXPLORER) return packagePtr.value;
-  else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
-  else return null;
+const rootPtr = toValueRef(
+  computed(() => {
+    if (props.nodePtr != null) return props.nodePtr;
+    else if (props.type == ViewType.EXPLORER) return packagePtr.value;
+    else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
+    else return null;
+  }),
+);
+const nodeTypes = computed(() => {
+  if (props.type == ViewType.EXPLORER) return [NodeType.BLOCK];
+  else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
+  else return [];
 });
-const { graph, connection } = useExistingConnection(rootPtr, {
+const { graph: inspectedGraph, connection: inspectedConnection } = useExistingConnection(rootPtr, {
   isOptional: true,
   match: {
     predicate: (c) => {
@@ -46,14 +54,55 @@ const { graph, connection } = useExistingConnection(rootPtr, {
 
 //
 // Visible subtree
+// TODO
 //
 
-const rootNodes = graph.getChildrenRef(rootPtr, NodeType.BLOCK, { ignoreAncestors: true });
-const expandedNodes = rootNodes; /* nocheckin */
+type NodeTreeItem = { node: AnyNodeData; depth: number; isFocusedAbsolute: boolean; canExpand: boolean };
+const expandedNodes: Ref<NodeTreeItem[]> = ref([]);
+const expandedNodesRefs: Record<string, HTMLElement> = {};
+
+const _expandedNodesSubs: Array<() => void> = [];
+function updateExpandedNodes(): void {
+  // unsub
+  const subs = _expandedNodesSubs;
+  subs.forEach((sub) => sub());
+  subs.length = 0;
+
+  if (rootPtr.value == null) {
+    expandedNodes.value = [];
+    return;
+  }
+
+  const items: NodeTreeItem[] = [];
+
+  function walkDescendants(node: AnyNodeData, depth: number) {
+    const children = nodeTypes.value.flatMap((type) => inspectedGraph.getChildren(node, type));
+    const item = { node, depth, isFocusedAbsolute: false, canExpand: children.length > 0 };
+
+    if (depth >= 0) items.push(item); // ignore root
+
+    if (isExpanded(node)) {
+      children.forEach((child) => walkDescendants(child, depth + 1));
+      nodeTypes.value.forEach((nodeType) =>
+        subs.push(inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true })),
+      );
+    }
+  }
+
+  const root = inspectedGraph.getMaybe(rootPtr.value);
+  subs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
+  if (root != null) walkDescendants(root, -1);
+
+  expandedNodes.value = items;
+}
+watch([rootPtr, toRef(props, "focus"), toRef(props, "expansion")], updateExpandedNodes, {
+  immediate: true,
+});
+
 const focusedNode = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
-    return expandedNodes.value.find((node) => node.id == focusedId);
+    return expandedNodes.value.find((item) => item.node.id == focusedId)?.node;
   } else {
     return null;
   }
@@ -77,33 +126,34 @@ function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
 }
 
 function isExpanded(node: { id?: string; ck?: string }) {
-  return props.expansion?.nodesPtr?.some((n) => n.id == node.id) ?? false;
-}
-
-function canExpand(node: AnyNodeData) {
-  return true; /* nocheckin */
+  return props.type == ViewType.OUTLINE || props.expansion?.nodesPtr?.some((n) => n.id == node.id);
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenceData): void {
-  let toFocus: AnyNodeData | null = null;
+  let toFocus: NodeTreeItem | null = null;
   if (anchor == "top") {
     toFocus = expandedNodes.value[0];
   } else if (anchor == "bottom") {
     toFocus = expandedNodes.value[expandedNodes.value.length - 1];
   } else if (anchor == "previous") {
-    const idx = expandedNodes.value.indexOf(focusedNode.value!);
+    const idx = expandedNodes.value.findIndex((item) => item.node.id == focusedNode.value?.id);
     if (idx > 0) toFocus = expandedNodes.value[idx - 1];
   } else if (anchor == "next") {
-    const idx = expandedNodes.value.indexOf(focusedNode.value!);
+    const idx = expandedNodes.value.findIndex((item) => item.node.id == focusedNode.value?.id);
     if (idx < expandedNodes.value.length - 1) toFocus = expandedNodes.value[idx + 1];
   } else if (typeof anchor == "number") {
     toFocus = expandedNodes.value[anchor];
   }
-  if (toFocus != null) {
-    const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
-    spaceConnection.tx.update(selfNode, { focus: makeSelection([toFocus]) });
-  }
+  if (toFocus != null) _doFocus(toFocus.node);
+  else queryRef.value?.focus();
+}
+
+function _doFocus(node: AnyNodeData | NodeReferenceData) {
+  const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
+  spaceConnection.tx.update(selfNode, { focus: makeSelection([node]) });
+  queryRef.value?.focus();
+  expandedNodesRefs[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 function clear() {
@@ -136,7 +186,7 @@ watch(
     const { markedResults, bestMatches } = highlightMatches({
       uf,
       query: query.value,
-      candidates: expandedNodes.value.map((item) => item.name ?? ""),
+      candidates: expandedNodes.value.map((item) => (item.node as any).name ?? ""),
     });
     nodeTitleMarked.value = markedResults;
 
@@ -146,14 +196,30 @@ watch(
   { immediate: true },
 );
 
-const actions: Partial<ActionMapImplementation<"common">> = {};
+const actions: Partial<ActionMapImplementation<"common">> = {
+  "common.edit.delete": {
+    enabled: computed(() => focusedNode.value != null),
+    action: () => {
+      if (focusedNode.value != null) {
+        inspectedConnection.tx.softDelete(focusedNode.value);
+      }
+    },
+  },
+};
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
   <!-- nocheckin :Incomplete: explorer/outline -->
-  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.sm" class="bg-white">
+  <Scroll
+    :size="size"
+    :orientation="Orientation.VERTICAL"
+    :track-width="ScrollbarWidth.md"
+    track-is-overlay
+    class="bg-white"
+    @click.stop="queryRef?.focus()"
+  >
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
@@ -176,35 +242,46 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <ul v-if="type == ViewType.EXPLORER || inspectionPtr != null" class="my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
-        v-for="(node, i) in expandedNodes"
+        :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
+        v-for="({ node, depth, isFocusedAbsolute: isItemFocusedAbsolute, canExpand }, i) in expandedNodes"
         :key="node.id"
-        class="group mx-1 flex flex-row items-center rounded-md border px-2 py-0.5 hover:cursor-pointer hover:text-primary-900"
-        :class="focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-700' : 'border-transparent'"
+        class="group mx-1 flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:bg-primary-50 hover:text-primary-900"
+        :class="[
+          focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-300' : 'border-transparent',
+          isItemFocusedAbsolute ? 'bg-gray-100' : '',
+        ]"
+        :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"
-        @click="fire(node)"
+        @click.stop="fire(node)"
       >
-        <!-- Expand button -->
+        <!-- Expand button (or placeholder) -->
         <button
-          class="hover:bg mr-1 w-4 rounded-sm group"
-          @click.stop="toggleExpanded(node)"
-          :disabled="type == ViewType.OUTLINE /* NOTE: Outline is always fully expanded */"
+          v-if="canExpand"
+          class="group mr-1 w-5 rounded-md hover:bg-gray-200 hover:text-primary-900"
+          :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
+          @click.stop="toggleExpanded(node), _doFocus(node)"
         >
           <i
-            class="fas fa-chevron-right text-xs transition-transform duration-75"
-            :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0', focusedNode?.id == node.id ? '' : 'text-gray-400']"
+            class="fas fa-chevron-right transition-transform duration-75"
+            :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0']"
           />
         </button>
         <!-- Icon / title -->
         <IconInline
-          v-bind="node.icon ?? getNodeIcon(node)"
+          v-bind="(node as any).icon ?? getNodeIcon(node)"
           class="mr-1.5"
-          :class="focusedNode?.id == node.id ? 'text-primary-900' : 'text-gray-500 group-hover:text-primary-900'"
+          :class="[
+            isItemFocusedAbsolute ? 'text-primary-900' : 'text-gray-500 group-hover:text-primary-900',
+            canExpand ? '' : 'ml-6',
+          ]"
         />
         <span
           class="select-none truncate"
-          :class="focusedNode?.id == node.id ? 'font-semibold text-primary-900' : 'group-hover:text-primary-900'"
-          v-html="nodeTitleMarked[i] ?? node.name"
+          :class="isItemFocusedAbsolute ? 'font-semibold text-primary-900' : 'group-hover:text-primary-900'"
+          v-html="nodeTitleMarked[i] ?? (node as any).name ?? node.id"
         />
+        <!-- Status/Notices/...? -->
+        <!-- ... -->
       </li>
     </ul>
     <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">

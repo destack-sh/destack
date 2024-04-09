@@ -727,8 +727,8 @@ type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> =
   predicate?: (c: GraphConnectionBase<K, T>) => boolean;
 };
 
-/** Finds an existing connection and acquires it (RC+=1) */
-function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
+/** Finds an existing connection */
+export function findExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
@@ -741,6 +741,17 @@ function acquireExistingConnection<K extends GraphConnectionKind, T extends Node
     // TODO :Broken: find the best connection match somehow :ConnectionMatching
   }
   return matchingConnections[0];
+}
+
+/** Finds an existing connection and acquires it (RC+=1) */
+function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
+  kind: K,
+  params: ConnectionParamsMapping<T>[K],
+  match?: ConnectionMatchOptions<K, T>,
+): GraphConnectionBase<K, T> | null {
+  const connection = findExistingConnection(kind, params, match);
+  if (connection != null) connection.referenceCount++;
+  return connection;
 }
 
 export async function clearConnections(): Promise<void> {

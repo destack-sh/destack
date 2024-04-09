@@ -27,15 +27,16 @@ const containerRef = ref<HTMLElement | null>(null);
 const queryRef = ref<HTMLInputElement | null>(null);
 const selectedResultId: Ref<string | null> = ref(null);
 
+const isQueryEmpty = computed(() => query.value.length === 0);
 const indices = computed(() => {
   const m = mode.value;
   const indices: Record<string, SearchIndex<any>> = {};
 
   // actions
-  if (m == "everywhere" || m == "actions") indices["actions"] = actionIndex();
+  if (["everywhere", "actions"].includes(m)) indices["actions"] = actionIndex();
 
   // views
-  if (m == "everywhere" || m == "space" || m == "views")
+  if (["everywhere", "space", "views"].includes(m))
     indices["views"] = graphIndex({
       graph: spaceGraph,
       metatypes: [NodeType.VIEW],
@@ -44,7 +45,8 @@ const indices = computed(() => {
     });
 
   // package
-  if (m == "everywhere" || m == "bench" || m == "package" || m == "views")
+  // NOTE: we only search package if we have a query for :Performance
+  if (!isQueryEmpty.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["package"] = graphIndex({
       graph: spaceGraph,
       metatypes: [NodeType.BLOCK, NodeType.FIELD],
@@ -274,19 +276,15 @@ defineExpose({ isActive, open });
                   <!-- Content -->
                   <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-700" />
                   <!-- Content (Action) -->
-                  <span v-if="result.metatype == 'action'" class="ml-2">
-                    <!-- Name -->
+                  <span v-if="result.metatype == 'action'" class="ml-2 truncate">
                     <span v-html="result.titleMarked ?? result.title" />
-                    <!-- Path -->
                     <span v-if="!showResultCategory" class="ml-1.5 text-gray-500">
                       <span v-html="result.pathMarked ?? result.path" />
                     </span>
                   </span>
                   <!-- Content (Node) -->
-                  <span v-else-if="result.metatype == 'node'" class="ml-2">
-                    <!-- Name -->
+                  <span v-else-if="result.metatype == 'node'" class="ml-2 truncate">
                     <span v-html="result.titleMarked ?? result.title" />
-                    <!-- Path -->
                     <span class="ml-1.5 text-gray-500">
                       <span v-html="result.pathMarked ?? result.path" />
                     </span>

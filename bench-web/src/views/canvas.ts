@@ -20,10 +20,12 @@ import {
   toNodeReference,
   typeNodeReferenceMaybe,
   type TypedNodeReferenceData,
+  type SomeNodeReferenceData,
 } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import { ROOT_VIEW_COMPONENT_NAMES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
+import { inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -172,20 +174,22 @@ export class ViewCanvas {
     this.graph = graph;
     this.txFactory = txFactory;
 
-    // respond to uncontrolled input from browser:
+    // respond to 'unmanaged' input from browser
     // active element
     watch(activeElement, () => {
-      if (activeElement.value != null && activeElement.value !== document.body && !isOutsideView(activeElement.value))
+      if (activeElement.value != null && activeElement.value !== document.body && !isOutsideView(activeElement.value)) {
         this.onComponentFocused(activeElement.value);
+      }
     });
     // and 'focus' on any other element
     useEventListener(document, "mousedown", (e) => {
-      if (e.target != null && e.target != activeElement.value && !isOutsideView(e.target as HTMLElement))
+      if (e.target != null && e.target != activeElement.value && !isOutsideView(e.target as HTMLElement)) {
         this.onComponentFocused(e.target as HTMLElement);
+      }
     });
   }
 
-  /** Updates our internal focus in response to a browser event */
+  /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
     const component = element instanceof HTMLElement ? findViewComponent(element) : element;
     const wasDifferent = this.focusedViewComponent.value !== component;
@@ -228,6 +232,26 @@ export class ViewCanvas {
   getViewData(view: SomeView): ViewData | null {
     if (view.metatype == BenchType.VIEW) return view as ViewData;
     else return this.graph.get(view as NodeKey<NodeType.VIEW>) as ViewData | null;
+  }
+
+  /** Inspects the given node */
+  inspect(
+    tx: Transaction,
+    inspect: { node: AnyNodeData | SomeNodeReferenceData<NodeType>; focusInspector?: boolean },
+  ): void {
+    const nodeRef =
+      inspect.node.metatype == BenchType.NODE_REFERENCE
+        ? (inspect.node as NodeReferenceData)
+        : toNodeReference(inspect.node as AnyNodeData);
+    if (inspectionPtr.value?.id != nodeRef.id) {
+      const space = this.graph.getOrFail(this.spacePtr.value!);
+      tx.update(space, { inspectionPtr: nodeRef });
+    }
+
+    // open inspector
+    if (inspect.focusInspector) {
+      this.addView({ type: ViewType.INSPECTOR }, { ifPresent: "focus" });
+    }
   }
 
   /** Focus the given view absolutely in the graph and in the component. */
@@ -281,13 +305,17 @@ export class ViewCanvas {
     }
 
     // if no anchor is given, try to use existing focus state
-    if (anchor == null && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
-      const child = this.getViewData(viewData!.focus!.nodesPtr[0]);
-      if (child != null) {
-        // if we have a focus state we must use it, even if it didn't actually focus in the component
-        //  (so we 'emulate' the focus in the component by calling onComponentFocused directly)
-        if (!this.focusInComponent(child)) this.onComponentFocused(component);
-        return true;
+    if (anchor == null) {
+      if (viewData?.focus?.nodesPtr?.some((n) => n.type == NodeType.VIEW)) {
+        const child = this.getViewData(viewData.focus.nodesPtr.find((n) => n.type == NodeType.VIEW)!);
+        if (child != null) {
+          // if we have a focus state we must use it, even if it didn't actually focus in the component
+          //  (so we 'emulate' the focus in the component by calling onComponentFocused directly)
+          if (!this.focusInComponent(child)) this.onComponentFocused(component);
+          return true;
+        }
+      } else {
+        anchor = viewData?.focus?.nodesPtr?.[0];
       }
     }
 
@@ -497,7 +525,8 @@ export class ViewCanvas {
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
   goToNode(node: AnyNodeData | NodeReferenceData, options?: {}) {
-    const nodeRef = node.metatype == BenchType.NODE_REFERENCE ? node as NodeReferenceData : toNodeReference(node as AnyNodeData);
+    const nodeRef =
+      node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
     if (nodeRef.type == NodeType.VIEW) {
       this.focus(this.txFactory(), { view: nodeRef });
     } else {
