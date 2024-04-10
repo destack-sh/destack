@@ -292,9 +292,9 @@ export function getActionsLike(like: ActionFilter): Action[] {
  * The mask is simply a prefix match.
  */
 export const DEFAULT_SUPPRESSED_ACTIONS: Record<string, string[]> = {
-  input: ["common.navigate", "common.select", "common.move"],
-  textarea: ["common.navigate", "common.select", "common.move"],
-  contenteditable: ["common.navigate", "common.select", "common.move"],
+  input: ["common.edit", "common.navigate", "common.select", "common.move"],
+  textarea: ["common.edit", "common.navigate", "common.select", "common.move"],
+  contenteditable: ["common.edit", "common.navigate", "common.select", "common.move"],
 };
 
 /** Finds an ancestor element suppressing the given action */
@@ -327,11 +327,12 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
   }
   const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
   if (suppressor) {
-    log.debug("action.suppressed", action.id, suppressor);
+    log.trace("action.suppressed", action.id, suppressor);
     return false;
+  } else {
+    const chain = collectViewComponentsUp(e.target as HTMLElement);
+    return fireAction(action, chain, context);
   }
-  const chain = collectViewComponentsUp(e.target as HTMLElement);
-  return fireAction(action, chain, context);
 }
 
 /**
