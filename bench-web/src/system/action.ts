@@ -875,7 +875,13 @@ contributeActionMap<"developer">({
       const tx = pkgConnection.tx;
       const pages: BlockData[] = [];
       const existingRootNames = pkgGraph.getChildren(packagePtr.value!, NodeType.BLOCK).map((b) => b.name);
-      for (const pageName of ["System", "Mirror", "Library", "Applications", "Sandbox"]) {
+      for (const [pageName, icon] of [
+        ["System", "fas fa-gear"],
+        ["Mirror", "fas fa-map"],
+        ["Library", "fas fa-cubes"],
+        ["Applications", "fas fa-compass-drafting"],
+        ["Sandbox", "fas fa-game-board"],
+      ]) {
         if (existingRootNames.includes(pageName)) continue;
         const page = tx.create({
           metatype: NodeType.BLOCK,
@@ -885,6 +891,7 @@ contributeActionMap<"developer">({
           isPage: true,
           name: pageName,
           orderKey: generateOrderKey(pages[pages.length - 1]?.orderKey ?? null, null),
+          icon: makeIcon({ name: icon }),
         });
         pages.push(page);
       }
@@ -934,7 +941,7 @@ contributeActionMap<"space">({
   },
   "space.launch.library": {
     title: "View Library",
-    text: "Get building blocks from the library",
+    text: "Get building blocks from the common library",
     icon: "fas fa-books",
     action: () => {
       canvas.addView({ type: ViewType.LIBRARY, name: "Library", title: "Library" }, { ifPresent: "upsertAndFocus" });

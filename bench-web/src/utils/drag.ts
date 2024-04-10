@@ -1,8 +1,18 @@
-import { NodeType, Orientation, SelectionData, type NodeReferenceData } from "@/proto/wire";
+import {
+  BenchType,
+  NodeType,
+  Orientation,
+  SelectionData,
+  type AnyNodeData,
+  type NodeReferenceData,
+} from "@/proto/wire";
+import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import type { ReadNodeGraph } from "@/system/graph";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import type { AnyNode } from "postcss";
 import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
 // NOTE: for now the drag/drop system is only expected to work within a single bench-web instance
@@ -14,10 +24,12 @@ export type DraggedData =
   | {
       kind: "node";
       node: NodeReferenceData;
+      nodes: AnyNodeData[];
     }
   | {
       kind: "selection";
       selection: SelectionData;
+      nodes: AnyNodeData[];
     }
   | {
       kind: "file"; // native browser file
@@ -28,20 +40,59 @@ export type Dragged = {
   id: string;
 } & DraggedData;
 
-let activeDragged: Dragged | null = null;
+// NOTE: we render the drag image globally in Space
+const dragImageRef = ref<HTMLElement | null>(null);
+
+export function _setDragImage(image: HTMLElement | null) {
+  dragImageRef.value = image;
+}
+
+export const activeDragged: Ref<Dragged | null> = shallowRef(null);
 const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
 const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
 const activeDropZone: Ref<DropZone | null> = ref(null);
 
 /** Start dragging the given thing. Sets 'activeDragged'. */
-export function startDragging(event: DragEvent, data: DraggedData) {
-  // we can't read the value of dataTransfer while dragging so we need all the info in the keys
+export function startDragging(
+  event: DragEvent,
+  graph: ReadNodeGraph,
+  data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedData,
+) {
+  let dragged: Dragged;
+  if ("metatype" in data) {
+    if (data.metatype == BenchType.NODE_REFERENCE) {
+      dragged = {
+        id: uuidt(),
+        kind: "node",
+        node: data as NodeReferenceData,
+        nodes: [graph.getOrFail(data as NodeReferenceData)],
+      };
+    } else if (data.metatype == BenchType.SELECTION) {
+      dragged = {
+        id: uuidt(),
+        kind: "selection",
+        selection: data as SelectionData,
+        nodes: (data as SelectionData).nodesPtr.map((n) => graph.getOrFail(n)),
+      };
+    } else {
+      dragged = {
+        id: uuidt(),
+        kind: "node",
+        node: toNodeReference(data as AnyNodeData),
+        nodes: [data as AnyNodeData],
+      };
+    }
+  } /* DraggedData */ else {
+    dragged = { id: uuidt(), ...data };
+  }
+
   const dt = event.dataTransfer;
   if (!dt) throw new Error(`no dataTransfer on event: ${event}`);
-  const dragged = { id: uuidt(), ...data };
-  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify(dragged));
-  if (activeDragged != null) log.warn("drag.alreadyExists", activeDragged);
-  activeDragged = dragged;
+  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify({ ...dragged, nodes: [] }));
+  dt.setDragImage(dragImageRef.value!, -10, 0);
+
+  if (activeDragged.value != null) log.warn("drag.alreadyExists", activeDragged);
+  activeDragged.value = dragged;
   log.debug("drag.start", dragged);
 }
 
@@ -56,7 +107,7 @@ function getDraggedData(event: DragEvent): DraggedData | null {
     ?.split(".")
     .pop();
   if (draggedId != null) {
-    if (activeDragged?.id == draggedId) return activeDragged;
+    if (activeDragged.value?.id == draggedId) return activeDragged.value;
     else log.warn("drag.notFound", draggedId, activeDragged);
   }
 
@@ -142,7 +193,7 @@ function updateDropZone(event: DragEvent) {
 }
 
 const resetDrag = () => {
-  activeDragged = null;
+  activeDragged.value = null;
   activeDropZone.value = null;
 };
 
@@ -374,7 +425,7 @@ export function useMultiDropZone(
     const activeDropZone = getActiveDropZone();
     if (
       activeDropZone.targetId != null &&
-      options.allowDrop?.(activeDragged!, activeDropZone.anchor, activeDropZone.targetId) === false
+      options.allowDrop?.(activeDragged.value!, activeDropZone.anchor, activeDropZone.targetId) === false
     )
       return null;
     return activeDropZone;

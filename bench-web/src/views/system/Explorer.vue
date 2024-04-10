@@ -344,16 +344,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
         role="treeitem"
         @click.stop="fire(node)"
         :draggable="true"
-        @dragstart="
-          (e: DragEvent) => {
-            startDragging(e, { kind: 'node', node: toNodeReference(node) })
-          }
-        "
+        @dragstart="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
         v-contextmenu="(context: MenuContext) => (doFocus(node), {items: menuActionsLike({wildcard: ['common.sense.*','common.edit.*']}), context: {...context, triggerNode: node}})"
       >
+        <!-- nocheckin: fix Explorer context menu actions sometimes unavailable (try opening context menu twice) -->
         <!-- Drop indicator -->
         <div
-          v-if="(activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center')"
+          v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
           class="absolute z-10 h-1 rounded-sm bg-primary-400"
           :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
           :style="{ left: 8 + depth * DEPTH_OFFSET + 'px', width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)' }"

@@ -2,10 +2,14 @@
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
+import { IconInline } from "@/system/icon";
+import { getNodeIcon } from "@/system/lang";
 import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
+import { _setDragImage, activeDragged } from "@/utils/drag";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
+import { Casing, toCasing } from "@/utils/string";
 import Split from "@/views/containers/Split.vue";
 import Bar from "@/views/private/Bar.vue";
 import MenuOverlay from "@/views/private/MenuOverlay.vue";
@@ -13,7 +17,7 @@ import Omnibar from "@/views/private/Omnibar.vue";
 import ToastOverlay from "@/views/private/ToastOverlay.vue";
 import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch, watchEffect } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -90,7 +94,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       :orientation="Orientation.HORIZONTAL"
       :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
-    <!-- Loading space -->
+    <!-- Loading... -->
     <div
       v-else-if="!spaceConnection.isConnected.value"
       class=""
@@ -103,11 +107,28 @@ watch([canvas.focusedViewPtr, bench], () => {
         <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
       </div>
     </div>
+
     <!-- Overlays -->
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
     <MenuOverlay />
+    <!-- Drag image overlay -->
+    <!-- Wrapper to ensure dragImageRef is always set -->
+    <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
+      <div
+        v-if="activeDragged"
+        class="max-w-32 text-gray-900 rounded-md border border-gray-500 bg-white px-2 py-1 shadow-md shadow-gray-500"
+      >
+        <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
+        <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">
+          <IconInline v-bind="getNodeIcon(activeDragged.nodes[0])" class="mr-1 text-gray-700" />
+          <span class="truncate">
+            {{ (activeDragged.nodes[0] as any).name ?? toCasing(NodeType[activeDragged.node.type], Casing.CAMEL) }}
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <style>
