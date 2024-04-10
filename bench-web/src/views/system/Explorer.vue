@@ -98,6 +98,7 @@ function isIncludedChildren(node: AnyNodeData) {
 
 type NodeTreeItem = { node: AnyNodeData; depth: number; canExpand: boolean };
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
+const DEPTH_OFFSET = 12;
 
 const _expandedNodesSubs: Array<() => void> = [];
 const _expandedNodesUnsub = () => {
@@ -112,19 +113,20 @@ function getExpandedNodes(): NodeTreeItem[] {
   function walkDescendants(node: AnyNodeData, depth: number) {
     // make item
     const children = inspectedNodeTypes.value
-      .flatMap((type) => inspectedGraph.getChildren(node, type))
+      .flatMap((nodeType) => inspectedGraph.getChildren(node, nodeType))
       .filter(isIncludedSelf);
     const item = { node, depth, canExpand: children.length > 0 };
     if (depth >= 0) items.push(item); // ignore root
 
     // descend
+    // NOTE: we need to subscribe one extra 'down' for 'canExpand' above
+    inspectedNodeTypes.value.forEach((nodeType) =>
+      _expandedNodesSubs.push(
+        inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true }),
+      ),
+    );
     if (depth < 0 || isExpanded(node)) {
       children.filter(isIncludedChildren).forEach((child) => walkDescendants(child, depth + 1));
-      inspectedNodeTypes.value.forEach((nodeType) =>
-        _expandedNodesSubs.push(
-          inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true }),
-        ),
-      );
     }
   }
 
@@ -251,7 +253,7 @@ const { activeDropZone } = useMultiDropZone({
   hasCenterAnchor: true,
   kinds: ["node"],
   metatypes: inspectedNodeTypes,
-  allowDrop: (dragged, targetId) => {
+  allowDrop: (dragged, anchor, targetId) => {
     const target = inspectedGraph.getOrFail({ id: targetId });
     return dragged.kind == "node" && target != null && !isAncestryCircular(inspectedGraph, dragged.node, target);
   },
@@ -259,7 +261,7 @@ const { activeDropZone } = useMultiDropZone({
     if (targetId == null) return; // ignore out of target
     if (dragged.kind == "node") {
       const target = inspectedGraph.getOrFail({ id: targetId });
-      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, target, anchor)
+      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, target, anchor);
     }
   },
 });
@@ -338,7 +340,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             ? 'border-primary-400 bg-primary-200'
             : '',
         ]"
-        :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
+        :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"
         @click.stop="fire(node)"
         :draggable="true"
@@ -351,9 +353,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
       >
         <!-- Drop indicator -->
         <div
-          v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-          class="absolute left-0 z-10 h-1 w-full rounded-sm bg-primary-400"
+          v-if="(activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center')"
+          class="absolute z-10 h-1 rounded-sm bg-primary-400"
           :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
+          :style="{ left: 8 + depth * DEPTH_OFFSET + 'px', width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)' }"
         />
         <!-- Expand button (or placeholder) -->
         <button

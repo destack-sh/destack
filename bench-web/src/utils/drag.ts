@@ -299,6 +299,7 @@ export function useSplitDropZone(
   return { activeDropZone };
 }
 
+type MultiAnchor = "start" | "center" | "end";
 /**
  * Track certain drop zone events across dynamic target regions in a single parent container.
  */
@@ -308,22 +309,22 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     defaultToEdge?: boolean;
     hasCenterAnchor?: boolean;
-    allowDrop?: (dragged: DraggedData, targetId: string) => boolean;
-    onDrop?: (dragged: DraggedData, anchor: "start" | "center" | "end", targetId: string | null) => void;
+    allowDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string) => boolean;
+    onDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string | null) => void;
   },
-): { activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> } {
+): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
     ...options,
     orientation: options.orientation,
     onDrop: (dragged) => {
       const { anchor, targetId } = getActiveDropZone()!;
-      if (targetId == null || options.allowDrop?.(dragged, targetId) !== false) {
+      if (targetId == null || options.allowDrop?.(dragged, anchor, targetId) !== false) {
         options.onDrop?.(dragged, anchor, targetId);
       }
     },
   });
 
-  function getActiveDropZone(): { anchor: "start" | "center" | "end"; targetId: string | null } {
+  function getActiveDropZone(): { anchor: MultiAnchor; targetId: string | null } {
     // find directly hit zone
     const cursor = { x: position.x.value, y: position.y.value };
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
@@ -368,10 +369,13 @@ export function useMultiDropZone(
   }
 
   const position = useMouse();
-  const activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> = computed(() => {
+  const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> = computed(() => {
     if (singleDropZone.value == null) return null;
     const activeDropZone = getActiveDropZone();
-    if (activeDropZone.targetId != null && options.allowDrop?.(activeDragged!, activeDropZone.targetId) === false)
+    if (
+      activeDropZone.targetId != null &&
+      options.allowDrop?.(activeDragged!, activeDropZone.anchor, activeDropZone.targetId) === false
+    )
       return null;
     return activeDropZone;
   });

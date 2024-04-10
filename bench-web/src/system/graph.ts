@@ -909,10 +909,7 @@ export function moveNode(
   }
 }
 
-/** Whether an ancestry connection between A and B would be circular in the given graph  */
-export function isAncestryCircular(graph: ReadNodeGraph, a: NodeKey<any>, b: NodeKey<any>): boolean {
-  if (a.id == b.id) return true;
-  if (graph.getAncestors(a).some((n) => n.id == b.id)) return true;
-  if (graph.getAncestors(b).some((n) => n.id == a.id)) return true;
-  return false;
+/** Whether A.parent=B would be circular in the given graph  */
+export function isAncestryCircular(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
+  return graph.getAncestors(parent).some((ancestor) => ancestor.id == child.id);
 }

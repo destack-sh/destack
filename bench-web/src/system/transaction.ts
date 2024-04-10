@@ -205,13 +205,13 @@ export class TransactionBuilder implements Transaction {
     options?: { debounce?: boolean },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as NodeType]!;
-    const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[node.metatype as unknown as BenchType]!;
 
     // map update values
     let propertiesNames: string[];
     if (Array.isArray(update)) {
       propertiesNames = update as string[];
       update = {}; // node is already updated
+      propertiesNames.forEach((propName) => ((update as any)[propName] = (node as any)[propName]));
     } else if (typeof update == "object") {
       propertiesNames = Object.keys(update);
     } else {
