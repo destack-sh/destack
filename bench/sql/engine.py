@@ -1097,7 +1097,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for extra_key, p in prop.reference_stored_extras.items():
-                setattr(ptr, extra_key, row.get(p.name)[i])
+                extra_value = row.get(p.name)[i]
+                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                setattr(ptr, extra_key, extra_value)
             if prop.reference_is_bench_implicit:
                 ptr.bench_id = bench_id
                 if ptr.base_ck:
@@ -1120,7 +1122,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         # additional pointer metadata
         if ptr is not None:
             for extra_key, p in prop.reference_stored_extras.items():
-                setattr(ptr, extra_key, row.get(p.name))
+                extra_value = row.get(p.name)
+                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                setattr(ptr, extra_key, extra_value)
             if prop.reference_is_bench_implicit:
                 ptr.bench_id = bench_id
                 if ptr.base_ck:

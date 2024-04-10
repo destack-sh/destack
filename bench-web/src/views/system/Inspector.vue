@@ -4,6 +4,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";
 import { useExistingConnection } from "@/system/connection";
 import { toRef } from "vue";
+import { describeNode } from "@/proto/wiring";
 
 const props = defineProps<
   { self: NodeReferenceData } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr">
@@ -21,7 +22,7 @@ defineExpose<ViewExposed>({ self });
 <template>
   <div class="h-full w-full bg-white" v-if="inspectedNode">
 		<!-- nocheckin :Incomplete: inspector -->
-    {{ inspectedNode?.id }}
+    inspect:{{ describeNode(inspectedNode) }}
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
     <!-- Empty/missing state -->

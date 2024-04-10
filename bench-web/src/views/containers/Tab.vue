@@ -70,7 +70,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
     const draggedNode = spaceGraph.get(dragged.node) as ViewData;
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
-      canvas.moveView(spaceConnection.tx, spaceGraph, self, draggedNode, anchor, targetId);
+      canvas.moveView(spaceConnection.tx, spaceGraph, self, draggedNode, anchor as "start" | "end", targetId);
       focus(draggedNode);
     }
   },

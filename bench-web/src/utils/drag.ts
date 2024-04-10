@@ -311,9 +311,10 @@ export function useMultiDropZone(
     targets: Ref<Record<string, MaybeElement>>;
     orientation: MaybeRef<Orientation>;
     defaultToEdge?: boolean;
-    onDrop?: (dragged: DraggedData, anchor: "start" | "end", targetId: string | null) => void;
+    hasCenterAnchor?: boolean;
+    onDrop?: (dragged: DraggedData, anchor: "start" | "center" | "end", targetId: string | null) => void;
   },
-): { activeDropZone: Ref<{ anchor: "start" | "end"; targetId: string | null } | null> } {
+): { activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
     ...options,
     orientation: options.orientation,
@@ -323,25 +324,26 @@ export function useMultiDropZone(
     },
   });
 
-  function getActiveDropZone(): { anchor: "start" | "end"; targetId: string | null } {
+  function getActiveDropZone(): { anchor: "start" | "center" | "end"; targetId: string | null } {
     // find directly hit zone
     const cursor = { x: position.x.value, y: position.y.value };
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
       const targetRect = getElement(targetEl)!.getBoundingClientRect();
-      const isOver =
-        options.orientation == Orientation.HORIZONTAL
-          ? cursor.x > targetRect.left && cursor.x < targetRect.right
-          : cursor.y > targetRect.top && cursor.y < targetRect.bottom;
-      if (isOver) {
-        const anchor =
-          options.orientation == Orientation.HORIZONTAL
-            ? cursor.x < targetRect.left + targetRect.width / 2
-              ? "start"
-              : "end"
-            : cursor.y < targetRect.top + targetRect.height / 2
-              ? "start"
-              : "end";
-        return { targetId, anchor };
+      const cursorP = options.orientation == Orientation.HORIZONTAL ? cursor.x : cursor.y;
+      const targetStart = options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
+      const targetEnd = options.orientation == Orientation.HORIZONTAL ? targetRect.right : targetRect.bottom;
+      if (cursorP >= targetStart && cursorP <= targetEnd) {
+        // if hasCenterAnchor we split like in useSplitDropZone, otherwise just 50/50
+        if (options.hasCenterAnchor) {
+          const edgeZone = options.orientation == Orientation.HORIZONTAL ? targetRect.width : targetRect.height;
+          const centerZone = edgeZone * SPLIT_EDGE_ZONE_FRACTION;
+          const anchor =
+            cursorP <= targetStart + centerZone ? "start" : cursorP >= targetEnd - centerZone ? "end" : "center";
+          return { targetId, anchor };
+        } else {
+          const anchor = cursorP <= (targetStart + targetEnd) / 2 ? "start" : "end";
+          return { targetId, anchor };
+        }
       }
     }
 
@@ -367,7 +369,7 @@ export function useMultiDropZone(
   }
 
   const position = useMouse();
-  const activeDropZone: Ref<{ anchor: "start" | "end"; targetId: string | null } | null> = computed(() =>
+  const activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> = computed(() =>
     singleDropZone.value != null ? getActiveDropZone() : null,
   );
 

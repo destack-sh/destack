@@ -182,6 +182,13 @@ export const FULL_VIEW_TYPES = new Set([
   ViewType.LIBRARY,
   ViewType.INSPECTOR,
 ]);
+// views that aren't about a specific node but should just keep the current root view node
+export const RIDEALONG_VIEW_TYPES = new Set([
+  ViewType.EXPLORER,
+  ViewType.OUTLINE,
+  ViewType.LIBRARY,
+  ViewType.INSPECTOR,
+]);
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
   return Object.fromEntries(

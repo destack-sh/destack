@@ -21,6 +21,7 @@ import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
+import { log } from "@/utils/log";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
 import { manualSubRef, toValueRef } from "@/utils/ref";
 import { collapseSelection, expandSelection, makeSelection } from "@/views/canvas";
@@ -48,7 +49,7 @@ const rootPtr = toValueRef(
   computed(() => {
     if (props.nodePtr != null) return props.nodePtr;
     else if (props.type == ViewType.EXPLORER) return packagePtr.value;
-    else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
+    else if (props.type == ViewType.OUTLINE) return canvas.focusedRootNodePtr.value;
     else return null;
   }),
 );
@@ -65,7 +66,6 @@ const { graph: inspectedGraph, connection: inspectedConnection } = useExistingCo
 
 //
 // Visible subtree
-// TODO
 //
 
 const inspectedNodeTypes = computed(() => {
@@ -73,18 +73,30 @@ const inspectedNodeTypes = computed(() => {
   else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
   else return [];
 });
-function isIncluded(node: AnyNodeData) {
+function isIncludedSelf(node: AnyNodeData) {
   if (props.type == ViewType.EXPLORER) {
     if (node.metatype == BenchType.BLOCK) return (node as BlockData).isPage;
     else return true;
   } else if (props.type == ViewType.OUTLINE) {
-    return true; // include everything
+    if (node.metatype == BenchType.BLOCK) return !(node as BlockData).isPage;
+    else return true; // include everything
+  } else {
+    throw new Error(`unexpected view type: ${props.type}`);
+  }
+}
+function isIncludedChildren(node: AnyNodeData) {
+  if (props.type == ViewType.EXPLORER) {
+    return true;
+  } else if (props.type == ViewType.OUTLINE) {
+    // don't descend into pages for outline
+    if (node.metatype == BenchType.BLOCK) return !(node as BlockData).isPage;
+    else return true;
   } else {
     throw new Error(`unexpected view type: ${props.type}`);
   }
 }
 
-type NodeTreeItem = { node: AnyNodeData; depth: number; isFocusedAbsolute: boolean; canExpand: boolean };
+type NodeTreeItem = { node: AnyNodeData; depth: number; canExpand: boolean };
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 const _expandedNodesSubs: Array<() => void> = [];
@@ -98,16 +110,16 @@ function getExpandedNodes(): NodeTreeItem[] {
 
   const items: NodeTreeItem[] = [];
   function walkDescendants(node: AnyNodeData, depth: number) {
+    // make item
     const children = inspectedNodeTypes.value
       .flatMap((type) => inspectedGraph.getChildren(node, type))
-      .filter(isIncluded);
-    const isFocusedAbsolute = false; // nocheckin: Explorer.isFocusedAbsolute
-    const item = { node, depth, isFocusedAbsolute, canExpand: children.length > 0 };
+      .filter(isIncludedSelf);
+    const item = { node, depth, canExpand: children.length > 0 };
     if (depth >= 0) items.push(item); // ignore root
 
     // descend
     if (depth < 0 || isExpanded(node)) {
-      children.forEach((child) => walkDescendants(child, depth + 1));
+      children.filter(isIncludedChildren).forEach((child) => walkDescendants(child, depth + 1));
       inspectedNodeTypes.value.forEach((nodeType) =>
         _expandedNodesSubs.push(
           inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true }),
@@ -153,6 +165,10 @@ function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
 
 function isExpanded(node: { id?: string; ck?: string }) {
   return props.type == ViewType.OUTLINE || props.expansion?.nodesPtr?.some((n) => n.id == node.id);
+}
+
+function isFocusedAbsolute(node: { id?: string }): boolean {
+  return node.id == canvas.focusedRootNodePtr.value?.id || node.id == inspectionPtr.value?.id;
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
@@ -232,22 +248,44 @@ const { activeDropZone } = useMultiDropZone({
   container: containerRef,
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
+  hasCenterAnchor: true,
   // nocheckin Explorer.drop - what can be dropped here?
   kinds: ["node"],
   metatypes: NODE_TYPES,
+  allowDrop: (dragged) => {
+    return dragged.kind == "node" && !inspectedGraph.getAncestors(dragged.node).some((n) => n.id == self.value.id);
+  },
+  onDrop: (dragged, anchor, targetId) => {
+    log.debug("explorer.drop", dragged, anchor, targetId);
+  },
 });
 
 // actions
+const hasFocusedNode = computed(() => focusedNode.value != null);
 const actions: Partial<ActionMapImplementation<"common">> = {
+  // <!-- nocheckin :Incomplete: explorer/outline actions -->
+  "common.sense.focus": {
+    enabled: hasFocusedNode,
+    action: () => {},
+  },
+  "common.sense.focusInSplit": {
+    enabled: hasFocusedNode,
+    action: () => {},
+  },
+  "common.edit.rename": {
+    enabled: hasFocusedNode,
+    action: () => {},
+  },
+  "common.edit.move": {
+    enabled: hasFocusedNode,
+    action: () => {},
+  },
   "common.edit.delete": {
-    enabled: computed(() => focusedNode.value != null),
+    enabled: hasFocusedNode,
     action: () => {
-      if (focusedNode.value != null) {
-        inspectedConnection.tx.softDelete(focusedNode.value);
-      }
+      inspectedConnection.tx.softDelete(focusedNode.value!);
     },
   },
-  // <!-- nocheckin :Incomplete: explorer/outline actions -->
 };
 
 canvas.registerView(self);
@@ -285,14 +323,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <!-- Node -->
       <li
         :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
-        v-for="({ node, depth, isFocusedAbsolute: isItemFocusedAbsolute, canExpand }, i) in expandedNodes"
+        v-for="({ node, depth, canExpand }, i) in expandedNodes"
         :key="node.id"
-        class="group mx-1 mt-[1px] flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:text-primary-900"
+        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:text-primary-900"
         :class="[
-          focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-300' : 'border-transparent',
-          isItemFocusedAbsolute ? 'bg-gray-100' : '',
-          // nocheckin: Explorer.drop - can drop inside or above/below?
-          activeDropZone?.targetId == node.id ? 'bg-primary-300' : 'hover:bg-primary-100',
+          focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
+          isFocusedAbsolute(node) ? 'bg-gray-100' : '',
+          activeDropZone?.targetId == node.id ? '' : 'hover:bg-primary-100',
+          activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
+            ? 'border-primary-400 bg-primary-200'
+            : '',
         ]"
         :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"
@@ -305,6 +345,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
         "
         v-contextmenu="(context: MenuContext) => (doFocus(node), {items: menuActionsLike({wildcard: ['common.sense.*','common.edit.*']}), context: {...context, triggerNode: node}})"
       >
+        <!-- Drop indicator -->
+        <div
+          v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
+          class="absolute z-10 left-0 h-1 w-full rounded-sm bg-primary-400"
+          :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
+        />
         <!-- Expand button (or placeholder) -->
         <button
           v-if="canExpand"
@@ -322,13 +368,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
           v-bind="(node as any).icon ?? getNodeIcon(node)"
           class="mr-1.5"
           :class="[
-            isItemFocusedAbsolute ? 'text-primary-900' : 'text-gray-500 group-hover:text-primary-900',
+            isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-500 group-hover:text-primary-900',
             canExpand ? '' : 'ml-6',
           ]"
         />
         <span
           class="select-none truncate"
-          :class="isItemFocusedAbsolute ? 'font-semibold text-primary-900' : 'group-hover:text-primary-900'"
+          :class="isFocusedAbsolute(node) ? 'font-semibold text-primary-900' : 'group-hover:text-primary-900'"
           v-html="nodeTitleMarked[i] ?? (node as any).name ?? node.id"
         />
         <!-- Status/Notices/...? -->
@@ -336,7 +382,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       </li>
     </ul>
     <div
-      v-else-if="type == ViewType.EXPLORER || inspectionPtr != null"
+      v-else-if="type == ViewType.EXPLORER || rootPtr != null"
       class="flex h-full w-full flex-col justify-center bg-white text-center"
     >
       <!-- Empty state -->
