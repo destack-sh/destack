@@ -1,7 +1,7 @@
 import typing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
@@ -17,7 +17,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasRun
-from bench.language.validation import validate_name
+from bench.language.validation import ValidationHandler, validate_name
 from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         Icon,
         Package,
         Policy,
+        Property,
         Text,
         TypeInfo,
     )
@@ -197,6 +198,12 @@ class Block(Node, HasValues):
     @property
     def _instance_cache_key(self) -> str:
         return self.type.name
+
+    def _validate_inner(
+        self, properties: Collection["Property"], on_invalid: "ValidationHandler"
+    ) -> None:
+        if self.type == BlockType.PAGE and not self.is_page:
+            on_invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
 
     @property
     def is_type(self) -> bool:

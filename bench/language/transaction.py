@@ -230,6 +230,7 @@ class Transaction:
         'Canonicalizes' the edits in place by imputing the tracking info (e.g. 'updated_at', 'updated_by').
         We do this in the untrusted runtimes as well as in the system, but only the system counts,
          because the tracking properties are not directly updatable (being system properties).
+        NOTE :Architecture :Cleanup: edit canonicalization is necessary? but confusing :EditCanonicalization
         """
         from bench.proto import wiring
 
