@@ -11,6 +11,7 @@ import {
   BlockData,
   NODE_TYPES,
 } from "@/proto/wire";
+import { toNodeReference } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -18,7 +19,7 @@ import { IconInline } from "@/system/icon";
 import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
-import { useMultiDropZone } from "@/utils/drag";
+import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
 import { manualSubRef, toValueRef } from "@/utils/ref";
@@ -227,6 +228,7 @@ watch(
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
+  name: "explorer",
   container: containerRef,
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
@@ -279,22 +281,28 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Nodes -->
-    <ul ref="containerRef" v-if="expandedNodes.length > 0" class="my-1 flex flex-col gap-y-[1px] text-gray-900">
+    <ul ref="containerRef" v-if="expandedNodes.length > 0" class="my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
         :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
         v-for="({ node, depth, isFocusedAbsolute: isItemFocusedAbsolute, canExpand }, i) in expandedNodes"
         :key="node.id"
-        class="group mx-1 flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+        class="group mx-1 mt-[1px] flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:text-primary-900"
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-300' : 'border-transparent',
           isItemFocusedAbsolute ? 'bg-gray-100' : '',
           // nocheckin: Explorer.drop - can drop inside or above/below?
-          activeDropZone?.targetId == node.id ? 'border-primary-400' : '',
+          activeDropZone?.targetId == node.id ? 'bg-primary-300' : 'hover:bg-primary-100',
         ]"
         :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"
         @click.stop="fire(node)"
+        :draggable="true"
+        @dragstart="
+          (e: DragEvent) => {
+            startDragging(e, { kind: 'node', node: toNodeReference(node) })
+          }
+        "
         v-contextmenu="(context: MenuContext) => (doFocus(node), {items: menuActionsLike({wildcard: ['common.sense.*','common.edit.*']}), context: {...context, triggerNode: node}})"
       >
         <!-- Expand button (or placeholder) -->
