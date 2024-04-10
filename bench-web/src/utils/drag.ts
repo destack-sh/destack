@@ -1,10 +1,16 @@
-import { NodeType, type NodeReferenceData, SelectionData, Orientation } from "@/proto/wire";
+import { NodeType, Orientation, SelectionData, type NodeReferenceData } from "@/proto/wire";
 import { getElement, getElementRef } from "@/utils/element";
-import { useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
-import { computed, ref, type MaybeRef, type Ref, toRef, type ComponentInstance } from "vue";
+import { log } from "@/utils/log";
+import { uuidt } from "@/utils/uuidt";
+import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
-export type DraggedKind = "node" | "selection" | "file";
-export type Dragged =
+// NOTE: for now the drag/drop system is only expected to work within a single bench-web instance
+//  (i.e. not across instances, but it should work across with other applications)
+
+const DRAGGED_KINDS = ["node", "selection", "file"] as const;
+export type DraggedKind = (typeof DRAGGED_KINDS)[number];
+export type DraggedData =
   | {
       kind: "node";
       node: NodeReferenceData;
@@ -15,116 +21,181 @@ export type Dragged =
     }
   | {
       kind: "file"; // native browser file
-      files: File[];
+      fileTypes: string[];
+      files?: File[];
     };
+export type Dragged = {
+  id: string;
+} & DraggedData;
 
-export function setDragData(event: DragEvent, data: Dragged) {
+let activeDragged: Dragged | null = null;
+const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
+const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
+const activeDropZone: Ref<DropZone | null> = ref(null);
+
+/** Start dragging the given thing. Sets 'activeDragged'. */
+export function startDragging(event: DragEvent, data: DraggedData) {
   // we can't read the value of dataTransfer while dragging so we need all the info in the keys
   const dt = event.dataTransfer;
   if (!dt) throw new Error(`no dataTransfer on event: ${event}`);
-  dt.setData("application/symbolx.bench." + data.kind, JSON.stringify(data));
-
-  let metatypes: NodeType[] = [];
-  if (data.kind == "node") {
-    metatypes = [data.node.type];
-  } else if (data.kind == "selection") {
-    metatypes = [
-      ...(data.selection.nodesPtr?.map((ptr) => ptr.type) ?? []),
-      data.selection.fromNodePtr?.type,
-      data.selection.toNodePtr?.type,
-    ]
-      .filter((t) => t != null)
-      .map((t) => t!);
-  }
-  metatypes.forEach((t) => dt.setData("application/symbolx.bench.metatypes." + t, t.toString()));
+  const dragged = { id: uuidt(), ...data };
+  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify(dragged));
+  if (activeDragged != null) log.warn("drag.alreadyExists", activeDragged);
+  activeDragged = dragged;
+  log.debug("drag.start", dragged);
 }
 
+/** Gets the current dragged thing. Must match 'activeDragged'. */
+function getDraggedData(event: DragEvent): DraggedData | null {
+  // get dragged metatype while dragging (can only read keys set in startDragging above)
+  if (event.dataTransfer?.types == null) return null;
+
+  // check if it's one of our dragged items
+  const draggedId = event.dataTransfer.types
+    .find((t) => t.startsWith("application/symbolx.bench."))
+    ?.split(".")
+    .pop();
+  if (draggedId != null) {
+    if (activeDragged?.id == draggedId) return activeDragged;
+    else log.warn("drag.notFound", draggedId, activeDragged);
+  }
+
+  // might be a file drop
+  if (event.dataTransfer.types.includes("Files")) {
+    // get files if available
+    if (event.dataTransfer.files.length > 0) {
+      return {
+        kind: "file",
+        fileTypes: Array.from(event.dataTransfer.types),
+        files: Array.from(event.dataTransfer.files),
+      };
+    }
+  }
+
+  // something else
+  return null;
+}
+
+/** General options for any drop zone. */
 type DropOptions = {
+  /** Name of the drop zone for debugging */
+  name: string;
+  /** The top level container for the zone. */
   container: Ref<MaybeElement>;
-  kinds: MaybeRef<DraggedKind[]>;
-  metatypes: MaybeRef<NodeType[]>;
+  /** The kinds of supported drag kinds. */
+  kinds?: MaybeRef<DraggedKind[]>;
+  /** The metatypes of supported drag nodes (for Dragged with nodes). */
+  metatypes?: MaybeRef<NodeType[]>;
+  /** The allowed file types for file drops. */
+  fileTypes?: MaybeRef<string[]>;
+  /** More granular predicate to filter drops if needed. */
+  allowDrop?: (dragged: DraggedData) => boolean;
+  /** Whether the drop zone is enabled. */
   enabled?: Ref<boolean>;
 };
 
-// nocheckin: hierarchical drop zones
+//
+// Drop zones
+// NOTE: to handl hierarchical drop zones, we manage them globally here and query against thee dropZones registry.
+//
+
+type DropZone = DropOptions & {
+  id: number;
+  containerEl: Ref<HTMLElement | SVGElement | null>;
+  onDrop?: (dragged: DraggedData) => void;
+};
+let dropZoneId = 0;
+function newDropZoneId(): number {
+  return dropZoneId++;
+}
+
+/** Whether dropping the dragged thing into this zone is allowed */
+function isDropAllowed(zone: DropZone, dragged: DraggedData): boolean {
+  if (dragged == null) return false;
+  const kinds = unref(zone.kinds);
+  if (kinds != null && !kinds.includes(dragged.kind)) return false;
+  const metatypes = unref(zone.metatypes);
+  if (metatypes != null && dragged.kind == "node" && !metatypes.includes(dragged.node.type)) return false;
+  const fileTypes = unref(zone.fileTypes);
+  if (fileTypes != null && dragged.kind == "file" && dragged.fileTypes.some((t) => !fileTypes.includes(t)))
+    return false;
+  if (zone.allowDrop && !zone.allowDrop(dragged)) return false;
+  return true;
+}
+
+/** Traverses the event targets up to find a */
+function findAllowedDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedData): DropZone | null {
+  while (el) {
+    const zone = dropZonesByElement.get(el);
+    if (zone && isDropAllowed(zone, dragged)) return zone;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function updateDropZone(event: DragEvent) {
+  const dragged = getDraggedData(event);
+  if (dragged == null) return;
+  event.preventDefault();
+  const zone = findAllowedDropZone(event.target as HTMLElement | SVGElement, dragged);
+  if (zone?.id !== activeDropZone.value?.id) {
+    activeDropZone.value = zone;
+    log.trace("drag.activeZone", zone);
+  }
+}
+
+const resetDrag = () => {
+  activeDragged = null;
+  activeDropZone.value = null;
+};
+
+useEventListener("dragenter", updateDropZone);
+useEventListener("dragover", updateDropZone);
+useEventListener("drop", (event) => {
+  const dragged = getDraggedData(event);
+  if (dragged == null) return;
+  const zone = findAllowedDropZone(event.target as HTMLElement | SVGElement, dragged);
+  if (zone) {
+    log.debug("drag.drop", dragged, zone);
+    zone.onDrop?.(dragged);
+  }
+  resetDrag();
+});
+useEventListener("dragend", resetDrag);
+
 /**
  * Track certain drop events in a target region.
  */
 export function useDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: Dragged) => void;
+    onDrop?: (dragged: DraggedData) => void;
   },
 ): { isInDropZone: Ref<boolean> } {
   const enabled = options.enabled ?? ref(true);
-  const isOverDropZone = ref(false);
-  const kinds = toRef(options.kinds) as Ref<DraggedKind[]>;
-  const metatypes = toRef(options.metatypes) as Ref<NodeType[]>;
-  let counter = 0;
 
-  function getDraggedMeta(event: DragEvent): { kind: DraggedKind; metatypes: NodeType[] } | null {
-    // get dragged metatype while dragging (can only read keys set in setDragData)
-    if (event.dataTransfer?.types != null) {
-      // extract with string matching
-      const kind: DraggedKind | undefined = kinds.value.find((k) =>
-        event.dataTransfer?.types.includes("application/symbolx.bench." + k),
-      );
-      if (kind != null) {
-        const metatypes: NodeType[] = [];
-        for (const type of event.dataTransfer.types) {
-          if (type.startsWith("application/symbolx.bench.metatypes.")) {
-            const metatype = type.slice("application/symbolx.bench.metatypes.".length);
-            metatypes.push(Number(metatype) as NodeType);
-          }
-        }
-        return { kind, metatypes };
-      }
-    }
-    return null;
-  }
-
-  function isDropAllowed(event: DragEvent): boolean {
-    const meta = getDraggedMeta(event);
-    if (meta == null) return false;
-    else return kinds.value.includes(meta.kind) && !meta.metatypes.some((t) => !metatypes.value.includes(t));
-  }
-
-  const containerEl = getElementRef(options.container);
-  useEventListener<DragEvent>(containerEl, "dragenter", (event) => {
-    if (!isDropAllowed(event)) return;
-    event.preventDefault();
-    counter += 1;
-    isOverDropZone.value = true;
-  });
-  useEventListener<DragEvent>(containerEl, "dragover", (event) => {
-    if (!isDropAllowed(event)) return;
-    event.preventDefault();
-  });
-  useEventListener<DragEvent>(containerEl, "dragleave", (event) => {
-    if (!isDropAllowed(event)) return;
-    event.preventDefault();
-    counter -= 1;
-    if (counter <= 0) isOverDropZone.value = false;
-  });
-  useEventListener<DragEvent>(containerEl, "drop", (event) => {
-    if (!isDropAllowed(event)) return;
-    isOverDropZone.value = false;
-    if (!enabled?.value) return;
-    event.preventDefault();
-    counter = 0;
-    const meta = getDraggedMeta(event);
-    if (meta?.kind == "file") {
-      const files = Array.from(event.dataTransfer?.files ?? []);
-      options.onDrop?.({ kind: "file", files });
-    } else if (meta != null) {
-      const data = event.dataTransfer?.getData("application/symbolx.bench." + meta.kind);
-      if (data != null) {
-        options.onDrop?.(JSON.parse(data));
-      }
-    }
+  // create & register/deregister zone
+  const zone = {
+    id: newDropZoneId(),
+    containerEl: getElementRef(options.container),
+    onDrop: options.onDrop,
+    ...options,
+  };
+  dropZones.value[zone.id] = zone;
+  watch(
+    zone.containerEl,
+    (newEl, oldEl) => {
+      if (oldEl) dropZonesByElement.delete(oldEl);
+      if (newEl) dropZonesByElement.set(newEl, zone);
+    },
+    { immediate: true },
+  );
+  tryOnBeforeUnmount(() => {
+    delete dropZones.value[zone.id];
+    if (zone.containerEl.value) dropZonesByElement.delete(zone.containerEl.value);
   });
 
   return {
-    isInDropZone: computed(() => enabled?.value && isOverDropZone.value),
+    isInDropZone: computed(() => enabled.value && activeDropZone.value?.id == zone.id),
   };
 }
 
@@ -134,7 +205,7 @@ export function useDropZone(
 export function useSingleDropZone(
   options: DropOptions & {
     orientation: MaybeRef<Orientation>;
-    onDrop?: (dragged: Dragged, anchor: "start" | "end") => void;
+    onDrop?: (dragged: DraggedData, anchor: "start" | "end") => void;
   },
 ): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
   const { isInDropZone } = useDropZone({
@@ -168,7 +239,7 @@ export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
  */
 export function useSplitDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: Dragged, anchor: SplitAnchor) => void;
+    onDrop?: (dragged: DraggedData, anchor: SplitAnchor) => void;
   },
 ): {
   activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
@@ -235,18 +306,16 @@ export function useSplitDropZone(
 /**
  * Track certain drop zone events across dynamic target regions in a single parent container.
  */
-export function useMultiDropZone(options: {
-  container: Ref<MaybeElement>;
-  targets: Ref<Record<string, MaybeElement>>;
-  orientation: MaybeRef<Orientation>;
-  kinds: DraggedKind[];
-  metatypes: NodeType[];
-  onDrop?: (dragged: Dragged, anchor: "start" | "end", targetId: string | null) => void;
-}): { activeDropZone: Ref<{ anchor: "start" | "end"; targetId: string | null } | null> } {
+export function useMultiDropZone(
+  options: DropOptions & {
+    targets: Ref<Record<string, MaybeElement>>;
+    orientation: MaybeRef<Orientation>;
+    defaultToEdge?: boolean;
+    onDrop?: (dragged: DraggedData, anchor: "start" | "end", targetId: string | null) => void;
+  },
+): { activeDropZone: Ref<{ anchor: "start" | "end"; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
-    container: options.container,
-    kinds: options.kinds,
-    metatypes: options.metatypes,
+    ...options,
     orientation: options.orientation,
     onDrop: (dragged) => {
       const { anchor, targetId } = getActiveDropZone()!;
@@ -276,18 +345,20 @@ export function useMultiDropZone(options: {
       }
     }
 
-    // otherwise if we have targets we attribute to first/last target (sorted by position)
     const singleDropZone = getSingleActiveDropZone();
-    const targetsSorted = Object.entries(options.targets.value).sort(([targetId, targetEl]) => {
-      const targetRect = getElement(targetEl)!.getBoundingClientRect();
-      return options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
-    });
-    if (targetsSorted.length > 0) {
-      // anchor=end assumes that targets are positioned start to end in the container
-      if (singleDropZone.anchor == "start") {
-        return { targetId: targetsSorted[0][0], anchor: "end" };
-      } else {
-        return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
+    if (options?.defaultToEdge) {
+      // otherwise if we have targets we attribute to first/last target (sorted by position)
+      const targetsSorted = Object.entries(options.targets.value).sort(([targetId, targetEl]) => {
+        const targetRect = getElement(targetEl)!.getBoundingClientRect();
+        return options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
+      });
+      if (targetsSorted.length > 0) {
+        // anchor=end assumes that targets are positioned start to end in the container
+        if (singleDropZone.anchor == "start") {
+          return { targetId: targetsSorted[0][0], anchor: "end" };
+        } else {
+          return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
+        }
       }
     }
 

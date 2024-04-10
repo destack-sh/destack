@@ -6,7 +6,7 @@ import { useExistingConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, FULL_VIEW_TYPES } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { setDragData, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
+import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
@@ -58,11 +58,13 @@ function remove(tab: ViewData) {
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
+  name: "tab.header",
   container: headerRef,
   targets: tabsRef,
   kinds: ["node"],
   metatypes: [NodeType.VIEW],
   orientation: Orientation.HORIZONTAL,
+  defaultToEdge: true,
   onDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node") return;
     const draggedNode = spaceGraph.get(dragged.node) as ViewData;
@@ -77,6 +79,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 // splitting body
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
+  name: "tab.body",
   container: bodyRef,
   kinds: ["node"],
   metatypes: [NodeType.VIEW],
@@ -186,7 +189,7 @@ defineExpose<ViewExposed>({ self, actions });
         :draggable="true"
         @dragstart="
           (e: DragEvent) => {
-            setDragData(e, { kind: 'node', node: toNodeReference(tab) });
+            startDragging(e, { kind: 'node', node: toNodeReference(tab) });
             e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
           }
         "
