@@ -304,6 +304,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 if node is None:
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), on_invalid=on_invalid_raise)
+            # nocheckin: check (and test) circular parent/child references
 
             # apply edits
             session.tx._add_pending_edits(request.edits)

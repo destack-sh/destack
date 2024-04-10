@@ -24,13 +24,20 @@ import {
 } from "@/proto/wiring";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
-import { ROOT_VIEW_COMPONENT_NAMES, ROOT_VIEW_TYPES, getOrderKey, updateOrderKey } from "@/system/lang";
+import {
+  RIDEALONG_VIEW_TYPES as RIDEALONG_VIEW_TYPES,
+  ROOT_VIEW_COMPONENT_NAMES,
+  ROOT_VIEW_TYPES,
+  getOrderKey,
+  updateOrderKey,
+} from "@/system/lang";
 import { inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { generateKeyBetween } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
+import { toValueRef, valueRef } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
 import { useActiveElement, useEventListener } from "@vueuse/core";
@@ -164,6 +171,13 @@ export class ViewCanvas {
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
+  focusedRootViewComponent: Ref<ViewComponent | null> = shallowRef(null);
+  focusedRootViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
+
+  // derived state
+  focusedView: Ref<ViewData | null>;
+  focusedRootView: Ref<ViewData | null>;
+  focusedRootNodePtr: Ref<NodeReferenceData | null>; // the 'nodePtr' of the focused root view
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -187,6 +201,11 @@ export class ViewCanvas {
         this.onComponentFocused(e.target as HTMLElement);
       }
     });
+
+    // derived state
+    this.focusedView = toValueRef(this.graph.getRef(this.focusedViewPtr));
+    this.focusedRootView = toValueRef(this.graph.getRef(this.focusedRootViewPtr));
+    this.focusedRootNodePtr = toValueRef(computed(() => this.focusedRootView.value?.nodePtr ?? null));
   }
 
   /** Updates our internal focus state in response to a browser event */
@@ -196,10 +215,17 @@ export class ViewCanvas {
 
     // update component focus state
     if (component == null) {
+      // reset
       this.focusedViewComponent.value = null;
       this.focusedViewComponentsById.value = {};
       this.focusedViewPtr.value = null;
+      this.focusedRootViewComponent.value = null;
+      this.focusedRootViewPtr.value = null;
     } else if (this.focusedViewComponent.value !== component) {
+      // refresh
+
+      // update focus
+      const identifiedComponent = findViewComponent(component, isIdentifiedViewComponent);
       this.focusedViewComponent.value = component;
       const componentsById: Record<string, ViewComponent> = {};
       collectViewComponentsUp(component).forEach((c) => {
@@ -208,8 +234,20 @@ export class ViewCanvas {
       this.focusedViewComponentsById.value = componentsById;
       this.focusedViewPtr.value = typeNodeReferenceMaybe(
         NodeType.VIEW,
-        findViewComponent(component, isIdentifiedViewComponent)?.exposed.self?.value ?? null,
+        identifiedComponent?.exposed.self?.value ?? null,
       );
+
+      // update root focus (if not in a 'ridealong' view)
+      const focusedRootViewComponent = findViewComponent(component, isRootViewComponent);
+      const focusedRootViewPtr = typeNodeReferenceMaybe(
+        NodeType.VIEW,
+        focusedRootViewComponent?.exposed.self?.value ?? null,
+      );
+      const focusedRootView = focusedRootViewPtr != null ? this.graph.get(focusedRootViewPtr) : null;
+      if (focusedRootView != null && !RIDEALONG_VIEW_TYPES.has(focusedRootView.type)) {
+        this.focusedRootViewComponent.value = focusedRootViewComponent;
+        this.focusedRootViewPtr.value = focusedRootViewPtr;
+      }
     }
 
     // update graph focus state
@@ -532,9 +570,11 @@ export class ViewCanvas {
   goToNode(node: AnyNodeData | NodeReferenceData, options?: {}) {
     const nodeRef =
       node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
+    const tx = this.txFactory();
     if (nodeRef.type == NodeType.VIEW) {
-      this.focus(this.txFactory(), { view: nodeRef });
+      this.focus(tx, { view: nodeRef });
     } else {
+      this.inspect(tx, { node: nodeRef });
       throw new Error("not yet implemented");
     }
   }
@@ -696,6 +736,7 @@ export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceD
   for (const root of roots) {
     tx.softDelete(root);
   }
+  tx.updateDebounced(space, { focus: undefined, inspectionPtr: undefined });
 }
 
 /** Sets up a minimal empty space with one root tab */

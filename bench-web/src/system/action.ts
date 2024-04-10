@@ -85,6 +85,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.history.undo",
   "common.history.redo",
   "common.edit.rename",
+  "common.edit.move",
   "common.edit.copy",
   "common.edit.cut",
   "common.edit.paste",
@@ -113,6 +114,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.search.findInSpace",
   "common.search.replaceInSpace",
   "common.sense.focus",
+  "common.sense.focusInSplit",
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
@@ -308,7 +310,8 @@ function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement 
     else if (el.contentEditable == "true") masks = DEFAULT_SUPPRESSED_ACTIONS.contenteditable;
     else masks = [];
 
-    if (masks.some((mask) => id.startsWith(mask))) return el;
+    if (masks.some((mask) => id.startsWith(mask)))
+      return el; // suppressed
     else el = el.parentElement!;
   }
   return null;
@@ -439,11 +442,16 @@ declareActionMap<"common">({
     text: "Redo the last undone action or edit",
     shortcuts: ["mod+shift+z"],
   },
-  "common.edit.delete": {
-    icon: "fas fa-delete-left",
-    title: "Delete",
-    text: "Delete the current item",
-    shortcuts: ["del", "backspace"],
+  "common.edit.rename": {
+    icon: "fas fa-pencil",
+    title: "Rename",
+    text: "Rename the current item",
+    shortcuts: ["f2"],
+  },
+  "common.edit.move": {
+    icon: "fas fa-arrows-turn-right",
+    title: "Move",
+    text: "Move the current item",
   },
   "common.edit.copy": {
     icon: "fas fa-copy",
@@ -469,11 +477,11 @@ declareActionMap<"common">({
     text: "Duplicate the current item",
     shortcuts: ["mod+d"],
   },
-  "common.edit.rename": {
-    icon: "fas fa-pencil",
-    title: "Rename",
-    text: "Rename the current node",
-    shortcuts: ["f2"],
+  "common.edit.delete": {
+    icon: "fas fa-delete-left",
+    title: "Delete",
+    text: "Delete the current item",
+    shortcuts: ["del", "backspace"],
   },
   // navigate
   "common.navigate.up": {
@@ -611,6 +619,18 @@ declareActionMap<"common">({
     shortcuts: ["mod+shift+r"],
   },
   // sense
+  "common.sense.focus": {
+    icon: "fas fa-magnifying-glass",
+    title: "Focus",
+    text: "Focus on the current node in a new view",
+    shortcuts: ["mod+enter"],
+  },
+  "common.sense.focusInSplit": {
+    icon: "fas fa-magnifying-glass-arrow-right",
+    title: "Focus in Next Split",
+    text: "Focus on the current node in an adjacent split",
+    shortcuts: ["mod+shift+enter"],
+  },
   "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
     title: "Go to Definition",
@@ -627,12 +647,6 @@ declareActionMap<"common">({
     icon: "fas fa-turn-down-left",
     title: "Find Implementations",
     text: "Find implementations of the current node",
-  },
-  "common.sense.focus": {
-    icon: "fas fa-magnifying-glass-plus",
-    title: "Focus",
-    text: "Focus on the current node in a new view",
-    shortcuts: ["mod+enter"],
   },
   // session
   "common.session.run": {
