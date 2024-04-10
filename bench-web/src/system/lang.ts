@@ -383,7 +383,9 @@ export function getViewTypeIcon(viewType: ViewType) {
 }
 
 export function getNodeIcon(node: AnyNodeData | { metatype: BenchType; type?: BlockType | ViewType }) {
-  if (node.metatype == BenchType.BLOCK) {
+  if ((node as any).icon != null) {
+    return (node as any).icon;
+  } else if (node.metatype == BenchType.BLOCK) {
     const icon = getBlockTypeIcon((node as BlockData).type! as BlockType);
     if (icon != null) return icon;
   } else if (node.metatype == BenchType.VIEW) {

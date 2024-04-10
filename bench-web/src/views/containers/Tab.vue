@@ -187,12 +187,7 @@ defineExpose<ViewExposed>({ self, actions });
         ]"
         @click="focus(tab)"
         :draggable="true"
-        @dragstart="
-          (e: DragEvent) => {
-            startDragging(e, { kind: 'node', node: toNodeReference(tab) });
-            e.dataTransfer?.setDragImage(tabsRef[tab.id]!, 0, 0)
-          }
-        "
+        @dragstart="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
         v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context: { ...context, triggerNode: tab}})} as ContextMenuInfo)"
       >
         <!-- Tab header  -->
