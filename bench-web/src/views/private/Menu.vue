@@ -187,7 +187,7 @@ defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-300 bg-white py-1 text-gray-900 shadow-md shadow-gray-300"
+    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-400 bg-white py-1 text-gray-900 shadow-md shadow-gray-400"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
@@ -213,23 +213,23 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Header -->
-    <div v-if="$slots.header" class="mb-1 border-b border-gray-300">
+    <div v-if="$slots.header" class="mb-1 border-b border-gray-400">
       <slot name="header" :focus="focus" />
     </div>
     <!-- Items -->
     <template v-for="(item, i) in items" :key="item.id">
       <!-- Category -->
-      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-300" />
+      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-400" />
       <!-- Item -->
       <li
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
         role="menuitem"
         :data-selected="focusedItemIdx === i"
-        class="mx-1 my-0.5 flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
+        class="mx-1 mt-[2px] mb-[1px] flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
         :class="[
           item.isDisabled
             ? 'text-gray-500'
-            : 'hover:cursor-pointer hover:bg-primary-300 data-[selected=true]:border-gray-300',
+            : 'hover:cursor-pointer hover:bg-primary-300 data-[selected=true]:border-gray-400',
           activeNestedItemIdx == i ? 'bg-primary-200' : 'data-[selected=true]:bg-primary-300',
         ]"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
@@ -268,7 +268,7 @@ defineExpose({ focus, clear, query });
       <span class="text-gray-500">Nothing here</span>
     </div>
     <!-- Footer -->
-    <div v-if="$slots.footer" class="mt-1 border-t border-gray-300">
+    <div v-if="$slots.footer" class="mt-1 border-t border-gray-400">
       <slot name="footer" :focus="focus" />
     </div>
 

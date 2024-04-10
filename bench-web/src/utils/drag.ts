@@ -1,6 +1,7 @@
 import { NodeType, type NodeReferenceData, SelectionData, Orientation } from "@/proto/wire";
-import { useEventListener, useMouse, useMouseInElement } from "@vueuse/core";
-import { computed, ref, type MaybeRef, type Ref, toRef } from "vue";
+import { getElement, getElementRef } from "@/utils/element";
+import { useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import { computed, ref, type MaybeRef, type Ref, toRef, type ComponentInstance } from "vue";
 
 export type DraggedKind = "node" | "selection" | "file";
 export type Dragged =
@@ -38,25 +39,33 @@ export function setDragData(event: DragEvent, data: Dragged) {
   metatypes.forEach((t) => dt.setData("application/symbolx.bench.metatypes." + t, t.toString()));
 }
 
+type DropOptions = {
+  container: Ref<MaybeElement>;
+  kinds: MaybeRef<DraggedKind[]>;
+  metatypes: MaybeRef<NodeType[]>;
+  enabled?: Ref<boolean>;
+};
+
+// nocheckin: hierarchical drop zones
 /**
  * Track certain drop events in a target region.
  */
-export function useDropZone(options: {
-  container: Ref<HTMLElement | null | undefined>;
-  kinds: DraggedKind[];
-  metatypes: NodeType[];
-  onDrop?: (dragged: Dragged) => void;
-  enabled?: Ref<boolean>;
-}): { isInDropZone: Ref<boolean> } {
+export function useDropZone(
+  options: DropOptions & {
+    onDrop?: (dragged: Dragged) => void;
+  },
+): { isInDropZone: Ref<boolean> } {
   const enabled = options.enabled ?? ref(true);
   const isOverDropZone = ref(false);
+  const kinds = toRef(options.kinds) as Ref<DraggedKind[]>;
+  const metatypes = toRef(options.metatypes) as Ref<NodeType[]>;
   let counter = 0;
 
   function getDraggedMeta(event: DragEvent): { kind: DraggedKind; metatypes: NodeType[] } | null {
     // get dragged metatype while dragging (can only read keys set in setDragData)
     if (event.dataTransfer?.types != null) {
       // extract with string matching
-      const kind: DraggedKind | undefined = options.kinds.find((k) =>
+      const kind: DraggedKind | undefined = kinds.value.find((k) =>
         event.dataTransfer?.types.includes("application/symbolx.bench." + k),
       );
       if (kind != null) {
@@ -76,26 +85,27 @@ export function useDropZone(options: {
   function isDropAllowed(event: DragEvent): boolean {
     const meta = getDraggedMeta(event);
     if (meta == null) return false;
-    else return options.kinds.includes(meta.kind) && !meta.metatypes.some((t) => !options.metatypes.includes(t));
+    else return kinds.value.includes(meta.kind) && !meta.metatypes.some((t) => !metatypes.value.includes(t));
   }
 
-  useEventListener<DragEvent>(options.container, "dragenter", (event) => {
+  const containerEl = getElementRef(options.container);
+  useEventListener<DragEvent>(containerEl, "dragenter", (event) => {
     if (!isDropAllowed(event)) return;
     event.preventDefault();
     counter += 1;
     isOverDropZone.value = true;
   });
-  useEventListener<DragEvent>(options.container, "dragover", (event) => {
+  useEventListener<DragEvent>(containerEl, "dragover", (event) => {
     if (!isDropAllowed(event)) return;
     event.preventDefault();
   });
-  useEventListener<DragEvent>(options.container, "dragleave", (event) => {
+  useEventListener<DragEvent>(containerEl, "dragleave", (event) => {
     if (!isDropAllowed(event)) return;
     event.preventDefault();
     counter -= 1;
     if (counter <= 0) isOverDropZone.value = false;
   });
-  useEventListener<DragEvent>(options.container, "drop", (event) => {
+  useEventListener<DragEvent>(containerEl, "drop", (event) => {
     if (!isDropAllowed(event)) return;
     isOverDropZone.value = false;
     if (!enabled?.value) return;
@@ -121,14 +131,12 @@ export function useDropZone(options: {
 /**
  * Track certain drop zone events in a single target region.
  */
-export function useSingleDropZone(options: {
-  container: Ref<HTMLElement | null | undefined>;
-  kinds: DraggedKind[];
-  metatypes: NodeType[];
-  orientation: MaybeRef<Orientation>;
-  onDrop?: (dragged: Dragged, anchor: "start" | "end") => void;
-  enabled?: Ref<boolean>;
-}): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
+export function useSingleDropZone(
+  options: DropOptions & {
+    orientation: MaybeRef<Orientation>;
+    onDrop?: (dragged: Dragged, anchor: "start" | "end") => void;
+  },
+): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
   const { isInDropZone } = useDropZone({
     ...options,
     onDrop: (dragged) => {
@@ -158,13 +166,11 @@ export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
  * The left/top/right/bottom fraction percent are the respective zones, the rest is the center zone.
  * If the cursor is in two zones at once, the edge we're closest to wins.
  */
-export function useSplitDropZone(options: {
-  container: Ref<HTMLElement | null | undefined>;
-  kinds: DraggedKind[];
-  metatypes: NodeType[];
-  onDrop?: (dragged: Dragged, anchor: SplitAnchor) => void;
-  enabled?: Ref<boolean>;
-}): {
+export function useSplitDropZone(
+  options: DropOptions & {
+    onDrop?: (dragged: Dragged, anchor: SplitAnchor) => void;
+  },
+): {
   activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
 } {
   const { isInDropZone } = useDropZone({
@@ -230,8 +236,8 @@ export function useSplitDropZone(options: {
  * Track certain drop zone events across dynamic target regions in a single parent container.
  */
 export function useMultiDropZone(options: {
-  container: Ref<HTMLElement | null | undefined>;
-  targets: Ref<Record<string, HTMLElement>>;
+  container: Ref<MaybeElement>;
+  targets: Ref<Record<string, MaybeElement>>;
   orientation: MaybeRef<Orientation>;
   kinds: DraggedKind[];
   metatypes: NodeType[];
@@ -252,7 +258,7 @@ export function useMultiDropZone(options: {
     // find directly hit zone
     const cursor = { x: position.x.value, y: position.y.value };
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
-      const targetRect = targetEl.getBoundingClientRect();
+      const targetRect = getElement(targetEl)!.getBoundingClientRect();
       const isOver =
         options.orientation == Orientation.HORIZONTAL
           ? cursor.x > targetRect.left && cursor.x < targetRect.right
@@ -273,13 +279,13 @@ export function useMultiDropZone(options: {
     // otherwise if we have targets we attribute to first/last target (sorted by position)
     const singleDropZone = getSingleActiveDropZone();
     const targetsSorted = Object.entries(options.targets.value).sort(([targetId, targetEl]) => {
-      const targetRect = targetEl.getBoundingClientRect();
+      const targetRect = getElement(targetEl)!.getBoundingClientRect();
       return options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
     });
     if (targetsSorted.length > 0) {
       // anchor=end assumes that targets are positioned start to end in the container
       if (singleDropZone.anchor == "start") {
-        return { targetId: targetsSorted[0][0], anchor: "end"};
+        return { targetId: targetsSorted[0][0], anchor: "end" };
       } else {
         return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
       }
