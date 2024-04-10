@@ -1,5 +1,15 @@
 <script lang="tsx" setup>
-import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType, type AnyNodeData } from "@/proto/wire";
+import {
+  BoxData,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  ViewData,
+  ViewType,
+  type AnyNodeData,
+  BenchType,
+  BlockData,
+} from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -38,11 +48,7 @@ const rootPtr = toValueRef(
     else return null;
   }),
 );
-const nodeTypes = computed(() => {
-  if (props.type == ViewType.EXPLORER) return [NodeType.BLOCK];
-  else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
-  else return [];
-});
+
 const { graph: inspectedGraph, connection: inspectedConnection } = useExistingConnection(rootPtr, {
   isOptional: true,
   match: {
@@ -58,6 +64,22 @@ const { graph: inspectedGraph, connection: inspectedConnection } = useExistingCo
 // TODO
 //
 
+const inspectedNodeTypes = computed(() => {
+  if (props.type == ViewType.EXPLORER) return [NodeType.BLOCK];
+  else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
+  else return [];
+});
+function isIncluded(node: AnyNodeData) {
+  if (props.type == ViewType.EXPLORER) {
+    if (node.metatype == BenchType.BLOCK) return (node as BlockData).isPage;
+    else return true;
+  } else if (props.type == ViewType.OUTLINE) {
+    return true; // include everything
+  } else {
+    throw new Error(`unexpected view type: ${props.type}`);
+  }
+}
+
 type NodeTreeItem = { node: AnyNodeData; depth: number; isFocusedAbsolute: boolean; canExpand: boolean };
 const expandedNodesRefs: Record<string, HTMLElement> = {};
 
@@ -72,14 +94,16 @@ function getExpandedNodes(): NodeTreeItem[] {
 
   const items: NodeTreeItem[] = [];
   function walkDescendants(node: AnyNodeData, depth: number) {
-    const children = nodeTypes.value.flatMap((type) => inspectedGraph.getChildren(node, type));
+    const children = inspectedNodeTypes.value
+      .flatMap((type) => inspectedGraph.getChildren(node, type))
+      .filter(isIncluded);
     const item = { node, depth, isFocusedAbsolute: false, canExpand: children.length > 0 };
     if (depth >= 0) items.push(item); // ignore root
 
     // descend
     if (depth < 0 || isExpanded(node)) {
       children.forEach((child) => walkDescendants(child, depth + 1));
-      nodeTypes.value.forEach((nodeType) =>
+      inspectedNodeTypes.value.forEach((nodeType) =>
         _expandedNodesSubs.push(
           inspectedGraph.subscribeChildren(node, nodeType, updateExpandedNodes, { ignoreAncestors: true }),
         ),

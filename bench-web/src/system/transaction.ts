@@ -27,6 +27,7 @@ import {
 } from "@/proto/wiring";
 import { nonce, origin, userPtr } from "@/system/client";
 import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG, TRANSACTION_FLUSH_INTERVAL } from "@/utils/globals";
@@ -55,6 +56,9 @@ export type Transaction = {
   readonly id: string;
   readonly edits: EditData[];
   describeSelf(): string;
+
+  /** Adds an externally created edit */
+  addEdit(edit: EditData): void;
 
   /** Create a new node */
   create<T extends NodeType>(
@@ -145,7 +149,7 @@ export class TransactionBuilder implements Transaction {
     return edit;
   }
 
-  _addEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced: boolean = false) {
+  _addNewEdit(type: EditType, node: AnyNodeData, properties?: number[], debounced: boolean = false) {
     const edit = this._makeEdit(type, node, properties);
     this.edits.push(edit);
     this._notifyEdit(edit, debounced);
@@ -156,6 +160,11 @@ export class TransactionBuilder implements Transaction {
     for (const sub of this.subs) {
       sub(edit, debounced);
     }
+  }
+
+  addEdit(edit: EditData): void {
+    this.edits.push(edit);
+    this._notifyEdit(edit, false);
   }
 
   create<T extends NodeType>(
@@ -182,12 +191,12 @@ export class TransactionBuilder implements Transaction {
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 
-    this._addEdit(EditType.CREATE, node);
+    this._addNewEdit(EditType.CREATE, node);
     return node as NodeTypeMapping[T];
   }
 
   upsert(node: AnyNodeData) {
-    this._addEdit(EditType.UPSERT, { ...node });
+    this._addNewEdit(EditType.UPSERT, { ...node });
   }
 
   update<T extends AnyNodeData>(
@@ -242,7 +251,7 @@ export class TransactionBuilder implements Transaction {
     } else {
       // create new edit
       const patchedNode = { ...node, ...update } as T;
-      const edit = this._addEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
+      const edit = this._addNewEdit(EditType.UPDATE, patchedNode, properties, options?.debounce ?? false);
 
       if (options?.debounce) {
         this.debouncedUpdates[node.id] = edit;
@@ -255,31 +264,31 @@ export class TransactionBuilder implements Transaction {
   }
 
   move(node: AnyNodeData) {
-    this._addEdit(EditType.MOVE, { ...node });
+    this._addNewEdit(EditType.MOVE, { ...node });
   }
 
   archive(node: AnyNodeData) {
-    this._addEdit(EditType.ARCHIVE, { ...node });
+    this._addNewEdit(EditType.ARCHIVE, { ...node });
   }
 
   unarchive(node: AnyNodeData) {
-    this._addEdit(EditType.UNARCHIVE, { ...node });
+    this._addNewEdit(EditType.UNARCHIVE, { ...node });
   }
 
   softDelete(node: AnyNodeData) {
-    this._addEdit(EditType.SOFT_DELETE, { ...node });
+    this._addNewEdit(EditType.SOFT_DELETE, { ...node });
   }
 
   restore(node: AnyNodeData) {
-    this._addEdit(EditType.RESTORE, { ...node });
+    this._addNewEdit(EditType.RESTORE, { ...node });
   }
 
   delete(node: AnyNodeData) {
-    this._addEdit(EditType.DELETE, { ...node });
+    this._addNewEdit(EditType.DELETE, { ...node });
   }
 }
 
-/** 'Canonicalizes' edits by imputing tracking info (just like in host). */
+/** 'Canonicalizes' edits by imputing tracking info (just like in host). See :EditCanonicalization. */
 export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
   for (const edit of edits) {
     const node = unwrapSomeNode(edit.node!);
@@ -358,6 +367,12 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
 
 // TODO :Incomplete: track edit by origin (root) view? (for separate undo/redo)
 
+type CommitFailure = {
+  id: string;
+  edits: EditData[];
+  error: RpcError;
+};
+
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
  */
@@ -367,6 +382,8 @@ export interface TransactionBuffer {
   readonly tx: Transaction;
   /** Overlay of unconfirmed edits in active or pending transactions. */
   readonly overlay: ReadNodeGraph;
+  /** Retryable commits in case of error.  */
+  readonly failedCommits?: Readonly<Ref<Record<string, CommitFailure>>>;
 
   /** Commits the current transaction. */
   commit(): void | Promise<void>;
@@ -376,10 +393,14 @@ export interface TransactionBuffer {
   accept(edits: EditData[]): void;
   /** Subscribes to *confirmed* edits from this buffer */
   onAccepted(sub: (edits: EditData[]) => void): () => void;
+  /** Force retries the given commit (for debugging) */
+  retry?(id: string): Promise<void>;
+
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
   /** Whether there are any pending commits */
   get isCommitting(): boolean;
+
   /** Whether transactions are currently processed (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
   /** Toggle automatic flushing for debugging. */
@@ -468,6 +489,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
   private pendingEdits: Record<string, EditData> = {};
+  failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
   constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
     this.id = id;
@@ -522,11 +544,23 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       // notify on success
       this.acceptedSubs.forEach((sub) => sub(edits));
     } catch (error) {
+      // failed
+      const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
+      this.failedCommits.value[fail.id] = fail;
+      triggerRef(this.failedCommits);
+
       // rollback
       log.error("transaction.commit.error", { scope: this.scope, error });
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
         text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}`,
+        actions: [
+          {
+            title: "Retry",
+            icon: makeIcon("fas fa-redo"),
+            action: () => this.retry(fail.id),
+          },
+        ],
       });
       this.reset();
     } finally {
@@ -539,6 +573,16 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.pendingEdits = {};
     this.pendingTx = null;
     this.overlay.clear();
+  }
+
+  async retry(id: string) {
+    // re-add the given commit to the current transaction
+    const fail = this.failedCommits.value[id];
+    if (!fail) throw new Error(`no failed commit with id ${id}`);
+    const edits = fail.edits;
+    for (const edit of edits) {
+      this.currentTx!.addEdit(edit);
+    }
   }
 
   private makeCurrentTx() {
@@ -603,6 +647,10 @@ export function newBufferId() {
 const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), {}, supervisor);
 const benchTxBuffers: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
 const benchTxBuffersLocks: Record<string, AsyncEvent> = {};
+
+export function getAllTransactionBuffers(): TransactionBuffer[] {
+  return [globalTxBuffer, ...Object.values(benchTxBuffers.value)];
+}
 
 /** Gets the transaction buffer for the given scope (non-exclusively). */
 export async function getTransactionBuffer(scope: GraphScope): Promise<TransactionBuffer> {

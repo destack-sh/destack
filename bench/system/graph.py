@@ -260,7 +260,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
-                # TODO :Performance: select only require properties for edit eval (id/policies/...?)
+                # TODO :Performance: select only properties required to evaluate edit (id/policies/...?)
                 options = adapt_read_options(subject, node_type, ReadOptions.default())
                 query = QueryBuilder(
                     node_type=node_type,

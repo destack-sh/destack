@@ -245,7 +245,7 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- missing view -->
         <span v-if="IS_DEBUG || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
       </div>
-      <Empty v-else class="flex h-full w-full flex-col items-center justify-center" />
+      <Empty v-else :type="ViewType.TAB" class="flex h-full w-full flex-col items-center justify-center" />
     </div>
     <!-- Tab body split drop overlay -->
     <Transition

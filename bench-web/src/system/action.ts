@@ -14,7 +14,7 @@ import { makeIcon } from "@/system/icon";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
-import type { FilterPrefix as FilterPrefix } from "@/utils/functools";
+import { getRandomEnum, type FilterPrefix as FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
@@ -33,7 +33,7 @@ import {
   toValue,
 } from "vue";
 import { graphConnections } from "@/system/connection";
-import { flushTransactionBuffers } from "@/system/transaction";
+import { flushTransactionBuffers, getAllTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
 import { generateKeyBetween } from "@/utils/fractional";
 import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
@@ -157,11 +157,7 @@ export const ACTION_BUILTIN_IDS = [
   "organization.create",
   // developer
   "developer.misc.toggleDeveloperMode",
-  "developer.tx.pauseAllConnections",
-  "developer.tx.resumeAllConnections",
-  "developer.tx.pauseAllBuffers",
-  "developer.tx.resumeAllBuffers",
-  "developer.tx.flushBuffers",
+  "developer.tx.retryAllFailed",
   "developer.view.addMockView",
   "developer.create.addRootPages",
   "developer.create.addRandomBlocks",
@@ -620,7 +616,7 @@ declareActionMap<"common">({
     title: "Go to Definition",
     text: "Go to definition of the current node",
     shortcuts: ["mod+b"],
-  }, 
+  },
   "common.sense.findReferences": {
     icon: "fas fa-turn-down-left",
     title: "Find References",
@@ -835,52 +831,20 @@ contributeActionMap<"developer">({
     },
     shortcuts: ["alt+f12", "f12"],
   },
-  "developer.tx.pauseAllConnections": {
+  "developer.tx.retryAllFailed": {
     enabled: isDeveloperMode,
-    icon: "fas fa-bug",
-    title: "Pause All Connections",
-    text: "Pause all active connections",
-    action: () => graphConnections.value.filter((c) => !c.isPaused.value).forEach((c) => c.togglePaused()),
-  },
-  "developer.tx.resumeAllConnections": {
-    enabled: isDeveloperMode,
-    icon: "fas fa-bug",
-    title: "Resume All Connections",
-    text: "Resume all paused connections",
-    action: () => graphConnections.value.filter((c) => c.isPaused.value).forEach((c) => c.togglePaused()),
-  },
-  "developer.tx.pauseAllBuffers": {
-    enabled: isDeveloperMode,
-    icon: "fas fa-bug",
-    title: "Pause All Buffers",
-    text: "Pause all active transaction buffers",
-    action: () =>
-      graphConnections.value
-        .map((c) => c.txBuffer)
-        .filter((b) => !b.isPaused.value)
-        .forEach((b) => b.togglePaused()),
-  },
-  "developer.tx.resumeAllBuffers": {
-    enabled: isDeveloperMode,
-    icon: "fas fa-bug",
-    title: "Resume All Buffers",
-    text: "Resume all paused transaction buffers",
-    action: () =>
-      graphConnections.value
-        .map((c) => c.txBuffer)
-        .filter((b) => b.isPaused.value)
-        .forEach((b) => b.togglePaused()),
-  },
-  "developer.tx.flushBuffers": {
-    enabled: isDeveloperMode,
-    icon: "fas fa-bug",
-    title: "Flush Buffers",
-    text: "Flush all transaction buffers",
-    action: () => flushTransactionBuffers({ force: true }),
+    icon: "fas fa-redo",
+    title: "Retry All Failed Commits",
+    text: "Retry all current failed transactions",
+    action: () => {
+      getAllTransactionBuffers().forEach((txBuffer) => {
+        Object.values(txBuffer.failedCommits?.value ?? {}).forEach((commit) => txBuffer.retry!(commit.id));
+      });
+    },
   },
   "developer.view.addMockView": {
     enabled: isDeveloperMode,
-    icon: "fas fa-bug",
+    icon: "fas fa-window",
     title: "Add Mock View",
     text: "Adds a debug view to the current root",
     action: () => {
@@ -890,7 +854,7 @@ contributeActionMap<"developer">({
   },
   "developer.create.addRootPages": {
     enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
-    icon: "fas fa-bug",
+    icon: "fas fa-folder-plus",
     title: "Add Root Pages",
     text: "Add some root pages to the space",
     action: () => {
@@ -901,9 +865,10 @@ contributeActionMap<"developer">({
         if (existingRootNames.includes(pageName)) continue;
         const page = tx.create({
           metatype: NodeType.BLOCK,
-          type: BlockType.PAGE,
           parentPtr: packagePtr.value!,
           packagePtr: packagePtr.value!,
+          type: BlockType.PAGE,
+          isPage: true,
           name: pageName,
           orderKey: generateKeyBetween(pages[pages.length - 1]?.orderKey ?? null, null),
         });
@@ -913,7 +878,7 @@ contributeActionMap<"developer">({
   },
   "developer.create.addRandomBlocks": {
     enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
-    icon: "fas fa-bug",
+    icon: "fas fa-cube",
     title: "Add Random Blocks",
     text: "Add some random blocks to the space",
     action: () => {
@@ -921,15 +886,17 @@ contributeActionMap<"developer">({
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
       );
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 5; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);
+        const type = BlockType.PAGE;
         const node = tx.create({
           metatype: NodeType.BLOCK,
-          type: BlockType.BLANK,
           parentPtr: toNodeReference(parent),
           packagePtr: packagePtr.value!,
+          type,
+          isPage: type == BlockType.PAGE,
           name,
           orderKey: generateKeyBetween((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
         });
