@@ -153,7 +153,7 @@ const USER_MENU_ITEMS = computed(() => {
             <!-- Bench Info -->
             <template v-if="bench" #header>
               <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                <div class="mr-2 w-10 rounded-md border border-gray-700 bg-primary-300 py-0.5 text-center text-lg">
+                <div class="mr-2 w-10 rounded-md border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
                   <IconInline v-if="bench.icon" class="" v-bind="bench.icon" />
                 </div>
                 <div class="flex flex-col leading-tight">
@@ -206,10 +206,10 @@ const USER_MENU_ITEMS = computed(() => {
             <!-- Connection summary -->
             <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
             <div
-              class="p z-50 rounded-md border border-gray-700 bg-white text-gray-900 shadow-md shadow-gray-700"
+              class="p z-50 rounded-md border border-gray-400 bg-white text-gray-900 shadow-md shadow-gray-400"
               v-outside.click.stop="close"
             >
-              <div class="my-1 border-b border-gray-700 px-3 py-1">
+              <div class="my-1 border-b border-gray-400 px-3 py-1">
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
               <Scroll

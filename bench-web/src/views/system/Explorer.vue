@@ -9,6 +9,7 @@ import {
   type AnyNodeData,
   BenchType,
   BlockData,
+  NODE_TYPES,
 } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
@@ -17,6 +18,7 @@ import { IconInline } from "@/system/icon";
 import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
+import { useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
 import { manualSubRef, toValueRef } from "@/utils/ref";
@@ -33,6 +35,7 @@ const props = defineProps<
   >
 >();
 
+const containerRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const emit = defineEmits(viewEmits());
@@ -81,7 +84,7 @@ function isIncluded(node: AnyNodeData) {
 }
 
 type NodeTreeItem = { node: AnyNodeData; depth: number; isFocusedAbsolute: boolean; canExpand: boolean };
-const expandedNodesRefs: Record<string, HTMLElement> = {};
+const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 const _expandedNodesSubs: Array<() => void> = [];
 const _expandedNodesUnsub = () => {
@@ -97,7 +100,8 @@ function getExpandedNodes(): NodeTreeItem[] {
     const children = inspectedNodeTypes.value
       .flatMap((type) => inspectedGraph.getChildren(node, type))
       .filter(isIncluded);
-    const item = { node, depth, isFocusedAbsolute: false, canExpand: children.length > 0 };
+    const isFocusedAbsolute = false; // nocheckin: Explorer.isFocusedAbsolute
+    const item = { node, depth, isFocusedAbsolute, canExpand: children.length > 0 };
     if (depth >= 0) items.push(item); // ignore root
 
     // descend
@@ -178,7 +182,7 @@ function doFocus(node: AnyNodeData | NodeReferenceData) {
 
 function focusInComponent(nodeId: string) {
   queryRef.value?.focus();
-  expandedNodesRefs[nodeId]?.scrollIntoView({ block: "center", behavior: "instant" });
+  expandedNodesRefs.value[nodeId]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 function clear() {
@@ -221,6 +225,17 @@ watch(
   { immediate: true },
 );
 
+// dragging
+const { activeDropZone } = useMultiDropZone({
+  container: containerRef,
+  targets: expandedNodesRefs,
+  orientation: Orientation.VERTICAL,
+  // nocheckin Explorer.drop - what can be dropped here?
+  kinds: ["node"],
+  metatypes: NODE_TYPES,
+});
+
+// actions
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.edit.delete": {
     enabled: computed(() => focusedNode.value != null),
@@ -264,7 +279,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Nodes -->
-    <ul v-if="expandedNodes.length > 0" class="my-1 flex flex-col text-gray-900">
+    <ul ref="containerRef" v-if="expandedNodes.length > 0" class="my-1 flex flex-col gap-y-[1px] text-gray-900">
       <!-- Node -->
       <li
         :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
@@ -274,6 +289,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-gray-300' : 'border-transparent',
           isItemFocusedAbsolute ? 'bg-gray-100' : '',
+          // nocheckin: Explorer.drop - can drop inside or above/below?
+          activeDropZone?.targetId == node.id ? 'border-primary-400' : '',
         ]"
         :style="{ paddingLeft: 8 + depth * 12 + 'px', paddingRight: 4 + 'px' }"
         role="treeitem"

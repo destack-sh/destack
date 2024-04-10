@@ -84,12 +84,12 @@ export const ACTION_BUILTIN_IDS = [
   "common.create.step",
   "common.history.undo",
   "common.history.redo",
-  "common.edit.delete",
+  "common.edit.rename",
   "common.edit.copy",
   "common.edit.cut",
   "common.edit.paste",
   "common.edit.duplicate",
-  "common.edit.rename",
+  "common.edit.delete",
   "common.navigate.up",
   "common.navigate.down",
   "common.navigate.left",
@@ -327,7 +327,6 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
   }
   const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
   if (suppressor) {
-    log.trace("action.suppressed", action.id, suppressor);
     return false;
   } else {
     const chain = collectViewComponentsUp(e.target as HTMLElement);
