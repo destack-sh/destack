@@ -1,7 +1,7 @@
 // tests
 
 import { expect, test } from "vitest";
-import { BASE_62_DIGITS, generateKeyBetween } from "./fractional";
+import { BASE_62_DIGITS, generateOrderKey } from "./fractional";
 
 test.each([
   [null, null, "a0"],
@@ -30,7 +30,7 @@ test.each([
   ["a1", "a0", "!error"],
 ])("test_fractional(%s, %s) -> %s", (a: string | null, b: string | null, expected: string) => {
   try {
-    expect(generateKeyBetween(a, b, BASE_62_DIGITS)).toBe(expected);
+    expect(generateOrderKey(a, b, BASE_62_DIGITS)).toBe(expected);
   } catch {
     expect(expected).toBe("!error");
   }

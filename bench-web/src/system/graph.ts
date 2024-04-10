@@ -1,4 +1,5 @@
 import {
+  BenchType,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
@@ -7,8 +8,9 @@ import {
   type AnyPropertyType,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { describeNode } from "@/proto/wiring";
-import { defaultSort } from "@/system/lang";
+import { describeNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { defaultSort, getOrderKey, updateOrder } from "@/system/lang";
+import type { Transaction } from "@/system/transaction";
 import { deepValueEquals, manualSubRef, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
@@ -856,4 +858,61 @@ export function mergeNode<T extends NodeType>(
   } else {
     return { ...base, ...partial };
   }
+}
+
+/** Resolve the node in the given graph if it's a reference */
+export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
+  return node.metatype == BenchType.NODE_REFERENCE ? graph.getOrFail(node as NodeReferenceData) : (node as AnyNodeData);
+}
+
+/** Moves the given node to/around the target. If the node has an 'orderKey' we respect the anchor. */
+export function moveNode(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  node: AnyNodeData | AnyNodeReferenceData,
+  target: AnyNodeData | AnyNodeReferenceData,
+  anchor: "start" | "center" | "end" = "center",
+) {
+  node = resolveNode(graph, node);
+  target = resolveNode(graph, target);
+  if (isAncestryCircular(graph, node, target)) {
+    throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
+  }
+
+  if (anchor == "start" || anchor == "end") {
+    // move before target (in its parent's children = target siblings)
+    const targetParent = graph.getOrFail(target.parentPtr!);
+    tx.move({ ...node, parentPtr: target.parentPtr });
+    if ("orderKey" in node && "orderKey" in target) {
+      updateOrder({
+        tx,
+        node: node as AnyNodeData & { orderKey: string },
+        position: anchor == "start" ? "before" : "after",
+        reference: target as AnyNodeData & { orderKey: string },
+        getNodes: () => graph.getChildren(targetParent, target.metatype as unknown as NodeType) as any,
+      });
+    }
+  } else if (anchor == "center") {
+    // move to end of target's children of that type
+    tx.move({ ...node, parentPtr: toNodeReference(target) });
+    if ("orderKey" in node) {
+      updateOrder({
+        tx,
+        node: node as AnyNodeData & { orderKey: string },
+        position: "after",
+        reference: null,
+        getNodes: () => graph.getChildren(target, node.metatype as unknown as NodeType) as any,
+      });
+    }
+  } else {
+    throw new Error(`unexpected anchor: ${anchor}`);
+  }
+}
+
+/** Whether an ancestry connection between A and B would be circular in the given graph  */
+export function isAncestryCircular(graph: ReadNodeGraph, a: NodeKey<any>, b: NodeKey<any>): boolean {
+  if (a.id == b.id) return true;
+  if (graph.getAncestors(a).some((n) => n.id == b.id)) return true;
+  if (graph.getAncestors(b).some((n) => n.id == a.id)) return true;
+  return false;
 }

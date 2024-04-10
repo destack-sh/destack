@@ -29,12 +29,12 @@ import {
   ROOT_VIEW_COMPONENT_NAMES,
   ROOT_VIEW_TYPES,
   getOrderKey,
-  updateOrderKey,
+  updateOrder,
 } from "@/system/lang";
 import { inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
-import { generateKeyBetween } from "@/utils/fractional";
+import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { toValueRef, valueRef } from "@/utils/ref";
@@ -543,7 +543,7 @@ export class ViewCanvas {
         ...view,
         metatype: NodeType.VIEW,
         packagePtr: primary.packagePtr,
-        orderKey: generateKeyBetween(rootChildren[-1]?.orderKey ?? null, null),
+        orderKey: generateOrderKey(rootChildren[-1]?.orderKey ?? null, null),
         parentPtr: toNodeReference(primary),
         icon: toIconMaybe(view.icon),
       });
@@ -620,12 +620,12 @@ export class ViewCanvas {
     log.debug("canvas.move", { self, child, anchor, referenceId });
     // move & update order
     if (child.id != referenceId) {
-      updateOrderKey({
+      updateOrder({
         tx,
-        target: child,
+        node: child,
         position: anchor == "start" ? "before" : "after",
-        referenceId,
-        nodes: () => graph.getChildren(self, NodeType.VIEW),
+        reference: referenceId,
+        getNodes: () => graph.getChildren(self, NodeType.VIEW),
       });
     }
     if (child.parentPtr?.id != self.id) {

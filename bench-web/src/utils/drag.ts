@@ -88,8 +88,6 @@ type DropOptions = {
   metatypes?: MaybeRef<NodeType[]>;
   /** The allowed file types for file drops. */
   fileTypes?: MaybeRef<string[]>;
-  /** More granular predicate to filter drops if needed. */
-  allowDrop?: (dragged: DraggedData) => boolean;
   /** Whether the drop zone is enabled. */
   enabled?: Ref<boolean>;
 };
@@ -109,8 +107,8 @@ function newDropZoneId(): number {
   return dropZoneId++;
 }
 
-/** Whether dropping the dragged thing into this zone is allowed */
-function isDropAllowed(zone: DropZone, dragged: DraggedData): boolean {
+/** Whether dropping the dragged thing into this zone is possible */
+function isDropCompatible(zone: DropZone, dragged: DraggedData): boolean {
   if (dragged == null) return false;
   const kinds = unref(zone.kinds);
   if (kinds != null && !kinds.includes(dragged.kind)) return false;
@@ -119,15 +117,14 @@ function isDropAllowed(zone: DropZone, dragged: DraggedData): boolean {
   const fileTypes = unref(zone.fileTypes);
   if (fileTypes != null && dragged.kind == "file" && dragged.fileTypes.some((t) => !fileTypes.includes(t)))
     return false;
-  if (zone.allowDrop && !zone.allowDrop(dragged)) return false;
   return true;
 }
 
 /** Traverses the event targets up to find a */
-function findAllowedDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedData): DropZone | null {
+function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedData): DropZone | null {
   while (el) {
     const zone = dropZonesByElement.get(el);
-    if (zone && isDropAllowed(zone, dragged)) return zone;
+    if (zone && isDropCompatible(zone, dragged)) return zone;
     el = el.parentElement;
   }
   return null;
@@ -137,7 +134,7 @@ function updateDropZone(event: DragEvent) {
   const dragged = getDraggedData(event);
   if (dragged == null) return;
   event.preventDefault();
-  const zone = findAllowedDropZone(event.target as HTMLElement | SVGElement, dragged);
+  const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone?.id !== activeDropZone.value?.id) {
     activeDropZone.value = zone;
     log.trace("drag.activeZone", zone);
@@ -154,7 +151,7 @@ useEventListener("dragover", updateDropZone);
 useEventListener("drop", (event) => {
   const dragged = getDraggedData(event);
   if (dragged == null) return;
-  const zone = findAllowedDropZone(event.target as HTMLElement | SVGElement, dragged);
+  const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
     log.debug("drag.drop", dragged, zone);
     zone.onDrop?.(dragged);
@@ -250,7 +247,6 @@ export function useSplitDropZone(
       options.onDrop?.(dragged, getActiveDropZone().anchor);
     },
   });
-
   const position = useMouseInElement(options.container);
 
   function getActiveDropZone(): { anchor: SplitAnchor; splitClass: string } {
@@ -312,6 +308,7 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     defaultToEdge?: boolean;
     hasCenterAnchor?: boolean;
+    allowDrop?: (dragged: DraggedData, targetId: string) => boolean;
     onDrop?: (dragged: DraggedData, anchor: "start" | "center" | "end", targetId: string | null) => void;
   },
 ): { activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> } {
@@ -320,7 +317,9 @@ export function useMultiDropZone(
     orientation: options.orientation,
     onDrop: (dragged) => {
       const { anchor, targetId } = getActiveDropZone()!;
-      options.onDrop?.(dragged, anchor, targetId);
+      if (targetId == null || options.allowDrop?.(dragged, targetId) !== false) {
+        options.onDrop?.(dragged, anchor, targetId);
+      }
     },
   });
 
@@ -369,9 +368,13 @@ export function useMultiDropZone(
   }
 
   const position = useMouse();
-  const activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> = computed(() =>
-    singleDropZone.value != null ? getActiveDropZone() : null,
-  );
+  const activeDropZone: Ref<{ anchor: "start" | "center" | "end"; targetId: string | null } | null> = computed(() => {
+    if (singleDropZone.value == null) return null;
+    const activeDropZone = getActiveDropZone();
+    if (activeDropZone.targetId != null && options.allowDrop?.(activeDragged!, activeDropZone.targetId) === false)
+      return null;
+    return activeDropZone;
+  });
 
   return { activeDropZone };
 }

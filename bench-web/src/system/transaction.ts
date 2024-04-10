@@ -211,15 +211,7 @@ export class TransactionBuilder implements Transaction {
     let propertiesNames: string[];
     if (Array.isArray(update)) {
       propertiesNames = update as string[];
-      update = {};
-      for (const propName of propertiesNames) {
-        if (!CONSTANT_IN_UPDATE_PROPERTIES.includes(propName as any)) {
-          const propId = (allProperties as any)[propName];
-          if (propId == null) throw new Error(`missing property id for ${propName as string}`);
-          const value = getDefaultProtoValue(messageType.fields[propId]);
-          if (value !== undefined) (update as any)[propName] = value;
-        }
-      }
+      update = {}; // node is already updated
     } else if (typeof update == "object") {
       propertiesNames = Object.keys(update);
     } else {

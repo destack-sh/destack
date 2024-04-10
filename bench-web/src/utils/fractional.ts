@@ -147,16 +147,23 @@ function getIntegerPart(key: string) {
   return key.slice(0, integerPartLength);
 }
 
-function validateOrderKey(key: string) {
-  if (key === SMALLEST_INTEGER) {
-    throw new Error("invalid order key: " + key);
-  }
+export function isValidOrderKey(key: string) {
+  if (key === SMALLEST_INTEGER) return false;
   // getIntegerPart will throw if the first character is bad,
   // or the key is too short.  we'd call it to check these things
   // even if we didn't need the result
-  const i = getIntegerPart(key);
-  const f = key.slice(i.length);
-  if (f.slice(-1) === "0") {
+  try {
+    const i = getIntegerPart(key);
+    const f = key.slice(i.length);
+    if (f.slice(-1) === "0") return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function validateOrderKey(key: string) {
+  if (!isValidOrderKey(key)) {
     throw new Error("invalid order key: " + key);
   }
 }
@@ -164,19 +171,12 @@ function validateOrderKey(key: string) {
 // `a` is an order key or null (START).
 // `b` is an order key or null (END).
 // `a < b` lexicographically if both are non-null.
-export function generateKeyBetween(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
-  if (a !== null) {
-    validateOrderKey(a);
-  }
-  if (b !== null) {
-    validateOrderKey(b);
-  }
-  if (a !== null && b !== null && a >= b) {
-    throw new Error(a + " >= " + b);
-  }
-  if (a === null && b === null) {
-    return INTEGER_ZERO;
-  }
+export function generateOrderKey(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
+  if (a !== null) validateOrderKey(a);
+  if (b !== null) validateOrderKey(b);
+  if (a !== null && b !== null && a >= b) throw new Error(a + " >= " + b);
+  if (a === null && b === null) return INTEGER_ZERO;
+
   if (a === null) {
     b = b as string; // b can't be null here (see if above)
     const ib = getIntegerPart(b);
@@ -215,34 +215,31 @@ export function generateNKeysBetween(
   a: string | null,
   b: string | null,
   n: number,
-  digits: string = BASE_95_DIGITS
+  digits: string = BASE_95_DIGITS,
 ): string[] {
-  if (n === 0) {
-    return [];
-  }
-  if (n === 1) {
-    return [generateKeyBetween(a, b, digits)];
-  }
+  if (n === 0) return [];
+  if (n === 1) return [generateOrderKey(a, b, digits)];
+
   if (b === null) {
-    let c = generateKeyBetween(a, b, digits);
+    let c = generateOrderKey(a, b, digits);
     const result = [c];
     for (let i = 0; i < n - 1; i++) {
-      c = generateKeyBetween(c, b, digits);
+      c = generateOrderKey(c, b, digits);
       result.push(c);
     }
     return result;
   }
   if (a === null) {
-    let c = generateKeyBetween(a, b, digits);
+    let c = generateOrderKey(a, b, digits);
     const result = [c];
     for (let i = 0; i < n - 1; i++) {
-      c = generateKeyBetween(a, c, digits);
+      c = generateOrderKey(a, c, digits);
       result.push(c);
     }
     result.reverse();
     return result;
   }
   const mid = Math.floor(n / 2);
-  const c = generateKeyBetween(a, b, digits);
+  const c = generateOrderKey(a, b, digits);
   return [...generateNKeysBetween(a, c, mid, digits), c, ...generateNKeysBetween(c, b, n - mid - 1, digits)];
 }
