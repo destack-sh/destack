@@ -12,6 +12,7 @@ import {
   NODE_TYPES,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
+import { isAncestryCircular, moveNode } from "@/system/graph";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -21,7 +22,6 @@ import { highlightMatches } from "@/system/search";
 import { canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
-import { log } from "@/utils/log";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
 import { manualSubRef, toValueRef } from "@/utils/ref";
 import { collapseSelection, expandSelection, makeSelection } from "@/views/canvas";
@@ -249,14 +249,18 @@ const { activeDropZone } = useMultiDropZone({
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
   hasCenterAnchor: true,
-  // nocheckin Explorer.drop - what can be dropped here?
   kinds: ["node"],
-  metatypes: NODE_TYPES,
-  allowDrop: (dragged) => {
-    return dragged.kind == "node" && !inspectedGraph.getAncestors(dragged.node).some((n) => n.id == self.value.id);
+  metatypes: inspectedNodeTypes,
+  allowDrop: (dragged, targetId) => {
+    const target = inspectedGraph.getOrFail({ id: targetId });
+    return dragged.kind == "node" && target != null && !isAncestryCircular(inspectedGraph, dragged.node, target);
   },
   onDrop: (dragged, anchor, targetId) => {
-    log.debug("explorer.drop", dragged, anchor, targetId);
+    if (targetId == null) return; // ignore out of target
+    if (dragged.kind == "node") {
+      const target = inspectedGraph.getOrFail({ id: targetId });
+      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, target, anchor)
+    }
   },
 });
 
@@ -348,7 +352,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Drop indicator -->
         <div
           v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-          class="absolute z-10 left-0 h-1 w-full rounded-sm bg-primary-400"
+          class="absolute left-0 z-10 h-1 w-full rounded-sm bg-primary-400"
           :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
         />
         <!-- Expand button (or placeholder) -->

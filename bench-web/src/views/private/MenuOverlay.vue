@@ -20,7 +20,7 @@ watch([menuRef, activeContextMenu], () => {
   if (menuRef.value == null || activeContextMenu.value == null) return;
   // get bounding
   const menu = activeContextMenu.value;
-  const el = getElement(menuRef.value as MaybeElement);
+  const el = getElement(menuRef.value as MaybeElement)!;
   const referenceRect = { x: menu.reference.x, y: menu.reference.y, width: 1, height: 1 };
   const containerRect =
     menu.container != null

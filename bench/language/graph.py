@@ -19,7 +19,7 @@ from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CL
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData
-from bench.utils.fractional import generate_key_between, generate_n_keys_between, get_key_bounds
+from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
 from bench.utils.func import to_uuid
 
 if TYPE_CHECKING:
@@ -587,7 +587,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
         # assign order key to ordered nodes
         if self._flags & NRel.ORDERED and n.order_key is None:
-            n.order_key = generate_key_between(*get_key_bounds(self.nodes, after, before))
+            n.order_key = get_order_key(*get_key_bounds(self.nodes, after, before))
 
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
@@ -602,7 +602,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
         if self._flags & NRel.ORDERED:
-            oks = generate_n_keys_between(*get_key_bounds(self.nodes, after, before), n=len(nodes))
+            oks = get_order_keys(*get_key_bounds(self.nodes, after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
 
@@ -715,7 +715,7 @@ class ValueList(list, Generic[ValueParentT]):
             item = item._lazy_copy_to(self.parent, self.parent_prop)
         super().append(item)
         if self.is_ordered:
-            item.order_key = generate_key_between(*get_key_bounds(self, after, before))
+            item.order_key = get_order_key(*get_key_bounds(self, after, before))
         self.parent._updated_self((self.parent_prop,))
 
     def extend(self, items: Collection[ValueT]):
@@ -728,7 +728,7 @@ class ValueList(list, Generic[ValueParentT]):
                     item.parent = self.parent
                     item.parent_key = self.parent_key
             if self.is_ordered:
-                order_keys = generate_n_keys_between(*get_key_bounds(self), n=len(items))
+                order_keys = get_order_keys(*get_key_bounds(self), n=len(items))
                 for item, order_key in zip(items, order_keys):
                     item.order_key = order_key
         self.parent._updated_self((self.parent_prop,))

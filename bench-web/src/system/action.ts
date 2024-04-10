@@ -35,7 +35,7 @@ import {
 import { graphConnections } from "@/system/connection";
 import { flushTransactionBuffers, getAllTransactionBuffers } from "@/system/transaction";
 import { generateRandomName } from "@/utils/naming";
-import { generateKeyBetween } from "@/utils/fractional";
+import { generateOrderKey } from "@/utils/fractional";
 import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 
 // :OmnibarModes
@@ -884,7 +884,7 @@ contributeActionMap<"developer">({
           type: BlockType.PAGE,
           isPage: true,
           name: pageName,
-          orderKey: generateKeyBetween(pages[pages.length - 1]?.orderKey ?? null, null),
+          orderKey: generateOrderKey(pages[pages.length - 1]?.orderKey ?? null, null),
         });
         pages.push(page);
       }
@@ -912,7 +912,7 @@ contributeActionMap<"developer">({
           type,
           isPage: type == BlockType.PAGE,
           name,
-          orderKey: generateKeyBetween((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
+          orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
         });
       }
     },

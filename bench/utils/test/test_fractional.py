@@ -1,6 +1,6 @@
 import pytest
 
-from bench.utils.fractional import BASE_62_DIGITS, generate_key_between
+from bench.utils.fractional import BASE_62_DIGITS, get_order_key
 
 
 # noinspection Assert
@@ -33,7 +33,7 @@ a1 a0 !error""".split(
         "\n"
     ),
 )
-def test_generate_key_between(test_case: str) -> None:
+def test_order_keys(test_case: str) -> None:
     def _map_test_arg(x: str) -> str | None:
         if x == "[":
             return ""
@@ -46,7 +46,7 @@ def test_generate_key_between(test_case: str) -> None:
     expected = test_args[-1]
     if expected == "!error":
         with pytest.raises(ValueError):
-            generate_key_between(*test_args[:-1], BASE_62_DIGITS)
+            get_order_key(*test_args[:-1], BASE_62_DIGITS)
     else:
-        actual = generate_key_between(*test_args[:-1], BASE_62_DIGITS)
+        actual = get_order_key(*test_args[:-1], BASE_62_DIGITS)
         assert actual == expected

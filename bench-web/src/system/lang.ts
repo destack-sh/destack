@@ -21,7 +21,7 @@ import {
 } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
+import { generateOrderKey, generateNKeysBetween, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import type { AnyNode } from "postcss";
 
@@ -82,36 +82,38 @@ export function defaultSort(nodes: AnyNodeData[]): void {
 
 /**
  * Sets the node order keys so that the target is position relative to the reference. Nodes must be in order.
- * If any positions need to be 'fixed' because of previous duplicates, these updates are also included.
+ * Also applies any 'fixes' due to duplicate order keys in the same transaction.
  */
-export function updateOrderKey<T extends AnyNodeData & { orderKey: string }>(order: {
+export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order: {
   tx: Transaction;
-  target: T;
+  node: T;
   position: "before" | "after";
-  referenceId: string | null;
-  nodes: () => T[];
+  reference: string | T | null;
+  getNodes: () => T[];
 }) {
   let orderKey;
-  let nodes = order.nodes();
+  const toReference = (nodes: T[]) => {
+    if (order.reference == null) return order.position == "before" ? null : nodes[nodes.length - 1];
+    else if (typeof order.reference == "string") return nodes.find((n) => n.id == order.reference) ?? null;
+    else return order.reference;
+  };
   try {
-    orderKey = getOrderKey<T>({
-      nodes,
-      position: order.position,
-      reference: order.referenceId == null ? null : nodes.find((n) => n.id == order.referenceId) ?? null,
-    });
+    const nodes = order.getNodes();
+    orderKey = getOrderKey<T>({ nodes, position: order.position, reference: toReference(nodes) });
   } catch {
     // 'fix' order keys if we couldn't generate one
-    //  (usually because of duplicates, we don't enforce uniqueness per order key for simplicity)
+    //  (usually because of duplicates, we don't enforce uniqueness per order key in backend for simplicity)
+    let nodes = order.getNodes();
     fixOrderKeys(order.tx, nodes);
-    nodes = order.nodes(); // 'refresh' to apply tx changes
+    nodes = order.getNodes(); // 'refresh' to apply tx changes
     orderKey = getOrderKey<T>({
       nodes,
       position: order.position,
-      reference: order.referenceId == null ? null : nodes.find((n) => n.id == order.referenceId) ?? null,
+      reference: toReference(nodes),
     });
   }
   // @ts-ignore: orderKey must exist
-  order.tx.update({ ...order.target, orderKey }, ["orderKey"]);
+  order.tx.update({ ...order.node, orderKey }, ["orderKey"]);
 }
 
 /**
@@ -126,17 +128,17 @@ export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
   if (order.position == "before") {
     const a =
       order.reference?.id == null ? null : order.nodes[order.nodes.findIndex((n) => n.id == order.reference!.id) - 1];
-    orderKey = generateKeyBetween(a?.orderKey ?? null, order.reference?.orderKey ?? null);
+    orderKey = generateOrderKey(a?.orderKey ?? null, order.reference?.orderKey ?? null);
   } else {
     const b =
       order.reference?.id == null ? null : order.nodes[order.nodes.findIndex((n) => n.id == order.reference!.id) + 1];
-    orderKey = generateKeyBetween(order.reference?.orderKey ?? null, b?.orderKey ?? null);
+    orderKey = generateOrderKey(order.reference?.orderKey ?? null, b?.orderKey ?? null);
   }
   return orderKey;
 }
 
 /**
- * Patches any broken order keys to put the nodes in the given order.
+ * Patches any 'broken' order keys to put the nodes in the given order.
  */
 export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: Transaction, nodes: T[]) {
   // ensure nodes are in current order
@@ -147,7 +149,11 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
   while (i < nodes.length) {
     const prevOrderKey = i == 0 ? null : nodes[i - 1].orderKey;
     const node = nodes[i];
-    if (node.orderKey == prevOrderKey) {
+    if (!isValidOrderKey(node.orderKey)) {
+      // just patch in place
+      const orderKey = generateOrderKey(prevOrderKey, nodes[i + 1]?.orderKey ?? null);
+      tx.update({ ...node, orderKey }, ["orderKey"]);
+    } else if (node.orderKey == prevOrderKey) {
       // find all duplicates with same key from here and fix them in one go
       const numDuplicates = nodes.slice(i).filter((n) => n.orderKey == node.orderKey).length;
       const duplicates = nodes.slice(i, i + numDuplicates);
