@@ -2056,7 +2056,7 @@ message RoleData {
   NodeReferenceData type_ptr = 30;
 }
 
-// A 'run' of a block (in a session).
+// A 'run' of a Block or something (in a session).
 message RunData {
   BenchType metatype = 1;
   string id = 2;

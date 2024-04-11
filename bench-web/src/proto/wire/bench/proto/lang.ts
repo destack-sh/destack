@@ -4041,7 +4041,7 @@ export interface RoleData {
     typePtr?: NodeReferenceData;
 }
 /**
- * A 'run' of a block (in a session).
+ * A 'run' of a Block or something (in a session).
  *
  * @generated from protobuf message symbolx.bench.RunData
  */

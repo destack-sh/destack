@@ -473,7 +473,7 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             return descendants
 
 
-def extract_sequential_id(name: str) -> Optional[int]:
+def extract_name_id(name: str) -> Optional[int]:
     """Extracts the last (potentially multi-digit) characters as an integer."""
     for i in range(len(name), 0, -1):
         if not name[i - 1].isdigit():
@@ -487,13 +487,17 @@ def generate_node_name(
     """Generates a new name for the given node based on its siblings. :AutoNaming"""
     if metatype == NodeType.BLOCK or metatype == NodeType.VIEW:
         assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
-        type_name = to_casing(type.name, Casing.CAMEL)
-        max_id = max((extract_sequential_id(n.name) or 0) for n in siblings)
-        return f"{type_name}{max_id + 1}"
+        base_name = to_casing(type.name, Casing.CAMEL)
+        type_siblings = tuple(n for n in siblings if n.type == type)
     else:
-        metatype_name = to_casing(metatype.name, Casing.CAMEL)
-        max_id = max((extract_sequential_id(n.name) or 0) for n in siblings if n.type == type)
-        return f"{metatype_name}{max_id + 1}"
+        base_name = to_casing(metatype.name, Casing.CAMEL)
+        type_siblings = tuple(n for n in siblings if n.metatype == metatype)
+
+    if len(type_siblings) == 0:
+        max_id = 0
+    else:
+        max_id = max((extract_name_id(n.name) or 0) for n in siblings if n.type == type)
+    return f"{base_name}{max_id + 1}"
 
 
 class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
