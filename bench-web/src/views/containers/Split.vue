@@ -69,7 +69,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusPreviousFrame": {
     enabled: isWindow,
     action: (action, ctx) => {
-      const allFrames = canvas.currentFrames;
+      const allFrames = canvas.frames;
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
@@ -80,11 +80,11 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusNextFrame": {
     enabled: isWindow,
     action: (action, ctx) => {
-      const allFrames = canvas.currentFrames;
+      const allFrames = canvas.frames;
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
-      const nextIdx = ((currentIdx ?? 0) + 1) % canvas.currentFrames.length;
+      const nextIdx = ((currentIdx ?? 0) + 1) % canvas.frames.length;
       canvas.focus(spaceConnection.tx, { view: allFrames[nextIdx] });
     },
   },

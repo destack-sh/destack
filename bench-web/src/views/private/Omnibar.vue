@@ -75,7 +75,7 @@ async function fire(id: string) {
   // fire
   if (result != null) {
     if (result.metatype == "action") fireAction(result);
-    else if (result.metatype == "node") canvas.goToNode(toNodeReference(result.node));
+    else if (result.metatype == "node") canvas.goToNode(result.node);
     else throw new Error(`unexpected result: ${result}`);
   }
   // refocus or close

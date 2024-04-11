@@ -18,9 +18,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
-  {
-    name: `page.${props.nodePtr?.id}`,
-  },
+  { name: `page.${props.nodePtr?.id}` },
   computed(() => ({
     roots: [props.nodePtr!],
     options: { descendantTypes: [NodeType.BLOCK] },
@@ -33,11 +31,7 @@ canvas.registerView(self);
 defineExpose({ self });
 </script>
 <template>
-  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md">
-    <!-- Testing -->
-    <div class="flex h-[150%] w-full flex-col items-center justify-center bg-secondary-100">
-      <span class="text-xl">{{ self.id }}</span>
-      <span>PAGE</span>
-    </div>
+  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md" track-is-overlay>
+    Page {{ nodePtr }}
   </Scroll>
 </template>

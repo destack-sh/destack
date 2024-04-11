@@ -57,7 +57,7 @@ watch([menuRef, activeContextMenu], () => {
       class="absolute z-70"
       data-outside-view="true"
       v-bind="activeContextMenu.info"
-      @close="() => (destroyContextMenu(), canvas.restoreComponentFocus())"
+      @close="() => (destroyContextMenu(), $nextTick(() => canvas.restoreComponentFocus()))"
     />
   </Transition>
 </template>

@@ -12,9 +12,13 @@ from bench.cli.utils import _shell
 from bench.language import VERSION, Node
 from bench.language.const import NODE_TYPES, STRUCT_TYPES
 from bench.language.setup import (
+    ANCESTOR_NODE_TYPES,
+    CHILD_NODE_TYPES,
+    DESCENDANT_NODE_TYPES,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
+    PARENT_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
 )
@@ -113,6 +117,27 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     _shell(
         f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
     )
+
+    # ancestry maps
+    ancestry_maps_parts = []
+    for name, map in (
+        ("PARENT_NODE_TYPES", PARENT_NODE_TYPES),
+        ("CHILD_NODE_TYPES", CHILD_NODE_TYPES),
+        ("ANCESTOR_NODE_TYPES", ANCESTOR_NODE_TYPES),
+        ("DESCENDANT_NODE_TYPES", DESCENDANT_NODE_TYPES),
+    ):
+        map_parts = [
+            f"export const {name}: Record<NodeType, NodeType[]> = {{\n",
+            "  [NodeType.UNSPECIFIED]: [],\n",
+        ]
+        for node_t, node_ts in map.items():
+            map_parts.append(
+                f"  [NodeType.{node_t.name}]: [{', '.join(f'NodeType.{t.name}' for t in node_ts)}],\n"
+            )
+        map_parts.append("}\n")
+        ancestry_maps_parts.append("".join(map_parts))
+    ancestry_maps_str = "\n".join(ancestry_maps_parts)
+
     # message type mappings
     message_type_map_parts = []
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
@@ -204,11 +229,14 @@ export const BENCH_TYPES: BenchType[] = Object.values(BenchType).filter(v => typ
 export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
 export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
 
+// ancestry maps
+{ancestry_maps_str}
+
 // Message types
 {message_type_map_str}
 {message_type_inv_map_str}
 
-// TypeMappings
+// Type mappings
 {struct_mapping_str}
 {node_mapping_str}
 {any_mapping_str}

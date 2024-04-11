@@ -1,5 +1,6 @@
 import {
   BenchType,
+  CHILD_NODE_TYPES,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
@@ -59,9 +60,15 @@ export interface ReadNodeGraph {
   /** Gets the current node with the key if the key is given */
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
   /**Gets all ancestors of the given node with the given or any metatypes. */
-  getAncestors(node: NodeKey<any>, metatypes?: NodeType[]): AnyNodeData[];
+  getAncestors<T extends NodeType = NodeType>(
+    node: NodeKey<any>,
+    options?: { metatypes?: T[]; includeSelf?: boolean },
+  ): NodeTypeMapping[T][];
   /** Gets all descendants of the given parent with the given metatypes, matching a certain filter. */
-  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter?: (node: AnyNodeData) => boolean): AnyNodeData[];
+  getDescendants<T extends NodeType = NodeType>(
+    node: NodeKey<any>,
+    options?: { metatypes?: T[]; filter?: (node: NodeTypeMapping[T]) => boolean; includeSelf?: boolean },
+  ): NodeTypeMapping[T][];
 
   //
   // Observable helpers
@@ -140,30 +147,38 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
     return key ? this.get(key) : null;
   }
 
-  getAncestors(node: NodeKey<any>, metatypes?: NodeType[] | undefined): AnyNodeData[] {
-    const ancestors: AnyNodeData[] = [];
-    let parent = this.get(node)?.parentPtr;
-    while (parent != null) {
-      const parentNode = this.get(parent);
+  getAncestors<T extends NodeType = NodeType>(
+    node: NodeKey<any>,
+    options?: { metatypes?: T[]; includeSelf?: boolean },
+  ): NodeTypeMapping[T][] {
+    const ancestors: NodeTypeMapping[T][] = [];
+    node = options?.includeSelf ? this.get(node) : this.get(node)?.parentPtr;
+    while (node != null) {
+      const parentNode = this.get(node);
       if (parentNode == null) break;
-      if (metatypes == null || metatypes.includes(parentNode.metatype as unknown as NodeType)) {
-        ancestors.push(parentNode);
+      if (options?.metatypes == null || options?.metatypes.includes(parentNode.metatype as unknown as T)) {
+        ancestors.push(parentNode as NodeTypeMapping[T]);
       }
-      parent = parentNode.parentPtr;
+      node = parentNode.parentPtr;
     }
     return ancestors;
   }
 
-  getDescendants(parent: NodeKey<any>, metatypes: NodeType[], filter?: (node: AnyNodeData) => boolean): AnyNodeData[] {
-    const descendants: AnyNodeData[] = [];
+  getDescendants<T extends NodeType = NodeType>(
+    node: NodeKey<any>,
+    options?: { metatypes?: T[]; filter?: (node: NodeTypeMapping[T]) => boolean; includeSelf?: boolean },
+  ): NodeTypeMapping[T][] {
+    const descendants: NodeTypeMapping[T][] = [];
     const children = [];
+    const metatypes =
+      options?.metatypes ?? CHILD_NODE_TYPES[(this.get(node)?.metatype as NodeType) ?? NodeType.UNSPECIFIED];
     for (const metatype of metatypes) {
-      children.push(...this.getChildren(parent, metatype));
+      children.push(...this.getChildren(node, metatype));
     }
     for (const child of children) {
-      if (filter == null || filter(child)) {
-        descendants.push(child);
-        descendants.push(...this.getDescendants(child, metatypes, filter));
+      if (options?.filter == null || options?.filter(child as NodeTypeMapping[T])) {
+        descendants.push(child as NodeTypeMapping[T]);
+        descendants.push(...this.getDescendants(child, options));
       }
     }
     return descendants;
@@ -875,7 +890,7 @@ export function moveNode(
 ) {
   node = resolveNode(graph, node);
   target = resolveNode(graph, target);
-  if (isAncestryCircular(graph, node, target)) {
+  if (isDescendantOf(graph, target, node)) {
     throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
   }
 
@@ -909,7 +924,7 @@ export function moveNode(
   }
 }
 
-/** Whether A.parent=B would be circular in the given graph  */
-export function isAncestryCircular(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
-  return graph.getAncestors(parent).some((ancestor) => ancestor.id == child.id);
+/** Whether child is a descendant of parent */
+export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
+  return graph.getAncestors(child).some((ancestor) => ancestor.id == parent.id);
 }
