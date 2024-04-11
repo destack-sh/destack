@@ -280,6 +280,10 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     type: node.metatype as unknown as T,
     id: node.id,
   };
+  // ck
+  if ("ck" in allProperties) {
+    reference.ck = (node as { ck: string }).ck;
+  }
   // benchId
   if (node.metatype == BenchType.BENCH) {
     reference.benchId = node.id;
@@ -289,10 +293,6 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     reference.benchId = node.benchPtr?.id;
   } else {
     reference.benchId = node.parentPtr?.benchId;
-  }
-  // ck
-  if ("ck" in allProperties) {
-    reference.ck = (node as { ck: string }).ck;
   }
   // base
   if (node.metatype in BASED_NODE_TYPES) {

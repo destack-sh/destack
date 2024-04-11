@@ -2,7 +2,7 @@ import type { AnyNodeData, BenchType, IconData, NodeReferenceData, NodeType } fr
 import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
-import { getNodeTypeIcon } from "@/system/lang";
+import { getNodeIcon, getNodeTypeIcon } from "@/system/lang";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 
@@ -24,7 +24,7 @@ export type ActionItem = Omit<Action, "title"> & {
 };
 export type SearchItem = (NodeItem | ActionItem) & { title: string; category?: string };
 
-export type SearchCandidate = SearchItem & { candidate: string; category: string };
+export type SearchCandidate = SearchItem & { candidate: string; category: string; index: string };
 
 export type SearchResult = SearchCandidate & {
   pathMarked?: string;
@@ -89,8 +89,8 @@ export function graphIndex(toIndex: {
       node,
       path,
       pathToIndex,
-      title: (node as any).title ?? (node as any).name ?? '',
-      icon: getNodeTypeIcon(node.metatype as unknown as NodeType),
+      title: (node as any).title ?? (node as any).name ?? "",
+      icon: getNodeIcon(node),
       ancestors: ancestors,
     };
     const items = [];
@@ -158,12 +158,13 @@ export function useSearch(search: {
 
   function updateCandidates() {
     const candidates: SearchCandidate[] = [];
-    for (const [category, index] of Object.entries(search.indices.value)) {
+    for (const [indexName, index] of Object.entries(search.indices.value)) {
       candidates.push(
         ...index.candidates().map((item) => ({
           ...item,
           candidate: item.name ?? item.id,
-          category: item.category ?? category,
+          category: item.category ?? indexName,
+          index: indexName,
         })),
       );
     }

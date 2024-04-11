@@ -23,7 +23,7 @@ import {
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { isDescendantOf, makeNodeName, type NodeKey, type ReadNodeGraph } from "@/system/graph";
+import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import {
   RIDEALONG_VIEW_TYPES,
@@ -38,7 +38,7 @@ import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { deepValueEquals, toValueRef } from "@/utils/ref";
+import { toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
@@ -166,6 +166,11 @@ function isOutsideView(el: HTMLElement): boolean {
 export type SomeView = NodeReferenceData | ViewData;
 export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
   Pick<ViewData, "type"> & { icon?: string | IconData };
+
+type OpenViewOptions = {
+  where?: "currentRoot" | "nextFrameRoot";
+  ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
+};
 
 /**
  * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements in a Space.
@@ -314,7 +319,11 @@ export class ViewCanvas {
   ) {
     log.debug("canvas.focus", focus);
     this.focusInGraph(tx, focus);
-    if (!focus.hasBrowserFocus) nextTick(() => this.focusInComponent(focus.view, focus.anchor));
+    if (!focus.hasBrowserFocus)
+      nextTick(() => {
+        const focused = this.focusInComponent(focus.view, focus.anchor);
+        if (!focused) log.warn("canvas.focusFailed", focus);
+      });
   }
 
   /** Focuses the given view absolutely in the graph. */
@@ -511,52 +520,66 @@ export class ViewCanvas {
   }
 
   /** Finds a view with properties exactly like the criteria */
-  findView(like: Partial<Omit<ViewData, "icon">>): ViewData | null {
+  findView(like: Pick<ViewData, "type" | "nodePtr">): ViewData | null {
     if (Object.keys(like).length == 0) return null;
     if (this.spacePtr.value == null) return null;
     const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
     const match = views.find((v) => {
-      // simple exact match every property
-      for (const key in like) {
-        if (!deepValueEquals((v as any)[key], (like as any)[key])) return false;
-      }
+      if (like.type != null && v.type != like.type) return false;
+      if (like.nodePtr != null && v.nodePtr?.id != like.nodePtr.id) return false;
       return true;
     });
     return match ?? null;
   }
 
   /** Add a new view to the canvas at the current root.  */
-  addView(
-    view: ViewDataIn,
-    options?: {
-      where?: "currentRoot" | "nextFrameRoot"; // nocheckin: respect addView.options.where
-      ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
-    },
-  ) {
+  addView(view: ViewDataIn, options?: OpenViewOptions) {
     const tx = this.txFactory();
     const existing = this.findView({ type: view.type, nodePtr: view.nodePtr });
+    log.debug("canvas.addView", view, { existing, options, focusedRoot: this.focusedRoot });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
-      let primary = this.focusedRoot ?? this.frames[0];
-      if (primary == null) {
-        // no root, reset space
+      let parent: ViewData | null = null;
+      if (options?.where == null || options?.where == "currentRoot") {
+        parent = this.focusedRoot;
+      } else if (options?.where == "nextFrameRoot" && this.focusedRoot != null) {
+        // find root window and root tab below it
+        const ancestors = this.graph.getAncestors(this.focusedRoot, { metatypes: [NodeType.VIEW] });
+        const rootSplit = ancestors[ancestors.length - 2];
+        const rootSplitSiblings = this.graph.getChildren(ancestors[ancestors.length - 1], NodeType.VIEW);
+        const nextSplit = rootSplitSiblings[rootSplitSiblings.findIndex((n) => n.id == rootSplit.id) + 1];
+        if (nextSplit != null) parent = nextSplit;
+      } else {
+        throw new Error(`unexpected where: ${options?.where}`);
+      }
+      if (parent == null) {
+        // no parent so far, just use current
+        parent = this.focusedRoot;
+      }
+      if (parent == null) {
+        // no parent at all, reset space
         log.info("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrFail(this.spacePtr.value!);
-        primary = setupEmptyCanvas(tx, space).primary;
+        parent = setupEmptyCanvas(tx, space).primary;
       }
 
       // create & focus
-      const rootChildren = this.graph.getChildren(primary, NodeType.VIEW);
+      const rootChildren = this.graph.getChildren(parent, NodeType.VIEW);
       const newView = makeNode({
         ...view,
         metatype: NodeType.VIEW,
-        packagePtr: primary.packagePtr,
+        packagePtr: parent.packagePtr,
         orderKey: generateOrderKey(rootChildren[-1]?.orderKey ?? null, null),
-        parentPtr: toNodeReference(primary),
+        parentPtr: toNodeReference(parent),
         icon: toIconMaybe(view.icon),
       });
-      if ((view.name ?? "").length == 0) newView.name = makeNodeName(this.graph, newView);
+      if ((view.name ?? "").length == 0)
+        newView.name = generateNodeName(
+          NodeType.VIEW,
+          newView.type,
+          this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
+        );
       tx.create(newView);
       this.focus(tx, { view: newView });
     } else if (options?.ifPresent == "focus") {
@@ -573,17 +596,14 @@ export class ViewCanvas {
   }
 
   /**
-   * Goes to the given node, whatever that means.
+   * Goes to the given node, whatever that means. Unlike addView, this upserts the view by default.
    * If it's a view node, we focus it in the space graph (it must exist).
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
-  goToNode(
-    node: AnyNodeData | NodeReferenceData,
-    options?: { graph?: ReadNodeGraph; where?: "currentRoot" | "nextFrameRoot" },
-  ) {
+  goToNode(node: AnyNodeData | NodeReferenceData, options?: { graph?: ReadNodeGraph } & OpenViewOptions) {
     const nodeRef =
       node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
-    log.debug("canvas.goToNode", describeNode(nodeRef), node);
+    log.debug("canvas.goToNode", node);
     const tx = this.txFactory();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
@@ -597,15 +617,9 @@ export class ViewCanvas {
           .find((n) => n.isPage);
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
         this.addView(
-          {
-            type: ViewType.PAGE,
-            nodePtr: toNodeReference(containingPage),
-            title: containingPage.name,
-            icon: containingPage.icon,
-          },
-          { where: options?.where },
+          { type: ViewType.PAGE, nodePtr: toNodeReference(containingPage), title: containingPage.name },
+          { ifPresent: "focus", ...options },
         );
-        console.log(containingPage);
       } else {
         throw new Error(`cannot go to node: ${describeNode(node)}`);
       }
@@ -855,7 +869,7 @@ export function setupDefaultCanvas(
     parentPtr: toNodeReference(sideTop),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Explorer",
+    name: "Explorer1",
     title: "Explorer",
   });
   tx.create({
@@ -864,7 +878,7 @@ export function setupDefaultCanvas(
     parentPtr: toNodeReference(sideBottom),
     packagePtr: space.packagePtr,
     orderKey: "a1",
-    name: "Outline",
+    name: "Outline1",
     title: "Outline",
   });
 
@@ -878,7 +892,7 @@ export function setupDefaultCanvas(
     parentPtr: toNodeReference(secondary),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Inspector",
+    name: "Inspector1",
     title: "Inspector",
   });
   tx.create({
@@ -887,7 +901,7 @@ export function setupDefaultCanvas(
     parentPtr: toNodeReference(secondary),
     packagePtr: space.packagePtr,
     orderKey: "a1",
-    name: "Library",
+    name: "Library1",
     title: "Library",
   });
 
