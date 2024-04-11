@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import { describeNode } from "@/proto/wiring";
 import { useExistingConnection, useGetNodes } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -25,6 +26,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
     enabled: props.nodePtr != null,
   })),
 );
+const page = pkgGraph.getRef(props.nodePtr);
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
 canvas.registerView(self);
@@ -32,12 +34,16 @@ defineExpose({ self });
 </script>
 <template>
   <Scroll
+    v-if="page"
     :size="size"
     :orientation="Orientation.VERTICAL"
     :track-width="ScrollbarWidth.md"
     track-is-overlay
     class="bg-white"
   >
-    Page {{ nodePtr }}
+    Page {{ nodePtr }} -> {{ describeNode(page) }}
   </Scroll>
+  <div v-else class="flex h-full w-full flex-col justify-center text-center">
+    TODO :Incomplete: not accessible: {{ nodePtr }}
+  </div>
 </template>

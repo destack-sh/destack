@@ -36,7 +36,15 @@ from bench.language import (
     TypeInfo,
 )
 from bench.language.access import ReadOptions
-from bench.language.const import EMPTY_DICT, NODE_TYPES, BenchError, EditType, NodeType, SortOp
+from bench.language.const import (
+    EMPTY_DICT,
+    NODE_TYPES,
+    BenchError,
+    EditType,
+    NodeType,
+    ReferenceKind,
+    SortOp,
+)
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
@@ -251,10 +259,9 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
                 column.default = f"'{prop.default}'::character varying"
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
-        # references
+        # FKs
         if (
-            prop.reference_nodes
-            and prop.name.endswith("_id")
+            (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
             and not prop.is_list  # foreign keys must be scalar
             and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
         ):
@@ -1046,17 +1053,17 @@ def _pg_pack_node_reference_into_row(
     if prop.is_list:
         value = value or ()
         # pointer id/ck
-        for stored_prop in prop.reference_stored_ptrs:
+        for stored_prop in prop.reference_stored_ids:
             row[stored_prop.name] = []
         for v in value:
-            stored_prop = prop.reference_stored_ptrs_by_type[v.type]
+            stored_prop = prop.reference_stored_ids_by_type[v.type]
             row[stored_prop.name].append(v.id)
         # additional pointer metadata
         for extra_key, p in prop.reference_stored_extras.items():
             row[p.name] = [getattr(v, extra_key) for v in value]
     else:
         # pointer id/ck
-        for stored_prop in prop.reference_stored_ptrs:
+        for stored_prop in prop.reference_stored_ids:
             if value is not None and value.type in stored_prop.reference_nodes:
                 row[stored_prop.name] = value.id
             else:
@@ -1076,7 +1083,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     if node.metatype == NodeType.BENCH:
         bench_id = row.get("id")
     else:
-        bench_id = row.get("bench_ck")
+        bench_id = row.get("bench_id")
     if bench_id is not None:
         bench_id = str(bench_id)
 
@@ -1084,7 +1091,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         # can only be a a set of id props + a single ck prop (:HomogeneousListCk)
         ptrs = []
         # pointer id/cks
-        for stored_prop in prop.reference_stored_ptrs:
+        for stored_prop in prop.reference_stored_ids:
             ids = row.get(stored_prop.name)
             for id in ids or ():
                 ptr = NodeReferenceData(
@@ -1106,7 +1113,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     ptr.base_bench_id = ptr.bench_id
     else:
         # pointer id/ck
-        for stored_prop in prop.reference_stored_ptrs:
+        for stored_prop in prop.reference_stored_ids:
             value: UUID | None = row.get(stored_prop.name)
             if value is not None:
                 ptr = NodeReferenceData(
@@ -1309,7 +1316,7 @@ async def pg_get_node_data_graph(
                 # build initial filter
                 parents_filters: list[Expression] = []
                 parent_property = NODE_CLASS_BY_TYPE[child_type].__parent_property__
-                for parent_property in parent_property.reference_stored_ptrs:
+                for parent_property in parent_property.reference_stored_ids:
                     filter = C(
                         op=ConditionalOp.IN,
                         property=parent_property,

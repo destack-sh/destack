@@ -100,7 +100,7 @@ def _complete_bench_setup():
         for name, prop in cls.__properties__.items():
             prop: Property
 
-            if prop.reference_wired_ptr or prop.reference_stored_ptrs:
+            if prop.reference_wired_ptr or prop.reference_stored_ids:
                 # Properties with reference ptrs (like Node.parent -> parent_ptr/parent_id)
                 #  aren't wired/stored directly, we just use is_wired/is_stored to indicate what
                 #  the contributed properties should do. Now that they're all contributed,

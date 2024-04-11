@@ -819,7 +819,7 @@ contributeActionMap<"view">({
 // developer actions
 contributeActionMap<"developer">({
   "developer.misc.toggleDeveloperMode": {
-    icon: "fas fa-bug",
+    icon: "fas fa-brackets-curly",
     title: computed(() => (isDeveloperMode.value ? "Disable Developer Mode" : "Enable Developer Mode")),
     text: "Developer Mode enables some advanced and some weird features.",
     action: () => {
@@ -829,7 +829,7 @@ contributeActionMap<"developer">({
         override: true,
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
-        icon: "fas fa-bug",
+        icon: "fas fa-brackets-curly",
         actions: [
           {
             title: isDeveloperMode.value ? "Disable" : "Enable",

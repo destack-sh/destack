@@ -929,7 +929,7 @@ export function moveNode(
 
 /** Whether child is a descendant of parent */
 export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
-  return graph.getAncestors(child).some((ancestor) => ancestor.id == parent.id);
+  return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);
 }
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
@@ -945,11 +945,12 @@ export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNod
     const typeName = toCasing(BlockType[type] ?? ViewType[type], Casing.CAMEL);
     const maxId = Math.max(
       ...siblings.filter((n) => (n as any).type == type).map((n) => extractNameId((n as any).name) ?? 0),
+      0
     );
     return `${typeName}${maxId + 1}`;
   } else {
     const metatypeName = toCasing(NodeType[metatype], Casing.CAMEL);
-    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0));
+    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
     return `${metatypeName}${maxId + 1}`;
   }
 }

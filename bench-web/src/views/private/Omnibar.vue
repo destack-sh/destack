@@ -295,7 +295,7 @@ defineExpose({ isActive, open });
                     </span>
                   </span>
                   <!-- Metadata (shortcut, last edited, etc.) -->
-                  <span class="ml-auto flex-shrink-0 flex flex-row gap-x-1.5">
+                  <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
                     <Shortcut
                       v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
                       class="text-gray-700"

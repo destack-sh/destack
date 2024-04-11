@@ -548,7 +548,7 @@ class Session(Node):
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(HasBase, HasValues):
     """
-    A 'run' of a block (in a session).
+    A 'run' of a Block or something (in a session).
     """
 
     parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
@@ -780,7 +780,9 @@ class Pause(Node):
     """A resumable interruption in a Run."""
 
     parent: "Run" = p_node_parent(4, NodeType.RUN)
-    session: "Session" = p_node_ancestor(30, NodeType.SESSION, require=True, store=True)
+    session: "Session" = p_node_ancestor(
+        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
+    )
     # (placeholder)
 
 
