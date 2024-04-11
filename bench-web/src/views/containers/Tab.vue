@@ -171,7 +171,9 @@ defineExpose<ViewExposed>({ self, actions });
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
-      v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*frame*', 'view.layout*']}, {context})} as ContextMenuInfo) "
+      v-contextmenu="(context: MenuContext) => {
+        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
+    } "
     >
       <!-- Tab button -->
       <button
@@ -188,7 +190,10 @@ defineExpose<ViewExposed>({ self, actions });
         @click="focus(tab)"
         :draggable="true"
         @dragstart="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
-        v-contextmenu="(context: MenuContext) => ({items: menuActionsLike({wildcard: ['view.navigate*tab*', 'view.layout*']}, {context: { ...context, triggerNode: tab}})} as ContextMenuInfo)"
+        v-contextmenu="(context: MenuContext) => {
+          context = { ...context, triggerNode: tab }
+          return { items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
+        } "
       >
         <!-- Tab header  -->
         <IconInline

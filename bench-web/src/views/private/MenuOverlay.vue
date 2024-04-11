@@ -1,11 +1,11 @@
 <script lang="tsx" setup>
-import { type Ref, ref, computed, watch } from "vue";
+import { canvas } from "@/system/space";
+import { getElement } from "@/utils/element";
+import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
 import { activeContextMenu, destroyContextMenu } from "@/utils/menu";
 import Menu from "@/views/private/Menu.vue";
-import { useFloating, type FloatingPlacement, getFloatingPosition } from "@/utils/floating";
 import type { MaybeElement } from "@vueuse/core";
-import { getElement } from "@/utils/element";
-import { canvas } from "@/system/space";
+import { ref, watch, type Ref } from "vue";
 
 const menuRef: Ref<InstanceType<typeof Menu> | null> = ref(null);
 
@@ -49,7 +49,7 @@ watch([menuRef, activeContextMenu], () => {
     :leave-to-class="'opacity-0 ' + getEnterFrom(activeContextMenu?.info.placement ?? 'top')"
     mode="out-in"
   >
-    <!-- Context menu -->
+    <!-- Classic context menu -->
     <Menu
       ref="menuRef"
       v-if="activeContextMenu"
