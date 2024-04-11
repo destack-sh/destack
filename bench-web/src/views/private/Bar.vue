@@ -49,21 +49,21 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: { items: menuActionsLike({ prefix: ["space.omnibar"] }) },
+      action: { items: menuActionsLike({ wildcard: ["space.omnibar*"] }) },
     },
     {
       id: "view",
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: { items: menuActionsLike({ prefix: ["view"] }) },
+      action: { items: menuActionsLike({ wildcard: ["view*"] }) },
     },
     {
       id: "edit",
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
-      action: { items: menuActionsLike({ prefix: ["common.history", "common.edit", "common.move", "common.search"] }) },
+      action: { items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*", "common.search*"] }) },
     },
     {
       id: "sense",
@@ -71,7 +71,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-telescope",
       title: "Analyze",
       action: {
-        items: [menuItemFromAction("space.launch.inspector"), ...menuActionsLike({ prefix: ["common.sense"] })],
+        items: [menuItemFromAction("space.launch.inspector"), ...menuActionsLike({ wildcard: ["common.sense*"] })],
       },
     },
     {
@@ -79,7 +79,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: { items: menuActionsLike({ prefix: ["common.session"] }) },
+      action: { items: menuActionsLike({ wildcard: ["common.session*"] }) },
     },
     // extra
     menuItemFromAction("space.launch.explorer"),
@@ -95,7 +95,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "developer",
       icon: "fas fa-bug",
       title: "Developer",
-      action: { items: menuActionsLike({ prefix: ["developer"] }) },
+      action: { items: menuActionsLike({ wildcard: ["developer*"] }) },
     });
   }
 

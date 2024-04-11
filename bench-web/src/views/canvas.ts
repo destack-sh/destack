@@ -11,6 +11,7 @@ import {
   ViewType,
   type AnyNodeData,
   SelectionData,
+  DESCENDANT_NODE_TYPES,
 } from "@/proto/wire";
 import {
   copyNode,
@@ -22,7 +23,7 @@ import {
   type TypedNodeReferenceData,
   type SomeNodeReferenceData,
 } from "@/proto/wiring";
-import type { NodeKey, ReadNodeGraph } from "@/system/graph";
+import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import {
   RIDEALONG_VIEW_TYPES as RIDEALONG_VIEW_TYPES,
@@ -37,7 +38,7 @@ import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { toValueRef, valueRef } from "@/utils/ref";
+import { deepValueEquals, toValueRef, valueRef } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
 import { useActiveElement, useEventListener } from "@vueuse/core";
@@ -107,8 +108,7 @@ export function findViewComponent(
   while (el != null) {
     if (el instanceof HTMLElement) {
       // first find vue component
-      if ((el as any).__viewComponent != null)
-        el = (el as any).__viewComponent;
+      if ((el as any).__viewComponent != null) el = (el as any).__viewComponent;
       else el = el.parentElement!;
     } else {
       if (where == null || where(el)) return el;
@@ -319,8 +319,6 @@ export class ViewCanvas {
 
   /** Focuses the given view absolutely in the graph. */
   focusInGraph(tx: Transaction, focus: { view: SomeView; parent?: SomeView; clearDown?: boolean }) {
-    log.trace("canvas.focusInGraph", focus);
-
     // focus every 'child' in its 'parent' up to space root
     let child = this.getViewData(focus.view);
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
@@ -333,15 +331,13 @@ export class ViewCanvas {
 
     // reset focus 'down' from view
     if (focus.clearDown) {
-      const descendants = this.graph.getDescendants(child, [NodeType.VIEW]) as ViewData[];
+      const descendants = this.graph.getDescendants(child, { metatypes: [NodeType.VIEW] });
       descendants.filter((v) => v.focus != null).forEach((v) => tx.updateDebounced(v, { focus: undefined }));
     }
   }
 
   /** Focus the first focusable component within the given view. */
   focusInComponent(view: SomeView | ViewComponent, anchor?: FocusAnchor | NodeReferenceData): boolean {
-    log.trace("canvas.focusInComponent", view, anchor);
-
     // get component/view data
     let component: ViewComponent | null;
     let viewData: ViewData | null;
@@ -405,7 +401,6 @@ export class ViewCanvas {
   /** Restores component focus to the currently absolutely focused element if possible. */
   restoreComponentFocus(): boolean {
     if (this.spacePtr.value == null) throw new Error("no current space");
-    log.trace("canvas.restoreComponentFocus", this.spacePtr.value);
     const space = this.graph.get(this.spacePtr.value);
     if ((space?.focus?.nodesPtr?.length ?? 0) > 0) {
       const view = this.getViewData(space!.focus!.nodesPtr[0]);
@@ -494,8 +489,12 @@ export class ViewCanvas {
     return null; // not found
   }
 
+  isInSpace(node: NodeKey<any>): boolean {
+    return isDescendantOf(this.graph, node, this.spacePtr.value!);
+  }
+
   /** Gets all the open frames (direct children of Window views, not reactive) */
-  get currentFrames(): ViewData[] {
+  get frames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
     const getFrames = (view: ViewData): ViewData[] => {
       if (view.type == ViewType.WINDOW || view.type == ViewType.SPLIT) {
@@ -512,14 +511,14 @@ export class ViewCanvas {
   }
 
   /** Finds a view with properties exactly like the criteria */
-  findView(like: Partial<ViewData>): ViewData | null {
+  findView(like: Partial<Omit<ViewData, "icon">>): ViewData | null {
     if (Object.keys(like).length == 0) return null;
     if (this.spacePtr.value == null) return null;
-    const views = this.graph.getDescendants(this.spacePtr.value, [NodeType.VIEW]) as ViewData[];
+    const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
     const match = views.find((v) => {
       // simple exact match every property
       for (const key in like) {
-        if ((v as any)[key] != (like as any)[key]) return false;
+        if (!deepValueEquals((v as any)[key], (like as any)[key])) return false;
       }
       return true;
     });
@@ -530,16 +529,16 @@ export class ViewCanvas {
   addView(
     view: ViewDataIn,
     options?: {
-      where?: "currentRoot";
+      where?: "currentRoot" | "nextFrameRoot";
       ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
     },
   ) {
     const tx = this.txFactory();
-    const existing = this.findView({ type: view.type });
+    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
-      let primary = this.focusedRoot ?? this.currentFrames[0];
+      let primary = this.focusedRoot ?? this.frames[0];
       if (primary == null) {
         // no root, reset space
         log.info("canvas.repairCanvas", this.spacePtr.value);
@@ -577,15 +576,32 @@ export class ViewCanvas {
    * If it's a view node, we focus it in the space graph (it must exist).
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
-  goToNode(node: AnyNodeData | NodeReferenceData, options?: {}) {
+  goToNode(
+    node: AnyNodeData | NodeReferenceData,
+    options?: { graph?: ReadNodeGraph; where?: "currentRoot" | "nextFrameRoot" },
+  ) {
     const nodeRef =
       node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
+    log.debug("canvas.goToNode", describeNode(nodeRef), node);
     const tx = this.txFactory();
-    if (nodeRef.type == NodeType.VIEW) {
+    if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
+      // just focus directly
       this.focus(tx, { view: nodeRef });
     } else {
+      // find or create appropriate view
+      const graph = options?.graph ?? this.graph;
+      if (nodeRef.type == NodeType.BLOCK || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodeRef.type)) {
+        const containingPage = graph
+          .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: true })
+          .find((n) => n.isPage);
+        if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
+        // nocheckin: canvas.goToNode
+        this.addView({ type: ViewType.PAGE, nodePtr: toNodeReference(containingPage) }, { where: options?.where });
+        console.log(containingPage);
+      } else {
+        throw new Error(`cannot go to node: ${describeNode(node)}`);
+      }
       this.inspect(tx, { node: nodeRef });
-      throw new Error("not yet implemented");
     }
   }
 
@@ -601,7 +617,7 @@ export class ViewCanvas {
 
   /**
    * Cleanup previously split (sub-)root views that are no longer needed.
-   * NOTE: righ tnow we only close sub root views because it's annoying to have your layout change because you accidentally closed a tab.
+   * NOTE: right now we only close sub root views because it's annoying to have your layout change because you accidentally close a tab.
    *  (and the 'layout' is usually your root splits)
    */
   cleanupRootViews(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {

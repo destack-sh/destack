@@ -261,30 +261,27 @@ export function getAction(id: ActionBuiltinId): Action {
 
 /** A simple OR filter for Actions */
 export type ActionFilter = {
-  // exact prefix match (lowercase)
-  prefix?: string | string[];
   // wildcard match (lowercase, with '*' for variable length wildcard)
   wildcard?: string | string[];
-  category?: ActionBuiltinCategory | ActionBuiltinCategory[];
 };
 
-/** Filters actions with a simple OR filter of clauses */
+/**
+ * Filters actions with a simple OR filter of clauses.
+ * The order of the input filter is preserved in order of matching.
+ */
 export function getActionsLike(like: ActionFilter): Action[] {
-  const prefix = (like.prefix == null ? [] : Array.isArray(like.prefix) ? like.prefix : [like.prefix]).map((s) =>
-    s.toLowerCase(),
-  );
-  const wildcard = (like.wildcard == null ? [] : Array.isArray(like.wildcard) ? like.wildcard : [like.wildcard]).map(
+  const wildcards = (like.wildcard == null ? [] : Array.isArray(like.wildcard) ? like.wildcard : [like.wildcard]).map(
     (w) => new RegExp("^" + w.toLowerCase().replace(/\*/g, ".*") + "$"),
   );
-  const category = like.category == null ? [] : Array.isArray(like.category) ? like.category : [like.category];
-  const filter = (action: Action) => {
-    // OR filter, any match is enough
-    const idNorm = action.id.toLowerCase();
-    if (prefix.some((p) => idNorm.startsWith(p))) return true;
-    if (wildcard.some((w) => w.test(idNorm))) return true;
-    if (category.length > 0 && !category.includes(action.category as ActionBuiltinCategory)) return false;
-  };
-  return DECLARED_ACTIONS.value.filter(filter);
+  const matches: Record<string, Action> = {};
+  for (const wildcard of wildcards) {
+    for (const action of DECLARED_ACTIONS.value) {
+      if (matches[action.id] != null) continue; // already matched (preserve order)
+      const idNorm = action.id.toLowerCase();
+      if (wildcard.test(idNorm)) matches[action.id] = action;
+    }
+  }
+  return Object.values(matches);
 }
 
 /**
@@ -907,7 +904,7 @@ contributeActionMap<"developer">({
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
       );
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 20; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);

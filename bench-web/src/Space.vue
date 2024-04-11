@@ -53,10 +53,11 @@ const browserTitle = useTitle();
 watch([canvas.focusedViewPtr, bench], () => {
   const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
   let viewTitle = null;
-  if (canvas.focusedViewPtr.value != null) {
-    const viewAncestors = [canvas.graph.get(canvas.focusedViewPtr.value)!].concat(
-      ...(canvas.graph.getAncestors(canvas.focusedViewPtr.value, [NodeType.VIEW]) as ViewData[]),
-    );
+  if (canvas.focusedView.value != null) {
+    const viewAncestors = canvas.graph.getAncestors(canvas.focusedViewPtr.value!, {
+      metatypes: [NodeType.VIEW],
+      includeSelf: true,
+    });
     viewTitle = viewAncestors.find((ancestor) => ancestor.title != null)?.title;
   }
 

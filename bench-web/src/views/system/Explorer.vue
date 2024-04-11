@@ -12,7 +12,7 @@ import {
   NODE_TYPES,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
-import { isAncestryCircular, moveNode } from "@/system/graph";
+import { isDescendantOf, moveNode } from "@/system/graph";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
@@ -194,12 +194,12 @@ function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenc
   else queryRef.value?.focus();
 }
 
-function doFocus(node: AnyNodeData | NodeReferenceData, options?: { stateOnly?: boolean }) {
+function doFocus(node: AnyNodeData | NodeReferenceData) {
   if (focusedNode.value?.id != node.id) {
     const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
     spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
   }
-  if (!options?.stateOnly) queryRef.value?.focus();
+  queryRef.value?.focus();
   expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
@@ -255,7 +255,7 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
     const target = inspectedGraph.getOrFail({ id: targetId });
-    return dragged.kind == "node" && target != null && !isAncestryCircular(inspectedGraph, dragged.node, target);
+    return dragged.kind == "node" && target != null && !isDescendantOf(inspectedGraph, target, dragged.node);
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId == null) return; // ignore out of target
@@ -269,28 +269,19 @@ const { activeDropZone } = useMultiDropZone({
 // actions
 const hasFocusedNode = computed(() => focusedNode.value != null);
 const actions: Partial<ActionMapImplementation<"common">> = {
-  // <!-- nocheckin :Incomplete: explorer/outline actions -->
   "common.sense.focus": {
     enabled: hasFocusedNode,
-    action: () => {},
+    action: () => canvas.goToNode(focusedNode.value!, { where: "currentRoot" }),
   },
   "common.sense.focusInSplit": {
     enabled: hasFocusedNode,
-    action: () => {},
+    action: () => canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot" }),
   },
-  "common.edit.rename": {
-    enabled: hasFocusedNode,
-    action: () => {},
-  },
-  "common.edit.move": {
-    enabled: hasFocusedNode,
-    action: () => {},
-  },
+  // <!-- TODO :Incomplete: Explorer/Outline actions -->
+  // common.edit.rename, common.edit.delete, etc.
   "common.edit.delete": {
     enabled: hasFocusedNode,
-    action: () => {
-      inspectedConnection.tx.softDelete(focusedNode.value!);
-    },
+    action: () => inspectedConnection.tx.softDelete(focusedNode.value!),
   },
 };
 
