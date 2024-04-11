@@ -932,17 +932,25 @@ export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent
   return graph.getAncestors(child).some((ancestor) => ancestor.id == parent.id);
 }
 
+/** Extracts the last (potentially multi-digit) characters as an integer */
+export function extractNameId(name: string): number | null {
+  const match = name.match(/\d+$/);
+  return match ? parseInt(match[0]) : null;
+}
+
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNodeData[]): string {
-  const metatypeName = toCasing(NodeType[metatype], Casing.CAMEL);
   if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW) {
     if (type == null) throw new Error(`expected type for ${metatype}, got ${type}`);
     const typeName = toCasing(BlockType[type] ?? ViewType[type], Casing.CAMEL);
-    const count = siblings.filter((n) => (n as any).type == type).length;
-    return `${metatypeName}${typeName}${count + 1}`;
+    const maxId = Math.max(
+      ...siblings.filter((n) => (n as any).type == type).map((n) => extractNameId((n as any).name) ?? 0),
+    );
+    return `${typeName}${maxId + 1}`;
   } else {
-    const count = siblings.length;
-    return `${metatypeName}${count + 1}`;
+    const metatypeName = toCasing(NodeType[metatype], Casing.CAMEL);
+    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0));
+    return `${metatypeName}${maxId + 1}`;
   }
 }
 

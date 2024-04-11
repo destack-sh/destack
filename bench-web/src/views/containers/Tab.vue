@@ -11,6 +11,7 @@ import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
 import { toCasing, Casing } from "@/utils/string";
+import type { TooltipInfo } from "@/utils/tooltip";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -195,6 +196,7 @@ defineExpose<ViewExposed>({ self, actions });
           context = { ...context, triggerNode: tab }
           return { items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
         } "
+        v-tooltip="{ title: tab.name, referenceMargin: 0, showDelay: 2000 } as TooltipInfo"
       >
         <!-- Tab header  -->
         <IconInline

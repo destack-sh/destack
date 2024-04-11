@@ -34,15 +34,15 @@ const indices = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
 
   // actions
-  if (["everywhere", "actions"].includes(m)) indices["actions"] = actionIndex();
+  if (["everywhere", "actions"].includes(m)) indices["Actions"] = actionIndex();
 
   // views
   if (space.value != null && ["everywhere", "space", "views"].includes(m))
-    indices["views"] = graphIndex({
+    indices["Views"] = graphIndex({
       graph: spaceGraph,
       metatypes: [NodeType.VIEW],
       roots: [space.value],
-      skipDepth: 1, 
+      skipDepth: 1,
       // only tabs for now
       filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
     });
@@ -50,7 +50,7 @@ const indices = computed(() => {
   // package
   // NOTE: we only search package if we have a query for :Performance
   if (!isQueryEmpty.value && ["everywhere", "space", "bench", "package"].includes(m))
-    indices["package"] = graphIndex({
+    indices["Package"] = graphIndex({
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK],
       roots: [spaceGraph.getOrFail(packagePtr.value!)],
@@ -295,11 +295,14 @@ defineExpose({ isActive, open });
                     </span>
                   </span>
                   <!-- Metadata (shortcut, last edited, etc.) -->
-                  <Shortcut
-                    v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
-                    class="ml-auto text-gray-700"
-                    :shortcut="result.shortcuts![0]"
-                  />
+                  <span class="ml-auto flex-shrink-0 flex flex-row gap-x-1.5">
+                    <Shortcut
+                      v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
+                      class="text-gray-700"
+                      :shortcut="result.shortcuts![0]"
+                    />
+                    <span class="text-gray-500" v-if="!showResultCategory">{{ result.index }}</span>
+                  </span>
                 </li>
               </template>
             </ul>

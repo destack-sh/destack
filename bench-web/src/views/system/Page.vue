@@ -14,8 +14,8 @@ const props = defineProps<
   >
 >();
 const emit = defineEmits(viewEmits());
-
 const self = toRef(props, "self");
+
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
   { name: `page.${props.nodePtr?.id}` },

@@ -255,7 +255,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
-  [BlockType.PAGE]: "fas fa-folder",
+  [BlockType.PAGE]: "fas fa-memo",
   [BlockType.BLANK]: "fas fa-cube",
   [BlockType.ALIAS]: "fas fa-link",
 
@@ -294,7 +294,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.MOCK]: "fas fa-bug",
 
   // system
-  [ViewType.PAGE]: "fas fa-folder",
+  [ViewType.PAGE]: "fas fa-memo-pad",
   [ViewType.BLOCK]: "fas fa-cube",
   [ViewType.FIELD]: "fas fa-font",
   [ViewType.DATABASE]: "fas fa-database",

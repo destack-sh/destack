@@ -208,7 +208,7 @@ function clear() {
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node);
+  canvas.goToNode(node, { where: "nextFrameRoot" });
 }
 
 /** Navigate horizontally to expand/collapse */

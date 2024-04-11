@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { IconInline } from "@/system/icon";
@@ -61,7 +61,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     viewTitle = viewAncestors.find((ancestor) => ancestor.title != null)?.title;
   }
 
-  browserTitle.value = viewTitle ? `${viewTitle} - ${benchPostfix}` : benchPostfix;
+  browserTitle.value = viewTitle ? `${viewTitle} | ${benchPostfix}` : benchPostfix;
 });
 </script>
 <template>
@@ -125,7 +125,11 @@ watch([canvas.focusedViewPtr, bench], () => {
         <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">
           <IconInline v-bind="getNodeIcon(activeDragged.nodes[0])" class="mr-1 text-gray-700" />
           <span class="truncate">
-            {{ (activeDragged.nodes[0] as any).name ?? toCasing(NodeType[activeDragged.node.type], Casing.CAMEL) }}
+            {{
+              (activeDragged.nodes[0] as any).title ??
+              (activeDragged.nodes[0] as any).name ??
+              toCasing(NodeType[activeDragged.node.type], Casing.CAMEL)
+            }}
           </span>
         </div>
         <div v-else>

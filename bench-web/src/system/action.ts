@@ -930,10 +930,7 @@ contributeActionMap<"space">({
     text: "Open the Inspector View",
     icon: "fas fa-eye",
     action: () => {
-      canvas.addView(
-        { type: ViewType.INSPECTOR, name: "Inspector", title: "Inspector" },
-        { ifPresent: "upsertAndFocus" },
-      );
+      canvas.addView({ type: ViewType.INSPECTOR, title: "Inspector" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.library": {
@@ -941,7 +938,7 @@ contributeActionMap<"space">({
     text: "Get building blocks from the common library",
     icon: "fas fa-books",
     action: () => {
-      canvas.addView({ type: ViewType.LIBRARY, name: "Library", title: "Library" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.LIBRARY, title: "Library" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.explorer": {
@@ -949,7 +946,7 @@ contributeActionMap<"space">({
     text: "Navigate nodes in the space",
     icon: "fas fa-compass",
     action: () => {
-      canvas.addView({ type: ViewType.EXPLORER, name: "Explorer", title: "Explorer" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.EXPLORER, title: "Explorer" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.outline": {
@@ -957,7 +954,7 @@ contributeActionMap<"space">({
     text: "Navigate an outline of nodes",
     icon: "fas fa-list-tree",
     action: () => {
-      canvas.addView({ type: ViewType.OUTLINE, name: "Outline", title: "Outline" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.OUTLINE, title: "Outline" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.docs": {
