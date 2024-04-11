@@ -29,6 +29,9 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
 const page = pkgGraph.getRef(props.nodePtr);
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
+// sync name with title
+// nocheckin :Incomplete: Page
+
 canvas.registerView(self);
 defineExpose({ self });
 </script>

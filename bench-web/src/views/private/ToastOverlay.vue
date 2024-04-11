@@ -99,6 +99,7 @@ const absoluteStyle = computed(() => {
           :class="[action.isPrimary ? 'text-gray-700 hover:text-primary-900' : 'text-gray-500 hover:text-primary-900']"
           @click="action.action(), toaster.dismiss(toast)"
         >
+          <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
           <span>{{ action.title }}</span>
         </button>
       </div>

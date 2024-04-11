@@ -175,8 +175,12 @@ export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
 
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
+export const BASE_VIEW_TYPES = new Set([ViewType.PAGE, ViewType.BLOCK, ViewType.DATABASE])
 export const ROOT_VIEW_COMPONENT_NAMES = new Set(
   Array.from(ROOT_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
+);
+export const BASE_VIEW_COMPONENT_NAMES = new Set(
+  Array.from(BASE_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
 );
 // views that have a white background
 export const FULL_VIEW_TYPES = new Set([
@@ -353,7 +357,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.PLAIN_TEXT]: "fas fa-text",
   [ViewType.TEXT]: "fas fa-font",
   [ViewType.CODE]: "fas fa-code",
-  [ViewType.JSON]: "fas fa-brackets-curly",
+  [ViewType.JSON]: "fas fa-binary",
   // selection
   [ViewType.TOGGLE]: "fas fa-toggle-large-on",
   [ViewType.PICKER]: "fas fa-caret-circle-down",

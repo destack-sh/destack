@@ -156,6 +156,11 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
   return result;
 }
 
+/** Convenience wrapper for toValueRef(computed(...)) */
+export function computedValue<T>(get: ComputedGetter<T>, options?: WatchOptions) {
+  return toValueRef(computed(get), options);
+}
+
 /**
  * Run a callback when the component is unmounted, error if not in a component.
  */
