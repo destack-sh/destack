@@ -328,10 +328,9 @@ def unpack_roots(
         # recover roots if specified (may not be actual roots)
         recovered_roots = []
         for root in roots:
-            recovered = node_graph.get(to_uuid(root.id))
-            if recovered is not None:
-                recovered_roots.append(recovered)
-                break
+            unpacked_root = node_graph.get(to_uuid(root.id))
+            if unpacked_root is not None:
+                recovered_roots.append(unpacked_root)
         return recovered_roots
     else:
         return node_graph.find_roots()

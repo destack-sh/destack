@@ -17,7 +17,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasRun
-from bench.language.validation import ValidationHandler, validate_name
+from bench.language.validation import ValidationHandler, enum_validator, validate_name
 from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
@@ -63,18 +63,17 @@ IdentT = IdentifierType
 
 _block = _BlockTypeDescriptor
 _block(BlockType.PAGE, (), IdentT.VARIABLE)
-_block(BlockType.TEXT, (), IdentT.VARIABLE)
 _block(BlockType.BLANK, (), IdentT.VARIABLE)
 _block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
 _block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
 _block(BlockType.PROTOCOL, (), IdentT.TYPE)
-_block(BlockType.NATURAL_ROUTINE, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.CODE_ROUTINE, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.TEXT, (HasRun,), IdentT.FUNCTION)
+_block(BlockType.CODE, (HasRun,), IdentT.FUNCTION)
 _block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
 _block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.SINGLE_VARIABLE, (), IdentT.VARIABLE)
+_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
 _block(BlockType.MULTI_VARIABLE, (), IdentT.VARIABLE)
 _block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
 _block(BlockType.QUERY, (), IdentT.VARIABLE)
@@ -114,9 +113,13 @@ class Block(Node, HasValues):
     )
 
     # core
-    type: BlockType = p_internal(30, default=BlockType.BLANK)
+    type: BlockType = p_internal(30, validate=enum_validator(BlockType))
     # custom type..?
-    name: str | None = p_regular(32, default=None, validate=validate_name)
+    # TODO :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
+    #  (Maybe postpone name validation if detached so we can leave it unset?,
+    #   auto-naming currently only works in NodeList where we know the siblings).
+    #  see :AutoNaming
+    name: str = p_regular(32, validate=validate_name)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     visibility: Optional[NodeVisibility] = p_regular(34, require=False, default=NodeVisibility.ALL)
     policies: list["Policy"] = p_regular(35, array=True, struct=StructType.POLICY)

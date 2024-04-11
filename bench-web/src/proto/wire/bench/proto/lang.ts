@@ -507,9 +507,9 @@ export interface FileData {
      */
     type?: string;
     /**
-     * @generated from protobuf field: optional string name = 33;
+     * @generated from protobuf field: string name = 33;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional int32 size = 34;
      */
@@ -555,7 +555,7 @@ export interface FontData {
     size?: FontSize;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -597,9 +597,9 @@ export interface IconData {
      */
     file?: FileData;
     /**
-     * @generated from protobuf field: optional string name = 33;
+     * @generated from protobuf field: optional string fa_name = 33;
      */
-    name?: string;
+    faName?: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
      */
@@ -865,9 +865,9 @@ export interface PolicyData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 30;
+     * @generated from protobuf field: string name = 30;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 31;
      */
@@ -914,9 +914,9 @@ export interface PolicyRuleData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 30;
+     * @generated from protobuf field: string name = 30;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 31;
      */
@@ -1771,9 +1771,9 @@ export interface BadgeData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: string name = 31;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 32;
      */
@@ -1973,9 +1973,9 @@ export interface BlockData {
      */
     type: BlockType;
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: string order_key = 33;
      */
@@ -2116,9 +2116,9 @@ export interface BranchData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional string slug = 33;
      */
@@ -2278,9 +2278,9 @@ export interface ClientData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional string device_name = 40;
      */
@@ -2541,9 +2541,9 @@ export interface EnvironmentData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
@@ -4841,7 +4841,7 @@ export interface StoreData {
     mainCredential?: ResourceCredentialData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -4911,9 +4911,9 @@ export interface TriggerData {
      */
     type: TriggerType;
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: string name = 31;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: bool active = 32;
      */
@@ -4994,9 +4994,9 @@ export interface UpgradeData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional string title = 34;
      */
@@ -5069,9 +5069,9 @@ export interface UserData {
      */
     slug?: string;
     /**
-     * @generated from protobuf field: optional string name = 33;
+     * @generated from protobuf field: string name = 33;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
@@ -5180,9 +5180,9 @@ export interface ViewData {
      */
     type: ViewType;
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: string name = 31;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: optional string title = 32;
      */
@@ -6030,13 +6030,9 @@ export enum BlockType {
      */
     BLANK = 2,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 3;
+     * @generated from protobuf enum value: BLOCK_TYPE_ALIAS = 3;
      */
-    TEXT = 3,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ALIAS = 4;
-     */
-    ALIAS = 4,
+    ALIAS = 3,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 10;
      */
@@ -6054,21 +6050,21 @@ export enum BlockType {
      */
     PROTOCOL = 14,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_SINGLE_VARIABLE = 20;
+     * @generated from protobuf enum value: BLOCK_TYPE_VARIABLE = 20;
      */
-    SINGLE_VARIABLE = 20,
+    VARIABLE = 20,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_MULTI_VARIABLE = 21;
      */
     MULTI_VARIABLE = 21,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_NATURAL_ROUTINE = 30;
+     * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 30;
      */
-    NATURAL_ROUTINE = 30,
+    TEXT = 30,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CODE_ROUTINE = 31;
+     * @generated from protobuf enum value: BLOCK_TYPE_CODE = 31;
      */
-    CODE_ROUTINE = 31,
+    CODE = 31,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_SCRIPT = 32;
      */
@@ -9637,7 +9633,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 35, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "content_ptr", kind: "message", T: () => NodeReferenceData },
@@ -9647,6 +9643,7 @@ class FileData$Type extends MessageType<FileData> {
     create(value?: PartialMessage<FileData>): FileData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -9665,7 +9662,7 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional string type */ 31:
                     message.type = reader.string();
                     break;
-                case /* optional string name */ 33:
+                case /* string name */ 33:
                     message.name = reader.string();
                     break;
                 case /* optional int32 size */ 34:
@@ -9701,8 +9698,8 @@ class FileData$Type extends MessageType<FileData> {
         /* optional string type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.type);
-        /* optional string name = 33; */
-        if (message.name !== undefined)
+        /* string name = 33; */
+        if (message.name !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.name);
         /* optional int32 size = 34; */
         if (message.size !== undefined)
@@ -9814,7 +9811,7 @@ class IconData$Type extends MessageType<IconData> {
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.IconKind", IconKind, "ICON_KIND_"] },
             { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "file", kind: "message", T: () => FileData },
-            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "fa_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -9863,8 +9860,8 @@ class IconData$Type extends MessageType<IconData> {
                 case /* optional symbolx.bench.FileData file */ 32:
                     message.file = FileData.internalBinaryRead(reader, reader.uint32(), options, message.file);
                     break;
-                case /* optional string name */ 33:
-                    message.name = reader.string();
+                case /* optional string fa_name */ 33:
+                    message.faName = reader.string();
                     break;
                 case /* optional symbolx.bench.ColorData color */ 40:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -9912,9 +9909,9 @@ class IconData$Type extends MessageType<IconData> {
         /* optional symbolx.bench.FileData file = 32; */
         if (message.file)
             FileData.internalBinaryWrite(message.file, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string name = 33; */
-        if (message.name !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.name);
+        /* optional string fa_name = 33; */
+        if (message.faName !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.faName);
         /* optional symbolx.bench.ColorData color = 40; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -10375,7 +10372,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => TextData },
             { no: 32, name: "rules", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyRuleData },
             { no: 33, name: "scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
@@ -10385,6 +10382,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.setProperties = [];
+        message.name = "";
         message.rules = [];
         message.scopesPtr = [];
         if (value !== undefined)
@@ -10418,7 +10416,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 30:
+                case /* string name */ 30:
                     message.name = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 31:
@@ -10464,8 +10462,8 @@ class PolicyData$Type extends MessageType<PolicyData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 30; */
-        if (message.name !== undefined)
+        /* string name = 30; */
+        if (message.name !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.name);
         /* optional symbolx.bench.TextData text = 31; */
         if (message.text)
@@ -10496,7 +10494,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "subject_is_delegated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 41, name: "subject_is_authenticated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -10517,6 +10515,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.setProperties = [];
+        message.name = "";
         message.effect = 0;
         message.verbs = [];
         message.verbKinds = [];
@@ -10553,7 +10552,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 30:
+                case /* string name */ 30:
                     message.name = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 31:
@@ -10644,8 +10643,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 30; */
-        if (message.name !== undefined)
+        /* string name = 30; */
+        if (message.name !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.name);
         /* optional symbolx.bench.TextData text = 31; */
         if (message.text)
@@ -12590,7 +12589,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12607,6 +12606,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         message.delegatedPolicies = [];
         if (value !== undefined)
             reflectionMergePartial<BadgeData>(this, message, value);
@@ -12666,7 +12666,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 31:
+                case /* string name */ 31:
                     message.name = reader.string();
                     break;
                 case /* repeated symbolx.bench.PolicyData delegated_policies */ 32:
@@ -12748,8 +12748,8 @@ class BadgeData$Type extends MessageType<BadgeData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 31; */
-        if (message.name !== undefined)
+        /* string name = 31; */
+        if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* repeated symbolx.bench.PolicyData delegated_policies = 32; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
@@ -13023,7 +13023,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
@@ -13055,6 +13055,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.name = "";
         message.orderKey = "";
         message.policies = [];
         message.basesPtr = [];
@@ -13126,7 +13127,7 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* symbolx.bench.BlockType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* string order_key */ 33:
@@ -13253,8 +13254,8 @@ class BlockData$Type extends MessageType<BlockData> {
         /* symbolx.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* string order_key = 33; */
         if (message.orderKey !== "")
@@ -13343,7 +13344,7 @@ class BranchData$Type extends MessageType<BranchData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
@@ -13358,6 +13359,7 @@ class BranchData$Type extends MessageType<BranchData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<BranchData>(this, message, value);
@@ -13411,7 +13413,7 @@ class BranchData$Type extends MessageType<BranchData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* optional string slug */ 33:
@@ -13484,8 +13486,8 @@ class BranchData$Type extends MessageType<BranchData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string slug = 33; */
         if (message.slug !== undefined)
@@ -13711,7 +13713,7 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -13731,6 +13733,7 @@ class ClientData$Type extends MessageType<ClientData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<ClientData>(this, message, value);
         return message;
@@ -13783,7 +13786,7 @@ class ClientData$Type extends MessageType<ClientData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* optional string device_name */ 40:
@@ -13871,8 +13874,8 @@ class ClientData$Type extends MessageType<ClientData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string device_name = 40; */
         if (message.deviceName !== undefined)
@@ -14294,7 +14297,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
@@ -14313,6 +14316,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<EnvironmentData>(this, message, value);
@@ -14366,7 +14370,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
@@ -14451,8 +14455,8 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
@@ -19500,7 +19504,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 33, name: "schedule", kind: "message", T: () => ScheduleData },
             { no: 34, name: "signal_ptr", kind: "message", T: () => NodeReferenceData }
@@ -19515,6 +19519,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.name = "";
         message.active = false;
         if (value !== undefined)
             reflectionMergePartial<TriggerData>(this, message, value);
@@ -19577,7 +19582,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
                 case /* symbolx.bench.TriggerType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 31:
+                case /* string name */ 31:
                     message.name = reader.string();
                     break;
                 case /* bool active */ 32:
@@ -19653,8 +19658,8 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* symbolx.bench.TriggerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
+        /* string name = 31; */
+        if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* bool active = 32; */
         if (message.active !== false)
@@ -19694,7 +19699,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "text", kind: "message", T: () => TextData }
         ]);
@@ -19707,6 +19712,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<UpgradeData>(this, message, value);
         return message;
@@ -19765,7 +19771,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* optional string title */ 34:
@@ -19835,8 +19841,8 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string title = 34; */
         if (message.title !== undefined)
@@ -19872,7 +19878,7 @@ class UserData$Type extends MessageType<UserData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "icon", kind: "message", T: () => IconData },
@@ -19891,6 +19897,7 @@ class UserData$Type extends MessageType<UserData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.name = "";
         message.status = 0;
         message.isStaff = false;
         if (value !== undefined)
@@ -19948,7 +19955,7 @@ class UserData$Type extends MessageType<UserData> {
                 case /* optional string slug */ 32:
                     message.slug = reader.string();
                     break;
-                case /* optional string name */ 33:
+                case /* string name */ 33:
                     message.name = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
@@ -20036,8 +20043,8 @@ class UserData$Type extends MessageType<UserData> {
         /* optional string slug = 32; */
         if (message.slug !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.slug);
-        /* optional string name = 33; */
-        if (message.name !== undefined)
+        /* string name = 33; */
+        if (message.name !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.name);
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
@@ -20096,7 +20103,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -20130,6 +20137,7 @@ class ViewData$Type extends MessageType<ViewData> {
         message.revision = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.name = "";
         message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
@@ -20192,7 +20200,7 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* symbolx.bench.ViewType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 31:
+                case /* string name */ 31:
                     message.name = reader.string();
                     break;
                 case /* optional string title */ 32:
@@ -20325,8 +20333,8 @@ class ViewData$Type extends MessageType<ViewData> {
         /* symbolx.bench.ViewType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
+        /* string name = 31; */
+        if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* optional string title = 32; */
         if (message.title !== undefined)
@@ -22367,7 +22375,7 @@ export enum IconProperty {
   kind = 30,
   emoji = 31,
   file = 32,
-  name = 33,
+  faName = 33,
   color = 40,
 }
 

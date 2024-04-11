@@ -16,7 +16,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 const PANEL_WIDTH = 600;
 const PANEL_MAX_HEIGHT = 420;
 const PANEL_HEADER_HEIGHT = 38;
-const DEFAULT_ACTION_ICON = makeIcon({ name: "fas fas fa-arrow-right" });
+const DEFAULT_ACTION_ICON = makeIcon({ faName: "fas fas fa-arrow-right" });
 
 const props = defineProps<{ box: { left: number; top: number; width: number; height: number } }>();
 

@@ -31,7 +31,13 @@ canvas.registerView(self);
 defineExpose({ self });
 </script>
 <template>
-  <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md" track-is-overlay>
+  <Scroll
+    :size="size"
+    :orientation="Orientation.VERTICAL"
+    :track-width="ScrollbarWidth.md"
+    track-is-overlay
+    class="bg-white"
+  >
     Page {{ nodePtr }}
   </Scroll>
 </template>

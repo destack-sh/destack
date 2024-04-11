@@ -1210,9 +1210,7 @@ class Struct(abc.ABC):
                     on_invalid(self, f"{prop.name} is required", [prop])
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_invalid)
-                valid = prop.validate(value, handler)
-                if valid is False:
-                    on_invalid(self, f"{prop.name}: invalid value", [prop])
+                prop.custom_validate(prop, value, handler)
 
     def _flushed_self(self):
         """Called when this struct has been flushed to the store."""

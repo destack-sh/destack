@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.04.08. Edit as needed.
+# This migration was automatically generated on 2024.04.11. Edit as needed.
 import psycopg
 
-ID = 1
-VERSION = "2024.04.08.4"
+ID = 2
+VERSION = "2024.04.11.4"
 HAS_GLOBAL = True
 HAS_LOCAL = False
 
@@ -17,7 +17,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_block    
-        ALTER COLUMN visibility DROP NOT NULL
+        ALTER COLUMN type DROP DEFAULT
     """
     )
 

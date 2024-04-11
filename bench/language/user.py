@@ -74,7 +74,7 @@ class User(Node):
     )
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: Optional[str] = p_regular(33, default=None, validate=validate_name)
+    name: str = p_regular(33, validate=validate_name)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     email: str = p_system(35, defer=True, unique=True, sensitive=True, validate=validate_email)
     icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
@@ -145,7 +145,7 @@ class Client(Node):
 
     parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
-    name: Optional[str] = p_regular(32, default=None, validate=validate_name)
+    name: str = p_regular(32, validate=validate_name)
 
     device_name: Optional[str] = p_regular(40, default=None)
     device_type: Optional[str] = p_regular(41, default=None)

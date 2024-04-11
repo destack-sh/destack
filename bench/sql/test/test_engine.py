@@ -202,7 +202,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         )
         bench_a.branches.create(name="main a")
         package_a = bench_a.packages.create(environment=environment_a)
-        block_a_1 = package_a.blocks.create(type=BlockType.CODE_ROUTINE)
+        block_a_1 = package_a.blocks.create(type=BlockType.CODE)
         block_a_1.fields.create(name="foo")
         await session.commit()
 

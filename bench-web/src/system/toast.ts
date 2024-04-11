@@ -83,7 +83,7 @@ export class Toaster {
     const durationMs = toast.durationMs ?? DEFAULT_TOAST_DURATION_BY_LEVEL[toast.level];
     const remainingDurationMs = durationMs;
     const actions = toast.actions ?? [];
-    const icon = typeof toast.icon == "string" ? makeIcon({ name: toast.icon }) : toast.icon;
+    const icon = typeof toast.icon == "string" ? makeIcon({ faName: toast.icon }) : toast.icon;
     this.toasts.value.push({ ...toast, icon, durationMs, actions, id, createdAt, remainingDurationMs });
   }
 

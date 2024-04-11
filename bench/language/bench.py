@@ -106,7 +106,7 @@ class Environment(Node):
     """An environment of resources for a Bench's packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: Optional[str] = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, validate=validate_name)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
@@ -152,7 +152,7 @@ class Branch(Node):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: Optional[str] = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, validate=validate_name)
     slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
@@ -235,6 +235,6 @@ class Upgrade(Node):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
-    name: Optional[str] = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, validate=validate_name)
     title: Optional[str] = p_regular(34)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)

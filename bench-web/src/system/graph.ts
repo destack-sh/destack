@@ -1,10 +1,12 @@
 import {
   BenchType,
+  BlockType,
   CHILD_NODE_TYPES,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
+  ViewType,
   type AnyNodeData,
   type AnyPropertyType,
   type NodeTypeMapping,
@@ -13,6 +15,7 @@ import { describeNode, toNodeReference, type AnyNodeReferenceData } from "@/prot
 import { defaultSort, getOrderKey, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import { deepValueEquals, manualSubRef, type SubRef } from "@/utils/ref";
+import { Casing, toCasing } from "@/utils/string";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
@@ -927,4 +930,28 @@ export function moveNode(
 /** Whether child is a descendant of parent */
 export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
   return graph.getAncestors(child).some((ancestor) => ancestor.id == parent.id);
+}
+
+/** Generates a node name for our :AutoNaming. */
+export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNodeData[]): string {
+  const metatypeName = toCasing(NodeType[metatype], Casing.CAMEL);
+  if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW) {
+    if (type == null) throw new Error(`expected type for ${metatype}, got ${type}`);
+    const typeName = toCasing(BlockType[type] ?? ViewType[type], Casing.CAMEL);
+    const count = siblings.filter((n) => (n as any).type == type).length;
+    return `${metatypeName}${typeName}${count + 1}`;
+  } else {
+    const count = siblings.length;
+    return `${metatypeName}${count + 1}`;
+  }
+}
+
+/** Generates the name for a node in the given graph */
+export function makeNodeName(
+  graph: ReadNodeGraph,
+  node: { metatype: BenchType; parentPtr?: NodeReferenceData; type: any },
+): string {
+  if (node.parentPtr == null) throw new Error("parentPtr is required");
+  const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
+  return generateNodeName(node.metatype as unknown as NodeType, node.type, siblings);
 }

@@ -47,7 +47,7 @@ from bench.language.setup import (
 )
 from bench.language.text import Text
 from bench.language.user import Membership, User
-from bench.language.validation import ValidationError
+from bench.language.validation import ValidationError, validate_name
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bytetuple, to_uuid
 
@@ -108,7 +108,7 @@ class Badge(Node):
     """
 
     parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
-    name: Optional[str] = p_regular(31)
+    name: str = p_regular(31, validate=validate_name)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
     expires_at: Optional[datetime] = p_regular(33, default=None)
     key: Optional[str] = p_internal(
@@ -264,7 +264,7 @@ class Policy(Struct):
         Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
     """
 
-    name: Optional[str] = p_regular(30, default=None)
+    name: str = p_regular(30, validate=validate_name)
     text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
     rules: list["PolicyRule"] = p_regular(32, array=True, struct=StructType.POLICY_RULE)
     scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
@@ -289,7 +289,7 @@ class PolicyRule(Struct):
      (where None/empty -> wildcard, any value -> filter)
     """
 
-    name: Optional[str] = p_regular(30, default=None)
+    name: str = p_regular(30, validate=validate_name)
     text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
 
     # subject

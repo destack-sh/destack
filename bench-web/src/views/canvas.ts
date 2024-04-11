@@ -1,17 +1,17 @@
 import {
   BenchType,
+  DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
   NodeType,
   Orientation,
+  SelectionData,
   SelectionKind,
   SpaceData,
   StructType,
   ViewData,
   ViewType,
   type AnyNodeData,
-  SelectionData,
-  DESCENDANT_NODE_TYPES,
 } from "@/proto/wire";
 import {
   copyNode,
@@ -20,13 +20,13 @@ import {
   makeStruct,
   toNodeReference,
   typeNodeReferenceMaybe,
-  type TypedNodeReferenceData,
   type SomeNodeReferenceData,
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
+import { isDescendantOf, makeNodeName, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import {
-  RIDEALONG_VIEW_TYPES as RIDEALONG_VIEW_TYPES,
+  RIDEALONG_VIEW_TYPES,
   ROOT_VIEW_COMPONENT_NAMES,
   ROOT_VIEW_TYPES,
   getOrderKey,
@@ -38,14 +38,14 @@ import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { deepValueEquals, toValueRef, valueRef } from "@/utils/ref";
+import { deepValueEquals, toValueRef } from "@/utils/ref";
+import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
 import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
   getCurrentInstance,
-  isVNode,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -529,7 +529,7 @@ export class ViewCanvas {
   addView(
     view: ViewDataIn,
     options?: {
-      where?: "currentRoot" | "nextFrameRoot";
+      where?: "currentRoot" | "nextFrameRoot"; // nocheckin: respect addView.options.where
       ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
     },
   ) {
@@ -556,6 +556,7 @@ export class ViewCanvas {
         parentPtr: toNodeReference(primary),
         icon: toIconMaybe(view.icon),
       });
+      if ((view.name ?? "").length == 0) newView.name = makeNodeName(this.graph, newView);
       tx.create(newView);
       this.focus(tx, { view: newView });
     } else if (options?.ifPresent == "focus") {
@@ -595,8 +596,15 @@ export class ViewCanvas {
           .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: true })
           .find((n) => n.isPage);
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
-        // nocheckin: canvas.goToNode
-        this.addView({ type: ViewType.PAGE, nodePtr: toNodeReference(containingPage) }, { where: options?.where });
+        this.addView(
+          {
+            type: ViewType.PAGE,
+            nodePtr: toNodeReference(containingPage),
+            title: containingPage.name,
+            icon: containingPage.icon,
+          },
+          { where: options?.where },
+        );
         console.log(containingPage);
       } else {
         throw new Error(`cannot go to node: ${describeNode(node)}`);
@@ -701,7 +709,7 @@ export class ViewCanvas {
         packagePtr: parent.packagePtr,
         orderKey: parent.orderKey,
         size: parent.size,
-        name: "Split",
+        name: parent.name,
         orientation,
       });
       tx.create(split);
@@ -709,15 +717,16 @@ export class ViewCanvas {
       tx.update(parent, { size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
 
       // and a new tab wrapper
-      const viewParent = makeNode({
+      const childWrapper = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.TAB,
         parentPtr: toNodeReference(split),
         packagePtr: parent.packagePtr,
+        name: `${parent.name}${toCasing(anchor.toUpperCase(), Casing.CAMEL)}`,
         orderKey: isOrderFlipped ? "a1" : "a0",
       });
-      tx.create(viewParent);
-      tx.move({ ...child, parentPtr: toNodeReference(viewParent) });
+      tx.create(childWrapper);
+      tx.move({ ...child, parentPtr: toNodeReference(childWrapper) });
       tx.update(child, { size: undefined, orderKey: "a0" });
     } else {
       // 'split' size between self and child with a new tab wrapper
@@ -727,6 +736,7 @@ export class ViewCanvas {
         type: ViewType.TAB,
         parentPtr: parent.parentPtr,
         packagePtr: parent.packagePtr,
+        name: `${parent.name}Split`,
         size: halfSize,
         orderKey: getOrderKey({
           nodes: graph.getChildren(split, NodeType.VIEW),

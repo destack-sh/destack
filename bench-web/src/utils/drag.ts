@@ -93,7 +93,7 @@ export function startDragging(
 
   if (activeDragged.value != null) log.warn("drag.alreadyExists", activeDragged);
   activeDragged.value = dragged;
-  log.debug("drag.start", dragged);
+  log.trace("drag.start", dragged);
 }
 
 /** Gets the current dragged thing. Must match 'activeDragged'. */
@@ -278,6 +278,13 @@ export function useSingleDropZone(
 }
 
 export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
+export const SPLIT_ANCHOR_OPPOSITE: Record<SplitAnchor, SplitAnchor> = {
+  center: "center",
+  left: "right",
+  top: "bottom",
+  right: "left",
+  bottom: "top",
+};
 export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
 
 /*

@@ -89,7 +89,7 @@ export function graphIndex(toIndex: {
       node,
       path,
       pathToIndex,
-      title: (node as any).title ?? (node as any).name,
+      title: (node as any).title ?? (node as any).name ?? '',
       icon: getNodeTypeIcon(node.metatype as unknown as NodeType),
       ancestors: ancestors,
     };

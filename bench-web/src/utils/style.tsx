@@ -21,11 +21,11 @@ export const ACCENT_COLOR_BY_LEVEL: Record<LogLevel, string> = {
 };
 
 export const DEFAULT_ICON_BY_LEVEL: Record<LogLevel, IconData> = {
-  [LogLevel.UNSPECIFIED]: makeIcon({ name: "fas fa-bug" }),
-  [LogLevel.TRACE]: makeIcon({ name: "fas fa-bug" }),
-  [LogLevel.DEBUG]: makeIcon({ name: "fas fa-bug" }),
-  [LogLevel.INFO]: makeIcon({ name: "fas fa-circle-check" }),
-  [LogLevel.WARNING]: makeIcon({ name: "fas fa-exclamation-triangle" }),
-  [LogLevel.ERROR]: makeIcon({ name: "fas fa-exclamation-circle" }),
-  [LogLevel.FATAL]: makeIcon({ name: "fas fa-skull" }),
+  [LogLevel.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.TRACE]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
+  [LogLevel.WARNING]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
+  [LogLevel.ERROR]: makeIcon({ faName: "fas fa-exclamation-circle" }),
+  [LogLevel.FATAL]: makeIcon({ faName: "fas fa-skull" }),
 };
