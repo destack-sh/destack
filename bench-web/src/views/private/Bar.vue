@@ -95,7 +95,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     items.push({
       id: "developer",
       category: "developer",
-      icon: "fas fa-brackets-curly",
+      icon: "fas fa-binary",
       title: "Developer",
       action: { items: menuActionsLike({ wildcard: ["developer*"] }) },
     });
@@ -278,10 +278,10 @@ const USER_MENU_ITEMS = computed(() => {
         <div v-if="isDeveloperMode">
           <span
             class="select-none text-hint-700"
-            v-tooltip="{icon: 'fas fa-brackets-curly', title: 'Developer Mode Enabled'} as TooltipInfo"
+            v-tooltip="{icon: 'fas fa-binary', title: 'Developer Mode Enabled'} as TooltipInfo"
           >
             <button class="hover:text-hint-800" @click="fireActionById('developer.misc.toggleDeveloperMode')">
-              <i class="fas fa-brackets-curly" />
+              <i class="fas fa-binary" />
             </button>
             <span class="ml-1">{{ fps }}fps</span>
             <span v-if="memory.isSupported.value && memory.memory.value?.usedJSHeapSize" class="ml-1">

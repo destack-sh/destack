@@ -21,7 +21,7 @@ defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div class="h-full w-full bg-white" v-if="inspectedNode">
-		<!-- nocheckin :Incomplete: inspector -->
+		<!-- nocheckin :Incomplete: Inspector -->
     inspect:{{ describeNode(inspectedNode) }}
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">

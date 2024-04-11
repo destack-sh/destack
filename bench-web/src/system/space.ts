@@ -44,6 +44,7 @@ export const {
   })),
 );
 export const pkg = pkgGraph.getRef(local.packagePtr);
+export const hasLocalPkg = computed(() => pkg.value != null);
 export const hasLocalBench = computed(() => bench.value != null);
 pkgConnection.onError(e => {
   if (e == "NOT_FOUND" || e == "PERMISSION_DENIED") {

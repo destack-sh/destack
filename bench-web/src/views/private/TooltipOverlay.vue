@@ -40,7 +40,7 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
       <div
         :ref="(ref?: any) => (ref != null ? (tooltipRefs[tooltip.id] = ref, positionTooltip(tooltip, ref)) : (delete tooltipRefs[tooltip.id]))"
         v-bind="tooltip.info"
-        class="absolute z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-400 bg-white px-2.5 py-1 text-gray-700 shadow-md shadow-gray-400"
+        class="absolute z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-300 bg-white px-2.5 py-1 text-gray-700 shadow-md shadow-gray-300"
         @mouseenter="tooltip.reference.tooltipOnMouseEnter"
         @mouseleave="tooltip.reference.tooltipOnMouseLeave"
       >

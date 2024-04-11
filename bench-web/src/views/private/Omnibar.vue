@@ -1,11 +1,10 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
-import { packagePtr, spacePtr } from "@/system/client";
+import { packagePtr } from "@/system/client";
 import { IconInline, makeIcon } from "@/system/icon";
 import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
-import { bench, spaceGraph, canvas, pkgGraph, space } from "@/system/space";
+import { bench, spaceGraph, canvas, pkgGraph, space, hasLocalPkg } from "@/system/space";
 import { nowOrNextTick } from "@/utils/functools";
 import { ScrollbarWidth } from "@/utils/layout";
 import { Casing, toCasing } from "@/utils/string";
@@ -48,13 +47,14 @@ const indices = computed(() => {
     });
 
   // package
-  // NOTE: we only search package if we have a query for :Performance
-  if (!isQueryEmpty.value && ["everywhere", "space", "bench", "package"].includes(m))
+  // NOTE: we only search package deeply if we have a query for performance & clarity
+  if (hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["Package"] = graphIndex({
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK],
       roots: [spaceGraph.getOrFail(packagePtr.value!)],
       skipDepth: 1,
+      maxDepth: isQueryEmpty.value ? 1 : undefined,
     });
 
   return indices;

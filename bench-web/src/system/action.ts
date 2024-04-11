@@ -371,10 +371,12 @@ export function fireAction(
       }
     }
     log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
-    toaster.debug({
-      title: `${toValue(action.title)} is unavailable`,
-      text: `No active view supports ${action.id}.`,
-    });
+    if (isDeveloperMode.value) {
+      toaster.debug({
+        title: `${toValue(action.title)} is unavailable`,
+        text: `No active view supports ${action.id}.`,
+      });
+    }
     return false; // no action found
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -819,7 +821,7 @@ contributeActionMap<"view">({
 // developer actions
 contributeActionMap<"developer">({
   "developer.misc.toggleDeveloperMode": {
-    icon: "fas fa-brackets-curly",
+    icon: "fas fa-binary",
     title: computed(() => (isDeveloperMode.value ? "Disable Developer Mode" : "Enable Developer Mode")),
     text: "Developer Mode enables some advanced and some weird features.",
     action: () => {
@@ -829,10 +831,11 @@ contributeActionMap<"developer">({
         override: true,
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
-        icon: "fas fa-brackets-curly",
+        icon: "fas fa-binary",
         actions: [
           {
             title: isDeveloperMode.value ? "Disable" : "Enable",
+            icon: makeIcon({ faName: isDeveloperMode.value ? "fas fa-toggle-off" : "fas fa-toggle-on" }),
             action: () => {
               isDeveloperMode.value = !isDeveloperMode.value;
             },

@@ -1,5 +1,7 @@
 <script lang="tsx" setup>
 import {
+  BenchType,
+  BlockData,
   BoxData,
   NodeReferenceData,
   NodeType,
@@ -7,15 +9,12 @@ import {
   ViewData,
   ViewType,
   type AnyNodeData,
-  BenchType,
-  BlockData,
-  NODE_TYPES,
 } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
-import { isDescendantOf, moveNode } from "@/system/graph";
+import { describeNode } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
+import { isDescendantOf, moveNode } from "@/system/graph";
 import { IconInline } from "@/system/icon";
 import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
@@ -23,7 +22,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
-import { manualSubRef, toValueRef } from "@/utils/ref";
+import { manualSubRef, computedValue } from "@/utils/ref";
 import { collapseSelection, expandSelection, makeSelection } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -45,14 +44,12 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 
-const rootPtr = toValueRef(
-  computed(() => {
-    if (props.nodePtr != null) return props.nodePtr;
-    else if (props.type == ViewType.EXPLORER) return packagePtr.value;
-    else if (props.type == ViewType.OUTLINE) return canvas.focusedRootNodePtr.value;
-    else return null;
-  }),
-);
+const rootPtr = computedValue(() => {
+  if (props.nodePtr != null) return props.nodePtr;
+  else if (props.type == ViewType.EXPLORER) return packagePtr.value;
+  else if (props.type == ViewType.OUTLINE) return canvas.focusedBaseNodePtr.value;
+  else return null;
+});
 
 const { graph: inspectedGraph, connection: inspectedConnection } = useExistingConnection(rootPtr, {
   isOptional: true,
@@ -78,8 +75,7 @@ function isIncludedSelf(node: AnyNodeData) {
     if (node.metatype == BenchType.BLOCK) return (node as BlockData).isPage;
     else return true;
   } else if (props.type == ViewType.OUTLINE) {
-    if (node.metatype == BenchType.BLOCK) return !(node as BlockData).isPage;
-    else return true; // include everything
+    return true; // include everything
   } else {
     throw new Error(`unexpected view type: ${props.type}`);
   }
@@ -126,10 +122,17 @@ function getExpandedNodes(): NodeTreeItem[] {
       ),
     );
     if (depth < 0 || isExpanded(node)) {
-      children.filter(isIncludedChildren).forEach((child) => walkDescendants(child, depth + 1));
+      children.forEach((child) => {
+        if (isIncludedChildren(child)) {
+          walkDescendants(child, depth + 1);
+        } else {
+          items.push({ node: child, depth: depth + 1, canExpand: false });
+        }
+      });
     }
   }
 
+  // collect
   const root = inspectedGraph.getMaybe(rootPtr.value);
   _expandedNodesSubs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
   if (root != null) walkDescendants(root, -1);
@@ -171,7 +174,7 @@ function isExpanded(node: { id?: string; ck?: string }) {
 }
 
 function isFocusedAbsolute(node: { id?: string }): boolean {
-  return node.id == canvas.focusedRootNodePtr.value?.id || node.id == inspectionPtr.value?.id;
+  return node.id == canvas.focusedBaseNodePtr.value?.id || node.id == inspectionPtr.value?.id;
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);

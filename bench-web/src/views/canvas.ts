@@ -26,6 +26,7 @@ import {
 import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import {
+  BASE_VIEW_COMPONENT_NAMES,
   RIDEALONG_VIEW_TYPES,
   ROOT_VIEW_COMPONENT_NAMES,
   ROOT_VIEW_TYPES,
@@ -38,7 +39,7 @@ import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { toValueRef } from "@/utils/ref";
+import { computedValue, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
@@ -92,6 +93,10 @@ export function isIdentifiedViewComponent(
 
 export function isRootViewComponent(component: ComponentInstance<any>): boolean {
   return ROOT_VIEW_COMPONENT_NAMES.has(getVueComponentType(component));
+}
+
+export function isBaseViewComponent(component: ComponentInstance<any>): boolean {
+  return BASE_VIEW_COMPONENT_NAMES.has(getVueComponentType(component));
 }
 
 export function getViewComponentId(component: ViewComponent): string {
@@ -152,6 +157,12 @@ export function getViewComponentChildren(instance: ComponentInstance<any>): View
   return components;
 }
 
+function getViewComponentPtrMaybe(
+  component: ViewComponent | null | undefined,
+): TypedNodeReferenceData<NodeType.VIEW> | null {
+  return typeNodeReferenceMaybe(NodeType.VIEW, component?.exposed.self?.value ?? null);
+}
+
 const activeElement = useActiveElement();
 
 /** Traverses the DOM up to check if any element is marked as outside any view */
@@ -187,13 +198,15 @@ export class ViewCanvas {
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
-  focusedRootViewComponent: Ref<ViewComponent | null> = shallowRef(null);
-  focusedRootViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
-
-  // derived state
   focusedView: Ref<ViewData | null>;
-  focusedRootView: Ref<ViewData | null>;
-  focusedRootNodePtr: Ref<NodeReferenceData | null>; // the 'nodePtr' of the focused root view
+  // view right below first root view
+  focusedRootChildViewComponent: Ref<ViewComponent | null> = shallowRef(null);
+  focusedRootChildViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
+  // first base up from focused view
+  focusedBaseViewComponent: Ref<ViewComponent | null> = shallowRef(null);
+  focusedBaseViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
+  focusedBaseView: Ref<ViewData | null>;
+  focusedBaseNodePtr: Ref<NodeReferenceData | null>; // the 'nodePtr' of the focused root view
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -220,8 +233,8 @@ export class ViewCanvas {
 
     // derived state
     this.focusedView = toValueRef(this.graph.getRef(this.focusedViewPtr));
-    this.focusedRootView = toValueRef(this.graph.getRef(this.focusedRootViewPtr));
-    this.focusedRootNodePtr = toValueRef(computed(() => this.focusedRootView.value?.nodePtr ?? null));
+    this.focusedBaseView = toValueRef(this.graph.getRef(this.focusedBaseViewPtr));
+    this.focusedBaseNodePtr = computedValue(() => this.focusedBaseView.value?.nodePtr ?? null);
   }
 
   /** Updates our internal focus state in response to a browser event */
@@ -235,33 +248,31 @@ export class ViewCanvas {
       this.focusedViewComponent.value = null;
       this.focusedViewComponentsById.value = {};
       this.focusedViewPtr.value = null;
-      this.focusedRootViewComponent.value = null;
-      this.focusedRootViewPtr.value = null;
+      this.focusedBaseViewComponent.value = null;
+      this.focusedBaseViewPtr.value = null;
     } else if (this.focusedViewComponent.value !== component) {
       // refresh
 
       // update focus
       this.focusedViewComponent.value = component;
       const componentsById: Record<string, ViewComponent> = {};
-      collectViewComponentsUp(component).forEach((c) => {
+      const viewComponents = collectViewComponentsUp(component);
+      viewComponents.forEach((c) => {
         componentsById[getViewComponentId(c)] = c;
       });
       this.focusedViewComponentsById.value = componentsById;
-      const identifiedComponent = findViewComponent(component, isIdentifiedViewComponent);
-      this.focusedViewPtr.value = typeNodeReferenceMaybe(
-        NodeType.VIEW,
-        identifiedComponent?.exposed.self?.value ?? null,
-      );
-      // update root focus (if not in a 'ridealong' view)
-      const focusedRootViewComponent = findViewComponent(component, isRootViewComponent);
-      const focusedRootViewPtr = typeNodeReferenceMaybe(
-        NodeType.VIEW,
-        focusedRootViewComponent?.exposed.self?.value ?? null,
-      );
-      const focusedRootView = focusedRootViewPtr != null ? this.graph.get(focusedRootViewPtr) : null;
-      if (focusedRootView != null && !RIDEALONG_VIEW_TYPES.has(focusedRootView.type)) {
-        this.focusedRootViewComponent.value = focusedRootViewComponent;
-        this.focusedRootViewPtr.value = focusedRootViewPtr;
+      this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
+
+      // update root & base focus (if not in a 'ridealong' view like the Inspector)
+      const rootViewComponentIdx = viewComponents.findIndex(isRootViewComponent);
+      const rootChildViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
+      const rootChildView = this.graph.getMaybe(rootChildViewPtr);
+      if (rootChildView != null && !RIDEALONG_VIEW_TYPES.has(rootChildView.type)) {
+        this.focusedRootChildViewComponent.value = viewComponents[rootViewComponentIdx - 1];
+        this.focusedRootChildViewPtr.value = rootChildViewPtr;
+        // update base focus
+        this.focusedBaseViewComponent.value = viewComponents.find(isBaseViewComponent) ?? null;
+        this.focusedBaseViewPtr.value = getViewComponentPtrMaybe(this.focusedBaseViewComponent.value);
       }
     }
 

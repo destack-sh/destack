@@ -14,7 +14,7 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 
-const focusedPtr = computed(() => canvas.focusedRootNodePtr.value ?? inspectionPtr.value);
+const focusedPtr = computed(() => inspectionPtr.value ?? canvas.focusedBaseViewPtr.value);
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
@@ -22,7 +22,7 @@ defineExpose<ViewExposed>({ self });
 <template>
   <!-- Library -->
   <div v-if="focusedPtr" class="h-full w-full bg-white">
-    <!-- nocheckin :Incomplete: library -->
+    <!-- nocheckin :Incomplete: Library -->
     Library for {{ describeNode(focusedPtr) }}
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
