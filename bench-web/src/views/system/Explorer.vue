@@ -139,14 +139,15 @@ function getExpandedNodes(): NodeTreeItem[] {
 const { ref: expandedNodes, trigger: updateExpandedNodes } = manualSubRef(getExpandedNodes, _expandedNodesUnsub);
 watch(() => [rootPtr.value, props.focus, props.expansion], updateExpandedNodes);
 
-const focusedNode = computed(() => {
+const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
-    return expandedNodes.value.find((item) => item.node.id == focusedId)?.node;
+    return expandedNodes.value.find((item) => item.node.id == focusedId);
   } else {
     return null;
   }
 });
+const focusedNode = computed(() => focusedItem.value?.node);
 
 //
 // Interaction
@@ -158,7 +159,7 @@ function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
     spaceConnection.tx.updateDebounced(selfNode, {
       expansion: collapseSelection(selfNode.expansion!, [node]),
     });
-  } else {
+  } else if (!isExpanded(node)) {
     spaceConnection.tx.updateDebounced(selfNode, {
       expansion: expandSelection(selfNode.expansion, [node]),
     });
@@ -193,15 +194,13 @@ function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenc
   else queryRef.value?.focus();
 }
 
-function doFocus(node: AnyNodeData | NodeReferenceData) {
-  const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
-  spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
-  focusInComponent(node.id!);
-}
-
-function focusInComponent(nodeId: string) {
-  queryRef.value?.focus();
-  expandedNodesRefs.value[nodeId]?.scrollIntoView({ block: "center", behavior: "instant" });
+function doFocus(node: AnyNodeData | NodeReferenceData, options?: { stateOnly?: boolean }) {
+  if (focusedNode.value?.id != node.id) {
+    const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
+    spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
+  }
+  if (!options?.stateOnly) queryRef.value?.focus();
+  expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 function clear() {
@@ -214,7 +213,8 @@ function fire(node: AnyNodeData) {
 
 /** Navigate horizontally to expand/collapse */
 function onNavigateHorizontal(direction: "left" | "right") {
-  if (direction == "left") {
+  if (!focusedItem.value?.canExpand) return;
+  else if (direction == "left") {
     if (isExpanded(focusedNode.value!)) toggleExpanded(focusedNode.value!);
   } else {
     if (!isExpanded(focusedNode.value!)) toggleExpanded(focusedNode.value!);
@@ -345,9 +345,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
         @click.stop="fire(node)"
         :draggable="true"
         @dragstart="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
-        v-contextmenu="(context: MenuContext) => (doFocus(node), {items: menuActionsLike({wildcard: ['common.sense.*','common.edit.*']}), context: {...context, triggerNode: node}})"
+        v-contextmenu="(context: MenuContext) => {
+          doFocus(node);
+          context = { ...context, triggerNode: node };
+          return { items: menuActionsLike({ wildcard: ['common.sense.*','common.edit.*'] }, { context }), context }
+      }"
       >
-        <!-- nocheckin: fix Explorer context menu actions sometimes unavailable (try opening context menu twice) -->
         <!-- Drop indicator -->
         <div
           v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"

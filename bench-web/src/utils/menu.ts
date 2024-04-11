@@ -10,10 +10,10 @@ import {
   type ActionFilter,
 } from "@/system/action";
 import { canvas } from "@/system/space";
-import { findFloatingContainer, type FloatingOptions } from "@/utils/floating";
+import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp, findViewComponent } from "@/views/canvas";
+import { collectViewComponentsUp, getVueComponentType } from "@/views/canvas";
 import type { MaybeElement } from "@vueuse/core";
 import { shallowRef, toValue, type Directive, type Ref } from "vue";
 
@@ -40,31 +40,24 @@ export type MenuItem = {
   action: ((menu: MenuInfo) => void) | MenuInfo;
 };
 
-export type MenuItemContextSource = "current" | "trigger-element";
-
 /** Gets the view context for a given menu (item) */
-function getMenuContextViews(contextSource: MenuItemContextSource, context?: MenuContext): ViewComponent[] {
-  if (contextSource == "current") {
-    return canvas.focusedViewComponents;
-  } else if (contextSource == "trigger-element") {
-    if (context?.triggerElement == null) throw new Error("no trigger element in menu context");
+function getMenuContextViews(context?: MenuContext): ViewComponent[] {
+  if (context?.triggerElement) {
     return collectViewComponentsUp(context.triggerElement);
   } else {
-    throw new Error(`unexpected menu context: ${context}`);
+    return canvas.focusedViewComponents;
   }
 }
 
 /** Maps an action to a typical menu item in context  */
 export function menuItemFromAction(
   actionOrId: Action | ActionBuiltinId,
-  override?: Partial<MenuItem> & { context?: MenuContext | MenuItemContextSource },
+  override?: Partial<MenuItem> & { context?: MenuContext; contextViews?: ViewComponent[] },
 ): MenuItem {
   const action = typeof actionOrId === "string" ? getAction(actionOrId) : actionOrId;
 
   // figure out whether the action is available in this context
-  const context = override?.context ?? "current";
-  const contextViews =
-    typeof context == "string" ? getMenuContextViews(context) : getMenuContextViews("trigger-element", context);
+  const contextViews = override?.contextViews ?? getMenuContextViews(override?.context);
   const isDisabled = !isActionImplemented(action, contextViews);
 
   // map to action
@@ -77,10 +70,8 @@ export function menuItemFromAction(
     // default to subcategory since we usually group menus by category(ish)
     category: action.subcategory ?? action.category,
     action: (menu: MenuInfo) => {
-      const actionContext: ActionContext | undefined =
-        typeof context == "object" ? { ...menu.context, ...context } : menu.context;
-      const contextViews =
-        context == "current" ? canvas.focusedViewComponents : getMenuContextViews("trigger-element", menu.context);
+      const contextViews = getMenuContextViews(menu.context);
+      const actionContext = { ...menu.context, ...(override?.context ?? {}) };
       fireAction(action, contextViews, actionContext);
     },
     ...override,
@@ -90,9 +81,13 @@ export function menuItemFromAction(
 /** Convenience wrapper around action filter & menu item mapping */
 export function menuActionsLike(
   filter: ActionFilter,
-  override?: Partial<MenuItem> & { context?: MenuContext | MenuItemContextSource },
+  override?: Partial<MenuItem> & { context?: MenuContext },
 ): MenuItem[] {
-  return getActionsLike(filter).map((action) => menuItemFromAction(action, override));
+  const contextViews = getMenuContextViews(override?.context);
+  const actions = getActionsLike(filter).map((action) =>
+    menuItemFromAction(action, { contextViews, ...(override ?? {}) }),
+  );
+  return actions;
 }
 
 //

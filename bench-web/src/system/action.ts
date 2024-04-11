@@ -877,8 +877,8 @@ contributeActionMap<"developer">({
       const existingRootNames = pkgGraph.getChildren(packagePtr.value!, NodeType.BLOCK).map((b) => b.name);
       for (const [pageName, icon] of [
         ["System", "fas fa-gear"],
-        ["Mirror", "fas fa-map"],
         ["Library", "fas fa-cubes"],
+        ["Mirror", "fas fa-map"],
         ["Applications", "fas fa-compass-drafting"],
         ["Sandbox", "fas fa-game-board"],
       ]) {

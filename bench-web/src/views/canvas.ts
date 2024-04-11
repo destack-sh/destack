@@ -44,6 +44,7 @@ import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
   getCurrentInstance,
+  isVNode,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -67,6 +68,10 @@ export function describeVueComponent(component: ComponentInstance<any>): string 
 export function describeVueComponentPath(component: ComponentInstance<any>): string {
   const components = collectViewComponentsUp(component).reverse();
   return components.map((c) => getVueComponentType(c) + ":" + getViewComponentId(c)).join("->");
+}
+
+export function isVueComponent(component: ComponentInstance<any>): boolean {
+  return (component as any).uid != null;
 }
 
 export function isVueInstanceOf(component: ComponentInstance<any>, type: string | { __name?: string }): boolean {
@@ -100,9 +105,15 @@ export function findViewComponent(
   where?: (component: ViewComponent) => boolean,
 ): ViewComponent | null {
   while (el != null) {
-    if ((el as any).__viewComponent != null && (where == null || where((el as any).__viewComponent)))
-      return (el as any).__viewComponent;
-    else el = el.parentElement!;
+    if (el instanceof HTMLElement) {
+      // first find vue component
+      if ((el as any).__viewComponent != null)
+        el = (el as any).__viewComponent;
+      else el = el.parentElement!;
+    } else {
+      if (where == null || where(el)) return el;
+      else el = el.parent;
+    }
   }
   return null;
 }
@@ -225,18 +236,17 @@ export class ViewCanvas {
       // refresh
 
       // update focus
-      const identifiedComponent = findViewComponent(component, isIdentifiedViewComponent);
       this.focusedViewComponent.value = component;
       const componentsById: Record<string, ViewComponent> = {};
       collectViewComponentsUp(component).forEach((c) => {
         componentsById[getViewComponentId(c)] = c;
       });
       this.focusedViewComponentsById.value = componentsById;
+      const identifiedComponent = findViewComponent(component, isIdentifiedViewComponent);
       this.focusedViewPtr.value = typeNodeReferenceMaybe(
         NodeType.VIEW,
         identifiedComponent?.exposed.self?.value ?? null,
       );
-
       // update root focus (if not in a 'ridealong' view)
       const focusedRootViewComponent = findViewComponent(component, isRootViewComponent);
       const focusedRootViewPtr = typeNodeReferenceMaybe(
