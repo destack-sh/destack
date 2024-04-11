@@ -83,7 +83,7 @@ defineExpose({ self, focus });
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
-      <PlainText :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Slug" is-input is-disabled v-model="slug" />
+      <PlainText :icon="makeIcon({ faName: 'fas fa-at' })" name="Slug" title="Slug" is-input is-disabled v-model="slug" />
       <!-- Region -->
       <!-- ... -->
     </div>
@@ -91,8 +91,8 @@ defineExpose({ self, focus });
     <div class="mt-7">
       <Button
         v-if="state == 'create-bench'"
-        name="submit"
-        :icon="makeIcon({ name: 'fas fa-rocket-launch' })"
+        name="Submit"
+        :icon="makeIcon({ faName: 'fas fa-rocket-launch' })"
         title="Create Bench"
         class="w-full"
         :is-loading="isActive"
@@ -101,8 +101,8 @@ defineExpose({ self, focus });
       />
       <Button
         v-if="state == 'all-set'"
-        name="close"
-        :icon="makeIcon({ name: 'fas fa-xmark' })"
+        name="Close"
+        :icon="makeIcon({ faName: 'fas fa-xmark' })"
         title="Close"
         class="w-full"
         :variant="Variant.V3"

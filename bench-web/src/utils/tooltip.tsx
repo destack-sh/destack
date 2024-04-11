@@ -83,7 +83,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
 
 export function tooltipFromAction(action: Action): TooltipInfo {
   return {
-    icon: action.icon?.name,
+    icon: action.icon?.faName,
     title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,

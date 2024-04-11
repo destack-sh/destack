@@ -161,16 +161,15 @@ class BlockType(betterproto.Enum):
     UNSPECIFIED = 0
     PAGE = 1
     BLANK = 2
-    TEXT = 3
-    ALIAS = 4
+    ALIAS = 3
     CLASS = 10
     CHOICE = 11
     SIGNAL = 13
     PROTOCOL = 14
-    SINGLE_VARIABLE = 20
+    VARIABLE = 20
     MULTI_VARIABLE = 21
-    NATURAL_ROUTINE = 30
-    CODE_ROUTINE = 31
+    TEXT = 30
+    CODE = 31
     SCRIPT = 32
     FLOW = 33
     QUERY = 40
@@ -1063,7 +1062,7 @@ class FileData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: Optional[int] = betterproto.int32_field(2, optional=True)
     type: Optional[str] = betterproto.string_field(31, optional=True)
-    name: Optional[str] = betterproto.string_field(33, optional=True)
+    name: str = betterproto.string_field(33)
     size: Optional[int] = betterproto.int32_field(34, optional=True)
     sha512: Optional[str] = betterproto.string_field(35, optional=True)
     content_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
@@ -1084,7 +1083,7 @@ class FontData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1096,7 +1095,7 @@ class IconData(betterproto.Message):
     kind: "IconKind" = betterproto.enum_field(30)
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
     file: Optional["FileData"] = betterproto.message_field(32, optional=True)
-    name: Optional[str] = betterproto.string_field(33, optional=True)
+    fa_name: Optional[str] = betterproto.string_field(33, optional=True)
     color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
 
 
@@ -1250,7 +1249,7 @@ class PolicyData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(30, optional=True)
+    name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
     scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
@@ -1270,7 +1269,7 @@ class PolicyRuleData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(30, optional=True)
+    name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     subject_is_delegated: Optional[bool] = betterproto.bool_field(40, optional=True)
     subject_is_authenticated: Optional[bool] = betterproto.bool_field(41, optional=True)
@@ -1590,7 +1589,7 @@ class BadgeData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(31, optional=True)
+    name: str = betterproto.string_field(31)
     delegated_policies: List["PolicyData"] = betterproto.message_field(32)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     key: Optional[str] = betterproto.string_field(40, optional=True)
@@ -1657,7 +1656,7 @@ class BlockData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     type: "BlockType" = betterproto.enum_field(30)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(34, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(35)
@@ -1701,7 +1700,7 @@ class BranchData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
@@ -1750,7 +1749,7 @@ class ClientData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     device_name: Optional[str] = betterproto.string_field(40, optional=True)
     device_type: Optional[str] = betterproto.string_field(41, optional=True)
     operating_system: Optional[str] = betterproto.string_field(42, optional=True)
@@ -1834,7 +1833,7 @@ class EnvironmentData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
@@ -2600,7 +2599,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2619,7 +2618,7 @@ class TriggerData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     type: "TriggerType" = betterproto.enum_field(30)
-    name: Optional[str] = betterproto.string_field(31, optional=True)
+    name: str = betterproto.string_field(31)
     active: bool = betterproto.bool_field(32)
     schedule: Optional["ScheduleData"] = betterproto.message_field(33, optional=True)
     signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
@@ -2646,7 +2645,7 @@ class UpgradeData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     title: Optional[str] = betterproto.string_field(34, optional=True)
     text: Optional["TextData"] = betterproto.message_field(35, optional=True)
 
@@ -2669,7 +2668,7 @@ class UserData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     main_handle_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     slug: Optional[str] = betterproto.string_field(32, optional=True)
-    name: Optional[str] = betterproto.string_field(33, optional=True)
+    name: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     email: Optional[str] = betterproto.string_field(35, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(36, optional=True)
@@ -2701,7 +2700,7 @@ class ViewData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     type: "ViewType" = betterproto.enum_field(30)
-    name: Optional[str] = betterproto.string_field(31, optional=True)
+    name: str = betterproto.string_field(31)
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     order_key: str = betterproto.string_field(34)
@@ -4560,7 +4559,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.11.0"
+VERSION = "2024.04.11.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject

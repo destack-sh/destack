@@ -169,10 +169,10 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
   }
 }
 
-export const DEFAULT_MISSING_ICON = makeIcon({ name: "fas fa-question" });
-export const DEFAULT_VIEW_ICON = makeIcon({ name: "fas fa-browser" });
-export const DEFAULT_USER_ICON = makeIcon({ name: "fas fa-user-tie" });
-export const DEFAULT_BENCH_ICON = makeIcon({ name: "fas fa-fort" });
+export const DEFAULT_MISSING_ICON = makeIcon({ faName: "fas fa-question" });
+export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
+export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
+export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
 
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const ROOT_VIEW_COMPONENT_NAMES = new Set(
@@ -199,7 +199,7 @@ export const RIDEALONG_VIEW_TYPES = new Set([
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
   return Object.fromEntries(
     Object.entries(icons).map(([key, value]) => {
-      return [key as K, typeof value == "string" ? makeIcon({ name: value as string }) : value];
+      return [key as K, typeof value == "string" ? makeIcon({ faName: value as string }) : value];
     }),
   ) as Record<K, IconData>;
 }
@@ -257,7 +257,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-folder",
   [BlockType.BLANK]: "fas fa-cube",
-  [BlockType.TEXT]: "fas fa-font",
   [BlockType.ALIAS]: "fas fa-link",
 
   [BlockType.CLASS]: "fas fa-objects-column",
@@ -265,11 +264,11 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.PROTOCOL]: "fas fa-list-check",
 
-  [BlockType.SINGLE_VARIABLE]: "fas fa-columns-3",
+  [BlockType.VARIABLE]: "fas fa-columns-3",
   [BlockType.MULTI_VARIABLE]: "fas fa-columns-3",
 
-  [BlockType.NATURAL_ROUTINE]: "fas fa-text",
-  [BlockType.CODE_ROUTINE]: "fas fa-code",
+  [BlockType.TEXT]: "fas fa-text",
+  [BlockType.CODE]: "fas fa-code",
   [BlockType.SCRIPT]: "fas fa-file-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
 

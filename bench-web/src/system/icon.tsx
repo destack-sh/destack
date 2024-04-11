@@ -1,10 +1,10 @@
 import { IconKind, type IconData, BenchType } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 
-export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "name">> = (props) => {
-  if (props.name) {
+export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
+  if (props.faName) {
     // font awesome
-    return <i class={props.name + " w-[18px] text-center"} />;
+    return <i class={props.faName + " w-[18px] text-center"} />;
   } else if (props.emoji) {
     return <span>{props.emoji}</span>;
   } else {
@@ -12,16 +12,16 @@ export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "
   }
 };
 
-type IconIn = string | Pick<IconData, "emoji" | "file" | "name">;
+type IconIn = string | Pick<IconData, "emoji" | "file" | "faName">;
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
-    return { metatype: BenchType.ICON, kind: IconKind.FONT_AWESOME, name: icon, setProperties: [] };
+    return { metatype: BenchType.ICON, kind: IconKind.FONT_AWESOME, faName: icon, setProperties: [] };
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
   } else if (icon.file) {
     kind = IconKind.FILE;
-  } else if (icon.name) {
+  } else if (icon.faName) {
     kind = IconKind.FONT_AWESOME;
   } else {
     throw new Error(`unexpected icon ${icon}`);

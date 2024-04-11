@@ -188,13 +188,13 @@ async def make_clients(
 ) -> tuple[User, list[UserHandle]]:
     user_slug = secrets.token_hex(8)
     user = User(
-        name="",
+        name=user_slug,
         slug=user_slug,
         email=user_slug + "@symbolx.com",
         status=UserStatus.REGISTERED,
     )
     password = secrets.token_hex(8)
-    _ = await make_new_user_handle(supervisor, user, password=password, client_name="root")
+    _ = await make_new_user_handle(supervisor, user, password=password, client_name="Root")
     clients: list[UserHandle] = [
         await make_existing_user_handle(
             supervisor, user, password=password, client_name=f"client_{i}"

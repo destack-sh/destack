@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.11.0"
+VERSION = "2024.04.11.4"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -195,8 +195,7 @@ INTERP_NODE_TYPES = (NodeType.NOTICE,)
 class BlockType(IdEnum):
     PAGE = 1  # group of blocks
     BLANK = 2  # placeholder/spacer
-    TEXT = 3  # define a 'paragraph' of text/comment/instruction/etc.
-    ALIAS = 4  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
+    ALIAS = 3  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (as literal options)
@@ -208,12 +207,12 @@ class BlockType(IdEnum):
     # METRIC = ...  # define a new metric type
     # BLOCK = ...  # define a new block type?
 
-    SINGLE_VARIABLE = 20  # define a single-value variable
+    VARIABLE = 20  # define a single-value variable
     MULTI_VARIABLE = 21  # define a variable with (multiple) fields
 
-    NATURAL_ROUTINE = 30  # define a model function with fields (incl. input/output)
-    CODE_ROUTINE = 31  # define a code function with fields (incl. input/output)
-    SCRIPT = 32  # define a code script with fields
+    TEXT = 30  # define a 'paragraph' of text/comment/instruction with fields (incl. input/output)
+    CODE = 31  # define a code function with fields (incl. input/output)
+    SCRIPT = 32  # define a code script with exported code-level constructs
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
 
     QUERY = 40  # define a set of queries

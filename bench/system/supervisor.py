@@ -8,6 +8,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
 from bench.language.const import USER_NODE_TYPES, NodeType
+from bench.language.graph import generate_node_name
 from bench.language.resource import Region
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
@@ -69,13 +70,16 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
     # User management
     #
 
-    def _make_client(self, parent: User, client_data: ClientData) -> Client:
+    async def _make_client(self, user: User, client_data: ClientData) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
-        id = to_uuid(client_data.id) if client_data.id else uuid5(parent.id, client_data.place_id)
+        id = to_uuid(client_data.id) if client_data.id else uuid5(user.id, client_data.place_id)
+        name = client_data.name
+        if not name:
+            name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
         return Client(
             id=id,
-            parent=parent,
-            name=client_data.name,
+            parent=user,
+            name=name,
             device_name=client_data.device_name,
             device_type=client_data.device_type,
             operating_system=client_data.operating_system,
@@ -103,9 +107,11 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
-            client = self._make_client(user, request.client)
+            session.create(user)
+            await session.flush()
+            client = await self._make_client(user, request.client)
             client.access_token = generate_access_token()
-            session.create(user, client)
+            session.create(client)
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
@@ -149,15 +155,17 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
-            user = await User.include(User.password_salt, User.password_hash).get(
-                User.__properties__[key_name] == key_value
+            user = (
+                await User.include(User.password_salt, User.password_hash)
+                .descendants(NodeType.CLIENT)
+                .get(User.__properties__[key_name] == key_value)
             )
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            client = self._make_client(user, request.client)
-            client.access_token = generate_access_token()
             user.last_logged_in_at = utcnow_with_tz()
+            client = await self._make_client(user, request.client)
+            client.access_token = generate_access_token()
             session.upsert(client)
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)

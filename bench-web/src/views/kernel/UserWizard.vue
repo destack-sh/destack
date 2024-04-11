@@ -116,24 +116,24 @@ defineExpose<ViewExposed>({ self, focus });
     <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
       <PlainText
         v-if="state === 'sign-up'"
-        :icon="makeIcon({ name: 'fas fa-user' })"
-        name="name"
+        :icon="makeIcon({ faName: 'fas fa-user' })"
+        name="Name"
         title="Name"
         is-input
         v-model="name"
       />
-      <PlainText :icon="makeIcon({ name: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
+      <PlainText :icon="makeIcon({ faName: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
       <PlainText
         v-if="state === 'sign-up'"
-        :icon="makeIcon({ name: 'fas fa-envelope' })"
-        name="email"
+        :icon="makeIcon({ faName: 'fas fa-envelope' })"
+        name="Email"
         title="Email"
         is-input
         v-model="email"
       />
       <PlainText
-        :icon="makeIcon({ name: 'fas fa-key' })"
-        name="password"
+        :icon="makeIcon({ faName: 'fas fa-key' })"
+        name="Password"
         title="Password"
         is-input
         :value-type="makeTypeInfo({ isSecret: true })"
@@ -144,8 +144,8 @@ defineExpose<ViewExposed>({ self, focus });
     <div class="mt-7">
       <Button
         v-if="state === 'log-in' || state === 'sign-up'"
-        name="submit"
-        :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
+        name="Submit"
+        :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
         :title="state === 'log-in' ? 'Log in' : 'Sign up'"
         class="w-full"
         @click="submit"
@@ -154,8 +154,8 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <Button
         v-if="state === 'log-in' || state === 'sign-up'"
-        name="switch"
-        :icon="makeIcon({ name: 'fas fa-shuffle' })"
+        name="Switch"
+        :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
         :variant="Variant.V3"
@@ -163,8 +163,8 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <Button
         v-if="state == 'all-set'"
-        name="close"
-        :icon="makeIcon({ name: 'fas fa-xmark' })"
+        name="Close"
+        :icon="makeIcon({ faName: 'fas fa-xmark' })"
         :title="'Close'"
         class="w-full"
         :variant="Variant.V3"

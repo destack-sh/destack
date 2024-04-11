@@ -724,13 +724,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         else:
             raise ValueError(f"no default for {self!r}")
 
-    def validate(self, value: Any, on_notice: "PropertyValidationHandler") -> bool | None:
-        """Validates a non-None value of this property"""
-        if self.custom_validate is not None:
-            return self.custom_validate(self, value, on_notice)
-        else:
-            return None
-
 
 @_on_completing_setup
 def _add_property_expression_base():
@@ -766,7 +759,7 @@ def p_property(
     unique: bool = False,
     sensitive: bool = False,
     custom_list: type["ValueList"] | None = None,
-    validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
+    validate: Callable[["Property", Any, "PropertyValidationHandler"], bool | None] = None,
 ):
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR

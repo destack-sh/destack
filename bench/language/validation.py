@@ -63,6 +63,7 @@ def on_invalid_raise(
     raise ValidationError(subject, message, properties, cause)
 
 
+MIN_NAME_LENGTH = 1
 MAX_NAME_LENGTH = 128
 SLUG_REGEX = r"^[a-z0-9-]{3,}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
@@ -71,6 +72,8 @@ EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 def validate_name(prop: "Property", value: str, on_invalid: PropertyValidationHandler):
     if not isinstance(value, str):
         on_invalid(f"not a string ({type(value)})")
+    if len(value) < MIN_NAME_LENGTH:
+        on_invalid(f"too short ({len(value)} < {MIN_NAME_LENGTH})")
     if len(value) > MAX_NAME_LENGTH:
         on_invalid(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
 

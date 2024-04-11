@@ -4,6 +4,7 @@ from collections import defaultdict, deque
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
+    Any,
     Collection,
     Generic,
     Iterable,
@@ -19,8 +20,9 @@ from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CL
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData
+from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
-from bench.utils.func import to_uuid
+from bench.utils.func import IdEnum, to_uuid
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -471,7 +473,22 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             return descendants
 
 
-class NodeList(abc.ABC, Collection, Generic[NodeT]):
+def generate_node_name(
+    metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
+) -> str:
+    """Generates a new name for the given node based on its siblings. :AutoNaming"""
+    metatype_name = to_casing(metatype.name, Casing.CAMEL)
+    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW:
+        assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
+        type_name = to_casing(type.name, Casing.CAMEL)
+        count = len([n for n in siblings if n.type == type])
+        return f"{metatype_name}{type_name}{count + 1}"
+    else:
+        count = len(siblings)
+        return f"{metatype_name}{count + 1}"
+
+
+class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
     """
     A list of node descendants of a parent's property.
     This is the primary way of adding, removing and accessing regular node relations.
@@ -492,7 +509,11 @@ class NodeList(abc.ABC, Collection, Generic[NodeT]):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         from bench.language.node import NODE_CLASS_BY_TYPE
 
-        node_cls = NODE_CLASS_BY_TYPE[self._property.reference_nodes[0]]
+        node_metatype = self._property.reference_nodes[0]
+        node_cls = NODE_CLASS_BY_TYPE[node_metatype]
+        # auto-generate name if required and not given :AutoNaming
+        if "name" in node_cls.__properties__ and "name" not in kwargs:
+            kwargs["name"] = generate_node_name(node_metatype, kwargs.get("type"), self)
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(
@@ -504,9 +525,7 @@ class NodeList(abc.ABC, Collection, Generic[NodeT]):
         return node
 
     def append(self, node: NodeT) -> None:
-        """
-        Attaches a child node to a parent through a list. This is for users adding nodes.
-        """
+        """Attaches a child node to a parent through a list."""
         raise NotImplementedError
 
     def extend(self, *nodes: Collection[NodeT]):

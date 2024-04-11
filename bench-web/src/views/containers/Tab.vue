@@ -10,6 +10,7 @@ import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } f
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
+import { toCasing, Casing } from "@/utils/string";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -201,9 +202,7 @@ defineExpose<ViewExposed>({ self, actions });
           class="mr-1.5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
-        <span class="truncate" :class="[tab.title ? '' : 'italic']">
-          {{ tab.title ?? `Tab ${i + 1}` }}
-        </span>
+        <span class="truncate" :class="[tab.title ? '' : 'italic']">{{ tab.title ?? tab.name }}</span>
         <!-- Close tab -->
         <button
           class="ml-1.5 group-hover:text-gray-400"

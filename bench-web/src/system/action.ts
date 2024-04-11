@@ -225,7 +225,7 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
   const action: Action = {
     kind,
     ...in_,
-    icon: typeof in_.icon === "string" ? makeIcon({ name: in_.icon }) : in_.icon,
+    icon: typeof in_.icon === "string" ? makeIcon({ faName: in_.icon }) : in_.icon,
     source: { kind: "builtin", id: in_.id },
     id: in_.id,
     category: idParts[0],
@@ -859,7 +859,7 @@ contributeActionMap<"developer">({
     title: "Add Mock View",
     text: "Adds a debug view to the current root",
     action: () => {
-      const name = toCasing(generateRandomName(), Casing.CAMEL, true);
+      const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
       canvas.addView({ type: ViewType.MOCK, name, title: name });
     },
   },
@@ -888,7 +888,7 @@ contributeActionMap<"developer">({
           isPage: true,
           name: pageName,
           orderKey: generateOrderKey(pages[pages.length - 1]?.orderKey ?? null, null),
-          icon: makeIcon({ name: icon }),
+          icon: makeIcon({ faName: icon }),
         });
         pages.push(page);
       }

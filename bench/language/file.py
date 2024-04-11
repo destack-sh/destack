@@ -8,7 +8,7 @@ from bench.language.const import FileStatus, NodeType, StructType
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
 from bench.language.setup import _well_known_enum
-from bench.language.validation import ValidationHandler
+from bench.language.validation import ValidationHandler, validate_name
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
@@ -28,7 +28,7 @@ class File(Struct):
     """A reference to a file stored somewhere."""
 
     type: Optional[str] = p_internal(31)
-    name: Optional[str] = p_regular(33)
+    name: str = p_regular(33, validate=validate_name)
     size: Optional[int] = p_internal(34)
     sha512: Optional[str] = p_internal(35)
     content: Optional["FileContent"] = p_internal(
@@ -106,6 +106,6 @@ class Icon(Struct):
     # content
     emoji: Optional[str] = p_internal(31, require=False)
     file: Optional["File"] = p_internal(32, require=False, array=False, struct=StructType.FILE)
-    name: Optional[str] = p_internal(33, require=False)
+    fa_name: Optional[str] = p_internal(33, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)

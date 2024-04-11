@@ -345,7 +345,7 @@ class View(HasViews, HasValues):
     type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
 
     # common
-    name: Optional[str] = p_regular(31, default=None, validate=validate_name)
+    name: str = p_regular(31, validate=validate_name)
     title: Optional[str] = p_regular(32, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(34, default=INTEGER_ZERO)

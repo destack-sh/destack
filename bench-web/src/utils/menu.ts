@@ -63,7 +63,7 @@ export function menuItemFromAction(
   // map to action
   return {
     id: action.id,
-    icon: action.icon?.name,
+    icon: action.icon?.faName,
     title: toValue(action.title),
     shortcuts: action.shortcuts,
     isDisabled,

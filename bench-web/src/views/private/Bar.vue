@@ -63,7 +63,9 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
-      action: { items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*", "common.search*"] }) },
+      action: {
+        items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*", "common.search*"] }),
+      },
     },
     {
       id: "sense",
@@ -357,11 +359,13 @@ const USER_MENU_ITEMS = computed(() => {
       <!-- User (unauthenticated) -->
       <template v-else>
         <Button
+          name="LogIn"
           title="Log In"
-          :icon="makeIcon({ name: 'fas fa-arrow-right-from-bracket' })"
+          :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
           @click="() => fireActionById('user.auth.login')"
         />
       </template>
     </div>
   </div>
 </template>
+ 

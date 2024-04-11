@@ -147,16 +147,15 @@ enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_PAGE = 1;
   BLOCK_TYPE_BLANK = 2;
-  BLOCK_TYPE_TEXT = 3;
-  BLOCK_TYPE_ALIAS = 4;
+  BLOCK_TYPE_ALIAS = 3;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_SIGNAL = 13;
   BLOCK_TYPE_PROTOCOL = 14;
-  BLOCK_TYPE_SINGLE_VARIABLE = 20;
+  BLOCK_TYPE_VARIABLE = 20;
   BLOCK_TYPE_MULTI_VARIABLE = 21;
-  BLOCK_TYPE_NATURAL_ROUTINE = 30;
-  BLOCK_TYPE_CODE_ROUTINE = 31;
+  BLOCK_TYPE_TEXT = 30;
+  BLOCK_TYPE_CODE = 31;
   BLOCK_TYPE_SCRIPT = 32;
   BLOCK_TYPE_FLOW = 33;
   BLOCK_TYPE_QUERY = 40;
@@ -988,7 +987,7 @@ message FileData {
   BenchType metatype = 1;
   optional int32 id = 2;
   optional string type = 31;
-  optional string name = 33;
+  string name = 33;
   optional int32 size = 34;
   optional string sha512 = 35;
   optional NodeReferenceData content_ptr = 36;
@@ -1004,7 +1003,7 @@ message FontData {
   optional FontSize size = 33;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
 message IconData {
   BenchType metatype = 1;
   optional int32 id = 2;
@@ -1015,7 +1014,7 @@ message IconData {
   IconKind kind = 30;
   optional string emoji = 31;
   optional FileData file = 32;
-  optional string name = 33;
+  optional string fa_name = 33;
   optional ColorData color = 40;
 }
 
@@ -1145,7 +1144,7 @@ message PolicyData {
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated int32 set_properties = 22;
-  optional string name = 30;
+  string name = 30;
   optional TextData text = 31;
   repeated PolicyRuleData rules = 32;
   repeated NodeReferenceData scopes_ptr = 33;
@@ -1161,7 +1160,7 @@ message PolicyRuleData {
   optional string parent_key = 4;
   optional string order_key = 5;
   repeated int32 set_properties = 22;
-  optional string name = 30;
+  string name = 30;
   optional TextData text = 31;
   optional bool subject_is_delegated = 40;
   optional bool subject_is_authenticated = 41;
@@ -1421,7 +1420,7 @@ message BadgeData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional string name = 31;
+  string name = 31;
   repeated PolicyData delegated_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional string key = 40;
@@ -1476,7 +1475,7 @@ message BlockData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   BlockType type = 30;
-  optional string name = 32;
+  string name = 32;
   string order_key = 33;
   optional NodeVisibility visibility = 34;
   repeated PolicyData policies = 35;
@@ -1514,7 +1513,7 @@ message BranchData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional string name = 32;
+  string name = 32;
   optional string slug = 33;
   optional TextData text = 34;
   optional IconData icon = 35;
@@ -1559,7 +1558,7 @@ message ClientData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional string name = 32;
+  string name = 32;
   optional string device_name = 40;
   optional string device_type = 41;
   optional string operating_system = 42;
@@ -1633,7 +1632,7 @@ message EnvironmentData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional string name = 32;
+  string name = 32;
   optional TextData text = 34;
   optional IconData icon = 35;
   repeated PolicyData policies = 36;
@@ -2278,7 +2277,7 @@ message StoreData {
   optional ResourceCredentialData main_credential = 54;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str | None = None, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -2296,7 +2295,7 @@ message TriggerData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   TriggerType type = 30;
-  optional string name = 31;
+  string name = 31;
   bool active = 32;
   optional ScheduleData schedule = 33;
   optional NodeReferenceData signal_ptr = 34;
@@ -2319,7 +2318,7 @@ message UpgradeData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional string name = 32;
+  string name = 32;
   optional string title = 34;
   optional TextData text = 35;
 }
@@ -2340,7 +2339,7 @@ message UserData {
   repeated int32 set_properties = 22;
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
-  optional string name = 33;
+  string name = 33;
   optional TextData text = 34;
   optional string email = 35;
   optional IconData icon = 36;
@@ -2370,7 +2369,7 @@ message ViewData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   ViewType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional string title = 32;
   optional TextData text = 33;
   string order_key = 34;
