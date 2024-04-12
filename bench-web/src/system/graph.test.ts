@@ -188,7 +188,7 @@ describe("node graph", () => {
 
 describe("layered node graph", () => {
   const base = new NodeGraph();
-  const overlay = new NodeGraph({ isPartial: true });
+  const overlay = new NodeGraph({ isOverlayOf: base });
   const graph = new LayerNodeGraph({ layers: [base] });
 
   let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
@@ -233,7 +233,8 @@ describe("layered node graph", () => {
       name: "clientAOverlay",
       setProperties: [ClientProperty.setProperties, ClientProperty.name],
     } as ClientData;
-    // NOTE: deviceName in overlay should be ignored because it's not in setProperties. This is just testing internal consistency.
+    // NOTE: deviceName in overlay should be ignored because it's not in setProperties.
+    //  This shouldn't really happen, but it's good to have this invariant.
     overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" });
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
@@ -263,7 +264,7 @@ describe("layered node graph", () => {
     expect(user1ClientsRef.value).toEqual([clientB, clientC]);
     expect(user2ClientsRef.value).toEqual([clientA]);
 
-    // remove in overlay
+    // remove clientB in overlay
     overlay.remove(clientB);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientC]);
     expect(user1ClientsRef.value).toEqual([clientC]);

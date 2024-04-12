@@ -46,7 +46,7 @@ defineExpose({ self });
   >
     Page {{ nodePtr }} -> {{ describeNode(page) }}
   </Scroll>
-  <div v-else class="flex h-full w-full flex-col justify-center text-center">
-    TODO :Incomplete: not accessible: {{ nodePtr }}
+  <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
+    nocheckin :Incomplete: page not accessible: {{ nodePtr }}
   </div>
 </template>

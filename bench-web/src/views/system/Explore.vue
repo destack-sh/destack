@@ -22,7 +22,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
-import { manualSubRef, computedValue } from "@/utils/ref";
+import { manualSubRef, computedValue, toValueRef } from "@/utils/ref";
 import { collapseSelection, expandSelection, makeSelection } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -142,13 +142,10 @@ function getExpandedNodes(): NodeTreeItem[] {
   _expandedNodesSubs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes));
   if (root != null) walkDescendants(root, -1);
 
-  // nocheckin: fix outline not updating optimistically on moves
-  console.log("expandedNodes." + ViewType[props.type].toLowerCase(), items); 
-
   return items;
 }
 const { ref: expandedNodes, trigger: updateExpandedNodes } = manualSubRef(getExpandedNodes, _expandedNodesUnsub);
-watch(() => [rootPtr.value, props.focus, props.expansion], updateExpandedNodes);
+watch([rootPtr, toRef(props, "focus"), toRef(props, "expansion")], updateExpandedNodes);
 
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
