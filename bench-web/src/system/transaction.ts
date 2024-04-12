@@ -364,6 +364,8 @@ type CommitFailure = {
   edits: EditData[];
   error: RpcError;
 };
+type PendingCallback = (event: { type: "add"; edits: EditData[] } | { type: "reset"; edits: EditData[] }) => void;
+type CommittedCallback = (edits: EditData[]) => void;
 
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
@@ -372,8 +374,8 @@ export interface TransactionBuffer {
   readonly id: number;
   /** Current active Transaction. */
   readonly tx: Transaction;
-  /** Overlay of unconfirmed edits in active or pending transactions. */
-  readonly overlay: ReadNodeGraph;
+  /** Unconfirmed edits in active or pending transactions (for overlays). */
+  readonly pendingEdits: EditData[];
   /** Retryable commits in case of error.  */
   readonly failedCommits?: Readonly<Ref<Record<string, CommitFailure>>>;
 
@@ -381,10 +383,12 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
-  /** Accepts the given edits from an external source (does not trigger onAccepted) */
+  /** Accepts the given edits from an external source (does not trigger onCommitted) */
   accept(edits: EditData[]): void;
+  /** Subscribes to *pending* edits from this buffer */
+  onPending(sub: PendingCallback): () => void;
   /** Subscribes to *confirmed* edits from this buffer */
-  onAccepted(sub: (edits: EditData[]) => void): () => void;
+  onCommitted(sub: CommittedCallback): () => void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
 
@@ -406,16 +410,15 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScope;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
-  public readonly overlay: ReadNodeGraph;
+  public readonly pendingEdits = [];
   public readonly isPaused: Ref<boolean> = ref(false);
-  private acceptedSubs: Array<(edits: EditData[]) => void> = [];
+  private acceptedSubs: Array<CommittedCallback> = [];
   private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
     this.id = id;
     this.scope = scope;
     this.graph = graph;
-    this.overlay = new NodeGraph({ scope, isPartial: true }); // just leave it empty since we apply immediately
     this.reset();
   }
 
@@ -447,7 +450,12 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     // nothing to do
   }
 
-  onAccepted(sub: (edits: EditData[]) => void): () => void {
+  onPending(sub: PendingCallback): () => void {
+    // nothing to do
+    return () => {};
+  }
+
+  onCommitted(sub: CommittedCallback): () => void {
     this.acceptedSubs.push(sub);
     return () => {
       const idx = this.acceptedSubs.indexOf(sub);
@@ -475,12 +483,12 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScope;
   public readonly client: IGraphIOClient;
-  public readonly overlay: NodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private acceptedSubs: Array<(edits: EditData[]) => void> = [];
+  private pendingSubs: Array<PendingCallback> = [];
+  private committedSubs: Array<CommittedCallback> = [];
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
-  private pendingEdits: Record<string, EditData> = {};
+  private pendingEditsById: Record<string, EditData> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
   constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
@@ -488,7 +496,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.scope = scope;
     this.currentTx = null;
     this.pendingTx = null;
-    this.overlay = new NodeGraph({ scope, isPartial: true });
     this.client = client;
     this.reset();
   }
@@ -496,6 +503,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   get tx(): Transaction {
     if (this.currentTx == null) throw new Error("no active transaction");
     return this.currentTx;
+  }
+
+  get pendingEdits() {
+    return Object.values(this.pendingEditsById);
   }
 
   async commit() {
@@ -534,7 +545,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       }
 
       // notify on success
-      this.acceptedSubs.forEach((sub) => sub(edits));
+      this.committedSubs.forEach((sub) => sub(edits));
     } catch (error) {
       // failed
       const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
@@ -562,9 +573,9 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   async reset() {
     this.currentTx = this.makeCurrentTx();
-    this.pendingEdits = {};
+    this.pendingEditsById = {};
     this.pendingTx = null;
-    this.overlay.clear();
+    this.pendingSubs.forEach((sub) => sub({ type: "reset", edits: [] }));
   }
 
   async retry(id: string) {
@@ -581,10 +592,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
     tx.onEdit((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
-      this.pendingEdits[edit.id] = edit;
+      this.pendingEditsById[edit.id] = edit;
       canonicalizeEdits(Timestamp.now(), [edit]);
-      // directly update overlay since we know this edit is 'last'
-      editGraph(this.overlay, [edit], { isOverlay: true });
+      // directly update overlays since this edit is 'last' now (by definition)
+      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit] }));
     });
     return tx;
   }
@@ -592,23 +603,31 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   accept(edits: EditData[]): void {
     let pendingEditsChanged = false;
     for (const edit of edits) {
-      if (this.pendingEdits[edit.id]) {
-        delete this.pendingEdits[edit.id];
+      if (this.pendingEditsById[edit.id]) {
+        delete this.pendingEditsById[edit.id];
         pendingEditsChanged = true;
       }
     }
     if (pendingEditsChanged) {
-      // re-derive overlay from pending edits
-      this.overlay.clear();
-      editGraph(this.overlay, Object.values(this.pendingEdits), { isOverlay: true });
+      // re-derive overlays from pending edits
+      const newPendingEdits = Object.values(this.pendingEditsById);
+      this.pendingSubs.forEach((sub) => sub({ type: "reset", edits: newPendingEdits }));
     }
   }
 
-  onAccepted(sub: (edits: EditData[]) => void): () => void {
-    this.acceptedSubs.push(sub);
+  onPending(sub: PendingCallback): () => void {
+    this.pendingSubs.push(sub);
     return () => {
-      const idx = this.acceptedSubs.indexOf(sub);
-      if (idx >= 0) this.acceptedSubs.splice(idx, 1);
+      const idx = this.pendingSubs.indexOf(sub);
+      if (idx >= 0) this.pendingSubs.splice(idx, 1);
+    };
+  }
+
+  onCommitted(sub: CommittedCallback): () => void {
+    this.committedSubs.push(sub);
+    return () => {
+      const idx = this.committedSubs.indexOf(sub);
+      if (idx >= 0) this.committedSubs.splice(idx, 1);
     };
   }
 

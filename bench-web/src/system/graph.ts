@@ -39,10 +39,11 @@ export const PASSTHROUGH_NODE_FILTER = { includeHidden: true };
 
 /** A node graph with read methods */
 export interface ReadNodeGraph {
+  describeSelf(): string;
   /** The scope contained in this graph */
   get scope(): GraphScope;
   /** Whether this graph is partial */
-  readonly isPartial: boolean;
+  readonly isOverlayOf: ReadNodeGraph | null;
   /** All the nodes in this graph */
   get nodes(): AnyNodeData[];
   /** Number of nodes in this graph */
@@ -127,8 +128,9 @@ export interface WriteNodeGraph {
 /**
  * Helper mixin for managing in a graph.
  */
-abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPartial" | "size"> {
+abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOverlayOf"> {
   abstract nodes: AnyNodeData[];
+  abstract get size(): number;
   abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   abstract getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
 
@@ -137,7 +139,8 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
   }
 
   describeSelf(): string {
-    return `${this.constructor.name}(${this.roots.map(describeNode)})`;
+    const rootsStr = this.roots.map(describeNode).join(", ") || "no roots";
+    return `${this.constructor.name}(${rootsStr}, ${this.size} nodes)`;
   }
 
   getOrFail<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
@@ -294,7 +297,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isPa
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
   public readonly scope: GraphScope = {};
-  public readonly isPartial: boolean = false;
+  public readonly isOverlayOf: ReadNodeGraph | null = null;
   private nodesById: { [id: string]: AnyNodeData } = {};
   private nodesByCk: { [ck: string]: string } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
@@ -303,10 +306,10 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private subsByCk: { [ck: string]: Array<NodeGraphCallback> } = {};
   private subsByParentIdAndType: { [parentId: string]: { [type: string]: Array<NodeGraphCallback> } } = {};
 
-  constructor(init: { scope?: GraphScope; isPartial?: boolean } = { scope: {}, isPartial: false }) {
+  constructor(init?: { scope?: GraphScope; isOverlayOf?: ReadNodeGraph }) {
     super();
-    this.scope = init.scope ?? {};
-    this.isPartial = init.isPartial ?? false;
+    this.scope = init?.scope ?? {};
+    this.isOverlayOf = init?.isOverlayOf ?? null;
   }
 
   add(node: AnyNodeData) {
@@ -333,18 +336,31 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
   update(node: AnyNodeData) {
     if (!node.id) throw new Error(`node must have an id: ${describeNode(node)}`);
-    const existing = this.nodesById[node.id];
-    if (!existing && !this.isPartial) throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
+    // we need to know existing to detect & notify move updates correctly
+    const existingSelf: AnyNodeData | null = this.nodesById[node.id] ?? this.nodesByCk[(node as any).ck];
+    let existingBase: AnyNodeData | null = null;
+    if (!existingSelf) {
+      if (this.isOverlayOf != null) {
+        existingBase = this.isOverlayOf.get({ id: node.id, ck: (node as any).ck });
+        if (!existingBase)
+          throw new Error(
+            `node ${describeNode(node)} not found in overlay ${this.describeSelf()} or base ${this.isOverlayOf.describeSelf()}`,
+          );
+      } else {
+        throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
+      }
+    }
 
-    if (existing?.parentPtr?.id != node.parentPtr?.id) {
+    if (existingSelf?.parentPtr?.id != node.parentPtr?.id) {
       // move
-      if (existing?.parentPtr != null) this._removeFromParent(existing!);
+      if (existingSelf?.parentPtr != null) this._removeFromParent(existingSelf);
       if (node.parentPtr != null) this._addToParent(node);
       this.nodesById[node.id] = node;
-      if (existing) this.notify(existing);
+      if ("ck" in node) this.nodesByCk[node.ck] = node.id;
+      this.notify(existingSelf ?? existingBase);
       this.notify(node);
     } else {
-      // simple in place update
+      // update
       this.nodesById[node.id] = node;
       if ("ck" in node) this.nodesByCk[node.ck] = node.id;
       this.notify(node);
@@ -392,7 +408,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private _addToParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      if (!this.nodesById[parentId] && !this.isPartial) {
+      if (!this.nodesById[parentId] && !this.isOverlayOf) {
         throw new Error(
           `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
         );
@@ -410,7 +426,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId]?.[node.metatype]?.findIndex((n) => n == node.id);
-      if (nodeIdx == null && this.isPartial) return;
+      if (nodeIdx == null && this.isOverlayOf) return;
       else if (nodeIdx == -1)
         throw new Error(
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
@@ -635,8 +651,8 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     return this._graph.value?.scope ?? {};
   }
 
-  get isPartial(): boolean {
-    return this._graph.value?.isPartial ?? false;
+  get isOverlayOf(): ReadNodeGraph | null {
+    return this._graph.value?.isOverlayOf ?? null;
   }
 
   get nodes(): AnyNodeData[] {
@@ -721,8 +737,8 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     this.layers = !isRef(init.layers) ? shallowRef(init.layers ?? []) : init.layers;
   }
 
-  get isPartial(): boolean {
-    return this.layers.value[0]?.isPartial ?? false;
+  get isOverlayOf(): ReadNodeGraph | null {
+    return null;
   }
 
   get nodes(): AnyNodeData[] {
@@ -945,7 +961,7 @@ export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNod
     const typeName = toCasing(BlockType[type] ?? ViewType[type], Casing.CAMEL);
     const maxId = Math.max(
       ...siblings.filter((n) => (n as any).type == type).map((n) => extractNameId((n as any).name) ?? 0),
-      0
+      0,
     );
     return `${typeName}${maxId + 1}`;
   } else {

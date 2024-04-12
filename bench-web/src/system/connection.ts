@@ -95,6 +95,7 @@ type GetConnectionParams<T extends NodeType> = {
 type GetConnectionResult<T extends NodeType> = {
   access: AccessArbiter;
   graph: ReadNodeGraph;
+  overlay: ReadNodeGraph | null;
   roots: Ref<NodeTypeMapping[T][]>;
 };
 
@@ -114,6 +115,7 @@ type SearchConnectionParams<T extends NodeType> = {
 type SearchConnectionResult<T extends NodeType> = {
   access: AccessArbiter;
   graph: ReadNodeGraph;
+  overlay: ReadNodeGraph | null;
   roots: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
 };
@@ -151,21 +153,47 @@ function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<
   throw new Error(`cannot determine scope from params: ${JSON.stringify(params)}`);
 }
 
-/** Filter, canonicalize and apply the given edits */
-function applyRemoteEdits<T extends NodeType>(
-  params: GetConnectionParams<T> | SearchConnectionParams<T>,
-  edits: EditData[],
-  graph: ReadNodeGraph & WriteNodeGraph,
-): void {
-  // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
-  // node types included?
+type EditFilter = {
+  includedNodeTypes: NodeType[];
+};
+
+function makeEditFilter(params: GetConnectionParams<any> | SearchConnectionParams<any>): EditFilter {
   const includedNodeTypes = [...(params.options?.ancestorTypes ?? []), ...(params.options?.descendantTypes ?? [])];
   if ("roots" in params) includedNodeTypes.push(...params.roots.map((r) => r.type));
   if ("nodeType" in params) includedNodeTypes.push(params.nodeType);
+  return { includedNodeTypes };
+}
 
-  const filteredEdits = edits.filter((e) => includedNodeTypes.includes(e.nodeType));
+/** Filter, canonicalize and apply the given edits */
+function applyRemoteEdits(filter: EditFilter, edits: EditData[], graph: ReadNodeGraph & WriteNodeGraph): void {
+  const filteredEdits = filterRemoteEdits(filter, edits);
   canonicalizeEdits(Timestamp.now(), filteredEdits);
   editGraph(graph, filteredEdits);
+}
+
+/** Filters the edits to only the ones relevant to the given connection */
+function filterRemoteEdits(filter: EditFilter, edits: EditData[]): EditData[] {
+  // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
+  //  maybe we should just filter for edits whose dependencies are in the graph?
+  //  (e.g. create -> parent present, update -> node present, etc.)
+  return edits.filter((e) => filter.includedNodeTypes.includes(e.nodeType));
+}
+
+/** Derives the overlay graph for a specific connection */
+function derivePendingOverlayGraph(
+  filter: EditFilter,
+  base: NodeGraph,
+  txBuffer: TransactionBuffer,
+  subs: (() => void)[],
+): NodeGraph {
+  const overlay = new NodeGraph({ scope: base.scope, isOverlayOf: base });
+  const sub = txBuffer.onPending((e) => {
+    if (e.type == "reset") overlay.clear();
+    const filteredEdits = filterRemoteEdits(filter, e.edits);
+    if (filteredEdits.length > 0) editGraph(overlay, filteredEdits, { isOverlay: true });
+  });
+  subs.push(sub);
+  return overlay;
 }
 
 //
@@ -475,6 +503,7 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope });
     const options = makeReadOptions(params.options ?? {});
+    const filter = makeEditFilter(params);
     const subs: (() => void)[] = [];
 
     // fetch nodes
@@ -498,17 +527,18 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
       );
       editStream.responses.onNext((rep) => {
         if (rep != null) {
-          applyRemoteEdits(params, rep.edits, graph);
+          applyRemoteEdits(filter, rep.edits, graph);
           this.txBuffer.accept(rep.edits);
         }
       });
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.onAccepted((edits) => applyRemoteEdits(params, edits, graph)));
+      subs.push(this.txBuffer.onCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
     }
 
-    return { graph, access, roots: graph.getManyRef(params.roots), subs };
+    const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);
+    return { graph, overlay, access, roots: graph.getManyRef(params.roots), subs };
   }
 }
 
@@ -524,6 +554,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope });
     const options = makeReadOptions(params.options ?? {});
+    const filter = makeEditFilter(params);
     const subs: (() => void)[] = [];
 
     // fetch nodes
@@ -574,17 +605,18 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
       );
       editStream.responses.onNext((rep) => {
         if (rep != null) {
-          applyRemoteEdits(params, rep.edits, graph);
+          applyRemoteEdits(filter, rep.edits, graph);
           this.txBuffer.accept(rep.edits);
         }
       });
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.onAccepted((edits) => applyRemoteEdits(params, edits, graph)));
+      subs.push(this.txBuffer.onCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
     }
 
-    return { graph, access, roots, page, subs };
+    const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);
+    return { graph, overlay, access, roots, page, subs };
   }
 }
 
@@ -603,8 +635,14 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
     this.graph = readGraph;
 
     // 'fuse' the connection
+    // (no overlay because the local connection is instant)
     this.isConnected.value = true;
-    this.result.value = { graph: this.graph, access: accessFull(), roots: this.graph.getManyRef(params.roots) };
+    this.result.value = {
+      graph: this.graph,
+      overlay: null,
+      access: accessFull(),
+      roots: this.graph.getManyRef(params.roots),
+    };
   }
 
   connect(options?: Partial<ConnectionOptions> | undefined): Promise<void> {
@@ -613,7 +651,7 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
   }
 
   protected async doFetch(scope: GraphScope, params: GetConnectionParams<T>): Promise<GetConnectionResult<T>> {
-    return { graph: this.graph, access: accessFull(), roots: this.graph.getManyRef(params.roots) };
+    return { graph: this.graph, overlay: null, access: accessFull(), roots: this.graph.getManyRef(params.roots) };
   }
 }
 
@@ -823,7 +861,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   return connection;
 }
 
-/** The graph of a node connection overlaid with its local buffer */
+/** The graph of a node connection overlaid with its local overlay */
 function useConnectionOverlayGraph<T extends NodeType>(
   connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
@@ -833,8 +871,10 @@ function useConnectionOverlayGraph<T extends NodeType>(
     () => {
       if (connection.value?.result.value == null) {
         graph.layers.value = [];
+      } else if (connection.value?.result.value.overlay == null) {
+        graph.layers.value = [connection.value.result.value.graph];
       } else {
-        graph.layers.value = [connection.value!.result.value!.graph, connection.value!.txBuffer.overlay];
+        graph.layers.value = [connection.value.result.value.graph, connection.value.result.value.overlay];
       }
     },
     { immediate: true },
@@ -922,6 +962,7 @@ export function useGetNodes<T extends NodeType>(
 
   return {
     graph,
+    overlay: null, // already overlaid
     access,
     connection: new ProxyConnection(connection),
     roots,
@@ -952,6 +993,7 @@ export function useSearchNodes<T extends NodeType>(
 
   return {
     graph,
+    overlay: null, // already overlaid
     access,
     connection: new ProxyConnection(connection),
     roots,
