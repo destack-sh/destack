@@ -37,17 +37,17 @@ class ViewType(IdEnum):
     MOCK = 70
 
     # 'system'
+    # nodes
     PAGE = 101
     BLOCK = 102
     FIELD = 103
     DATABASE = 104
-    EXPLORER = 120
-    OUTLINE = 121
-    INSPECTOR = 123
-    HISTORY = 127
-    RESOURCE = 130
-    LIBRARY = 135
-    LOG = 137
+    SCREEN = 105
+    # helpers
+    EXPLORE = 150
+    OUTLINE = 151
+    INSPECT = 153
+    CREATE = 154
 
     #
     # General

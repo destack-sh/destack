@@ -46,8 +46,13 @@ const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection
 
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) return props.nodePtr;
-  else if (props.type == ViewType.EXPLORER) return packagePtr.value;
+  else if (props.type == ViewType.EXPLORE) return packagePtr.value;
   else if (props.type == ViewType.OUTLINE) return canvas.focusedBaseNodePtr.value;
+  else return null;
+});
+const focusPtr = computedValue(() => {
+  if (props.type == ViewType.EXPLORE) return canvas.focusedBaseNodePtr.value;
+  else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
   else return null;
 });
 
@@ -66,12 +71,12 @@ const { graph: inspectedGraph, connection: inspectedConnection } = useExistingCo
 //
 
 const inspectedNodeTypes = computed(() => {
-  if (props.type == ViewType.EXPLORER) return [NodeType.BLOCK];
+  if (props.type == ViewType.EXPLORE) return [NodeType.BLOCK];
   else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
   else return [];
 });
 function isIncludedSelf(node: AnyNodeData) {
-  if (props.type == ViewType.EXPLORER) {
+  if (props.type == ViewType.EXPLORE) {
     if (node.metatype == BenchType.BLOCK) return (node as BlockData).isPage;
     else return true;
   } else if (props.type == ViewType.OUTLINE) {
@@ -81,7 +86,7 @@ function isIncludedSelf(node: AnyNodeData) {
   }
 }
 function isIncludedChildren(node: AnyNodeData) {
-  if (props.type == ViewType.EXPLORER) {
+  if (props.type == ViewType.EXPLORE) {
     return true;
   } else if (props.type == ViewType.OUTLINE) {
     // don't descend into pages for outline
@@ -134,8 +139,11 @@ function getExpandedNodes(): NodeTreeItem[] {
 
   // collect
   const root = inspectedGraph.getMaybe(rootPtr.value);
-  _expandedNodesSubs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes, { ignoreAncestors: true }));
+  _expandedNodesSubs.push(inspectedGraph.subscribe(rootPtr.value, updateExpandedNodes));
   if (root != null) walkDescendants(root, -1);
+
+  // nocheckin: fix outline not updating optimistically on moves
+  console.log("expandedNodes." + ViewType[props.type].toLowerCase(), items); 
 
   return items;
 }
@@ -174,7 +182,7 @@ function isExpanded(node: { id?: string; ck?: string }) {
 }
 
 function isFocusedAbsolute(node: { id?: string }): boolean {
-  return node.id == canvas.focusedBaseNodePtr.value?.id || node.id == inspectionPtr.value?.id;
+  return node.id == focusPtr.value?.id;
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
@@ -211,7 +219,7 @@ function clear() {
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node, { where: "nextFrameRoot" });
+  canvas.goToNode(node, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE });
 }
 
 /** Navigate horizontally to expand/collapse */
@@ -249,7 +257,7 @@ watch(
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
-  name: "explorer",
+  name: "EXPLORE",
   container: containerRef,
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
@@ -274,13 +282,15 @@ const hasFocusedNode = computed(() => focusedNode.value != null);
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
     enabled: hasFocusedNode,
-    action: () => canvas.goToNode(focusedNode.value!, { where: "currentRoot" }),
+    action: () =>
+      canvas.goToNode(focusedNode.value!, { where: "currentRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
   "common.sense.focusInSplit": {
     enabled: hasFocusedNode,
-    action: () => canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot" }),
+    action: () =>
+      canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
-  // <!-- TODO :Incomplete: Explorer/Outline actions -->
+  // <!-- TODO :Incomplete: EXPLORE/Outline actions -->
   // common.edit.rename, common.edit.delete, etc.
   "common.edit.delete": {
     enabled: hasFocusedNode,
@@ -383,7 +393,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       </li>
     </ul>
     <div
-      v-else-if="type == ViewType.EXPLORER || rootPtr != null"
+      v-else-if="type == ViewType.EXPLORE || rootPtr != null"
       class="flex h-full w-full flex-col justify-center bg-white text-center"
     >
       <!-- Empty state -->

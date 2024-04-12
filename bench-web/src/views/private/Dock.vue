@@ -11,7 +11,7 @@ const actions: Ref<Action[]> = computed(
         "space.omnibar.actions",
         "space.omnibar.space",
         "space.edit.inspect",
-        "space.launch.library",
+        "space.launch.create",
         "space.launch.docs",
         "space.launch.discord",
       ] as ActionBuiltinId[]

@@ -3800,6 +3800,10 @@ export interface PauseData {
      * @generated from protobuf field: repeated int32 set_properties = 22;
      */
     setProperties: number[];
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData session_ptr = 30;
+     */
+    sessionPtr?: NodeReferenceData;
 }
 /**
  * A stored query.
@@ -8176,33 +8180,25 @@ export enum ViewType {
      */
     DATABASE = 104,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_EXPLORER = 120;
+     * @generated from protobuf enum value: VIEW_TYPE_SCREEN = 105;
      */
-    EXPLORER = 120,
+    SCREEN = 105,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_OUTLINE = 121;
+     * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */
-    OUTLINE = 121,
+    EXPLORE = 150,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_INSPECTOR = 123;
+     * @generated from protobuf enum value: VIEW_TYPE_OUTLINE = 151;
      */
-    INSPECTOR = 123,
+    OUTLINE = 151,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 127;
+     * @generated from protobuf enum value: VIEW_TYPE_INSPECT = 153;
      */
-    HISTORY = 127,
+    INSPECT = 153,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_RESOURCE = 130;
+     * @generated from protobuf enum value: VIEW_TYPE_CREATE = 154;
      */
-    RESOURCE = 130,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIBRARY = 135;
-     */
-    LIBRARY = 135,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_LOG = 137;
-     */
-    LOG = 137,
+    CREATE = 154,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */
@@ -17065,7 +17061,8 @@ class PauseData$Type extends MessageType<PauseData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "session_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PauseData>): PauseData {
@@ -17134,6 +17131,9 @@ class PauseData$Type extends MessageType<PauseData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
+                case /* symbolx.bench.NodeReferenceData session_ptr */ 30:
+                    message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -17195,6 +17195,9 @@ class PauseData$Type extends MessageType<PauseData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
+        /* symbolx.bench.NodeReferenceData session_ptr = 30; */
+        if (message.sessionPtr)
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21951,6 +21954,7 @@ export enum PauseProperty {
   createdByPtr = 17,
   updatedByPtr = 18,
   setProperties = 22,
+  sessionPtr = 30,
 }
 
 export enum SignalProperty {

@@ -817,13 +817,11 @@ class ViewType(betterproto.Enum):
     BLOCK = 102
     FIELD = 103
     DATABASE = 104
-    EXPLORER = 120
-    OUTLINE = 121
-    INSPECTOR = 123
-    HISTORY = 127
-    RESOURCE = 130
-    LIBRARY = 135
-    LOG = 137
+    SCREEN = 105
+    EXPLORE = 150
+    OUTLINE = 151
+    INSPECT = 153
+    CREATE = 154
     WINDOW = 500
     TAB = 502
     SPLIT = 503
@@ -2241,6 +2239,7 @@ class PauseData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
+    session_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -4559,7 +4558,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.11.5"
+VERSION = "2024.04.12.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

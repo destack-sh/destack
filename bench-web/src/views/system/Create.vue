@@ -22,8 +22,8 @@ defineExpose<ViewExposed>({ self });
 <template>
   <!-- Library -->
   <div v-if="focusedPtr" class="h-full w-full bg-white">
-    <!-- nocheckin :Incomplete: Library -->
-    Library for {{ describeNode(focusedPtr) }}
+    <!-- nocheckin :Incomplete: Creator -->
+    Creator for {{ describeNode(focusedPtr) }}
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
     <!-- Empty state -->
