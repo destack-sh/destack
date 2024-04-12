@@ -6,6 +6,7 @@ import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, toRef } from "vue";
 
 const props = defineProps<
@@ -26,7 +27,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useGetNodes(
     enabled: props.nodePtr != null,
   })),
 );
-const page = pkgGraph.getRef(props.nodePtr);
+const page = pkgGraph.getRef(toRef(props, "nodePtr"));
 // const blocks = pkgGraph.getDescendantsRef(self, NodeType.BLOCK, )
 
 // sync name with title
@@ -36,17 +37,13 @@ canvas.registerView(self);
 defineExpose({ self });
 </script>
 <template>
-  <Scroll
-    v-if="page"
-    :size="size"
-    :orientation="Orientation.VERTICAL"
-    :track-width="ScrollbarWidth.md"
-    track-is-overlay
-    class="bg-white"
-  >
-    Page {{ nodePtr }} -> {{ describeNode(page) }}
-  </Scroll>
-  <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
-    nocheckin :Incomplete: page not accessible: {{ nodePtr }}
+  <div v-if="page" :style="{ width: size.width + 'px', height: size.height + 'px' }" class="flex w-full flex-col bg-white">
+    <!-- Page header/self -->
+    <div class="w-full"></div>
+    <!-- Page content -->
+    <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md" track-is-overlay>
+      Page {{ nodePtr }} -> {{ describeNode(page) }}
+    </Scroll>
   </div>
+  <Inaccessible v-else class="h-full w-full bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
 </template>
