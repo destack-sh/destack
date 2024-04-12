@@ -187,17 +187,17 @@ export const FULL_VIEW_TYPES = new Set([
   ViewType.PAGE,
   ViewType.BLOCK,
   ViewType.DATABASE,
-  ViewType.EXPLORER,
+  ViewType.EXPLORE,
   ViewType.OUTLINE,
-  ViewType.LIBRARY,
-  ViewType.INSPECTOR,
+  ViewType.CREATE,
+  ViewType.INSPECT,
 ]);
 // views that aren't about a specific node but should just keep the current root view node
 export const RIDEALONG_VIEW_TYPES = new Set([
-  ViewType.EXPLORER,
+  ViewType.EXPLORE,
   ViewType.OUTLINE,
-  ViewType.LIBRARY,
-  ViewType.INSPECTOR,
+  ViewType.CREATE,
+  ViewType.INSPECT,
 ]);
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
@@ -302,13 +302,10 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.BLOCK]: "fas fa-cube",
   [ViewType.FIELD]: "fas fa-font",
   [ViewType.DATABASE]: "fas fa-database",
-  [ViewType.EXPLORER]: "fas fa-compass",
+  [ViewType.EXPLORE]: "fas fa-compass",
   [ViewType.OUTLINE]: "fas fa-list-tree",
-  [ViewType.INSPECTOR]: "fas fa-eye",
-  [ViewType.HISTORY]: "fas fa-history",
-  [ViewType.RESOURCE]: "fas fa-box",
-  [ViewType.LIBRARY]: "fas fa-books",
-  [ViewType.LOG]: "fas fa-file-alt",
+  [ViewType.INSPECT]: "fas fa-eye",
+  [ViewType.CREATE]: "fas fa-hexagon-plus",
 
   //
   // General

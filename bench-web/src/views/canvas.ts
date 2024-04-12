@@ -319,7 +319,7 @@ export class ViewCanvas {
 
     // open inspector
     if (inspect.focusInspector) {
-      this.addView({ type: ViewType.INSPECTOR }, { ifPresent: "focus" });
+      this.addView({ type: ViewType.INSPECT }, { ifPresent: "focus" });
     }
   }
 
@@ -611,7 +611,10 @@ export class ViewCanvas {
    * If it's a view node, we focus it in the space graph (it must exist).
    * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
    */
-  goToNode(node: AnyNodeData | NodeReferenceData, options?: { graph?: ReadNodeGraph } & OpenViewOptions) {
+  goToNode(
+    node: AnyNodeData | NodeReferenceData,
+    options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
+  ) {
     const nodeRef =
       node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
@@ -624,7 +627,7 @@ export class ViewCanvas {
       const graph = options?.graph ?? this.graph;
       if (nodeRef.type == NodeType.BLOCK || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodeRef.type)) {
         const containingPage = graph
-          .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: true })
+          .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
           .find((n) => n.isPage);
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
         this.addView(
@@ -876,12 +879,12 @@ export function setupDefaultCanvas(
   });
   tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.EXPLORER,
+    type: ViewType.EXPLORE,
     parentPtr: toNodeReference(sideTop),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Explorer1",
-    title: "Explorer",
+    name: "Explore1",
+    title: "Explore",
   });
   tx.create({
     metatype: NodeType.VIEW,
@@ -899,21 +902,21 @@ export function setupDefaultCanvas(
   // secondary
   tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.INSPECTOR,
+    type: ViewType.INSPECT,
     parentPtr: toNodeReference(secondary),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Inspector1",
-    title: "Inspector",
+    name: "Inspect1",
+    title: "Inspect",
   });
   tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.LIBRARY,
+    type: ViewType.CREATE,
     parentPtr: toNodeReference(secondary),
     packagePtr: space.packagePtr,
     orderKey: "a1",
-    name: "Library1",
-    title: "Library",
+    name: "Create1",
+    title: "Create",
   });
 
   return { side, primary, secondary };

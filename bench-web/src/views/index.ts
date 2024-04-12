@@ -20,10 +20,10 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
   [ViewType.BLOCK]: import("@/views/system/Block.vue"),
   [ViewType.MOCK]: import("@/views/system/Mock.vue"),
-  [ViewType.EXPLORER]: import("@/views/system/Explorer.vue"),
-  [ViewType.OUTLINE]: import("@/views/system/Explorer.vue"), // shared with Explorer
-  [ViewType.INSPECTOR]: import("@/views/system/Inspector.vue"),
-  [ViewType.LIBRARY]: import("@/views/system/Library.vue"),
+  [ViewType.EXPLORE]: import("@/views/system/Explore.vue"),
+  [ViewType.OUTLINE]: import("@/views/system/Explore.vue"), // shared with Explore
+  [ViewType.INSPECT]: import("@/views/system/Inspect.vue"),
+  [ViewType.CREATE]: import("@/views/system/Create.vue"),
   // containers
   [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),

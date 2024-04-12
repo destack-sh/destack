@@ -782,13 +782,11 @@ enum ViewType {
   VIEW_TYPE_BLOCK = 102;
   VIEW_TYPE_FIELD = 103;
   VIEW_TYPE_DATABASE = 104;
-  VIEW_TYPE_EXPLORER = 120;
-  VIEW_TYPE_OUTLINE = 121;
-  VIEW_TYPE_INSPECTOR = 123;
-  VIEW_TYPE_HISTORY = 127;
-  VIEW_TYPE_RESOURCE = 130;
-  VIEW_TYPE_LIBRARY = 135;
-  VIEW_TYPE_LOG = 137;
+  VIEW_TYPE_SCREEN = 105;
+  VIEW_TYPE_EXPLORE = 150;
+  VIEW_TYPE_OUTLINE = 151;
+  VIEW_TYPE_INSPECT = 153;
+  VIEW_TYPE_CREATE = 154;
   VIEW_TYPE_WINDOW = 500;
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;
@@ -1986,6 +1984,7 @@ message PauseData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
+  NodeReferenceData session_ptr = 30;
 }
 
 // A stored query.

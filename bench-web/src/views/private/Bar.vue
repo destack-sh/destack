@@ -73,7 +73,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-telescope",
       title: "Analyze",
       action: {
-        items: [menuItemFromAction("space.launch.inspector"), ...menuActionsLike({ wildcard: ["common.sense*"] })],
+        items: [menuItemFromAction("space.launch.inspect"), ...menuActionsLike({ wildcard: ["common.sense*"] })],
       },
     },
     {
@@ -86,7 +86,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     // extra
     menuItemFromAction("space.launch.explorer"),
     menuItemFromAction("space.launch.outline"),
-    menuItemFromAction("space.launch.library"),
+    menuItemFromAction("space.launch.create"),
     menuItemFromAction("space.launch.docs"),
     menuItemFromAction("space.launch.discord"),
   ];

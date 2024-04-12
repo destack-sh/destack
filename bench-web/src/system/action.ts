@@ -60,8 +60,8 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.views",
   "space.omnibar.view",
   "space.launch.chat",
-  "space.launch.inspector",
-  "space.launch.library",
+  "space.launch.inspect",
+  "space.launch.create",
   "space.launch.explorer",
   "space.launch.outline",
   "space.launch.docs",
@@ -928,32 +928,32 @@ contributeActionMap<"developer">({
 
 // space actions
 contributeActionMap<"space">({
-  "space.launch.inspector": {
-    title: "View Inspector",
+  "space.launch.inspect": {
+    title: "Open Inspector",
     text: "Open the Inspector View",
     icon: "fas fa-eye",
     action: () => {
-      canvas.addView({ type: ViewType.INSPECTOR, title: "Inspector" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.INSPECT, title: "Inspect" }, { ifPresent: "upsertAndFocus" });
     },
   },
-  "space.launch.library": {
-    title: "View Library",
-    text: "Get building blocks from the common library",
-    icon: "fas fa-books",
+  "space.launch.create": {
+    title: "Open Creator",
+    text: "Get relevant building blocks and templates",
+    icon: "fas fa-hexagon-plus",
     action: () => {
-      canvas.addView({ type: ViewType.LIBRARY, title: "Library" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.CREATE, title: "Create" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.explorer": {
-    title: "View Explorer",
+    title: "Open Explorer",
     text: "Navigate nodes in the space",
     icon: "fas fa-compass",
     action: () => {
-      canvas.addView({ type: ViewType.EXPLORER, title: "Explorer" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView({ type: ViewType.EXPLORE, title: "Explore" }, { ifPresent: "upsertAndFocus" });
     },
   },
   "space.launch.outline": {
-    title: "View Outline",
+    title: "Open Outline",
     text: "Navigate an outline of nodes",
     icon: "fas fa-list-tree",
     action: () => {
@@ -961,7 +961,7 @@ contributeActionMap<"space">({
     },
   },
   "space.launch.docs": {
-    title: "View Documentation",
+    title: "Open Documentation",
     text: "Get help from our examples and guides",
     icon: "fas fa-book-open",
     action: ACTION_COMING_SOON,
@@ -984,7 +984,7 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.launch.logs": {
-    title: "View Logs",
+    title: "Open Logs",
     text: "View all Logs in the Space",
     icon: "fas fa-clipboard-list",
     action: ACTION_COMING_SOON,
