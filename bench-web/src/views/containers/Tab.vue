@@ -174,7 +174,7 @@ defineExpose<ViewExposed>({ self, actions });
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
       v-contextmenu="(context: MenuContext) => {
-        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*', 'common.move.*'] }, { context }), context } as ContextMenuInfo
+        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
     } "
     >
       <!-- Tab button -->
