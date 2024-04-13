@@ -43,7 +43,7 @@ import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { useNetwork, whenever } from "@vueuse/core";
-import { computed, isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
@@ -820,6 +820,7 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   } else {
     throw new Error(`unsupported connection kind: ${kind}`);
   }
+  connection = markRaw(connection); // ensure it's never proxied
   addGraphConnection(connection);
   connection.referenceCount++;
 
@@ -879,7 +880,7 @@ function useConnectionOverlayGraph<T extends NodeType>(
     },
     { immediate: true },
   );
-  return graph;
+  return markRaw(graph); // ensure it's never proxied
 }
 
 /**
@@ -923,8 +924,8 @@ export function useExistingConnection<T extends NodeType = any>(
   };
   watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
 
-  // NOTE: useExistingConnection is mostly used where a connection must exist (inside View components).
-  //  Otherwise if we don't have a connection we need to check *every* new connection if it's a match (until we have one).
+  // NOTE: useExistingConnection is usually used where a connection must exist (inside View components).
+  //  Otherwise if we don't have a connection we need to check *every* new connection until we get a match.
   if (options?.isOptional) {
     let stopGlobalWatch = null as (() => void) | null;
     watch(

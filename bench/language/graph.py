@@ -496,7 +496,7 @@ def generate_node_name(
     if len(type_siblings) == 0:
         max_id = 0
     else:
-        max_id = max((extract_name_id(n.name) or 0) for n in siblings if n.type == type)
+        max_id = max((extract_name_id(n.name) or 0) for n in type_siblings)
     return f"{base_name}{max_id + 1}"
 
 

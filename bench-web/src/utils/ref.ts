@@ -112,9 +112,17 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   return result as RefsToValueRefs<T>;
 }
 
-/** A computed value ref that only triggers when the value deeply changes */
-export function valueComputed<T>(get: ComputedGetter<T>) {
-  throw new Error("not implemented");
+/** A watch(...) that only triggers if its source (or sources) value deeply changed */
+export function watchValue<T extends any>(source: T, callback: () => void, options?: WatchOptions) {
+  return watch(
+    source as WatchSource,
+    (newValue, oldValue) => {
+      if (!deepValueEquals(newValue, oldValue)) {
+        callback();
+      }
+    },
+    options,
+  );
 }
 
 /** A computed ref with a manual trigger. */
