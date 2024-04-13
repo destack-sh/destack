@@ -21,9 +21,9 @@ const ancestors = props.graph.getAncestorsRef(
 const path = computed(() => ancestors.value.slice().reverse());
 </script>
 <template>
-  <div class="flex w-full flex-row px-2.5" :style="{ height: height + 'px' }">
+  <div class="flex w-full max-w-full flex-row px-2.5" :style="{ height: height + 'px' }">
     <!-- Breadcrumb -->
-    <div class="flex flex-row items-center gap-x-1.5">
+    <div class="flex flex-row items-center gap-x-1.5 truncate">
       <template v-for="(node, i) in path" :key="i">
         <span
           class="flex flex-row items-center"
@@ -36,7 +36,7 @@ const path = computed(() => ancestors.value.slice().reverse());
       </template>
     </div>
     <!-- Search & such -->
-    <div class="ml-auto flex flex-row gap-x-1.5">
+    <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1.5">
       <button
         class="rounded-md px-1 text-gray-500 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById('common.search.findInView')"

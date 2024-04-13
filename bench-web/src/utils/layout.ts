@@ -149,7 +149,12 @@ export function splitView(
   return { sizedViews, updateSeparator };
 }
 
-const mousePressed = useMousePressed();
+export const mousePressed = useMousePressed();
+export const mouseNotPressed = computed(() => !mousePressed.pressed.value);
+
+export function onMouseNotPressedOnce(callback: () => void) {
+  whenever(mouseNotPressed, callback, { once: true });
+}
 
 /**
  * Split a view in a container with draggable separators.

@@ -14,7 +14,7 @@ import {
 import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
-import { clearConnections, useGetNodes } from "@/system/connection";
+import { clearConnections, useGetConnection } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
@@ -25,7 +25,7 @@ import { computed, ref } from "vue";
 export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
 
-export const { graph: userGraph, connection: userConnection } = useGetNodes(
+export const { graph: userGraph, connection: userConnection } = useGetConnection(
   { name: "user", live: true, paramsPretty: computed(() => ({ slug: local.userInfo.value?.slug })) },
   computed(() => ({
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],

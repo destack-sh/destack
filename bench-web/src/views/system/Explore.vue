@@ -204,7 +204,7 @@ watch(
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
-  name: "EXPLORE",
+  name: "explore",
   container: containerRef,
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
@@ -212,12 +212,11 @@ const { activeDropZone } = useMultiDropZone({
   kinds: ["node"],
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
-    const target = inspectedGraph.getOrFail({ id: targetId });
+    const target = inspectedGraph.get({ id: targetId });
     return dragged.kind == "node" && target != null && !isDescendantOf(inspectedGraph, target, dragged.node);
   },
   onDrop: (dragged, anchor, targetId) => {
-    if (targetId == null) return; // ignore out of target
-    if (dragged.kind == "node") {
+    if (targetId != null && dragged.kind == "node") {
       const target = inspectedGraph.getOrFail({ id: targetId });
       moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, target, anchor);
     }
@@ -326,7 +325,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           v-bind="(node as any).icon ?? getNodeIcon(node)"
           class="mr-1.5"
           :class="[
-            isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-500 group-hover:text-primary-900',
+            isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-600 group-hover:text-primary-900',
             hasChildren ? '' : 'ml-6',
           ]"
         />

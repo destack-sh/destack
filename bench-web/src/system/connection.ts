@@ -42,7 +42,7 @@ import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { useNetwork, whenever } from "@vueuse/core";
+import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
 import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
@@ -830,6 +830,13 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   return connection;
 }
 
+/** Container for providing the results of a Get connection to an inner component */
+export type PreparedGetConnection<T extends NodeType = NodeType> = {
+  connection: GraphConnection<"get", T>;
+  access: AccessArbiter;
+  graph: ReadNodeGraph;
+};
+
 /** Gets or acquires a connection given the params, maintaining reference counts and such. */
 export function useConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
@@ -938,6 +945,11 @@ export function useExistingConnection<T extends NodeType = any>(
     );
   }
 
+  // release on unmount
+  tryOnBeforeUnmount(() => {
+    if (connection.value) releaseConnection(connection.value);
+  });
+
   return { graph, connection: new ProxyConnection(connection) };
 }
 
@@ -945,7 +957,7 @@ export function useExistingConnection<T extends NodeType = any>(
  * Gets the given nodes from the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that edits for the given nodes are watched.
  */
-export function useGetNodes<T extends NodeType>(
+export function useGetConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<GetConnectionParams<T>>,
 ): GetConnectionResult<T> & { connection: GraphConnection<"get", T> } {
@@ -974,7 +986,7 @@ export function useGetNodes<T extends NodeType>(
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
  */
-export function useSearchNodes<T extends NodeType>(
+export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<SearchConnectionParams<T>>,
 ): SearchConnectionResult<T> & { connection: GraphConnection<"search", T> } {
@@ -1006,7 +1018,7 @@ export function useSearchNodes<T extends NodeType>(
  * Aggregates nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * TODO :Feature: live aggregation
  */
-export function useAggregateNodes(
+export function useAggregateConnection(
   params: MaybeRef<AggregateConnectionParams>,
 ): AggregateConnectionResult & { connection: GraphConnectionBase<"aggregate", NodeType> } {
   throw new Error("aggregate not yet implemented");

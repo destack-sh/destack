@@ -11,7 +11,7 @@ import {
   type AnyPropertyType,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { describeNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { defaultSort, getOrderKey, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import { deepValueEquals, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
@@ -972,9 +972,10 @@ export function moveNode(
 ) {
   node = resolveNode(graph, node);
   target = resolveNode(graph, target);
-  if (isDescendantOf(graph, target, node)) {
+  if (node?.id == target?.id)
+    return; // no-op
+  else if (isDescendantOf(graph, target, node))
     throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
-  }
 
   if (anchor == "start" || anchor == "end") {
     // move before target (in its parent's children = target siblings)
@@ -1006,7 +1007,12 @@ export function moveNode(
   }
 }
 
-export type NodeTreeItem<T extends AnyNodeData> = { node: T; depth: number; hasChildren: boolean };
+export type NodeTreeItem<T extends NodeType> = {
+  node: NodeTypeMapping[T];
+  nodeRef: TypedNodeReferenceData<T>;
+  depth: number;
+  hasChildren: boolean;
+};
 
 /** Get the selectively expanded descendants of a root (reactively)  */
 export function walkDescendantsRef<T extends NodeType>(walk: {
@@ -1017,7 +1023,10 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
   isIncludedSelf: (node: NodeTypeMapping[T]) => boolean;
   isIncludedChildren: (node: NodeTypeMapping[T]) => boolean;
   watchSource?: WatchSource<any>;
-}): { items: Ref<NodeTreeItem<NodeTypeMapping[T]>[]>; trigger: () => void } {
+}): { items: Ref<NodeTreeItem<T>[]>; trigger: () => void } {
+  type NodeT = NodeTypeMapping[T];
+  type ItemT = NodeTreeItem<T>;
+
   const { graph, rootPtr, nodeTypes, isExpanded, isIncludedSelf, isIncludedChildren } = walk;
 
   const subs: Array<() => void> = [];
@@ -1025,17 +1034,21 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
     subs.forEach((sub) => sub());
     subs.length = 0;
   };
-
   /** Walk everything from scratch (as needed) */
-  function get(): NodeTreeItem<NodeTypeMapping[T]>[] {
+  function get(): ItemT[] {
     unsub();
     if (rootPtr.value == null) return [];
 
-    const items: NodeTreeItem<NodeTypeMapping[T]>[] = [];
-    function walkDescendants(node: NodeTypeMapping[T], depth: number) {
+    const items: ItemT[] = [];
+    function walkDescendants(node: NodeT, depth: number) {
       // make item
       const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(isIncludedSelf);
-      const item = { node, depth, hasChildren: children.length > 0 };
+      const item: ItemT = {
+        node,
+        nodeRef: toNodeReference(node) as TypedNodeReferenceData<T>,
+        depth,
+        hasChildren: children.length > 0,
+      };
       if (depth >= 0) items.push(item); // ignore root
 
       // descend
@@ -1046,7 +1059,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       if (depth < 0 || isExpanded(node)) {
         children.forEach((child) => {
           if (isIncludedChildren(child)) walkDescendants(child, depth + 1);
-          else items.push({ node: child, depth: depth + 1, hasChildren: false });
+          else items.push({ node: child, nodeRef: toNodeReference(child), depth: depth + 1, hasChildren: false });
         });
       }
     }
