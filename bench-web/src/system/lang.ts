@@ -47,6 +47,7 @@ export const LOADED_SOURCE_NODE_TYPES = [
   NodeType.TRIGGER,
   NodeType.FIELD,
   NodeType.QUERY,
+  NodeType.STEP,
   NodeType.VIEW,
 ];
 
@@ -175,7 +176,7 @@ export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
 
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const BASE_VIEW_TYPES = new Set([ViewType.PAGE, ViewType.BLOCK, ViewType.DATABASE])
+export const BASE_VIEW_TYPES = new Set([ViewType.PAGE, ViewType.BLOCK, ViewType.DATABASE]);
 export const ROOT_VIEW_COMPONENT_NAMES = new Set(
   Array.from(ROOT_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
 );
@@ -193,12 +194,7 @@ export const FULL_VIEW_TYPES = new Set([
   ViewType.INSPECT,
 ]);
 // views that aren't about a specific node but should just keep the current root view node
-export const RIDEALONG_VIEW_TYPES = new Set([
-  ViewType.EXPLORE,
-  ViewType.OUTLINE,
-  ViewType.CREATE,
-  ViewType.INSPECT,
-]);
+export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE, ViewType.CREATE, ViewType.INSPECT]);
 
 function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
   return Object.fromEntries(
@@ -370,16 +366,16 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.AUDIO]: "fas fa-volume",
 });
 
-export function getNodeTypeIcon(nodeType: NodeType) {
-  return ICON_BY_NODE_TYPE[nodeType] ?? DEFAULT_MISSING_ICON;
+export function getNodeTypeIcon(nodeType: NodeType): IconData | null {
+  return ICON_BY_NODE_TYPE[nodeType] ?? null;
 }
 
-export function getBlockTypeIcon(blockType: BlockType) {
-  return ICON_BY_BLOCK_TYPE[blockType] ?? DEFAULT_MISSING_ICON;
+export function getBlockTypeIcon(blockType: BlockType): IconData | null {
+  return ICON_BY_BLOCK_TYPE[blockType] ?? null;
 }
 
-export function getViewTypeIcon(viewType: ViewType) {
-  return ICON_BY_VIEW_TYPE[viewType] ?? DEFAULT_VIEW_ICON;
+export function getViewTypeIcon(viewType: ViewType): IconData | null {
+  return ICON_BY_VIEW_TYPE[viewType] ?? null;
 }
 
 export function getNodeIcon(node: AnyNodeData | { metatype: BenchType; type?: BlockType | ViewType }) {

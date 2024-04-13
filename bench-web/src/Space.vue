@@ -119,7 +119,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
       <div
         v-if="activeDragged"
-        class="max-w-32 rounded-md border border-gray-400 bg-white px-2 py-1 text-gray-900 shadow-md shadow-gray-400"
+        class="max-w-48 rounded-md border border-gray-400 bg-white px-2 py-1 text-gray-900 shadow-md shadow-gray-400"
       >
         <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
         <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">

@@ -9,7 +9,7 @@ import {
   type SomeNodeReferenceData,
 } from "@/proto/wiring";
 import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
-import { makeReadOptions, useExistingConnection, useGetNodes } from "@/system/connection";
+import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
@@ -22,7 +22,7 @@ export const {
   graph: benchGraph,
   access: benchAccess,
   connection: benchConnection,
-} = useGetNodes(
+} = useGetConnection(
   { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
     roots: [local.benchPtr.value!],
@@ -35,7 +35,7 @@ export const {
   graph: pkgGraph,
   access: pkgAccess,
   connection: pkgConnection,
-} = useGetNodes(
+} = useGetConnection(
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],

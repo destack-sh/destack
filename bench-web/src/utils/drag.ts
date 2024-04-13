@@ -365,7 +365,7 @@ export function useMultiDropZone(
   options: DropOptions & {
     targets: Ref<Record<string, MaybeElement>>;
     orientation: MaybeRef<Orientation>;
-    defaultToEdge?: boolean;
+    fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
     allowDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string) => boolean;
     onDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string | null) => void;
@@ -383,8 +383,9 @@ export function useMultiDropZone(
   });
 
   function getActiveDropZone(): { anchor: MultiAnchor; targetId: string | null } {
-    // find directly hit zone
+    // find directly hit zone (and closest as fallback)
     const cursor = { x: position.x.value, y: position.y.value };
+    let closest: { anchor: MultiAnchor; targetId: string; distance: number } | null = null;
     for (const [targetId, targetEl] of Object.entries(options.targets.value)) {
       const targetRect = getElement(targetEl)!.getBoundingClientRect();
       const cursorP = options.orientation == Orientation.HORIZONTAL ? cursor.x : cursor.y;
@@ -402,28 +403,20 @@ export function useMultiDropZone(
           const anchor = cursorP <= (targetStart + targetEnd) / 2 ? "start" : "end";
           return { targetId, anchor };
         }
-      }
-    }
-
-    const singleDropZone = getSingleActiveDropZone();
-    if (options?.defaultToEdge) {
-      // otherwise if we have targets we attribute to first/last target (sorted by position)
-      const targetsSorted = Object.entries(options.targets.value).sort(([targetId, targetEl]) => {
-        const targetRect = getElement(targetEl)!.getBoundingClientRect();
-        return options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
-      });
-      if (targetsSorted.length > 0) {
-        // anchor=end assumes that targets are positioned start to end in the container
-        if (singleDropZone.anchor == "start") {
-          return { targetId: targetsSorted[0][0], anchor: "end" };
-        } else {
-          return { targetId: targetsSorted[targetsSorted.length - 1][0], anchor: "end" };
+      } else {
+        // check if it's new closest
+        const distance = Math.min(Math.abs(cursorP - targetStart), Math.abs(cursorP - targetEnd));
+        if (closest == null || distance < closest.distance) {
+          const anchor = cursorP < targetStart ? "start" : "end";
+          closest = { anchor, targetId, distance };
         }
       }
     }
 
+    // fallback to closest if possible
+    if (options?.fallbackToClosest && closest != null) return closest;
     // else we attribute to entire container
-    return { targetId: null, anchor: singleDropZone.anchor };
+    return { targetId: null, anchor: getSingleActiveDropZone().anchor };
   }
 
   const position = useMouse();
