@@ -59,7 +59,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.space",
   "space.omnibar.views",
   "space.omnibar.view",
-  "space.launch.chat",
+  "space.launch.assist",
   "space.launch.inspect",
   "space.launch.create",
   "space.launch.explorer",
@@ -911,7 +911,7 @@ contributeActionMap<"developer">({
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);
-        const type = BlockType.PAGE;
+        const type = getRandomEnum(BlockType);
         const node = tx.create({
           metatype: NodeType.BLOCK,
           parentPtr: toNodeReference(parent),
@@ -928,6 +928,12 @@ contributeActionMap<"developer">({
 
 // space actions
 contributeActionMap<"space">({
+  "space.launch.assist": {
+    title: "Open Assistant",
+    text: "Chat with and get help from your Assistant",
+    icon: "fas fa-robot",
+    action: ACTION_COMING_SOON,
+  },
   "space.launch.inspect": {
     title: "Open Inspector",
     text: "Open the Inspector View",

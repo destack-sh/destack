@@ -132,6 +132,12 @@ const NOUNS = [
   "star",
 ];
 
+function upperFirstLetter(word: string) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 export function generateRandomName() {
-  return `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} ${NOUNS[Math.floor(Math.random() * NOUNS.length)]}`;
+  const adjective = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)]
+  return `${upperFirstLetter(adjective)} ${upperFirstLetter(noun)}`;
 }

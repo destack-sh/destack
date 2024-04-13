@@ -14,10 +14,10 @@ import {
 import { describeNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { defaultSort, getOrderKey, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
-import { deepValueEquals, manualSubRef, type SubRef } from "@/utils/ref";
+import { deepValueEquals, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { tryOnBeforeUnmount } from "@vueuse/core";
-import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import { onKeyStroke, tryOnBeforeUnmount } from "@vueuse/core";
+import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = Omit<NodeReferenceData, "metatype" | "type"> & { type?: T };
@@ -40,18 +40,25 @@ export const PASSTHROUGH_NODE_FILTER = { includeHidden: true };
 /** A node graph with read methods */
 export interface ReadNodeGraph {
   describeSelf(): string;
+
   /** The scope contained in this graph */
   get scope(): GraphScope;
+
   /** Whether this graph is partial */
   readonly isOverlayOf: ReadNodeGraph | null;
+
   /** All the nodes in this graph */
   get nodes(): AnyNodeData[];
+
   /** Number of nodes in this graph */
   get size(): number;
+
   /** The (relative) roots (nodes without parents in graph) */
   get roots(): AnyNodeData[];
+
   /** Gets the current node with that key if present (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
+
   /** Gets the children of the given parent with the given metatype (not reactive) */
   getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
 
@@ -61,13 +68,16 @@ export interface ReadNodeGraph {
 
   /** Gets the current node with that given key (error if not found) */
   getOrFail<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
+
   /** Gets the current node with the key if the key is given */
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
+
   /**Gets all ancestors of the given node with the given or any metatypes. */
   getAncestors<T extends NodeType = NodeType>(
     node: NodeKey<any>,
-    options?: { metatypes?: T[]; includeSelf?: boolean },
+    options?: { metatypes?: T[]; includeSelf?: boolean; root?: NodeKey<any> },
   ): NodeTypeMapping[T][];
+
   /** Gets all descendants of the given parent with the given metatypes, matching a certain filter. */
   getDescendants<T extends NodeType = NodeType>(
     node: NodeKey<any>,
@@ -84,6 +94,7 @@ export interface ReadNodeGraph {
     callback: NodeGraphCallback,
     options?: NodeSubscriptionOptions,
   ): () => void;
+
   /** Subscribe to any change in the given parent's children */
   subscribeChildren<T extends NodeType>(
     parent: { id?: string; ck?: string },
@@ -91,21 +102,36 @@ export interface ReadNodeGraph {
     callback: NodeGraphCallback,
     options?: NodeSubscriptionOptions,
   ): () => void;
+
+  /** Subscribes to any change in the given parent's ancestors */
+  subscribeAncestors(
+    node: { id?: string | undefined; ck?: string | undefined },
+    callback: NodeGraphCallback,
+  ): () => void;
+
   /** Gets a reactive reference to the current node with that key */
   getRef<T extends NodeType>(
     key: MaybeRef<NodeKey<T> | undefined | null>,
     options?: NodeSubscriptionOptions,
   ): SubRef<NodeTypeMapping[T] | null>;
+
   /** Gets a reactive reference to many nodes with the given keys (missing nodes excluded) */
   getManyRef<T extends NodeType>(
     keys: MaybeRef<NodeKey<T>[] | undefined | null>,
     options?: NodeSubscriptionOptions,
   ): SubRef<NodeTypeMapping[T][]>;
+
   /** Gets a reactive reference to the children of the given parent with the given metatype */
   getChildrenRef<T extends NodeType>(
     parent: MaybeRef<NodeKey<any> | undefined | null>,
     metatype: T,
     options?: NodeSubscriptionOptions,
+  ): SubRef<NodeTypeMapping[T][]>;
+
+  /** Gets ancestors reactively */
+  getAncestorsRef<T extends NodeType>(
+    key: MaybeRef<NodeKey<any> | undefined | null>,
+    options?: { metatypes?: T[]; includeSelf?: boolean; root?: MaybeRef<NodeKey<any> | undefined | null> },
   ): SubRef<NodeTypeMapping[T][]>;
 }
 
@@ -155,11 +181,11 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
 
   getAncestors<T extends NodeType = NodeType>(
     node: NodeKey<any>,
-    options?: { metatypes?: T[]; includeSelf?: boolean },
+    options?: { metatypes?: T[]; includeSelf?: boolean; root?: NodeKey<any> },
   ): NodeTypeMapping[T][] {
     const ancestors: NodeTypeMapping[T][] = [];
     node = options?.includeSelf ? this.get(node) : this.get(node)?.parentPtr;
-    while (node != null) {
+    while (node != null && (options?.root == null || (node.id != options.root.id && node.ck != options.root.ck))) {
       const parentNode = this.get(node);
       if (parentNode == null) break;
       if (options?.metatypes == null || options?.metatypes.includes(parentNode.metatype as unknown as T)) {
@@ -206,6 +232,30 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
     options?: NodeSubscriptionOptions,
   ): () => void;
 
+  // subscribeAncestors is generally just based on subscribe, so we can provide a default
+  subscribeAncestors(
+    node: { id?: string | undefined; ck?: string | undefined },
+    callback: NodeGraphCallback,
+  ): () => void {
+    // NOTE: sync with other subscribeAncestors implementation (except for get/getUnfiltered)
+    const subs: Array<() => void> = [];
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      let parentPtr: { id?: string } | undefined = node;
+      while (parentPtr != null) {
+        subs.push(this.subscribe(parentPtr, trigger, { ignoreAncestors: true }));
+        parentPtr = this.get(parentPtr)?.parentPtr;
+      }
+    };
+    const trigger = () => (update(), callback());
+    update();
+    return unsub;
+  }
+
   getRef<T extends NodeType>(
     key: MaybeRef<NodeKey<T> | null>,
     options?: NodeSubscriptionOptions,
@@ -220,12 +270,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
     };
 
     const { ref, trigger } = manualSubRef(get, unsub);
-    watch(keyRef, (newKey, oldKey) => {
-      if (!deepValueEquals(newKey, oldKey)) {
-        update();
-        trigger();
-      }
-    });
+    watchValue(keyRef, () => (update(), trigger()));
     update();
     tryOnBeforeUnmount(unsub);
     return ref;
@@ -252,12 +297,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
     };
 
     const { ref, trigger } = manualSubRef(get, unsub);
-    watch(keysRef, (newKeys, oldKeys) => {
-      if (!deepValueEquals(newKeys, oldKeys)) {
-        update();
-        trigger();
-      }
-    });
+    watchValue(keysRef, () => (update(), trigger()));
     update();
     tryOnBeforeUnmount(unsub);
     return ref;
@@ -279,12 +319,35 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
     };
 
     const { ref, trigger } = manualSubRef(get, unsub);
-    watch(parentRef, (newParent, oldParent) => {
-      if (!deepValueEquals(newParent, oldParent)) {
-        update();
-        trigger();
-      }
-    });
+    watchValue(parentRef, () => (update(), trigger()));
+    update();
+    tryOnBeforeUnmount(unsub);
+    return ref;
+  }
+
+  getAncestorsRef<T extends NodeType>(
+    key: MaybeRef<NodeKey<any> | null>,
+    options?: { metatypes?: T[]; includeSelf?: boolean; root?: MaybeRef<NodeKey<any> | null | undefined> },
+  ): SubRef<NodeTypeMapping[T][]> {
+    const keyRef = toRef(key);
+    const rootRef = toRef(options?.root);
+    let sub: (() => void) | null = null;
+    const unsub: () => void = () => (sub != null ? (sub(), (sub = null)) : null);
+    const get: () => NodeTypeMapping[T][] = () =>
+      keyRef.value != null
+        ? this.getAncestors(keyRef.value, {
+            metatypes: options?.metatypes,
+            includeSelf: options?.includeSelf,
+            root: rootRef.value ?? undefined,
+          })
+        : [];
+    const update = () => {
+      unsub();
+      if (keyRef.value) sub = this.subscribeAncestors(keyRef.value, trigger);
+    };
+
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watchValue([rootRef, keyRef], () => (update(), trigger()));
     update();
     tryOnBeforeUnmount(unsub);
     return ref;
@@ -601,11 +664,11 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
     return true;
   }
 
-  /** Helper function to subscribe to all ancestors of a node */
-  protected _subscribeAncestors(
+  subscribeAncestors(
     node: { id?: string | undefined; ck?: string | undefined },
     callback: NodeGraphCallback,
   ): () => void {
+    // NOTE: sync with other subscribeAncestors implementation (except for get/getUnfiltered)
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
@@ -687,7 +750,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       unsub();
       if (this._graph.value != null) {
         subs.push(this._graph.value.subscribe(key, callback));
-        if (!options?.ignoreAncestors) subs.push(this._subscribeAncestors(key, callback));
+        if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(key, callback));
       }
     };
     update();
@@ -712,7 +775,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       unsub();
       if (this._graph.value != null) {
         subs.push(this._graph.value.subscribeChildren(parent, metatype, callback));
-        if (!options?.ignoreAncestors) subs.push(this._subscribeAncestors(parent, callback));
+        if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(parent, callback));
       }
     };
     update();
@@ -728,7 +791,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
  * Nodes are merged from the layers in order, with later layers taking precedence.
  */
 export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNodeGraph {
-  // TODO :Performance: LayerNodeGraph.layers should be scoped
+  // TODO :Performance: LayerNodeGraph.layers could be scoped?
   //  (so we only need to acquire refs from layers with the requested scope)
   public readonly layers: ShallowRef<ReadNodeGraph[]>;
 
@@ -829,7 +892,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       this.layers.value.forEach((layer) => {
         subs.push(layer.subscribe(key, callback));
       });
-      if (!options?.ignoreAncestors) subs.push(this._subscribeAncestors(key, callback));
+      if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(key, callback));
     };
     update();
 
@@ -854,7 +917,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       this.layers.value.forEach((layer) => {
         subs.push(layer.subscribeChildren(parent, metatype, callback));
       });
-      if (!options?.ignoreAncestors) subs.push(this._subscribeAncestors(parent, callback));
+      if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(parent, callback));
     };
     update();
 
@@ -941,6 +1004,67 @@ export function moveNode(
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }
+}
+
+export type NodeTreeItem<T extends AnyNodeData> = { node: T; depth: number; hasChildren: boolean };
+
+/** Get the selectively expanded descendants of a root (reactively)  */
+export function walkDescendantsRef<T extends NodeType>(walk: {
+  graph: ReadNodeGraph;
+  rootPtr: Ref<NodeKey<any> | null | undefined>;
+  nodeTypes: Ref<T[]>;
+  isExpanded: (node: NodeTypeMapping[T]) => boolean;
+  isIncludedSelf: (node: NodeTypeMapping[T]) => boolean;
+  isIncludedChildren: (node: NodeTypeMapping[T]) => boolean;
+  watchSource?: WatchSource<any>;
+}): { items: Ref<NodeTreeItem<NodeTypeMapping[T]>[]>; trigger: () => void } {
+  const { graph, rootPtr, nodeTypes, isExpanded, isIncludedSelf, isIncludedChildren } = walk;
+
+  const subs: Array<() => void> = [];
+  const unsub = () => {
+    subs.forEach((sub) => sub());
+    subs.length = 0;
+  };
+
+  /** Walk everything from scratch (as needed) */
+  function get(): NodeTreeItem<NodeTypeMapping[T]>[] {
+    unsub();
+    if (rootPtr.value == null) return [];
+
+    const items: NodeTreeItem<NodeTypeMapping[T]>[] = [];
+    function walkDescendants(node: NodeTypeMapping[T], depth: number) {
+      // make item
+      const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(isIncludedSelf);
+      const item = { node, depth, hasChildren: children.length > 0 };
+      if (depth >= 0) items.push(item); // ignore root
+
+      // descend
+      // NOTE: we need to subscribe one extra 'down' for 'hasChildren' above
+      nodeTypes.value.forEach((nodeType) =>
+        subs.push(graph.subscribeChildren(node, nodeType, trigger, { ignoreAncestors: true })),
+      );
+      if (depth < 0 || isExpanded(node)) {
+        children.forEach((child) => {
+          if (isIncludedChildren(child)) walkDescendants(child, depth + 1);
+          else items.push({ node: child, depth: depth + 1, hasChildren: false });
+        });
+      }
+    }
+
+    // collect
+    const root = graph.getMaybe(rootPtr.value);
+    subs.push(graph.subscribe(rootPtr.value, trigger));
+    if (root != null) walkDescendants(root, -1);
+
+    return items;
+  }
+
+  const { ref: items, trigger } = manualSubRef(get, unsub);
+  watch(rootPtr, trigger);
+  if (walk.watchSource) watch(walk.watchSource, trigger);
+  tryOnBeforeUnmount(unsub);
+
+  return { items: items, trigger };
 }
 
 /** Whether child is a descendant of parent */

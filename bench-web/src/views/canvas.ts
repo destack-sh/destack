@@ -20,9 +20,11 @@ import {
   makeStruct,
   toNodeReference,
   typeNodeReferenceMaybe,
+  type AnyNodeReferenceData,
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import type { GraphConnection } from "@/system/connection";
 import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
 import {
@@ -958,4 +960,33 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
         }),
     ),
   };
+}
+
+export function useExpansion(options: {
+  graph: ReadNodeGraph;
+  connection: GraphConnection<any, any>;
+  self: Ref<AnyNodeReferenceData>;
+  isDefaultExpanded?: boolean;
+}) {
+  const selfNode = options.graph.getRef(options.self.value) as Ref<ViewData>;
+  const expansion = computed(() => selfNode.value?.expansion);
+
+  function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
+    const selfNode = options.graph.getOrFail(options.self.value) as ViewData;
+    if (isExpanded(node)) {
+      options.connection.tx.updateDebounced(selfNode, {
+        expansion: collapseSelection(selfNode.expansion!, [node]),
+      });
+    } else if (!isExpanded(node)) {
+      options.connection.tx.updateDebounced(selfNode, {
+        expansion: expandSelection(selfNode.expansion, [node]),
+      });
+    }
+  }
+
+  function isExpanded(node: { id?: string; ck?: string }): boolean {
+    return expansion.value?.nodesPtr?.some((n) => n.id == node.id) ?? false;
+  }
+
+  return { toggleExpanded, isExpanded: options.isDefaultExpanded ? () => true : isExpanded };
 }
