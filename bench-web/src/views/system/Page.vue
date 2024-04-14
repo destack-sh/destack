@@ -92,6 +92,7 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
+// nocheckin
 const actions: Partial<ActionMapImplementation<"common">> = {};
 
 canvas.registerView(self);
@@ -123,7 +124,7 @@ defineExpose({ self });
       <div ref="contentRef" class="flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-1 w-full border-b bg-white px-2 py-3"
+          class="mb-2 w-full border-b bg-white px-2 py-3"
           :class="props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300'"
         >
           <Block
@@ -152,6 +153,7 @@ defineExpose({ self });
             }"
           >
             <!-- Create above/below -->
+            <!-- nocheckin: button in place 'context' menu? -->
             <button
               v-for="dir in ['above', 'below']"
               :key="dir"
