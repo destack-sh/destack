@@ -332,8 +332,9 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
   if (suppressor) {
     return false;
   } else {
-    const chain = collectViewComponentsUp(e.target as HTMLElement);
-    return fireAction(action, chain, context);
+    const localViewsInOrder = collectViewComponentsUp(e.target as HTMLElement);
+    // NOTE: concat local views and focused view components so local ones are preferred, but all are available
+    return fireAction(action, [...localViewsInOrder, ...canvas.focusedViewComponents], context);
   }
 }
 
