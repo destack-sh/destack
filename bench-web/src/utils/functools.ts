@@ -73,6 +73,7 @@ export class AsyncEvent {
 /** Gets a random value from an enum, ignoring the number keys (which are for protobuf). */
 export function getRandomEnum<T extends Record<string | number, any>>(anEnum: T): T[keyof T] {
   const enumValues = Object.values(anEnum).filter((v) => typeof v == "number");
-  const randomIndex = Math.floor(Math.random() * enumValues.length);
+  let randomIndex = Math.floor(Math.random() * enumValues.length);
+  while (randomIndex == 0) randomIndex = Math.floor(Math.random() * enumValues.length);
   return enumValues[randomIndex] as T[keyof T];
 }

@@ -12,7 +12,7 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { defaultSort, getOrderKey, updateOrder } from "@/system/lang";
+import { defaultSort, getOrderKey, toCamelName, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import { deepValueEquals, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -1102,7 +1102,7 @@ export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNod
     );
     return `${typeName}${maxId + 1}`;
   } else {
-    const metatypeName = toCasing(NodeType[metatype], Casing.CAMEL);
+    const metatypeName = toCamelName(NodeType, metatype);
     const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
     return `${metatypeName}${maxId + 1}`;
   }

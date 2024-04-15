@@ -18,11 +18,12 @@ import { startDragging, useMultiDropZone } from "@/utils/drag";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
-const MIN_BLOCK_WIDTH = 500;
-const MAX_BLOCK_WIDTH = 1000;
+const MIN_BLOCK_WIDTH = 600;
+const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 80;
 const MIN_TOTAL_WIDTH = MIN_BLOCK_WIDTH + MIN_GUTTER_WIDTH * 2;
-const ROOT_BLOCK_GAP_Y = 12;
+const ROOT_BLOCK_GAP_Y = 16;
+const NESTED_BLOCK_GAP_Y = 10;
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -62,6 +63,22 @@ const widths = computed(() => {
   const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - blockWidth) / 2);
   return { block: blockWidth, gutter: gutterWidth };
 });
+
+/** Gets the position for a div anchored at the start/end of the given block */
+function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
+  if (anchor == "start") {
+    const depth = expandedItems.value[blockIdx]?.depth;
+    return {
+      top: (depth == 0 ? -ROOT_BLOCK_GAP_Y : NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
+    };
+  } else {
+    const depth = expandedItems.value[blockIdx]?.depth;
+    const nextDepth = expandedItems.value[blockIdx + 1]?.depth;
+    return {
+      bottom: (depth == 0 && nextDepth == 0 ? -ROOT_BLOCK_GAP_Y : -NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
+    };
+  }
+}
 
 // sync title with page name
 // nocheckin
@@ -121,10 +138,10 @@ defineExpose({ self });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div ref="contentRef" class="flex flex-col">
+      <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 w-full border-b bg-white px-2 py-3"
+          class="mb-2 w-full border-b bg-white py-3"
           :class="props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300'"
         >
           <Block
@@ -142,7 +159,7 @@ defineExpose({ self });
           :key="blockPtr.id"
           class="group/block-line relative flex flex-row"
           :style="{
-            marginTop: depth === 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
+            marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
           }"
         >
           <!-- Left gutter -->
@@ -150,48 +167,60 @@ defineExpose({ self });
             class="relative"
             :style="{
               width: widths.gutter + DEPTH_OFFSET * depth + 'px',
+              marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',
             }"
           >
-            <!-- Create above/below -->
-            <!-- nocheckin: button in place 'context' menu? -->
-            <button
-              v-for="dir in ['above', 'below']"
-              :key="dir"
-              class="!hover:opacity-100 absolute right-0.5 rounded-md border border-gray-400 bg-white px-[3px] text-gray-600 opacity-0 hover:bg-primary-200 hover:text-gray-700 group-hover/block-line:opacity-40"
-              :class="dir === 'above' ? '-top-[17px]' : '-bottom-[17px]'"
-            >
-              <i class="fas fa-plus" />
-            </button>
+            <!-- References -->
+            <!-- ... -->
           </div>
 
           <!-- Block wrapper -->
           <div
-            class="group/block-wrapper relative"
+            class="group/block-wrapper relative border-gray-100"
             :style="{
               width: widths.block - DEPTH_OFFSET * depth + 'px',
             }"
           >
+            <!-- Nested space -->
+            <div v-if="depth != 0" class="" :style="{ height: NESTED_BLOCK_GAP_Y + 'px' }" />
+
+            <!-- Create above/below -->
+            <div
+              v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
+              :key="anchor"
+              role="button"
+              class="group/create absolute z-10 h-[6px] w-full text-center opacity-0 transition-colors duration-100 hover:opacity-100"
+              :style="getAnchorPosition(anchor as 'start' | 'end', i, (anchor == 'start' || depth != expandedItems[i + 1]?.depth) ? 8  : 4)"
+            >
+              <!-- Line with a gap for the button -->
+              <div class="relative">
+                <div
+                  class="absolute left-0 h-[1px] w-[48%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                />
+                <div
+                  class="absolute right-0 h-[1px] w-[48%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                />
+              </div>
+              <button
+                class="-translate-y-[7px] px-1 text-xs text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
+              >
+                <i class="fas fa-plus" />
+              </button>
+            </div>
+
             <!-- Drag above/below -->
             <div
               v-if="activeDropZone?.targetId == blockPtr.id"
-              class="absolute z-10 h-1 rounded-sm bg-primary-400"
-              :style="{
-                left: 8 + depth * DEPTH_OFFSET + 'px',
-                width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)',
-                [activeDropZone?.anchor == 'start' ? 'top' : 'bottom']:
-                  depth == 0 ? -ROOT_BLOCK_GAP_Y / 2 - 2 + 'px' : '-2px',
-              }"
+              class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
+              :style="getAnchorPosition(activeDropZone?.anchor as 'start' | 'end', i, 4)"
             />
 
             <!-- Block -->
             <Block
               :ref="(ref: any) => ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!]"
-              class="border bg-white p-2"
+              class="rounded-md border bg-white"
               :class="[
-                // nocheckin: make rounded corners match for nested blocks
-                //  maybe also make border thicker or thin gray rectangle to show they're connected while maintaining some spacing?
-                depth == 0 ? 'rounded-md' : '',
-                blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300 hover:border-gray-400',
+                blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300 hover:border-primary-900',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
@@ -207,9 +236,10 @@ defineExpose({ self });
             class="relative"
             :style="{
               width: widths.gutter,
+              marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',
             }"
           >
-            <!-- Activity / Notices / etc. -->
+            <!-- Activity / Notices / ... -->
           </div>
         </div>
       </div>

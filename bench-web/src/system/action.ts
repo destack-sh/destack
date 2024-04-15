@@ -71,6 +71,8 @@ export const ACTION_BUILTIN_IDS = [
   "space.edit.inspect",
   "space.edit.create",
   // common
+  "common.create.above",
+  "common.create.below",
   "common.create.link",
   "common.create.block",
   "common.create.trigger",
@@ -86,6 +88,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.history.redo",
   "common.edit.rename",
   "common.edit.move",
+  "common.edit.morph",
   "common.edit.copy",
   "common.edit.cut",
   "common.edit.paste",
@@ -428,6 +431,18 @@ watch(
 
 // declare common actions
 declareActionMap<"common">({
+  "common.create.above": {
+    icon: "fas fa-arrow-up",
+    title: "Create Above",
+    text: "Create a new item above the current item",
+    shortcuts: ["esc+a"],
+  },
+  "common.create.below": {
+    icon: "fas fa-arrow-down",
+    title: "Create Below",
+    text: "Create a new item below the current item",
+    shortcuts: ["esc+b"],
+  },
   // edit
   "common.history.undo": {
     icon: "fas fa-arrow-turn-left",
@@ -451,6 +466,12 @@ declareActionMap<"common">({
     icon: "fas fa-arrows-turn-right",
     title: "Move",
     text: "Move the current item",
+  },
+  "common.edit.morph": {
+    icon: "fas fa-shuffle",
+    title: "Morph",
+    text: "Change the type of the current item",
+    shortcuts: ["mod+m"],
   },
   "common.edit.copy": {
     icon: "fas fa-copy",
@@ -907,9 +928,10 @@ contributeActionMap<"developer">({
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
       );
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 5; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
+        console.log(parent); // nocheckin
         const existingChildren = pkgGraph.getChildren(parent);
         const type = getRandomEnum(BlockType);
         const node = tx.create({

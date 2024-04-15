@@ -18,7 +18,7 @@ import {
   type StructTypeMapping,
   PackageData,
 } from "@/proto/wire";
-import { BASED_NODE_TYPES, getBaseFromNode } from "@/system/lang";
+import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
@@ -51,11 +51,11 @@ export function describeNode(node: {
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (node.title) nodeParts.push(`title='${node.title}'`);
   if (node.parentPtr)
-    nodeParts.push(`parent=${toCasing(NodeType[node.parentPtr.type], Casing.CAMEL)}:${node.parentPtr.id}`);
+    nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
-  const typeName = type == null ? "Node" : toCasing(NodeType[type as unknown as NodeType], Casing.CAMEL);
+  const typeName = type == null ? "Node" : toCamelName(NodeType, type);
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
 

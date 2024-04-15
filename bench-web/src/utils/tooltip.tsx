@@ -74,7 +74,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   icon?: string;
   title?: string;
   text: string | TextData;
-  arrow?: boolean;
+  small?: boolean;
   shortcuts?: string[];
   showDelay?: number;
   hideDelay?: number;
@@ -87,7 +87,6 @@ export function tooltipFromAction(action: Action): TooltipInfo {
     title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,
-    arrow: true,
     placement: "top",
   };
 }
