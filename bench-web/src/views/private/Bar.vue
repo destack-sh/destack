@@ -49,7 +49,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: { items: menuActionsLike({ wildcard: ["space.omnibar*"] }) },
+      action: { items: menuActionsLike({ wildcard: ["space.omnibar*", "common.search*"] }) },
     },
     {
       id: "view",
@@ -64,7 +64,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-hammer",
       title: "Edit",
       action: {
-        items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*", "common.search*"] }),
+        items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*"] }),
       },
     },
     {
@@ -368,4 +368,3 @@ const USER_MENU_ITEMS = computed(() => {
     </div>
   </div>
 </template>
- 

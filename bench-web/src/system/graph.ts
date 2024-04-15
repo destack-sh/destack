@@ -975,7 +975,7 @@ export function moveNode(
   graph: ReadNodeGraph,
   node: AnyNodeData | AnyNodeReferenceData,
   target: AnyNodeData | AnyNodeReferenceData,
-  anchor: "start" | "center" | "end" = "center",
+  anchor: "start" | "center" | "end" | "before" | "after" = "center",
 ) {
   node = resolveNode(graph, node);
   target = resolveNode(graph, target);
@@ -984,14 +984,14 @@ export function moveNode(
   else if (isDescendantOf(graph, target, node))
     throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
 
-  if (anchor == "start" || anchor == "end") {
+  if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
     // move before target (in its parent's children = target siblings)
     const targetParent = graph.getOrFail(target.parentPtr!);
     if ("orderKey" in node && "orderKey" in target) {
       updateOrder({
         tx,
         node: node as AnyNodeData & { orderKey: string },
-        position: anchor == "start" ? "before" : "after",
+        position: anchor == "start" || anchor == "before" ? "before" : "after",
         reference: target as AnyNodeData & { orderKey: string },
         getNodes: () => graph.getChildren(targetParent, target.metatype as unknown as NodeType) as any,
       });
@@ -1016,7 +1016,7 @@ export function moveNode(
 
 export type NodeTreeItem<T extends NodeType> = {
   node: NodeTypeMapping[T];
-  nodeRef: TypedNodeReferenceData<T>;
+  nodePtr: TypedNodeReferenceData<T>;
   depth: number;
   hasChildren: boolean;
 };
@@ -1052,7 +1052,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(isIncludedSelf);
       const item: ItemT = {
         node,
-        nodeRef: toNodeReference(node) as TypedNodeReferenceData<T>,
+        nodePtr: toNodeReference(node) as TypedNodeReferenceData<T>,
         depth,
         hasChildren: children.length > 0,
       };
@@ -1066,7 +1066,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       if (depth < 0 || isExpanded(node)) {
         children.forEach((child) => {
           if (isIncludedChildren(child)) walkDescendants(child, depth + 1);
-          else items.push({ node: child, nodeRef: toNodeReference(child), depth: depth + 1, hasChildren: false });
+          else items.push({ node: child, nodePtr: toNodeReference(child), depth: depth + 1, hasChildren: false });
         });
       }
     }

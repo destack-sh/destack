@@ -379,7 +379,8 @@ export class ViewCanvas {
       if (!focus.ignoreInspection) {
         this.inspect(tx, { node });
       }
-      // nocheckin: canvas.focus node in component?
+      const component = this.getViewComponent(focus.view.id!);
+      if (component != null) this.focusInComponent(component, focus.anchor);
     } else {
       throw new Error(`unexpected focus: ${focus}`);
     }
