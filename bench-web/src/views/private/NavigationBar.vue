@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
-import { NodeType, type NodeReferenceData } from "@/proto/wire";
+import { NodeType } from "@/proto/wire";
+import type { NodeReferenceData } from "@/proto/wire";
 import { fireActionById } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { IconInline } from "@/system/icon";

@@ -7,7 +7,8 @@ import { log } from "@/utils/log";
 import type { MenuInfo, MenuItem } from "@/utils/menu";
 import { Shortcut } from "@/utils/tooltip";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { computed, nextTick, onMounted, ref, shallowRef, watch, type ComponentPublicInstance, type Ref } from "vue";
+import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
+import { type ComponentPublicInstance, type Ref } from "vue";
 
 const SHOW_NESTED_DELAY = 200;
 

@@ -330,6 +330,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
   }
   const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
   if (suppressor) {
+    log.trace("action.suppressed", action.id, suppressor);
     return false;
   } else {
     const localViewsInOrder = collectViewComponentsUp(e.target as HTMLElement);
@@ -594,25 +595,25 @@ declareActionMap<"common">({
     icon: "fas fa-square-up",
     title: "Move Up",
     text: "Move up",
-    shortcuts: ["mod+up"],
+    shortcuts: ["alt+up"],
   },
   "common.move.down": {
     icon: "fas fa-square-down",
     title: "Move Down",
     text: "Move down",
-    shortcuts: ["mod+down"],
+    shortcuts: ["alt+down"],
   },
   "common.move.left": {
     icon: "fas fa-square-left",
     title: "Move Left",
     text: "Move left",
-    shortcuts: ["mod+left", "shift+tab"],
+    shortcuts: ["alt+left", "shift+tab"],
   },
   "common.move.right": {
     icon: "fas fa-square-right",
     title: "Move Right",
     text: "Move right",
-    shortcuts: ["mod+right", "tab"],
+    shortcuts: ["alt+right", "tab"],
   },
   // search
   "common.search.findInView": {

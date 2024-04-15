@@ -16,8 +16,7 @@ import { computedValue } from "@/utils/ref";
 import { menuActionsLike, type ContextMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { type ViewExposed } from "@/views/common";
-import { isNode, toNodeReference } from "@/proto/wiring";
-import { INTEGER_ZERO } from "@/utils/fractional";
+import { useHierarchicalNodeMoveActions } from "@/system/block";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -114,10 +113,10 @@ const { activeDropZone } = useMultiDropZone({
 // nocheckin: Page.actions
 const hasMultipleBlocks = computed(() => expandedItems.value.length > 1);
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
-  let block = expandedItems.value.find((item) => item.nodeRef.id == ctx?.triggerNode?.id)?.node;
-  if (!block) block = expandedItems.value.find((item) => item.nodeRef.id == focusedNodePtr.value?.id)?.node;
+  let block = expandedItems.value.find((item) => item.nodePtr.id == ctx?.triggerNode?.id)?.node;
+  if (!block) block = expandedItems.value.find((item) => item.nodePtr.id == focusedNodePtr.value?.id)?.node;
   if (!block) return { block: null, idx: -1 };
-  const idx = expandedItems.value.findIndex((item) => item.nodeRef.id == block!.id);
+  const idx = expandedItems.value.findIndex((item) => item.nodePtr.id == block!.id);
   return { block, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
@@ -133,63 +132,38 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.up": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      if (block == null) return false;
-      const toFocus = expandedItems.value[idx - 1]?.nodeRef;
+      let toFocus = expandedItems.value[idx - 1]?.nodePtr;
+      if (block == null) {
+        if (props.nodePtr?.id == focusedNodePtr.value?.id)
+          toFocus = expandedItems.value[expandedItems.value.length - 1]?.nodePtr;
+        else return false;
+      }
       if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
     },
   },
   "common.navigate.down": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      if (block == null) return false;
-      const toFocus = expandedItems.value[idx + 1]?.nodeRef;
+      let toFocus = expandedItems.value[idx + 1]?.nodePtr;
+      if (block == null) {
+        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = expandedItems.value[0]?.nodePtr;
+        else return false;
+      }
       if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
     },
   },
   // move
-  "common.move.left": {
-    action: (action, context) => {
-      // move block to after parent in its siblings
-      const { block } = getBlockFromContext(context);
-      const parent = pkgGraph.getMaybe(block?.parentPtr);
-      if (!block || !isNode(parent, NodeType.BLOCK) || parent.id == props.nodePtr?.id) return false;
-      moveNode(pkgConnection.tx, pkgGraph, block, parent, "end");
+  ...useHierarchicalNodeMoveActions({
+    graph: pkgGraph,
+    basePtr: toRef(props, "nodePtr"),
+    txFactory: () => pkgConnection.tx,
+    expandedItems,
+    getItemFromContext: (context) => {
+      const { idx } = getBlockFromContext(context);
+      const item = expandedItems.value[idx];
+      return { item, idx };
     },
-  },
-  "common.move.right": {
-    action: (action, context) => {
-      // move block 'into' previous block in linear order (append to its children)
-      const { block, idx } = getBlockFromContext(context);
-      if (block == null || idx < 1) return false;
-      const prev = expandedItems.value[idx - 1]?.node;
-      if (block.parentPtr?.id == prev?.id)
-        return false; // already a child
-      else if (block.parentPtr?.id == prev.parentPtr?.id) {
-        // move 'into' the previous block
-        pkgConnection.tx.move(block, toNodeReference(prev));
-        pkgConnection.tx.update(block, { orderKey: INTEGER_ZERO });
-      } else {
-        // move block to after previous block in linear order
-        moveNode(pkgConnection.tx, pkgGraph, block, prev, "end");
-      }
-    },
-  },
-  "common.move.up": {
-    action: (action, context) => {
-      // move block to before previous block in linear order
-      const { block, idx } = getBlockFromContext(context);
-      if (block == null || idx < 0) return false;
-      moveNode(pkgConnection.tx, pkgGraph, block, expandedItems.value[idx - 1].nodeRef, "start");
-    },
-  },
-  "common.move.down": {
-    action: (action, context) => {
-      // move block to after next parent's sibling
-      const { block, idx } = getBlockFromContext(context);
-      if (block == null || idx >= expandedItems.value.length - 1) return false;
-      moveNode(pkgConnection.tx, pkgGraph, block, expandedItems.value[idx + 1].nodeRef, "end");
-    },
-  },
+  }),
 };
 
 // focus
@@ -200,7 +174,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
-      expandedBlockRefs.value[expandedItems.value[0].nodeRef.id!].$el.scrollIntoView({
+      expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!].$el.scrollIntoView({
         block: "start",
         behavior: "instant",
       });
@@ -258,7 +232,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- In-page Blocks -->
         <!-- Block 'line' -->
         <div
-          v-for="({ nodeRef: blockPtr, depth }, i) in expandedItems"
+          v-for="({ nodePtr: blockPtr, depth }, i) in expandedItems"
           :key="blockPtr.id"
           class="group/block-line relative flex flex-row"
           :style="{
@@ -329,7 +303,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="() => {
-                return {items: menuActionsLike({wildcard: ['common.edit.*', 'common.move.*']}, {context: {triggerNode: blockPtr}})} as ContextMenuInfo
+                return {items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})} as ContextMenuInfo
               }"
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"

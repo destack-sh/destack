@@ -10,7 +10,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import type { ActionMapImplementation } from "@/system/action";
+import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
 import { type NodeTreeItem, walkDescendantsRef, isDescendantOf, moveNode } from "@/system/graph";
@@ -22,6 +22,7 @@ import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
 import { manualSubRef, computedValue, toValueRef } from "@/utils/ref";
+import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { makeSelection, useExpansion } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -225,6 +226,13 @@ const { activeDropZone } = useMultiDropZone({
 
 // actions
 const hasFocusedNode = computed(() => focusedNode.value != null);
+const getItemFromContext = (contet: ActionContext): { item: NodeTreeItem<any> | null; idx: number } => {
+  let item = expandedItems.value.find((item) => item.node.id == contet.triggerNode?.id);
+  if (!item) item = expandedItems.value.find((item) => item.node.id == focusedItem.value?.node.id);
+  if (!item) return { item: null, idx: -1 };
+  const idx = expandedItems.value.indexOf(item);
+  return { item, idx };
+};
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
     enabled: hasFocusedNode,
@@ -237,11 +245,18 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
   // <!-- TODO :Incomplete: EXPLORE/Outline actions -->
-  // common.edit.rename, common.edit.delete, etc.
+  // common.edit.rename, ...
   "common.edit.delete": {
     enabled: hasFocusedNode,
     action: () => inspectedConnection.tx.softDelete(focusedNode.value!),
   },
+  ...useHierarchicalNodeMoveActions({
+    graph: inspectedGraph,
+    basePtr: rootPtr,
+    txFactory: () => inspectedConnection.tx,
+    expandedItems,
+    getItemFromContext,
+  }),
 };
 
 canvas.registerView(self);
@@ -265,6 +280,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           class="max-w-60 cursor-default rounded-md border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
+          :data-suppress-actions="'common.edit,common.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="focusedNode != null && fire(focusedNode)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
