@@ -2,9 +2,9 @@
 import { BlockData, BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import { describeNode } from "@/proto/wiring";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import { viewEmits } from "@/views/common";
+import { viewEmits, type FocusAnchor } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -15,6 +15,8 @@ import Block from "@/views/system/Block.vue";
 import { computedValue } from "@/utils/ref";
 import { menuActionsLike, type ContextMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
+import { type ViewExposed } from "@/views/common";
+import type { ViewComponent } from "@/views";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -111,8 +113,28 @@ const { activeDropZone } = useMultiDropZone({
 // nocheckin
 const actions: Partial<ActionMapImplementation<"common">> = {};
 
+// focus
+function focus(anchor: FocusAnchor | NodeReferenceData) {
+  console.log("Page.focus: nocheckin", props.nodePtr, anchor);
+  if (typeof anchor != "object") {
+    // ...
+  } else {
+    if (anchor.id == props.nodePtr?.id) {
+      // just focus first
+      expandedBlockRefs.value[expandedItems.value[0].nodeRef.id!].$el.scrollIntoView({
+        block: "start",
+        behavior: "instant",
+      });
+    } else {
+      const block = expandedBlockRefs.value[anchor.id!];
+      block?.$el.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }
+  return false;
+}
+
 canvas.registerView(self);
-defineExpose({ self });
+defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
   <div
@@ -126,7 +148,7 @@ defineExpose({ self });
       :width="size.width"
       :height="HEADER_HEIGHT"
       :self="nodePtr"
-      :focus="focus?.nodesPtr[0]"
+      :focus="props.focus?.nodesPtr[0]"
       :graph="pkgGraph"
     />
 
@@ -141,7 +163,10 @@ defineExpose({ self });
         <!-- Self Block (=this Page block) -->
         <div
           class="mb-2 w-full border-b bg-white py-1.5"
-          :class="props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300'"
+          :class="[
+            props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300',
+            props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : '',
+          ]"
         >
           <Block
             class=""
@@ -163,7 +188,7 @@ defineExpose({ self });
         >
           <!-- Left gutter -->
           <div
-            class="relative"
+            class="relative flex-shrink-0"
             :style="{
               width: widths.gutter + DEPTH_OFFSET * depth + 'px',
               marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',
@@ -188,7 +213,7 @@ defineExpose({ self });
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               role="button"
-              class="group/create absolute z-10 h-[6px] w-full text-center opacity-0 transition-colors duration-100 hover:opacity-100"
+              class="group/create absolute z-10 h-[6px] w-full flex-shrink-0 text-center opacity-0 transition-colors duration-100 hover:opacity-100"
               :style="getAnchorPosition(anchor as 'start' | 'end', i, (anchor == 'start' || depth != expandedItems[i + 1]?.depth) ? 8  : 4)"
             >
               <!-- Line with a gap for the button -->
@@ -201,7 +226,7 @@ defineExpose({ self });
                 />
               </div>
               <button
-                class="-translate-y-[7px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
+                class="-translate-y-[6px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
               >
                 &plus;
               </button>
@@ -220,6 +245,7 @@ defineExpose({ self });
               class="rounded-md border bg-white"
               :class="[
                 blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300 hover:border-primary-900',
+                blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : '',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
@@ -233,7 +259,7 @@ defineExpose({ self });
 
           <!-- Right gutter -->
           <div
-            class="relative"
+            class="relative flex-shrink-0"
             :style="{
               width: widths.gutter,
               marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',

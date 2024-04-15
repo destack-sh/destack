@@ -1,7 +1,8 @@
 <script lang="tsx" setup>
 import { IconInline, toIconMaybe } from "@/system/icon";
 import { highlightMatches } from "@/system/search";
-import { useFloating, type FloatingPlacement } from "@/utils/floating";
+import { useFloating } from "@/utils/floating";
+import type { FloatingPlacement } from "@/utils/floating";
 import { log } from "@/utils/log";
 import type { MenuInfo, MenuItem } from "@/utils/menu";
 import { Shortcut } from "@/utils/tooltip";
@@ -225,7 +226,7 @@ defineExpose({ focus, clear, query });
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
         role="menuitem"
         :data-selected="focusedItemIdx === i"
-        class="mx-1 mt-[2px] mb-[1px] flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
+        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
         :class="[
           item.isDisabled
             ? 'text-gray-500'

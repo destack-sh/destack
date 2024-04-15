@@ -469,7 +469,7 @@ declareActionMap<"common">({
   },
   "common.edit.morph": {
     icon: "fas fa-shuffle",
-    title: "Morph",
+    title: "Turn Into",
     text: "Change the type of the current item",
     shortcuts: ["mod+m"],
   },
@@ -931,7 +931,6 @@ contributeActionMap<"developer">({
       for (let i = 0; i < 5; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
-        console.log(parent); // nocheckin
         const existingChildren = pkgGraph.getChildren(parent);
         const type = getRandomEnum(BlockType);
         const node = tx.create({

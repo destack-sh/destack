@@ -8184,6 +8184,14 @@ export enum ViewType {
      */
     SCREEN = 105,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_FLOW = 106;
+     */
+    FLOW = 106,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_STEP = 107;
+     */
+    STEP = 107,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */
     EXPLORE = 150,

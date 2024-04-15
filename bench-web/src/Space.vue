@@ -58,7 +58,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       metatypes: [NodeType.VIEW],
       includeSelf: true,
     });
-    viewTitle = viewAncestors.find((ancestor) => ancestor.title != null)?.title;
+    viewTitle = viewAncestors.find((ancestor) => ancestor.name != null || ancestor.title != null)?.title;
   }
 
   browserTitle.value = viewTitle ? `${viewTitle} | ${benchPostfix}` : benchPostfix;

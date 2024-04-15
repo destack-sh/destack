@@ -175,19 +175,11 @@ export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
 
-export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const BASE_VIEW_TYPES = new Set([ViewType.PAGE, ViewType.BLOCK, ViewType.DATABASE]);
-export const ROOT_VIEW_COMPONENT_NAMES = new Set(
-  Array.from(ROOT_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
-);
-export const BASE_VIEW_COMPONENT_NAMES = new Set(
-  Array.from(BASE_VIEW_TYPES.keys()).map((t) => toCasing(ViewType[t], Casing.CAMEL)),
-);
+export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
+export const NODE_VIEW_TYPES = new Set<ViewType>([ViewType.PAGE, ViewType.BLOCK, ViewType.SCREEN, ViewType.DATABASE, ViewType.FLOW, ViewType.FIELD, ViewType.STEP])
 // views that have a white background
-export const FULL_VIEW_TYPES = new Set([
-  ViewType.PAGE,
-  ViewType.BLOCK,
-  ViewType.DATABASE,
+export const FULL_VIEW_TYPES = new Set<ViewType>([
+  ...NODE_VIEW_TYPES,
   ViewType.EXPLORE,
   ViewType.OUTLINE,
   ViewType.CREATE,
