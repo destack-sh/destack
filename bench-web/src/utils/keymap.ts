@@ -110,7 +110,13 @@ for (let i = 0; i <= 9; ++i) {
 if (IS_ON_MAC) CHAR_KEYS["mod"] = CHAR_KEYS["meta"];
 else CHAR_KEYS["mod"] = CHAR_KEYS["ctrl"];
 
-const KEY_ALIAS: Record<string, string> = { " ": "space" };
+const KEY_ALIAS: Record<string, string> = {
+  " ": "space",
+  arrowup: "up",
+  arrowdown: "down",
+  arrowleft: "left",
+  arrowright: "right",
+};
 
 export function normalizeKeymapKey(key: string) {
   if (key == "mod") return IS_ON_MAC ? "meta" : "ctrl";
