@@ -2,7 +2,7 @@
 import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import { viewEmits } from "@/views/common";
+import { type ViewExposed, viewEmits } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { toRef } from "vue";
 
@@ -16,7 +16,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 canvas.registerView(self);
-defineExpose({ self });
+defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <Scroll :size="size" :orientation="Orientation.VERTICAL" :track-width="ScrollbarWidth.md" class="bg-white">

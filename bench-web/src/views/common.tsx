@@ -28,9 +28,10 @@ export type ViewExposed = (
       id: Ref<string>;
     }
 ) & {
-  // common
   /** The virtual actions implemented by this view */
   actions?: Partial<ActionMapImplementation<any>>;
-  /** Focus the element at the given anchor inside the view. May be a view or any element. */
+  /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (anchor: FocusAnchor | NodeReferenceData) => void | boolean | ViewComponent | HTMLElement | null;
+  /** Map the relevant node at the given element. */
+  mapToNode?: (element: HTMLElement | ViewComponent) => NodeReferenceData | null;
 } & {};

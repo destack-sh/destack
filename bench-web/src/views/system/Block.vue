@@ -7,10 +7,11 @@ import { getNodeIcon, toCamelName } from "@/system/lang";
 import { onMouseNotPressedOnce } from "@/utils/layout";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, toRef, type Ref, ref } from "vue";
 import type { TooltipInfo } from "@/utils/tooltip";
+import type { ActionMapImplementation } from "@/system/action";
 
 const props = defineProps<
   { self?: NodeReferenceData; preparedConnection?: PreparedGetConnection } & Pick<ViewData, "nodePtr">
@@ -35,8 +36,20 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 // nocheckin :Incomplete: Block
 
+//
+// Interaction
+//
+
+const actions: Partial<ActionMapImplementation<"common">> = {};
+
+// focus
+function focus(anchor: FocusAnchor | NodeReferenceData) {
+  console.log("Block.focus: nocheckin", anchor);
+  return false;
+}
+
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <div ref="blockRef" v-if="block" class="group/block px-2 py-1.5">

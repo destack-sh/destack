@@ -43,6 +43,8 @@ class ViewType(IdEnum):
     FIELD = 103
     DATABASE = 104
     SCREEN = 105
+    FLOW = 106
+    STEP = 107
     # helpers
     EXPLORE = 150
     OUTLINE = 151
