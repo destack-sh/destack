@@ -256,7 +256,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
-  [BlockType.BLANK]: "fas fa-cube",
+  [BlockType.BLANK]: "fas fa-empty-set",
   [BlockType.ALIAS]: "fas fa-link",
 
   [BlockType.CLASS]: "fas fa-objects-column",
@@ -264,8 +264,8 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.PROTOCOL]: "fas fa-list-check",
 
-  [BlockType.VARIABLE]: "fas fa-columns-3",
-  [BlockType.MULTI_VARIABLE]: "fas fa-columns-3",
+  [BlockType.VARIABLE]: "fas fa-sliders",
+  [BlockType.MULTI_VARIABLE]: "fas fa-sliders",
 
   [BlockType.TEXT]: "fas fa-text",
   [BlockType.CODE]: "fas fa-code",
@@ -389,4 +389,8 @@ export function getNodeIcon(node: AnyNodeData | { metatype: BenchType; type?: Bl
     if (icon != null) return icon;
   }
   return getNodeTypeIcon(node.metatype as unknown as NodeType);
+}
+
+export function toCamelName<T extends object>(cls: T, key: any) {
+  return toCasing(cls[key as keyof T] as string, Casing.CAMEL);
 }

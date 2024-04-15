@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
 import { NodeType, type NodeReferenceData } from "@/proto/wire";
+import { toCamelName } from "@/system/lang";
 import { Casing, toCasing } from "@/utils/string";
 
 const props = defineProps<{ node?: NodeReferenceData; isConnected: boolean }>();
@@ -9,8 +10,8 @@ const props = defineProps<{ node?: NodeReferenceData; isConnected: boolean }>();
     <template v-if="isConnected">
       <!-- Not found -->
       <i class="fas fa-exclamation-triangle text-gray-500" />
-      <p class="text-gray-600">{{ node != null ? toCasing(NodeType[node.type], Casing.CAMEL) : "Node" }} Not Found</p>
-			<!-- TODO :UX: help to restore node if not found (and is accessible, else help with policies) -->
+      <p class="text-gray-600">{{ node != null ? toCamelName(NodeType, node.type) : "Node" }} Not Found</p>
+      <!-- TODO :UX: help to restore node if not found (and is accessible, else help with policies) -->
     </template>
     <template v-else>
       <!-- Loading -->

@@ -358,9 +358,9 @@ def map_database_to_pg_table(database: Block) -> Table:
     return Table(
         _source=str(database.ck),
         name=get_database_table_name(database.ck),
-        columns=tuple(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
-        indexes=tuple(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
-        constraints=tuple(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
+        columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
+        indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
+        constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
     )
 
 

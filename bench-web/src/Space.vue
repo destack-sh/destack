@@ -3,7 +3,7 @@ import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { IconInline } from "@/system/icon";
-import { getNodeIcon } from "@/system/lang";
+import { getNodeIcon, toCamelName } from "@/system/lang";
 import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { _setDragImage, activeDragged } from "@/utils/drag";
@@ -128,7 +128,7 @@ watch([canvas.focusedViewPtr, bench], () => {
             {{
               (activeDragged.nodes[0] as any).title ??
               (activeDragged.nodes[0] as any).name ??
-              toCasing(NodeType[activeDragged.node.type], Casing.CAMEL)
+              toCamelName(NodeType, activeDragged.node.type)
             }}
           </span>
         </div>
