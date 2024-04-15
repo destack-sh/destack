@@ -376,8 +376,8 @@ export function fireAction(
     log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
     if (isDeveloperMode.value) {
       toaster.debug({
-        title: `${toValue(action.title)} is unavailable`,
-        text: `No active view supports ${action.id}.`,
+        title: `Can't ${toValue(action.title)} Here`,
+        text: `No view supports ${action.id}.`,
       });
     }
     return false; // no action found

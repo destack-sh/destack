@@ -1,8 +1,8 @@
 <script lang="tsx" setup>
 import { BlockData, BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
-import { describeNode } from "@/proto/wiring";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
+import { makeSelection } from "@/views/canvas";
 import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -10,20 +10,21 @@ import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 import { isDescendantOf, moveNode, walkDescendantsRef } from "@/system/graph";
 import NavigationBar from "@/views/private/NavigationBar.vue";
-import type { ActionMapImplementation } from "@/system/action";
+import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Block from "@/views/system/Block.vue";
 import { computedValue } from "@/utils/ref";
 import { menuActionsLike, type ContextMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { type ViewExposed } from "@/views/common";
-import type { ViewComponent } from "@/views";
+import { isNode, toNodeReference } from "@/proto/wiring";
+import { INTEGER_ZERO } from "@/utils/fractional";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 600;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 80;
-const ROOT_BLOCK_GAP_Y = 14;
+const ROOT_BLOCK_GAP_Y = 16;
 const NESTED_BLOCK_GAP_Y = 8;
 
 const props = defineProps<
@@ -110,8 +111,86 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-// nocheckin
-const actions: Partial<ActionMapImplementation<"common">> = {};
+// nocheckin: Page.actions
+const hasMultipleBlocks = computed(() => expandedItems.value.length > 1);
+const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
+  let block = expandedItems.value.find((item) => item.nodeRef.id == ctx?.triggerNode?.id)?.node;
+  if (!block) block = expandedItems.value.find((item) => item.nodeRef.id == focusedNodePtr.value?.id)?.node;
+  if (!block) return { block: null, idx: -1 };
+  const idx = expandedItems.value.findIndex((item) => item.nodeRef.id == block!.id);
+  return { block, idx };
+};
+const actions: Partial<ActionMapImplementation<"common">> = {
+  // edit
+  "common.edit.delete": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      pkgConnection.tx.softDelete(block);
+    },
+  },
+  // navigation
+  "common.navigate.up": {
+    action: (action, context) => {
+      const { block, idx } = getBlockFromContext(context);
+      if (block == null) return false;
+      const toFocus = expandedItems.value[idx - 1]?.nodeRef;
+      if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
+    },
+  },
+  "common.navigate.down": {
+    action: (action, context) => {
+      const { block, idx } = getBlockFromContext(context);
+      if (block == null) return false;
+      const toFocus = expandedItems.value[idx + 1]?.nodeRef;
+      if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
+    },
+  },
+  // move
+  "common.move.left": {
+    action: (action, context) => {
+      // move block to after parent in its siblings
+      const { block } = getBlockFromContext(context);
+      const parent = pkgGraph.getMaybe(block?.parentPtr);
+      if (!block || !isNode(parent, NodeType.BLOCK) || parent.id == props.nodePtr?.id) return false;
+      moveNode(pkgConnection.tx, pkgGraph, block, parent, "end");
+    },
+  },
+  "common.move.right": {
+    action: (action, context) => {
+      // move block 'into' previous block in linear order (append to its children)
+      const { block, idx } = getBlockFromContext(context);
+      if (block == null || idx < 1) return false;
+      const prev = expandedItems.value[idx - 1]?.node;
+      if (block.parentPtr?.id == prev?.id)
+        return false; // already a child
+      else if (block.parentPtr?.id == prev.parentPtr?.id) {
+        // move 'into' the previous block
+        pkgConnection.tx.move(block, toNodeReference(prev));
+        pkgConnection.tx.update(block, { orderKey: INTEGER_ZERO });
+      } else {
+        // move block to after previous block in linear order
+        moveNode(pkgConnection.tx, pkgGraph, block, prev, "end");
+      }
+    },
+  },
+  "common.move.up": {
+    action: (action, context) => {
+      // move block to before previous block in linear order
+      const { block, idx } = getBlockFromContext(context);
+      if (block == null || idx < 0) return false;
+      moveNode(pkgConnection.tx, pkgGraph, block, expandedItems.value[idx - 1].nodeRef, "start");
+    },
+  },
+  "common.move.down": {
+    action: (action, context) => {
+      // move block to after next parent's sibling
+      const { block, idx } = getBlockFromContext(context);
+      if (block == null || idx >= expandedItems.value.length - 1) return false;
+      moveNode(pkgConnection.tx, pkgGraph, block, expandedItems.value[idx + 1].nodeRef, "end");
+    },
+  },
+};
 
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
@@ -162,10 +241,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 w-full border-b bg-white py-1.5"
+          class="mb-2 w-full border-b py-1.5"
           :class="[
             props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300',
-            props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : '',
+            props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
           ]"
         >
           <Block
@@ -242,10 +321,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Block -->
             <Block
               :ref="(ref: any) => ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!]"
-              class="rounded-md border bg-white"
+              class="rounded-md border"
               :class="[
                 blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300 hover:border-primary-900',
-                blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : '',
+                blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"

@@ -23,6 +23,7 @@ import {
   nodeReference,
   unwrapSomeNode,
   wrapSomeNode,
+  type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userPtr } from "@/system/client";
@@ -79,7 +80,7 @@ export type Transaction = {
     update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
   ): void;
   /** Move node between parents */
-  move(node: AnyNodeData): void;
+  move(node: AnyNodeData, parentPtr?: AnyNodeReferenceData): void;
 
   /** Archive node (incl. descendants) */
   archive(node: AnyNodeData): void;
@@ -255,8 +256,10 @@ export class TransactionBuilder implements Transaction {
     this.update(node, update, { debounce: true });
   }
 
-  move(node: AnyNodeData) {
-    this._addNewEdit(EditType.MOVE, { ...node });
+  move(node: AnyNodeData, parentPtr?: AnyNodeReferenceData) {
+    if (parentPtr != null) node = { ...node, parentPtr };
+    else node = { ...node };
+    this._addNewEdit(EditType.MOVE, node);
   }
 
   archive(node: AnyNodeData) {
