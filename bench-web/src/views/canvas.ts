@@ -16,6 +16,7 @@ import {
 import {
   copyNode,
   describeNode,
+  getNodeType,
   makeNode,
   makeStruct,
   toNodeReference,
@@ -328,35 +329,60 @@ export class ViewCanvas {
     }
   }
 
-  /** Focus the given view absolutely in the graph and in the component. Also updates inspection to that view. */
-  focus(tx: Transaction, focus: { view: SomeView; parent?: SomeView; anchor?: FocusAnchor | NodeReferenceData }) {
+  /**
+   * Focus the given view or node absolutely in the graph and in the component.
+   * Also updates inspection to that node if re-focusing a view.
+   * */
+  focus(
+    tx: Transaction,
+    focus: (
+      | { node: TypedNodeReferenceData<NodeType.VIEW> | ViewData }
+      | { node: AnyNodeReferenceData | AnyNodeData; view: SomeView }
+    ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
+  ) {
     log.trace("canvas.focus", focus);
+    const nodeType = getNodeType(focus.node);
 
-    // focus in graph
-    this.focusInGraph(tx, focus);
+    if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
+      // focus as a view in canvas
+      const node = focus.node as ViewData | TypedNodeReferenceData<NodeType.VIEW>;
 
-    // recover inspection from views' 'focus' down from focused view
-    let viewData = this.getViewData(focus.view);
-    while ((viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
-      if (viewData!.focus!.nodesPtr.some((v) => v.type == NodeType.VIEW)) {
-        const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.type == NodeType.VIEW);
-        viewData = viewPtr != null ? this.getViewData(viewPtr) : null;
-      } else {
-        const node = viewData!.focus!.nodesPtr[0];
+      // recover view & inspection from views' 'focus' down from focused view
+      let viewData = this.getViewData(node);
+      while ((viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
+        if (viewData!.focus!.nodesPtr.some((v) => v.type == NodeType.VIEW)) {
+          const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.type == NodeType.VIEW);
+          viewData = viewPtr != null ? this.getViewData(viewPtr) : null;
+        } else if (!focus.ignoreInspection) {
+          const node = viewData!.focus!.nodesPtr[0];
+          this.inspect(tx, { node });
+          break;
+        }
+      }
+      if (viewData == null) throw new Error(`no view data for ${describeNode(node)}`);
+
+      // focus in graph & then in component
+      this.focusInGraph(tx, { ...focus, view: viewData });
+      nextTick(() => {
+        const focused = this.focusInComponent(node, focus.anchor);
+        if (!focused) {
+          const component = this.getViewComponent(viewData!.id!);
+          if (component != null) this.onComponentFocused(component);
+          log.warn("canvas.focusFailed", focus, { viewData, component });
+        }
+      });
+    } else if ("view" in focus) {
+      // focus as a general node in the given view
+      const node = focus.node as AnyNodeReferenceData | AnyNodeData;
+      // focus in graph & then in component
+      this.focusInGraph(tx, { view: focus.view, focus: makeSelection([node]) });
+      if (!focus.ignoreInspection) {
         this.inspect(tx, { node });
-        break;
       }
+      // nocheckin: canvas.focus node in component?
+    } else {
+      throw new Error(`unexpected focus: ${focus}`);
     }
-
-    // focus in browser
-    nextTick(() => {
-      const focused = this.focusInComponent(focus.view, focus.anchor);
-      if (!focused) {
-        const component = this.getViewComponent(viewData!.id!);
-        if (component != null) this.onComponentFocused(component);
-        log.warn("canvas.focusFailed", focus, { viewData, component });
-      }
-    });
   }
 
   /** Focuses the given view absolutely in the graph. */
@@ -623,12 +649,12 @@ export class ViewCanvas {
           this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
         );
       tx.create(newView);
-      this.focus(tx, { view: newView });
+      this.focus(tx, { node: newView });
     } else if (options?.ifPresent == "focus") {
-      this.focus(tx, { view: existing });
+      this.focus(tx, { node: existing });
     } else if (options?.ifPresent == "upsertAndFocus") {
       tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus });
-      this.focus(tx, { view: existing });
+      this.focus(tx, { node: existing });
     }
   }
 
@@ -652,7 +678,7 @@ export class ViewCanvas {
     const tx = this.txFactory();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
-      this.focus(tx, { view: nodeRef });
+      this.focus(tx, { node: nodeRef as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else {
       // find or create appropriate view
       const graph = options?.graph ?? this.graph;

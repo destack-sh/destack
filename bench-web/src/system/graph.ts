@@ -12,11 +12,11 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { defaultSort, getOrderKey, toCamelName, updateOrder } from "@/system/lang";
+import { defaultSort, toCamelName, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
-import { deepValueEquals, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
+import { manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { onKeyStroke, tryOnBeforeUnmount } from "@vueuse/core";
+import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
 
 /** A NodeReference but with proper typing */
@@ -55,6 +55,9 @@ export interface ReadNodeGraph {
 
   /** The (relative) roots (nodes without parents in graph) */
   get roots(): AnyNodeData[];
+
+  /** Whether this graph contains the given node */
+  has(node: NodeKey<any>): boolean;
 
   /** Gets the current node with that key if present (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
@@ -177,6 +180,10 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
 
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null {
     return key ? this.get(key) : null;
+  }
+
+  has(node: NodeKey<any>): boolean {
+    return this.get(node) != null;
   }
 
   getAncestors<T extends NodeType = NodeType>(
@@ -962,7 +969,7 @@ export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeRef
   return node.metatype == BenchType.NODE_REFERENCE ? graph.getOrFail(node as NodeReferenceData) : (node as AnyNodeData);
 }
 
-/** Moves the given node to/around the target. If the node has an 'orderKey' we respect the anchor. */
+/** Moves the given node around the target. If the node has an 'orderKey' we respect the anchor. */
 export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
@@ -1067,7 +1074,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
     // collect
     const root = graph.getMaybe(rootPtr.value);
     subs.push(graph.subscribe(rootPtr.value, trigger));
-    if (root != null) walkDescendants(root, -1);
+    if (root != null) walkDescendants(root, -1); // ignore root
 
     return items;
   }

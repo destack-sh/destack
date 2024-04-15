@@ -74,7 +74,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
-      canvas.focus(spaceConnection.tx, { view: allFrames[prevIdx] });
+      canvas.focus(spaceConnection.tx, { node: allFrames[prevIdx] });
     },
   },
   "view.navigate.focusNextFrame": {
@@ -85,7 +85,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.frames.length;
-      canvas.focus(spaceConnection.tx, { view: allFrames[nextIdx] });
+      canvas.focus(spaceConnection.tx, { node: allFrames[nextIdx] });
     },
   },
   "view.navigate.closeSplit": {
@@ -102,7 +102,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
       const nextIdx = (focusedSplitIdx + 1) % splits.value.length;
-      canvas.focus(spaceConnection.tx, { view: splits.value[nextIdx] });
+      canvas.focus(spaceConnection.tx, { node: splits.value[nextIdx] });
     },
   },
   "view.navigate.focusPreviousSplit": {
@@ -111,7 +111,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
       const prevIdx = (focusedSplitIdx - 1 + splits.value.length) % splits.value.length;
-      canvas.focus(spaceConnection.tx, { view: splits.value[prevIdx] });
+      canvas.focus(spaceConnection.tx, { node: splits.value[prevIdx] });
     },
   },
 };

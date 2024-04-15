@@ -50,8 +50,7 @@ export function describeNode(node: {
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (node.title) nodeParts.push(`title='${node.title}'`);
-  if (node.parentPtr)
-    nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
+  if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
@@ -228,12 +227,22 @@ export function copyNode<T extends AnyNodeData>(node: T): T {
   return makeNode(copy) as T;
 }
 
-export function isNode(value: AnyNodeData | AnyStructData): value is AnyNodeData {
-  return value.metatype < 500;
+export function isNode<T extends NodeType = NodeType>(
+  value: AnyNodeData | AnyStructData | null | undefined,
+  type?: T,
+): value is NodeTypeMapping[T] {
+  if (value == null) return false;
+  else if (type != null) return value.metatype == (type as unknown as BenchType);
+  else return value.metatype < 500;
 }
 
-export function isStruct(value: AnyNodeData | AnyStructData): value is AnyStructData {
-  return value.metatype >= 500;
+export function isStruct<T extends StructType = StructType>(
+  value: AnyNodeData | AnyStructData | null | undefined,
+  type?: T,
+): value is StructTypeMapping[T] {
+  if (value == null) return false;
+  else if (type != null) return value.metatype == (type as unknown as BenchType);
+  else return value.metatype >= 500;
 }
 
 export function nodeReference<T extends NodeType>(
@@ -319,6 +328,11 @@ export function toNodeReferenceInPackage<T extends NodeType>(
   const packageId = typeof pkg == "string" ? pkg : pkg.id!;
   if (ref.ck == null) return ref as TypedNodeReferenceData<T>;
   else return { ...ref, id: newNodeIdFromCk(packageId, ref.ck), ck: undefined } as TypedNodeReferenceData<T>;
+}
+
+export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {
+  if (node.metatype == BenchType.NODE_REFERENCE) return (node as NodeReferenceData).type;
+  else return node.metatype as unknown as NodeType;
 }
 
 export function toBenchType(type: NodeType | StructType): BenchType {

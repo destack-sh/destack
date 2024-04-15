@@ -44,7 +44,7 @@ const innerSize = computed(() => ({
 }));
 
 function focus(tab: ViewData) {
-  canvas.focus(spaceConnection.tx, { view: tab, parent: self.value });
+  canvas.focus(spaceConnection.tx, { node: tab });
   // ensure tab is visible in header
   nextTick(() => {
     tabsRef.value[tab.id]!.scrollIntoView({ block: "nearest", inline: "nearest" });
