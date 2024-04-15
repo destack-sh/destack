@@ -94,6 +94,12 @@ export function menuActionsLike(
 // Context menus
 //
 
+const CONTEXT_MENU_EVENTS = [
+  "click",
+  "mousedown",
+  "contextmenu",
+]
+
 export const CONTEXT_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   placement: "bottom-right",
   referenceMargin: 0,

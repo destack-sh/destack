@@ -45,21 +45,24 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Icon/Name (also drag handle) -->
       <span
         class=""
-        @mousedown="() => (blockRef!.draggable = true, onMouseNotPressedOnce(() => blockRef!.draggable = false))"
+        @mousedown="() => (blockRef!.draggable || (blockRef!.draggable = true, onMouseNotPressedOnce(() => blockRef!.draggable = false)))"
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="mr-1.5 px-0.5 py-0.5 text-gray-600 hover:cursor-pointer hover:bg-gray-100"
+          class="rounded-md px-0.5 py-0.5 text-gray-600 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
           v-tooltip="({showDelay: 400, hideDelay: 200, placement: 'top', small: true, text: `Change icon (${toCamelName(BlockType, block.type)})`} as TooltipInfo)"
         />
-        <span role="button" class="rounded-md py-0.5 hover:cursor-pointer hover:bg-gray-100">
+        <span
+          role="button"
+          class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+        >
           {{ block?.name }}
         </span>
       </span>
       <!-- Tags, triggers, roles, queries, etc. -->
     </div>
     <!-- Body -->
-    <div class="py-2">nocheckin: Body</div>
+    <div class="py-1">nocheckin: Body</div>
   </div>
   <Inaccessible v-else class="h-full w-full bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
 </template>

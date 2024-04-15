@@ -21,9 +21,8 @@ const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 600;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 80;
-const MIN_TOTAL_WIDTH = MIN_BLOCK_WIDTH + MIN_GUTTER_WIDTH * 2;
-const ROOT_BLOCK_GAP_Y = 16;
-const NESTED_BLOCK_GAP_Y = 10;
+const ROOT_BLOCK_GAP_Y = 14;
+const NESTED_BLOCK_GAP_Y = 8;
 
 const props = defineProps<
   { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -141,7 +140,7 @@ defineExpose({ self });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 w-full border-b bg-white py-3"
+          class="mb-2 w-full border-b bg-white py-1.5"
           :class="props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300'"
         >
           <Block
@@ -195,16 +194,16 @@ defineExpose({ self });
               <!-- Line with a gap for the button -->
               <div class="relative">
                 <div
-                  class="absolute left-0 h-[1px] w-[48%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                  class="absolute left-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
                 />
                 <div
-                  class="absolute right-0 h-[1px] w-[48%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                  class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
                 />
               </div>
               <button
-                class="-translate-y-[7px] px-1 text-xs text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
+                class="-translate-y-[7px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
               >
-                <i class="fas fa-plus" />
+                &plus;
               </button>
             </div>
 
@@ -227,6 +226,7 @@ defineExpose({ self });
               v-contextmenu="() => {
                 return {items: menuActionsLike({wildcard: ['common.edit.*', 'common.move.*']}, {context: {triggerNode: blockPtr}})} as ContextMenuInfo
               }"
+              :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />
           </div>

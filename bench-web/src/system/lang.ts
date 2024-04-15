@@ -93,14 +93,14 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
   getNodes: () => T[];
 }) {
   let orderKey;
-  const toReference = (nodes: T[]) => {
+  const getReference = (nodes: T[]) => {
     if (order.reference == null) return order.position == "before" ? null : nodes[nodes.length - 1];
     else if (typeof order.reference == "string") return nodes.find((n) => n.id == order.reference) ?? null;
     else return order.reference;
   };
   try {
     const nodes = order.getNodes();
-    orderKey = getOrderKey<T>({ nodes, position: order.position, reference: toReference(nodes) });
+    orderKey = getOrderKey<T>({ nodes, position: order.position, reference: getReference(nodes) });
   } catch {
     // 'fix' order keys if we couldn't generate one
     //  (usually because of duplicates, we don't enforce uniqueness per order key in backend for simplicity)
@@ -110,7 +110,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
     orderKey = getOrderKey<T>({
       nodes,
       position: order.position,
-      reference: toReference(nodes),
+      reference: getReference(nodes),
     });
   }
   // @ts-ignore: orderKey must exist

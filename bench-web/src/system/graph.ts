@@ -980,7 +980,6 @@ export function moveNode(
   if (anchor == "start" || anchor == "end") {
     // move before target (in its parent's children = target siblings)
     const targetParent = graph.getOrFail(target.parentPtr!);
-    tx.move({ ...node, parentPtr: target.parentPtr });
     if ("orderKey" in node && "orderKey" in target) {
       updateOrder({
         tx,
@@ -990,9 +989,9 @@ export function moveNode(
         getNodes: () => graph.getChildren(targetParent, target.metatype as unknown as NodeType) as any,
       });
     }
+    tx.move({ ...node, parentPtr: target.parentPtr });
   } else if (anchor == "center") {
     // move to end of target's children of that type
-    tx.move({ ...node, parentPtr: toNodeReference(target) });
     if ("orderKey" in node) {
       updateOrder({
         tx,
@@ -1002,6 +1001,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target, node.metatype as unknown as NodeType) as any,
       });
     }
+    tx.move({ ...node, parentPtr: toNodeReference(target) });
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }

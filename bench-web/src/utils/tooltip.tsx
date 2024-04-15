@@ -257,6 +257,7 @@ const INPUT_EVENTS = [
   "change",
   "focus",
   "blur",
+  "contextmenu",
 ];
 type InputEventName = (typeof INPUT_EVENTS)[number];
 type InputOutsideCallback = (e: Event) => boolean;
