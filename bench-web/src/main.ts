@@ -10,7 +10,7 @@ import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { CLICK_MENU_DIRECTIVE, CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
+import { MENU_DIRECTIVE, CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
   const app = createApp(Space);
@@ -60,7 +60,7 @@ async function init() {
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
   app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
-  app.directive("menu", CLICK_MENU_DIRECTIVE);
+  app.directive("menu", MENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);
   app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 

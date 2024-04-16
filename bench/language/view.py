@@ -119,11 +119,11 @@ class ViewType(IdEnum):
 class Variant(IdEnum):
     """The style variant of a view."""
 
-    V1 = 1  # primary
-    V2 = 2  # secondary
-    V3 = 3
-    V4 = 4
-    V5 = 5
+    PRIMARY = 1
+    SECONDARY = 2
+    ALTERNATE = 3
+    STEALTH = 4
+    WEIRD = 5
 
 
 @_well_known_enum

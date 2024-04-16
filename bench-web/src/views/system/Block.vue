@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
+import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection } from "@/system/connection";
 import type { PreparedGetConnection } from "@/system/connection";
@@ -73,8 +73,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
           v-menu="(): OverlayMenuInfo => ({
             kind: 'component',
-            placement: 'top',
-            props: { modelValue: block!.name, isInput: true },
+            placement: 'inside-top-left',
+            referenceOffset: { x: 0, y: -2 },
+            fitToContainer: 'width',
+            props: { modelValue: block!.name, isInput: true, variant: Variant.STEALTH },
+            onApply: (name: string) => { pkgConnection.tx.updateDebounced(block!, { name }) },
             component: PlainText,
           })"
         >

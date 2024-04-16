@@ -5,6 +5,7 @@ import { fireActionById } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { IconInline } from "@/system/icon";
 import { getNodeIcon } from "@/system/lang";
+import { canvas } from "@/system/space";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -27,8 +28,10 @@ const path = computed(() => ancestors.value.slice().reverse());
     <div class="flex flex-row items-center gap-x-1.5 truncate">
       <template v-for="(node, i) in path" :key="i">
         <span
-          class="flex flex-row items-center"
+          class="flex cursor-pointer flex-row items-center rounded-md hover:bg-primary-100 hover:text-primary-900"
+          role="button"
           :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
+          @click.stop="canvas.goToNode(node)"
         >
           <IconInline v-bind="getNodeIcon(node)" class="mr-1" />
           <span class="">{{ node.name }}</span>

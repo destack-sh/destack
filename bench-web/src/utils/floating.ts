@@ -14,10 +14,14 @@ export type FloatingPlacement =
   | "bottom-right"
   | "left"
   | "left-top"
-  | "left-bottom";
+  | "left-bottom"
+  | "inside-top"
+  | "inside-top-left"
+  | "inside-top-right";
 
 export type FloatingOptions = {
   placement: FloatingPlacement; // relative to the reference
+  fitToContainer?: "width" | "height" | "both"; // fit the floating element to the container
   containerMargin?: number; // margin around the container
   referenceMargin?: number; // margin around the reference
   referenceOffset?: { x: number; y: number }; // offset the reference position
@@ -95,6 +99,18 @@ export function getFloatingPosition(float: {
       case "left-bottom":
         x = reference.x - floating.width - referenceMargin;
         y = reference.y + reference.height - floating.height;
+        break;
+      case "inside-top":
+        x = reference.x + reference.width / 2 - floating.width / 2;
+        y = reference.y + referenceMargin;
+        break;
+      case "inside-top-left":
+        x = reference.x + referenceMargin;
+        y = reference.y + referenceMargin;
+        break;
+      case "inside-top-right":
+        x = reference.x + reference.width - floating.width - referenceMargin;
+        y = reference.y + referenceMargin;
         break;
     }
   };

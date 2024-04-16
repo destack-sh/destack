@@ -799,11 +799,11 @@ class Variant(betterproto.Enum):
     """The style variant of a view."""
 
     UNSPECIFIED = 0
-    V1 = 1
-    V2 = 2
-    V3 = 3
-    V4 = 4
-    V5 = 5
+    PRIMARY = 1
+    SECONDARY = 2
+    ALTERNATE = 3
+    STEALTH = 4
+    WEIRD = 5
 
 
 class ViewType(betterproto.Enum):
@@ -4561,7 +4561,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.16.0"
+VERSION = "2024.04.16.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

@@ -185,7 +185,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
       });
     } else {
       const block = expandedBlockRefs.value[anchor.id!];
-      block?.$el.scrollIntoView({ block: "center", behavior: "instant" });
+      block?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
   return false;
