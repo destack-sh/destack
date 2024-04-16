@@ -185,33 +185,33 @@ contributeActionMap<"user">({
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     text: "Create a new account.",
-    enabled: isUnauthenticated,
+    isEnabled: isUnauthenticated,
     action: () => canvas.upsertView(userWizardView({ title: "Sign Up" })),
   },
   "user.auth.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     text: "Log in to an existing account.",
-    enabled: isUnauthenticated,
+    isEnabled: isUnauthenticated,
     action: () => canvas.upsertView(userWizardView({ title: "Log In" })),
   },
   "user.auth.logout": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out",
     text: "Log out of the current client.",
-    enabled: isAuthenticated,
+    isEnabled: isAuthenticated,
     action: () => logOut(),
   },
   "user.auth.logoutAll": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out All",
     text: "Log out all clients (including current).",
-    enabled: isAuthenticated,
+    isEnabled: isAuthenticated,
     action: () => logOut({ all: true }),
   },
   "user.auth.activate": {
     icon: "fas fa-rocket-launch",
-    enabled: computed(() => isAuthenticated.value && !isActivated.value),
+    isEnabled: computed(() => isAuthenticated.value && !isActivated.value),
     title: "Activate Bench",
     text: "Activate your account by creating your Bench.",
     action: () =>
@@ -219,7 +219,7 @@ contributeActionMap<"user">({
   },
   "user.misc.goToHome": {
     icon: "fas fa-home",
-    enabled: isActivated,
+    isEnabled: isActivated,
     title: "Go to My Bench",
     text: "Go back to your Bench.",
     action: async () => {
@@ -228,7 +228,7 @@ contributeActionMap<"user">({
   },
   "user.settings.editKeybindings": {
     icon: "fas fa-keyboard",
-    enabled: ref(false),
+    isEnabled: ref(false),
     title: "Edit Keybindings",
     text: "Customize your keybindings everywhere.",
     action: ACTION_COMING_SOON,

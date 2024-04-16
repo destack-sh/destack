@@ -13,7 +13,7 @@ import NavigationBar from "@/views/private/NavigationBar.vue";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Block from "@/views/system/Block.vue";
 import { computedValue } from "@/utils/ref";
-import { menuActionsLike, type ContextMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { type ViewExposed } from "@/views/common";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
@@ -41,7 +41,7 @@ const preparedPkgConnection = useGetConnection(
   computed(() => ({
     roots: [props.nodePtr!],
     options: { descendantTypes: [NodeType.BLOCK] },
-    enabled: props.nodePtr != null,
+    isEnabled: props.nodePtr != null,
   })),
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
@@ -308,7 +308,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="() => {
-                return {items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})} as ContextMenuInfo
+                return {items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})} as OverlayMenuInfo
               }"
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"

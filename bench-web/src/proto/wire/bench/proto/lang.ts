@@ -4623,6 +4623,10 @@ export interface SpaceData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData inspection_ptr = 75;
      */
     inspectionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 76;
+     */
+    basePtr?: NodeReferenceData;
 }
 /**
  * A logic, data or control flow unit in a Flow (Block).
@@ -18845,7 +18849,8 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 70, name: "focus", kind: "message", T: () => SelectionData },
-            { no: 75, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 75, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 76, name: "base_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -18935,6 +18940,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* optional symbolx.bench.NodeReferenceData inspection_ptr */ 75:
                     message.inspectionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.inspectionPtr);
                     break;
+                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 76:
+                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -19014,6 +19022,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* optional symbolx.bench.NodeReferenceData inspection_ptr = 75; */
         if (message.inspectionPtr)
             NodeReferenceData.internalBinaryWrite(message.inspectionPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData base_ptr = 76; */
+        if (message.basePtr)
+            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21499,6 +21510,7 @@ export enum SpaceProperty {
   policies = 34,
   focus = 70,
   inspectionPtr = 75,
+  basePtr = 76,
 }
 
 export enum LinkProperty {

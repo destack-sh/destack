@@ -8,7 +8,7 @@ import type { MenuInfo, MenuItem } from "@/utils/menu";
 import { Shortcut } from "@/utils/tooltip";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
-import { type ComponentPublicInstance, type Ref } from "vue";
+import type { Ref, ComponentPublicInstance } from "vue";
 
 const SHOW_NESTED_DELAY = 200;
 
@@ -181,7 +181,7 @@ watch(
 const { placement: nestedPlacement } = useFloating({
   floating: activeNestedItemRef,
   reference: computed(() => itemRefs.value[activeNestedItemIdx.value ?? 0]),
-  enabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
+  isEnabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
   options: { placement: "right-top", referenceMargin: 8, referenceOffset: { x: 0, y: -7 } },
 });
 
@@ -251,9 +251,14 @@ defineExpose({ focus, clear, query });
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>
         <!-- Title -->
         <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
-        <!-- Shortcut or nested menu -->
+        <!-- Checked, shortcut or nested menu -->
         <i
-          v-if="isNestedItem(item.action)"
+          v-if="item.type == 'toggle' || item.type == 'picker'"
+          class="ml-auto pl-4 pr-1"
+          :class="item.isChecked ? 'fas fa-check' : ''"
+        />
+        <i
+          v-else-if="isNestedItem(item.action)"
           :class="['fas fa-chevron-right ml-auto pl-4 pr-1', item.isDisabled ? 'text-gray-400' : 'text-gray-700']"
         />
         <Shortcut

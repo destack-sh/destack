@@ -182,6 +182,8 @@ export type ActionCallable = (
   context?: ActionContext,
 ) => void | boolean | Promise<void> | Promise<boolean>;
 export type ActionKind = "static" | "virtual";
+export const ACTION_TYPES = ["generic", "external-url", "toggle", "menu"] as const;
+export type ActionType = (typeof ACTION_TYPES)[number];
 export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
   toaster.debug({ title: "Coming soon", text: `"${toValue(action.title)}" is not yet available.`, icon: action.icon });
 
@@ -194,30 +196,34 @@ export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
  */
 export type Action = {
   kind: ActionKind;
+  type: ActionType;
   id: ActionBuiltinId;
   icon?: IconData;
   title: MaybeRef<string>;
   text: string | TextData;
   shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
-  enabled?: Ref<boolean>;
+  isEnabled?: Ref<boolean>;
   source: ActionSource;
   category: string;
   subcategory?: string;
   path: string;
   action: ActionCallable;
+  // additional metadata
   url?: string; // for external URLs
+  isChecked?: Ref<boolean>; // for toggle actions
 };
 
 export const DECLARED_ACTIONS_BY_ID: Ref<Partial<Record<string, Action>>> = shallowRef({});
 export const DECLARED_ACTIONS: Ref<Action[]> = computed(() => Object.values(DECLARED_ACTIONS_BY_ID.value) as Action[]);
 
-type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "enabled" | "action" | "url"> & {
+type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "action" | "url" | "isChecked"> & {
+  type?: ActionType;
   id: ActionBuiltinId;
   icon?: string | IconData;
 };
 export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action">;
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
-export type ActionImplementation = Pick<Action, "enabled" | "action">;
+export type ActionImplementation = Pick<Action, "isEnabled" | "action">;
 export type ActionMapImplementation<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionImplementation>;
 export type ActionContribution = ActionDeclaration & ActionImplementation;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
@@ -227,6 +233,7 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
   const idParts = in_.id.split(".").map((p) => toCasing(p, Casing.CAMEL));
   const action: Action = {
     kind,
+    type: "generic",
     ...in_,
     icon: typeof in_.icon === "string" ? makeIcon({ faName: in_.icon }) : in_.icon,
     source: { kind: "builtin", id: in_.id },
@@ -324,7 +331,7 @@ export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
 
 /** Triggers the bound action from a keyboard event. */
 export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: ActionContext): boolean {
-  if (action.enabled != null && !action.enabled.value) {
+  if (action.isEnabled != null && !action.isEnabled.value) {
     log.debug("action.disabled", action.id);
     return false;
   }
@@ -344,10 +351,10 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
  * NOTE: does not 'call' the action, so we can't know if the action is refused dynamically.
  */
 export function isActionImplemented(action: Action, context: ViewComponent[]): boolean {
-  if (action.kind == "static") return action.enabled == null || action.enabled.value == true;
+  if (action.kind == "static") return action.isEnabled == null || action.isEnabled.value == true;
   for (const view of context) {
     const impl = view.exposed?.actions?.[action.id];
-    if (impl != null && (impl.enabled == null || impl.enabled.value == true)) return true;
+    if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) return true;
   }
   return false;
 }
@@ -358,7 +365,7 @@ export function fireAction(
   viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
   context?: ActionContext,
 ) {
-  if (action.enabled != null && !action.enabled.value) return false;
+  if (action.isEnabled != null && !action.isEnabled.value) return false;
   if (action.kind == "static") {
     // static: just call callback directly
     log.info("action.static", action.id);
@@ -368,7 +375,7 @@ export function fireAction(
     // virtual: find first component implementing that action
     for (const view of viewsInOrder ?? []) {
       const impl = view.exposed?.actions?.[action.id];
-      if (impl != null && (impl.enabled == null || impl.enabled.value == true)) {
+      if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) {
         log.info("action.virtual", action.id);
         const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
@@ -818,7 +825,7 @@ declareActionMap<"view">({
 contributeActionMap<"view">({
   // canvas
   "view.canvas.resetEmpty": {
-    enabled: computed(() => isDeveloperMode.value && space.value != null),
+    isEnabled: computed(() => isDeveloperMode.value && space.value != null),
     icon: "fas fa-window",
     title: "Clear Canvas",
     text: "Clear the canvas and start blank",
@@ -829,7 +836,7 @@ contributeActionMap<"view">({
     },
   },
   "view.canvas.resetDefault": {
-    enabled: hasLocalBench,
+    isEnabled: hasLocalBench,
     title: "Restore Default Canvas",
     text: "Reset the canvas to the default layout",
     icon: "fas fa-browser",
@@ -844,9 +851,11 @@ contributeActionMap<"view">({
 // developer actions
 contributeActionMap<"developer">({
   "developer.misc.toggleDeveloperMode": {
+    type: "toggle",
     icon: "fas fa-binary",
-    title: computed(() => (isDeveloperMode.value ? "Disable Developer Mode" : "Enable Developer Mode")),
+    title: "Developer Mode",
     text: "Developer Mode enables some advanced and some weird features.",
+    isChecked: isDeveloperMode,
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.info({
@@ -869,7 +878,7 @@ contributeActionMap<"developer">({
     shortcuts: ["alt+f12", "f12"],
   },
   "developer.tx.retryAllFailed": {
-    enabled: isDeveloperMode,
+    isEnabled: isDeveloperMode,
     icon: "fas fa-redo",
     title: "Retry All Failed Commits",
     text: "Retry all current failed transactions",
@@ -880,7 +889,7 @@ contributeActionMap<"developer">({
     },
   },
   "developer.view.addMockView": {
-    enabled: isDeveloperMode,
+    isEnabled: isDeveloperMode,
     icon: "fas fa-window",
     title: "Add Mock View",
     text: "Adds a debug view to the current root",
@@ -890,7 +899,7 @@ contributeActionMap<"developer">({
     },
   },
   "developer.create.addRootPages": {
-    enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
+    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
     icon: "fas fa-folder-plus",
     title: "Add Root Pages",
     text: "Add some root pages to the space",
@@ -921,7 +930,7 @@ contributeActionMap<"developer">({
     },
   },
   "developer.create.addRandomBlocks": {
-    enabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
+    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
     icon: "fas fa-cube",
     title: "Add Random Blocks",
     text: "Add some random blocks to the space",
@@ -1009,7 +1018,7 @@ contributeActionMap<"space">({
     title: "Open Notifications",
     text: "View your notifications",
     icon: "fas fa-envelope",
-    enabled: ref(false),
+    isEnabled: ref(false),
     action: ACTION_COMING_SOON,
   },
   "space.launch.logs": {
@@ -1042,28 +1051,28 @@ contributeActionMap<"bench">({
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToBranch": {
-    enabled: ref(false), // not yet implemented
+    isEnabled: ref(false), // not yet implemented
     title: "Switch Branch",
     text: "Go to another Branch in this Bench",
     icon: "fas fa-code-branch",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToEnvironment": {
-    enabled: ref(false), // not yet implemented
+    isEnabled: ref(false), // not yet implemented
     title: "Switch Environment",
     text: "Go to another Environment in this Bench",
     icon: "fas fa-cloud",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToPackage": {
-    enabled: hasLocalBench,
+    isEnabled: hasLocalBench,
     title: "Switch Package",
     text: "Go to another Package in this Bench",
     icon: "fas fa-box",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToSpace": {
-    enabled: hasLocalBench,
+    isEnabled: hasLocalBench,
     title: "Switch Space",
     text: "Go to another Space of this Bench",
     icon: "fas fa-galaxy",

@@ -436,3 +436,6 @@ class Space(HasViews):
     inspection: Optional[Node] = p_regular(
         75, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )
+    base: Optional[Node] = p_regular(
+        76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
+    )

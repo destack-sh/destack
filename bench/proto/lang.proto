@@ -2215,6 +2215,7 @@ message SpaceData {
   repeated PolicyData policies = 34;
   optional SelectionData focus = 70;
   optional NodeReferenceData inspection_ptr = 75;
+  optional NodeReferenceData base_ptr = 76;
 }
 
 // A logic, data or control flow unit in a Flow (Block).

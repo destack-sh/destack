@@ -11,18 +11,18 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
-import { type NodeTreeItem, walkDescendantsRef, isDescendantOf, moveNode } from "@/system/graph";
+import { isDescendantOf, moveNode, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { IconInline } from "@/system/icon";
 import { getNodeIcon } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
-import { canvas, inspectionPtr } from "@/system/space";
+import { inspectionBasePtr, canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext } from "@/utils/menu";
-import { manualSubRef, computedValue, toValueRef } from "@/utils/ref";
-import { useHierarchicalNodeMoveActions } from "@/system/block";
+import { computedValue } from "@/utils/ref";
 import { makeSelection, useExpansion } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -49,11 +49,11 @@ const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) return props.nodePtr;
   else if (props.type == ViewType.EXPLORE) return packagePtr.value;
-  else if (props.type == ViewType.OUTLINE) return canvas.focusedBaseNodePtr.value;
+  else if (props.type == ViewType.OUTLINE) return inspectionBasePtr.value;
   else return null;
 });
 const focusPtr = computedValue(() => {
-  if (props.type == ViewType.EXPLORE) return canvas.focusedBaseNodePtr.value;
+  if (props.type == ViewType.EXPLORE) return inspectionBasePtr.value;
   else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
   else return null;
 });
@@ -235,19 +235,19 @@ const getItemFromContext = (contet: ActionContext): { item: NodeTreeItem<any> | 
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
-    enabled: hasFocusedNode,
+    isEnabled: hasFocusedNode,
     action: () =>
       canvas.goToNode(focusedNode.value!, { where: "currentRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
   "common.sense.focusInSplit": {
-    enabled: hasFocusedNode,
+    isEnabled: hasFocusedNode,
     action: () =>
       canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
   // <!-- TODO :Incomplete: EXPLORE/Outline actions -->
   // common.edit.rename, ...
   "common.edit.delete": {
-    enabled: hasFocusedNode,
+    isEnabled: hasFocusedNode,
     action: () => inspectedConnection.tx.softDelete(focusedNode.value!),
   },
   ...useHierarchicalNodeMoveActions({

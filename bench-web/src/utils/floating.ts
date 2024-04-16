@@ -146,7 +146,7 @@ export function useFloating(float: {
   reference: Ref<MaybeElement>;
   container?: MaybeElement;
   options?: MaybeRef<Partial<FloatingOptions>>;
-  enabled?: Ref<boolean>;
+  isEnabled?: Ref<boolean>;
   watchElements?: boolean;
 }): {
   recompute: () => void;
@@ -195,11 +195,11 @@ export function useFloating(float: {
   watch(
     () =>
       // only get properties if enabled (enabled may guard some potentially expensive or unset properties)
-      float.enabled == null || float.enabled?.value
+      float.isEnabled == null || float.isEnabled?.value
         ? [float.floating.value, float.reference.value, optionsRef.value]
         : [],
     () => {
-      if (float.enabled != null && !float.enabled?.value) return;
+      if (float.isEnabled != null && !float.isEnabled?.value) return;
       const floating = unrefElement(float.floating);
       const reference = unrefElement(float.reference);
       if (floating == null || reference == null) return;

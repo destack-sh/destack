@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.15.0"
+VERSION = "2024.04.16.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -434,6 +434,12 @@ SPACE_TABLE = Table(
         Column("inspection_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("base_type", PrimitiveType.INT16, is_nullable=True),
+        Column("base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("base_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),

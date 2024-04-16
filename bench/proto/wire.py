@@ -2520,6 +2520,7 @@ class SpaceData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(34)
     focus: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     inspection_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4560,7 +4561,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.15.0"
+VERSION = "2024.04.16.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

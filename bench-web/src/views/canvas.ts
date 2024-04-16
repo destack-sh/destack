@@ -28,8 +28,15 @@ import {
 import type { GraphConnection } from "@/system/connection";
 import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
-import { NODE_VIEW_TYPES, RIDEALONG_VIEW_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrder } from "@/system/lang";
-import { inspectionPtr } from "@/system/space";
+import {
+  NODE_VIEW_TYPES,
+  RIDEALONG_VIEW_TYPES,
+  ROOT_NODE_TYPES,
+  ROOT_VIEW_TYPES,
+  getOrderKey,
+  updateOrder,
+} from "@/system/lang";
+import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
@@ -193,11 +200,6 @@ export class ViewCanvas {
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
   focusedView: Ref<ViewData | null>;
-  // view right below first root view
-  focusedBaseViewComponent: Ref<ViewComponent | null> = shallowRef(null);
-  focusedBaseViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
-  focusedBaseView: Ref<ViewData | null>;
-  focusedBaseNodePtr: Ref<NodeReferenceData | null>; // the 'nodePtr' of the focused root view
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -222,59 +224,7 @@ export class ViewCanvas {
       }
     });
 
-    // derived state
     this.focusedView = toValueRef(this.graph.getRef(this.focusedViewPtr));
-    this.focusedBaseView = toValueRef(this.graph.getRef(this.focusedBaseViewPtr));
-    this.focusedBaseNodePtr = computedValue(() => this.focusedBaseView.value?.nodePtr ?? null);
-  }
-
-  /** Updates our internal focus state in response to a browser event */
-  private onComponentFocused(element: ViewComponent | HTMLElement | null) {
-    const component = element instanceof HTMLElement ? findViewComponent(element) : element;
-    const wasDifferent = this.focusedViewComponent.value !== component;
-    const tx = this.txFactory();
-
-    // update component focus state
-    if (component == null) {
-      // reset
-      this.focusedViewComponent.value = null;
-      this.focusedViewComponentsById.value = {};
-      this.focusedViewPtr.value = null;
-      this.focusedBaseViewComponent.value = null;
-      this.focusedBaseViewPtr.value = null;
-    } else if (this.focusedViewComponent.value !== component) {
-      // refresh
-
-      // update focus
-      this.focusedViewComponent.value = component;
-      const componentsById: Record<string, ViewComponent> = {};
-      const viewComponents = collectViewComponentsUp(component);
-      viewComponents.forEach((c) => {
-        componentsById[getViewComponentId(c)] = c;
-      });
-      this.focusedViewComponentsById.value = componentsById;
-      this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
-
-      // update root/base if not in a 'ridealong' view
-      const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
-      const baseViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
-      const baseView = this.graph.getMaybe(baseViewPtr);
-      const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
-      const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
-      if (baseView != null && !RIDEALONG_VIEW_TYPES.has(baseView.type)) {
-        this.focusedBaseViewComponent.value = viewComponents[rootViewComponentIdx - 1];
-        this.focusedBaseViewPtr.value = baseViewPtr;
-        if (linkedNodePtr != null && linkedNodePtr?.id != inspectionPtr.value?.id) {
-          this.inspect(tx, { node: linkedNodePtr });
-        }
-      }
-
-      // update graph focus state
-      if (this.focusedViewPtr.value != null && wasDifferent) {
-        const focusInView = makeSelectionMaybe(linkedNodePtr);
-        this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
-      }
-    }
   }
 
   /** Gets the absolutely focused view components in bottom up order */
@@ -307,20 +257,68 @@ export class ViewCanvas {
     return component?.exposed.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
   }
 
+  /** Updates our internal focus state in response to a browser event */
+  private onComponentFocused(element: ViewComponent | HTMLElement | null) {
+    const component = element instanceof HTMLElement ? findViewComponent(element) : element;
+    const wasDifferent = this.focusedViewComponent.value !== component;
+    const tx = this.txFactory();
+
+    // update component focus state
+    if (component == null) {
+      // reset
+      this.focusedViewComponent.value = null;
+      this.focusedViewComponentsById.value = {};
+      this.focusedViewPtr.value = null;
+    } else if (this.focusedViewComponent.value !== component) {
+      // refresh
+
+      // update focus
+      this.focusedViewComponent.value = component;
+      const componentsById: Record<string, ViewComponent> = {};
+      const viewComponents = collectViewComponentsUp(component);
+      viewComponents.forEach((c) => {
+        componentsById[getViewComponentId(c)] = c;
+      });
+      this.focusedViewComponentsById.value = componentsById;
+      this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
+
+      // update root/inspection if not in a 'ridealong' view
+      const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
+      const baseViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
+      const baseView = this.graph.getMaybe(baseViewPtr);
+      const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
+      const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
+      if (
+        baseView != null &&
+        linkedNodePtr != null &&
+        !RIDEALONG_VIEW_TYPES.has(baseView.type) &&
+        linkedNodePtr != inspectionPtr.value?.id
+      ) {
+        this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
+      }
+
+      // update graph focus state
+      if (this.focusedViewPtr.value != null && wasDifferent) {
+        const focusInView = makeSelectionMaybe(linkedNodePtr);
+        this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
+      }
+    }
+  }
+
   /** Inspects the given node */
   inspect(
     tx: Transaction,
-    inspect: { node: AnyNodeData | SomeNodeReferenceData<NodeType>; focusInspector?: boolean },
+    inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean },
   ): void {
     log.trace("canvas.inspect", inspect);
 
-    const nodeRef =
-      inspect.node.metatype == BenchType.NODE_REFERENCE
-        ? (inspect.node as NodeReferenceData)
-        : toNodeReference(inspect.node as AnyNodeData);
-    if (inspectionPtr.value?.id != nodeRef.id) {
+    const nodePtr = toNodeReference(inspect.node as AnyNodeData);
+    const viewAncestors = this.graph.getAncestors(inspect.view, { metatypes: [NodeType.VIEW], includeSelf: true });
+    const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
+    const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
+    if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrFail(this.spacePtr.value!);
-      tx.updateDebounced(space, { inspectionPtr: nodeRef });
+      tx.updateDebounced(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr });
     }
 
     // open inspector
@@ -354,8 +352,9 @@ export class ViewCanvas {
           const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.type == NodeType.VIEW);
           viewData = viewPtr != null ? this.getViewData(viewPtr) : null;
         } else if (!focus.ignoreInspection) {
+          // auto-inspect what was previously focused inside this view
           const node = viewData!.focus!.nodesPtr[0];
-          this.inspect(tx, { node });
+          this.inspect(tx, { node, view: viewData! });
           break;
         }
       }
@@ -377,7 +376,7 @@ export class ViewCanvas {
       // focus in graph & then in component
       this.focusInGraph(tx, { view: focus.view, focus: makeSelection([node]) });
       if (!focus.ignoreInspection) {
-        this.inspect(tx, { node });
+        this.inspect(tx, { node, view: focus.view });
       }
       const component = this.getViewComponent(focus.view.id!);
       if (component != null) this.focusInComponent(component, focus.anchor);
@@ -651,11 +650,16 @@ export class ViewCanvas {
         );
       tx.create(newView);
       this.focus(tx, { node: newView });
+      return newView;
     } else if (options?.ifPresent == "focus") {
       this.focus(tx, { node: existing });
+      return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
       tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus });
       this.focus(tx, { node: existing });
+      return existing;
+    } else {
+      throw new Error(`unexpected ifPresent: ${options?.ifPresent}`);
     }
   }
 
@@ -688,7 +692,7 @@ export class ViewCanvas {
           .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
           .find((n) => n.isPage);
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
-        this.addView(
+        const view = this.addView(
           {
             type: ViewType.PAGE,
             nodePtr: toNodeReference(containingPage),
@@ -697,10 +701,10 @@ export class ViewCanvas {
           },
           { ifPresent: "upsertAndFocus", ...options },
         );
+        this.inspect(tx, { node: nodeRef, view });
       } else {
         throw new Error(`cannot go to node: ${describeNode(node)}`);
       }
-      this.inspect(tx, { node: nodeRef });
     }
   }
 

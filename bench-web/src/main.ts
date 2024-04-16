@@ -4,13 +4,13 @@ import { toaster } from "@/system/toast";
 import { setupTransactionManagement } from "@/system/transaction";
 import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
-import { CONTEXTMENU_DIRECTIVE } from "@/utils/menu";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
 import { registerViewComponents } from "@/views";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
+import { CLICK_MENU_DIRECTIVE, CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
   const app = createApp(Space);
@@ -59,7 +59,8 @@ async function init() {
     toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
-  app.directive("contextmenu", CONTEXTMENU_DIRECTIVE);
+  app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
+  app.directive("clickmenu", CLICK_MENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);
   app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 
