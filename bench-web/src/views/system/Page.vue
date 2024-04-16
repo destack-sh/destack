@@ -104,7 +104,7 @@ const { activeDropZone } = useMultiDropZone({
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
       const target = pkgGraph.getOrFail({ id: targetId });
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, target, anchor);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
     }
   },
 });
@@ -168,9 +168,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
 
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
-  console.log("Page.focus: nocheckin", props.nodePtr, anchor);
   if (typeof anchor != "object") {
-    // ...
+    if (anchor != "bottom") {
+      const block = expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!];
+      block?.$el.scrollIntoView({ block: "start", behavior: "instant" });
+    } else {
+      const block = expandedBlockRefs.value[expandedItems.value[expandedItems.value.length - 1].nodePtr.id!];
+      block?.$el.scrollIntoView({ block: "end", behavior: "instant" });
+    }
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first

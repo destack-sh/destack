@@ -219,7 +219,7 @@ const { activeDropZone } = useMultiDropZone({
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
       const target = inspectedGraph.getOrFail({ id: targetId });
-      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, target, anchor);
+      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, anchor, target);
     }
   },
 });

@@ -52,7 +52,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
     if (!isNode(item.node, NodeType.BLOCK)) throw new Error(`can't move hierarchically: ${describeNode(item.node)}`);
     const parent = pkgGraph.getMaybe(item?.node.parentPtr);
     if (item == null || !isNode(parent, NodeType.BLOCK) || parent.id == basePtr.value?.id) return false;
-    moveNode(txFactory(), pkgGraph, item.node, parent, "end");
+    moveNode(tx, pkgGraph, item.node, "after", parent);
   }
 
   return {
@@ -65,7 +65,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         if (item == null || prev == null) return false;
         const tx = txFactory();
         if (prev.node.parentPtr?.id == item.node.parentPtr?.id || prev.node?.id == item.node.parentPtr?.id) {
-          moveNode(tx, pkgGraph, item.node, prev.node, "start");
+          moveNode(tx, pkgGraph, item.node, "before", prev.node);
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
           return false;
@@ -79,13 +79,20 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
     "common.move.down": {
       enabled,
       action: (action, context) => {
-        // move block one further in indent or below the next item in linear order
+        // move block one further in indent or below the next item in linear order (skipping own descendants)
         const { item, idx } = getItemFromContext(context);
-        const next = expandedItems.value[idx + 1];
+        let nextIdx = expandedItems.value.slice(idx + 1).findIndex((i) => i.depth <= item!.depth);
+        nextIdx = nextIdx == -1 ? expandedItems.value.length : nextIdx + idx + 1;
+        const next = expandedItems.value[nextIdx];
+        const nextnext = expandedItems.value[nextIdx + 1];
         if (item == null || next == null) return false;
         const tx = txFactory();
         if (next.node.parentPtr?.id == item.node.parentPtr?.id) {
-          moveNode(tx, pkgGraph, item.node, next.node, "end");
+          if (nextnext && nextnext.depth > next!.depth) {
+            moveNode(tx, pkgGraph, item.node, "before", nextnext.node);
+          } else {
+            moveNode(tx, pkgGraph, item.node, "after", next.node);
+          }
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
           return false;
