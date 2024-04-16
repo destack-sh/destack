@@ -168,5 +168,6 @@ __all__ = [
     "View",
     "ViewType",
 ]
+
 # after all the imports, we can finalize
 _complete_bench_setup()

@@ -10,7 +10,7 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION, Node
-from bench.language.const import NODE_TYPES, STRUCT_TYPES
+from bench.language.const import NODE_TYPES, STRUCT_TYPES, UNSET
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
@@ -213,6 +213,176 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         property_enum_maps_parts.append(property_enum_map_str)
     property_enum_maps_str = "\n".join(property_enum_maps_parts)
 
+    # type info
+    # type info
+    # type PropertyKind = 'primitive' | 'enum' | 'reference';
+    # type PropertyInfo = {
+    #                     // basics
+    # id: number;
+    # name: string;
+    # description: string;
+    # component: NodeType | StructType;
+    # kind: PropertyKind;
+    # primitiveType: PrimitiveType;
+    #
+    # // flags
+    # isList: boolean;
+    # isRequired: boolean;
+    # isInternal: boolean;
+    # isSystem: boolean;
+    # isKernel: boolean;
+    # isAutoset: boolean;
+    # isComputed: boolean;
+    # isRuntime: boolean;
+    # isWired: boolean;
+    # isStored: boolean;
+    # isUnique: boolean;
+    # isDeferred: boolean;
+    # isSensitive: boolean;
+    # isEncrypted: boolean;
+    #
+    # // value
+    # isValueRuntime: boolean;
+    # isValuePacked: boolean;
+    # valuePackedId: number;
+    # secretValuePackedId: number;
+    #
+    # // references
+    # referenceKind: ReferenceKind | undefined;
+    # referenceNodes: NodeType[] | undefined;
+    # referenceStruct: StructType | undefined;
+    #
+    # default: any | undefined;
+    # }
+    #
+    # export
+    # const
+    # BlockDataInfo: Record < BlockProperty, PropertyInfo > = {
+    # }
+    type_info_type_str = """
+export type PropertyKind = 'primitive' | 'enum' | 'reference';
+export type PropertyInfo = {
+    // basics
+    id: number;
+    name: string;
+    component: BenchType;
+    kind: PropertyKind;
+    primitiveType?: PrimitiveType;
+    default?: any;
+    
+    // flags
+    isList?: boolean;
+    isRequired?: boolean;
+    isInternal?: boolean;
+    isSystem?: boolean;
+    isKernel?: boolean;
+    isAutoset?: boolean;
+    isComputed?: boolean;
+    isRuntime?: boolean;
+    isWired?: boolean;
+    isStored?: boolean;
+    isUnique?: boolean;
+    isDeferred?: boolean;
+    isSensitive?: boolean;
+    isEncrypted?: boolean;
+        
+    // value
+    isValueRuntime?: boolean;
+    isValuePacked?: boolean;
+    valuePackedId?: number;
+    secretValuePackedId?: number;
+    
+    // references
+    referenceKind?: ReferenceKind;
+    referenceNodes?: NodeType[];
+    referenceStruct?: StructType;
+}
+    """
+    type_info_definitions_parts = []
+    for bench_type in chain(STRUCT_TYPES, NODE_TYPES):
+        bench_cls = NODE_CLASS_BY_TYPE.get(bench_type) or STRUCT_CLASS_BY_TYPE.get(bench_type)
+        prop_infos_strs: list[str] = []
+        for prop in bench_cls.__properties__.values():
+            if not prop.is_wired:
+                continue
+
+            prop_info_parts: dict[str, str] = {
+                "id": str(prop.id),
+                "name": repr(prop.name),
+                "component": f"BenchType.{bench_cls.metatype.name}",
+            }
+            if prop.reference_kind:
+                kind = "reference"
+            elif prop.is_enum:
+                kind = "enum"
+            else:
+                kind = "primitive"
+            prop_info_parts["kind"] = repr(kind)
+            if prop.primitive_type and prop.primitive_type is not UNSET:
+                prop_info_parts["primitiveType"] = f"PrimitiveType.{prop.primitive_type.name}"
+
+            for flag in (
+                "isList",
+                "isRequired",
+                "isInternal",
+                "isSystem",
+                "isKernel",
+                "isAutoset",
+                "isComputed",
+                "isRuntime",
+                "isWired",
+                "isStored",
+                "isUnique",
+                "isDeferred",
+                "isSensitive",
+                "isEncrypted",
+            ):
+                if getattr(prop, to_casing(flag, Casing.SNAKE)):
+                    prop_info_parts[flag] = "true"
+            for value_flag in ("isValueRuntime", "isValuePacked"):
+                if getattr(prop, to_casing(value_flag, Casing.SNAKE)):
+                    prop_info_parts[value_flag] = "true"
+            if prop.value_packed_ptr:
+                prop_info_parts["valuePackedId"] = str(prop.value_packed_ptr.id)
+            if prop.secret_value_packed_ptr:
+                prop_info_parts["secretValuePackedId"] = str(prop.secret_value_packed_ptr.id)
+
+            if prop.reference_kind:
+                prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.reference_kind.name}"
+            if prop.reference_nodes:
+                nodes_str_parts = [f"NodeType.{node.name}" for node in prop.reference_nodes]
+                prop_info_parts["referenceNodes"] = f"[{', '.join(nodes_str_parts)}]"
+            if prop.reference_struct:
+                prop_info_parts["referenceStruct"] = f"StructType.{prop.reference_struct.name}"
+
+            prop_info_str = ", ".join(f"{k}: {v}" for k, v in prop_info_parts.items())
+            prop_infos_strs.append(
+                f"  [{bench_cls.__name__}Property.{to_casing(prop.name, Casing.LOWER_CAMEL)}]: {{ {prop_info_str} }},"
+            )
+
+        # convert to string
+        type_info_parts = [
+            f"export const {bench_cls.__name__}DataInfo: Record<{bench_cls.__name__}Property, PropertyInfo> = {{",
+            "\n".join(prop_infos_strs),
+            "}",
+        ]
+        type_info_definitions_parts.append("\n".join(type_info_parts))
+
+    type_info_definitions_str = "\n".join(type_info_definitions_parts)
+
+    # map
+    type_info_map_parts = [
+        "export const PROPERTY_INFOS_BY_TYPE: Record<BenchType, Record<any, PropertyInfo>> = {\n"
+        "  [BenchType.UNSPECIFIED]: {},\n"
+    ]
+    for bench_type in chain(STRUCT_TYPES, NODE_TYPES):
+        bench_cls = NODE_CLASS_BY_TYPE.get(bench_type) or STRUCT_CLASS_BY_TYPE.get(bench_type)
+        type_info_map_parts.append(
+            f"  [BenchType.{bench_type.name}]: {bench_cls.__name__}DataInfo,\n"
+        )
+    type_info_map_parts.append("}\n")
+    type_info_map_str = "".join(type_info_map_parts)
+
     patch_postfix_code = f"""
 //
 // Extra utility types
@@ -250,9 +420,16 @@ export type AnyNodePropertyType = {' | '.join('typeof ' + cls.__name__ + 'Proper
 export type AnyStructPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' for cls in STRUCT_CLASSES)}
 export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' for cls in chain(NODE_CLASSES, STRUCT_CLASSES))}
 {property_enum_maps_str}
+
+// Type info
+{type_info_type_str}
+{type_info_definitions_str}
+{type_info_map_str}
     """
     lang_ts = Path(WIRE_TS_DIR + "/bench/proto/lang.ts").read_text()
     Path(WIRE_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+
+    # index.ts
     Path(WIRE_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files

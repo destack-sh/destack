@@ -17,7 +17,8 @@ class IdentifierType(IdEnum):
 class Casing(IdEnum):
     SNAKE = 1
     CAMEL = 2
-    ALL_CAPS = 3
+    LOWER_CAMEL = 3
+    ALL_CAPS = 4
 
 
 # NOTE: BENCH_CASING also allows (and encourages) spaces in identifiers (instead of _)
@@ -76,7 +77,7 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
         if allow_whitespace:
             name = name.replace("_", " ").strip()
         return name
-    elif casing == Casing.CAMEL:  # CamelCase
+    elif casing == Casing.CAMEL or casing == Casing.LOWER_CAMEL:  # CamelCase or lowerCamelCase
         # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
         if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
             return name
@@ -89,6 +90,8 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
             name = name.replace("_", " ").strip()
         else:
             name = name.replace(" ", "")
+        if casing == Casing.LOWER_CAMEL:
+            name = name[0].lower() + name[1:]
         return name
     elif casing == Casing.ALL_CAPS:  # ALL_CAPS
         # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character

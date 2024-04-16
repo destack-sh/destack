@@ -19,7 +19,7 @@ const inputRef = ref<HTMLInputElement | null>(null);
 
 const id = makeViewId(props);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], focus: () => inputRef.value });
 </script>
 <template>
   <div v-if="!isInput">

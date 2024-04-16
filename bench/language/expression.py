@@ -203,13 +203,13 @@ class Selection(Struct):
 
     kind: SelectionKind = p_regular(30, require=True)
     nodes: list[Node] | None = p_regular(
-        31, require=False, array=True, references=IN_BENCH_NODE_TYPES
+        31, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
     )
     from_node: Optional[Node] = p_regular(
-        32, require=False, array=False, references=IN_BENCH_NODE_TYPES
+        32, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
     )
     to_node: Optional[Node] = p_regular(
-        33, require=False, array=False, references=IN_BENCH_NODE_TYPES
+        33, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
     )
 
 

@@ -61,11 +61,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     id_as_str: str | None = None  # str(id)
     ord: int | None = None  # unstable ordinal for bit-packing
     name: str | None = None  # name from LHS of assignment
-    description: str | None = None  # description from docstring
     component: type["Struct"] | type["Node"] | None = None  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
-    alias: str | None = None  # for node list relations
     primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
@@ -90,7 +88,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
-    is_serial: bool = False  # auto-incrementing integer
 
     # value
     is_value_runtime: bool = False  # for user 'value' properties
@@ -369,6 +366,25 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
 
+        # resolve & check value type info
+        if self.is_value_runtime:
+            from bench.language.value import HasValues
+
+            assert (
+                HasValues in self.component.__static_components__
+            ), f"{self.component} is not HasValues"
+            if isinstance(self.value_type_info_ptr, int):
+                self.value_type_info_ptr = self.component.__properties_by_id__[
+                    self.value_type_info_ptr
+                ]
+            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
+            if isinstance(self.value_packed_ptr, int):
+                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+            if isinstance(self.secret_value_packed_ptr, int):
+                self.secret_value_packed_ptr = self.component.__properties_by_id__[
+                    self.secret_value_packed_ptr
+                ]
+
         # resolve py type
         if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILD:
             # can't resolve these because they may point to non-Bench types
@@ -405,25 +421,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 if primitive_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
-
-        # resolve & check value type info
-        if self.is_value_runtime:
-            from bench.language.value import HasValues
-
-            assert (
-                HasValues in self.component.__static_components__
-            ), f"{self.component} is not HasValues"
-            if isinstance(self.value_type_info_ptr, int):
-                self.value_type_info_ptr = self.component.__properties_by_id__[
-                    self.value_type_info_ptr
-                ]
-            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
-            if isinstance(self.value_packed_ptr, int):
-                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
-            if isinstance(self.secret_value_packed_ptr, int):
-                self.secret_value_packed_ptr = self.component.__properties_by_id__[
-                    self.secret_value_packed_ptr
-                ]
 
         # sanity check some stuff
         from bench.language.node import Node
@@ -803,7 +800,6 @@ def p_property(
         assert not array, "can't have foreign key on list"
     return Property(
         id=id,
-        description=description,
         default=default,
         default_factory=default_factory,
         primitive_type=primitive_type,
@@ -898,7 +894,6 @@ def p_node_child(
     node_type: NodeType,
     flags: NRel = NRel.DEFAULT,
     list: type["NodeList"] = None,
-    alias: str = None,
 ):
     """Computed read/write children or descendants of the given type."""
     return Property(
@@ -910,7 +905,6 @@ def p_node_child(
         is_list=True,
         reference_list_type=list or InMemoryGraphNodeList,
         is_stored=False,
-        alias=alias,
     )
 
 
