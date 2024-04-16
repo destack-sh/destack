@@ -974,8 +974,8 @@ export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
   node: AnyNodeData | AnyNodeReferenceData,
+  anchor: "start" | "center" | "end" | "before" | "after",
   target: AnyNodeData | AnyNodeReferenceData,
-  anchor: "start" | "center" | "end" | "before" | "after" = "center",
 ) {
   node = resolveNode(graph, node);
   target = resolveNode(graph, target);

@@ -72,11 +72,11 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
 export function defaultSort(nodes: AnyNodeData[]): void {
   nodes.sort((a, b) => {
     if ((a as any).orderKey != null && (b as any).orderKey != null && (a as any).orderKey != (b as any).orderKey) {
-      return (a as any).orderKey.localeCompare((b as any).orderKey);
+      return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
     } else if (a.createdAt != null && b.createdAt != null && a.createdAt.seconds != b.createdAt.seconds) {
       return Number(b.createdAt.seconds - a.createdAt.seconds);
     } else {
-      return a.id.localeCompare(b.id);
+      return a.id > b.id ? 1 : -1;
     }
   });
 }
@@ -101,7 +101,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
   try {
     const nodes = order.getNodes();
     orderKey = getOrderKey<T>({ nodes, position: order.position, reference: getReference(nodes) });
-  } catch {
+  } catch (e) {
     // 'fix' order keys if we couldn't generate one
     //  (usually because of duplicates, we don't enforce uniqueness per order key in backend for simplicity)
     let nodes = order.getNodes();
@@ -143,7 +143,7 @@ export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
  */
 export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: Transaction, nodes: T[]) {
   // ensure nodes are in current order
-  nodes.sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+  defaultSort(nodes);
 
   // scan for successive duplicates (they must be successive now)
   let i = 0;
@@ -176,7 +176,15 @@ export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
 
 export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const NODE_VIEW_TYPES = new Set<ViewType>([ViewType.PAGE, ViewType.BLOCK, ViewType.SCREEN, ViewType.DATABASE, ViewType.FLOW, ViewType.FIELD, ViewType.STEP])
+export const NODE_VIEW_TYPES = new Set<ViewType>([
+  ViewType.PAGE,
+  ViewType.BLOCK,
+  ViewType.SCREEN,
+  ViewType.DATABASE,
+  ViewType.FLOW,
+  ViewType.FIELD,
+  ViewType.STEP,
+]);
 // views that have a white background
 export const FULL_VIEW_TYPES = new Set<ViewType>([
   ...NODE_VIEW_TYPES,

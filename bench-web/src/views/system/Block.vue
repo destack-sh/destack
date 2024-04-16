@@ -69,7 +69,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           role="button"
           class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
         >
-          {{ block.orderKey /* nocheckin */ }}
           {{ block.name }}
         </span>
       </span>
