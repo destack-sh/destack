@@ -39,7 +39,6 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
     <template v-for="tooltip in activeTooltips" :key="tooltip.id">
       <div
         :ref="(ref?: any) => (ref != null ? (tooltipRefs[tooltip.id] = ref, positionTooltip(tooltip, ref)) : (delete tooltipRefs[tooltip.id]))"
-        v-bind="tooltip.info"
         class="absolute z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm shadow-gray-300"
         :class="[tooltip.info.small ? 'px-1.5 py-0.5' : 'px-2.5 py-1']"
         @mouseenter="tooltip.reference.tooltipOnMouseEnter"
@@ -48,13 +47,17 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
         <!-- Header -->
         <p v-if="tooltip.info.icon || tooltip.info.title" class="mb-0.5 flex flex-row items-center">
           <i v-if="tooltip.info.icon" class="mr-1.5 text-gray-600" :class="tooltip.info.icon" />
-          <span v-if="tooltip.info.title" class="truncate font-semibold">{{ tooltip.info.title }}</span>
+          <span v-if="tooltip.info.title" class="truncate font-semibold">
+            {{ typeof tooltip.info.title == "function" ? tooltip.info.title() : tooltip.info.title }}
+          </span>
           <span v-if="tooltip.info.shortcuts" class="ml-auto pl-4">
             <Shortcut class="text-gray-700" :shortcut="tooltip.info.shortcuts[0]" />
           </span>
         </p>
         <!-- Content -->
-        <p class="max-h-20 max-w-full truncate whitespace-break-spaces">{{ tooltip.info.text }}</p>
+        <p class="max-h-20 max-w-full truncate whitespace-break-spaces">
+          {{ typeof tooltip.info.text == "function" ? tooltip.info.text() : tooltip.info.text }}
+        </p>
       </div>
     </template>
   </TransitionGroup>

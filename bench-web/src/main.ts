@@ -60,7 +60,7 @@ async function init() {
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
   app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
-  app.directive("clickmenu", CLICK_MENU_DIRECTIVE);
+  app.directive("menu", CLICK_MENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);
   app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 
