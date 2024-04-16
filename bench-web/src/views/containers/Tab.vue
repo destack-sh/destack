@@ -173,8 +173,8 @@ defineExpose<ViewExposed>({ self, actions });
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
-      v-contextmenu="(context: MenuContext) => {
-        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context } as OverlayMenuInfo
+      v-contextmenu="(context: MenuContext): OverlayMenuInfo => {
+        return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context }
     } "
     >
       <!-- Tab button -->
@@ -192,9 +192,9 @@ defineExpose<ViewExposed>({ self, actions });
         @click="focus(tab)"
         :draggable="true"
         @dragstart="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
-        v-contextmenu="(context: MenuContext) => {
+        v-contextmenu="(context: MenuContext): OverlayMenuInfo => {
           context = { ...context, triggerNode: tab }
-          return { items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context } as OverlayMenuInfo
+          return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context }
         } "
         v-tooltip="{ title: tab.name, referenceMargin: 0, showDelay: 2000 } as TooltipInfo"
       >

@@ -21,7 +21,7 @@ import { highlightMatches } from "@/system/search";
 import { inspectionBasePtr, canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type MenuContext } from "@/utils/menu";
+import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import { makeSelection, useExpansion } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -311,10 +311,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
         @click.stop="fire(node)"
         :draggable="true"
         @dragstart="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
-        v-contextmenu="(context: MenuContext) => {
+        v-contextmenu="(context: MenuContext): OverlayMenuInfo => {
           doFocus(node);
           context = { ...context, triggerNode: node };
-          return { items: menuActionsLike({ wildcard: ['common.sense.*','common.edit.*'] }, { context }), context }
+          return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.sense.*','common.edit.*'] }, { context }), context }
       }"
       >
         <!-- Drop indicator -->

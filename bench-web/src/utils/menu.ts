@@ -106,7 +106,14 @@ export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   referenceMargin: 0,
   containerMargin: 8,
 };
-export type OverlayMenuInfo = MenuInfo & FloatingOptions & {};
+
+type ComponentMenuInfo<T extends { props: object }> = {
+  kind: "component";
+  component: T;
+  props: T["props"];
+  context?: MenuContext;
+};
+export type OverlayMenuInfo = (({ kind: "menu" } & MenuInfo) | ComponentMenuInfo<any>) & FloatingOptions;
 
 /** The triggering element with some extra state */
 type OverlayMenuTriggerElement = HTMLElement & {
@@ -138,12 +145,15 @@ export function createOverlayMenu(
 ): OverlayMenuInstance {
   const triggerNode = canvas.findViewData(trigger) ?? undefined;
   const context: MenuContext = { triggerElement: trigger, triggerNode };
-  const currentInfo: OverlayMenuInfo = {
+  info = {
     ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
     ...(typeof info === "function" ? info(context) : info),
     context,
   };
-  const instance = { id: newOverlayMenuId(), info: currentInfo, trigger, reference, container };
+  if (info.kind != "component" && info.kind != "menu")
+    throw new Error(`invalid overlay menu kind: ${(info as any).kind}`);
+
+  const instance = { id: newOverlayMenuId(), info, trigger, reference, container };
   _activeOverlayMenu.value = instance;
   trigger.dataset.contextmenu = "true";
   return instance;

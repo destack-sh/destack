@@ -13,6 +13,8 @@ import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, toRef, type Ref, ref } from "vue";
 import type { TooltipInfo } from "@/utils/tooltip";
 import type { ActionMapImplementation } from "@/system/action";
+import PlainText from "@/views/content/PlainText.vue";
+import type { OverlayMenuInfo } from "@/utils/menu";
 
 const props = defineProps<
   { self?: NodeReferenceData; preparedConnection?: PreparedGetConnection } & Pick<ViewData, "nodePtr">
@@ -69,6 +71,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <span
           role="button"
           class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          v-menu="(): OverlayMenuInfo => ({
+            kind: 'component',
+            placement: 'top',
+            props: { modelValue: block!.name, isInput: true },
+            component: PlainText,
+          })"
         >
           {{ block.name }}
         </span>

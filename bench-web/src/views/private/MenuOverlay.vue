@@ -38,6 +38,11 @@ watch([menuRef, activeOverlayMenu], () => {
   el.style.left = x + "px";
   el.style.top = y + "px";
 });
+
+function close() {
+  destroyOverlayMenu();
+  canvas.restoreComponentFocus();
+}
 </script>
 <template>
   <Transition
@@ -52,12 +57,22 @@ watch([menuRef, activeOverlayMenu], () => {
     <!-- Classic context menu -->
     <Menu
       ref="menuRef"
-      v-if="activeOverlayMenu"
+      v-if="activeOverlayMenu?.info.kind == 'menu'"
       :key="activeOverlayMenu.id"
       class="pointer-events-auto absolute z-70"
       data-outside-view="true"
       v-bind="activeOverlayMenu.info"
-      @close="() => (destroyOverlayMenu(), $nextTick(() => canvas.restoreComponentFocus()))"
+      @close="close"
     />
+    <!-- Generic component menu -->
+    <div
+      ref="menuRef"
+      v-else-if="activeOverlayMenu?.info.kind == 'component'"
+      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white py-1 text-gray-900 shadow-md shadow-gray-400"
+      v-outside.mousedown.stop="close"
+    >
+      nocheckin
+      {{ activeOverlayMenu?.info.props }}
+    </div>
   </Transition>
 </template>

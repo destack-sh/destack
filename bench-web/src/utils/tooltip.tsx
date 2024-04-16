@@ -72,8 +72,8 @@ const DEFAULT_HOVER_HIDE_DELAY = 300;
 
 export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   icon?: string;
-  title?: string;
-  text: string | TextData;
+  title?: string | (() => string);
+  text: string | TextData | (() => string | TextData);
   small?: boolean;
   shortcuts?: string[];
   showDelay?: number;
@@ -127,10 +127,10 @@ function destroyTooltip(instance: TooltipInstance) {
 }
 
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
-export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo | (() => TooltipInfo)> = {
+export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
     const triggerEl = el as TooltipTriggerElement;
-    const info = typeof binding.value === "function" ? binding.value() : binding.value;
+    const info = binding.value;
     const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = info;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
@@ -159,22 +159,18 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo | (() => Too
   updated(el, binding) {
     const tooltipEl = el as TooltipTriggerElement;
     if (tooltipEl.tooltipInstance != null) {
-      const info = typeof binding.value === "function" ? binding.value() : binding.value;
-      tooltipEl.tooltipInstance.info = info;
+      tooltipEl.tooltipInstance.info = binding.value;
     }
   },
 
   unmounted(el) {
     const triggerEl = el as TooltipTriggerElement;
-    if (triggerEl.tooltipShowTimeout != null) {
-      clearTimeout(triggerEl.tooltipShowTimeout);
-    }
-    if (triggerEl.tooltipHideTimeout != null) {
-      clearTimeout(triggerEl.tooltipHideTimeout);
-    }
-    if (triggerEl.tooltipInstance != null) {
+    if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
+    if (triggerEl.tooltipHideTimeout != null) clearTimeout(triggerEl.tooltipHideTimeout);
+
+    if (triggerEl.tooltipInstance != null)
       _activeTooltips.value = _activeTooltips.value.filter((t) => t !== triggerEl.tooltipInstance);
-    }
+
     if (triggerEl.tooltipOnMouseEnter) triggerEl.removeEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
     if (triggerEl.tooltipOnMouseLeave) triggerEl.removeEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);
   },

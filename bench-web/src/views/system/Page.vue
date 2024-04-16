@@ -307,8 +307,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
-              v-contextmenu="() => {
-                return {items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})} as OverlayMenuInfo
+              v-contextmenu="(): OverlayMenuInfo => {
+                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})}
               }"
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
