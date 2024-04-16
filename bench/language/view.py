@@ -123,7 +123,7 @@ class Variant(IdEnum):
     SECONDARY = 2
     ALTERNATE = 3
     STEALTH = 4
-    WEIRD = 5
+    WEIRD = 5  # not sure how many variants we need
 
 
 @_well_known_enum

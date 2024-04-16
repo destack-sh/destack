@@ -1720,8 +1720,6 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
             existing = getattr(self, name, None)
             node_list = prop.reference_list_type(self, prop)
             setattr(self, name, node_list)
-            if prop.alias:
-                setattr(self, prop.alias, node_list)
             if existing and not isinstance(existing, NodeList):
                 if existing_lists is None:
                     existing_lists = {}

@@ -1,6 +1,6 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import type { NodeReferenceData } from "@/proto/wire";
+import type { NodeReferenceData, Variant } from "@/proto/wire";
 import type { ActionMapImplementation } from "@/system/action";
 import type { ViewComponent } from "@/views";
 import type { Ref } from "vue";
@@ -30,6 +30,9 @@ export type ViewExposed = (
 ) & {
   /** The virtual actions implemented by this view */
   actions?: Partial<ActionMapImplementation<any>>;
+  /** The supported variants (if any) */
+  variants?: Variant[];
+  
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (anchor: FocusAnchor | NodeReferenceData) => void | boolean | ViewComponent | HTMLElement | null;
   /** Map the relevant node at the given element. */
