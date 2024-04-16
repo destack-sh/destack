@@ -2,7 +2,7 @@
 import { canvas } from "@/system/space";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
-import { activeContextMenu, destroyContextMenu } from "@/utils/menu";
+import { activeOverlayMenu, destroyOverlayMenu } from "@/utils/menu";
 import Menu from "@/views/private/Menu.vue";
 import type { MaybeElement } from "@vueuse/core";
 import { ref, watch, type Ref } from "vue";
@@ -16,10 +16,10 @@ function getEnterFrom(placement: FloatingPlacement): string {
   /* bottom */ else return "translate-y-[-4px]";
 }
 
-watch([menuRef, activeContextMenu], () => {
-  if (menuRef.value == null || activeContextMenu.value == null) return;
+watch([menuRef, activeOverlayMenu], () => {
+  if (menuRef.value == null || activeOverlayMenu.value == null) return;
   // get bounding
-  const menu = activeContextMenu.value;
+  const menu = activeOverlayMenu.value;
   const el = getElement(menuRef.value as MaybeElement)!;
   const referenceRect = { x: menu.reference.x, y: menu.reference.y, width: 1, height: 1 };
   const containerRect =
@@ -42,22 +42,22 @@ watch([menuRef, activeContextMenu], () => {
 <template>
   <Transition
     enter-active-class="transition-all ease-in duration-75"
-    :enter-from-class="'opacity-0 ' + getEnterFrom(activeContextMenu?.info.placement ?? 'top')"
+    :enter-from-class="'opacity-0 ' + getEnterFrom(activeOverlayMenu?.info.placement ?? 'top')"
     enter-to-class="opacity-100 scale-100 translate-x-0 translate-y-0"
     leave-active-class="transition-all ease-out duration-75"
     leave-from-class="opacity-100 scale-100 translate-x-0 translate-y-0"
-    :leave-to-class="'opacity-0 ' + getEnterFrom(activeContextMenu?.info.placement ?? 'top')"
+    :leave-to-class="'opacity-0 ' + getEnterFrom(activeOverlayMenu?.info.placement ?? 'top')"
     mode="out-in"
   >
     <!-- Classic context menu -->
     <Menu
       ref="menuRef"
-      v-if="activeContextMenu"
-      :key="activeContextMenu.id"
-      class="absolute z-70"
+      v-if="activeOverlayMenu"
+      :key="activeOverlayMenu.id"
+      class="pointer-events-auto absolute z-70"
       data-outside-view="true"
-      v-bind="activeContextMenu.info"
-      @close="() => (destroyContextMenu(), $nextTick(() => canvas.restoreComponentFocus()))"
+      v-bind="activeOverlayMenu.info"
+      @close="() => (destroyOverlayMenu(), $nextTick(() => canvas.restoreComponentFocus()))"
     />
   </Transition>
 </template>

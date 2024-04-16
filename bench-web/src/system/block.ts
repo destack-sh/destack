@@ -57,7 +57,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
 
   return {
     "common.move.up": {
-      enabled,
+      isEnabled: enabled,
       action: (action, context) => {
         // move block one closer in indent or above the previous item in linear order
         const { item, idx } = getItemFromContext(context);
@@ -77,7 +77,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
       },
     },
     "common.move.down": {
-      enabled,
+      isEnabled: enabled,
       action: (action, context) => {
         // move block one further in indent or below the next item in linear order (skipping own descendants)
         const { item, idx } = getItemFromContext(context);
@@ -104,7 +104,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
       },
     },
     "common.move.left": {
-      enabled,
+      isEnabled: enabled,
       action: (action, context) => {
         // move block one 'higher' in indent (to after parent in its siblings)
         const { item, idx } = getItemFromContext(context);
@@ -113,7 +113,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
       },
     },
     "common.move.right": {
-      enabled,
+      isEnabled: enabled,
       action: (action, context) => {
         // move block one 'lower' in indent (to before the next sibling of the closest parent)
         const { item, idx } = getItemFromContext(context);

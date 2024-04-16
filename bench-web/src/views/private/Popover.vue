@@ -29,7 +29,7 @@ function toggle() {
 useFloating({
   floating: contentRef,
   reference: triggerRef,
-  enabled: isOpen,
+  isEnabled: isOpen,
   options: props,
 });
 </script>

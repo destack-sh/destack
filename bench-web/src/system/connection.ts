@@ -87,7 +87,7 @@ type ConnectionMetadata = {
 };
 
 type GetConnectionParams<T extends NodeType> = {
-  enabled?: boolean;
+  isEnabled?: boolean;
   roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
   scope?: Partial<GraphScope>;
   options?: Partial<ReadOptionsData>;
@@ -100,7 +100,7 @@ type GetConnectionResult<T extends NodeType> = {
 };
 
 type SearchConnectionParams<T extends NodeType> = {
-  enabled?: boolean;
+  isEnabled?: boolean;
   nodeType: T;
   scope?: Partial<GraphScope>;
   bases?: NodeReferenceData[];
@@ -121,7 +121,7 @@ type SearchConnectionResult<T extends NodeType> = {
 };
 
 type AggregateConnectionParams = {
-  enabled?: boolean;
+  isEnabled?: boolean;
   nodeType: NodeType;
   scope?: Partial<GraphScope>;
   bases?: NodeReferenceData[];
@@ -856,7 +856,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
         releaseConnection(old);
         connection.value = null;
       }
-      if (paramsRef.value.enabled === false) return; // disabled
+      if (paramsRef.value.isEnabled === false) return; // disabled
 
       // if the existing connection can support the new query, we'll just acquire it again
       const existing = acquireExistingConnection(kind, paramsRef.value, match);

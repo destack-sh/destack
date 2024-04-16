@@ -9,7 +9,7 @@ import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type ContextMenuInfo, type MenuContext } from "@/utils/menu";
+import { menuActionsLike, type OverlayMenuInfo, type MenuContext } from "@/utils/menu";
 import { toCasing, Casing } from "@/utils/string";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { getViewBinding, getViewComponent } from "@/views";
@@ -117,7 +117,7 @@ const splitAction = (anchor: SplitAnchor) => ({
 });
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
-    enabled: computed(() => focusedTabIdx.value != null),
+    isEnabled: computed(() => focusedTabIdx.value != null),
     action: (action, ctx) => {
       const focusedTab = getTabFromContext(ctx);
       if (focusedTab) remove(focusedTab);
@@ -125,7 +125,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.closeOtherTabs": {
-    enabled: hasMultipleTabs,
+    isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
       const focusedTab = getTabFromContext(ctx);
       if (focusedTab == null) return false;
@@ -136,7 +136,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusPreviousTab": {
-    enabled: hasMultipleTabs,
+    isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
       const focusedTab = getTabFromContext(ctx);
       if (focusedTab == null) return false;
@@ -145,7 +145,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusNextTab": {
-    enabled: hasMultipleTabs,
+    isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
       const focusedTab = getTabFromContext(ctx);
       if (focusedTab == null) return false;
@@ -174,7 +174,7 @@ defineExpose<ViewExposed>({ self, actions });
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
       v-contextmenu="(context: MenuContext) => {
-        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
+        return { items: menuActionsLike({ wildcard: ['view.navigate*frame*', 'view.layout*'] }, { context }), context } as OverlayMenuInfo
     } "
     >
       <!-- Tab button -->
@@ -194,7 +194,7 @@ defineExpose<ViewExposed>({ self, actions });
         @dragstart="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
         v-contextmenu="(context: MenuContext) => {
           context = { ...context, triggerNode: tab }
-          return { items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context } as ContextMenuInfo
+          return { items: menuActionsLike({ wildcard: ['view.navigate*tab*', 'view.layout*'] }, { context }), context } as OverlayMenuInfo
         } "
         v-tooltip="{ title: tab.name, referenceMargin: 0, showDelay: 2000 } as TooltipInfo"
       >

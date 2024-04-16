@@ -1,7 +1,8 @@
 <script lang="tsx" setup>
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
+import { useGetConnection } from "@/system/connection";
+import type { PreparedGetConnection } from "@/system/connection";
 import { IconInline } from "@/system/icon";
 import { getNodeIcon, toCamelName } from "@/system/lang";
 import { onMouseNotPressedOnce } from "@/utils/layout";
@@ -29,7 +30,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
     computed(() => ({
       roots: [nodePtr.value],
       options: { descendantTypes: [NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.TRIGGER] },
-      enabled: nodePtr.value != null,
+      isEnabled: nodePtr.value != null,
     })),
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });

@@ -27,7 +27,7 @@ export const {
   computed(() => ({
     roots: [local.benchPtr.value!],
     options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
-    enabled: local.benchPtr.value != null,
+    isEnabled: local.benchPtr.value != null,
   })),
 );
 export const bench = benchGraph.getRef(local.benchPtr);
@@ -40,7 +40,7 @@ export const {
   computed(() => ({
     roots: [local.packagePtr.value!],
     options: { ancestorTypes: [NodeType.BENCH], descendantTypes: LOADED_SOURCE_NODE_TYPES },
-    enabled: local.packagePtr.value != null,
+    isEnabled: local.packagePtr.value != null,
   })),
 );
 export const pkg = pkgGraph.getRef(local.packagePtr);
@@ -60,6 +60,7 @@ pkgConnection.onError(e => {
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
 export const space = spaceGraph.getRef(local.spacePtr);
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
+export const inspectionBasePtr = computed(() => space.value?.basePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isOptional: true,
 });

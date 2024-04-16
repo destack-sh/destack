@@ -9,6 +9,7 @@ import { toaster } from "@/system/toast";
 import { _setDragImage, activeDragged } from "@/utils/drag";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
+import { hasActiveOverlayMenu } from "@/utils/menu";
 import { Casing, toCasing } from "@/utils/string";
 import Split from "@/views/containers/Split.vue";
 import Bar from "@/views/private/Bar.vue";
@@ -53,8 +54,8 @@ const browserTitle = useTitle();
 watch([canvas.focusedViewPtr, bench], () => {
   const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
   let viewTitle = null;
-  if (canvas.focusedView.value != null) {
-    const viewAncestors = canvas.graph.getAncestors(canvas.focusedViewPtr.value!, {
+  if (canvas.focusedViewPtr.value != null) {
+    const viewAncestors = canvas.graph.getAncestors(canvas.focusedViewPtr.value, {
       metatypes: [NodeType.VIEW],
       includeSelf: true,
     });
@@ -69,7 +70,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDraggingGlobal ? 'pointer-events-none select-none' : '']"
+    :class="[isDraggingGlobal || hasActiveOverlayMenu ? 'pointer-events-none select-none' : '']"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >

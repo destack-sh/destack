@@ -43,4 +43,3 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
     </div>
   </div>
 </template>
-…

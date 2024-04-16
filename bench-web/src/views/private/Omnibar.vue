@@ -122,7 +122,8 @@ function open(inMode: OmnibarMode = "everywhere") {
 
 function focus() {
   if (document.activeElement != queryRef.value && isActive.value) {
-    queryRef.value!.focus();
+    if (queryRef.value == null) throw new Error(`cannot focus Omnibar: queryRef is ${queryRef.value}`);
+    else queryRef.value!.focus();
   }
 }
 
@@ -169,7 +170,7 @@ for (const inMode of OMNIBAR_MODES) {
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
     action: () => open(inMode),
-    enabled: computed(
+    isEnabled: computed(
       () =>
         props.box.width >= PANEL_WIDTH &&
         (!isActive.value || inMode != mode.value) &&

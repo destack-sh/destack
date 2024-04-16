@@ -9,7 +9,7 @@ import { bench, hasLocalBench } from "@/system/space";
 import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { ScrollbarWidth, isDraggingGlobal } from "@/utils/layout";
-import { menuActionsLike, menuItemFromAction } from "@/utils/menu";
+import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu";
 import { humanizeBytes } from "@/utils/string";
 import { formatDurationFromNow } from "@/utils/time";
 import type { TooltipInfo } from "@/utils/tooltip";
@@ -36,7 +36,7 @@ const fps = useFps({ every: 15 });
 const memory = useMemory();
 
 const BENCH_MENU_ITEMS = computed(() => {
-  const items = [
+  const items: MenuItem[] = [
     // bench
     menuItemFromAction("bench.go.goToBench", { category: "bench" }),
     menuItemFromAction("bench.go.goToEnvironment", { category: "bench" }),
@@ -46,6 +46,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     // main
     {
       id: "omnibar",
+      type: 'generic',
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
@@ -53,6 +54,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     },
     {
       id: "view",
+      type: 'generic',
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
@@ -60,6 +62,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     },
     {
       id: "edit",
+      type: 'generic',
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
@@ -69,6 +72,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     },
     {
       id: "sense",
+      type: 'generic',
       category: "main",
       icon: "fas fa-telescope",
       title: "Analyze",
@@ -78,6 +82,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     },
     {
       id: "session",
+      type: 'generic',
       category: "main",
       icon: "fas fa-play",
       title: "Run",
@@ -94,6 +99,7 @@ const BENCH_MENU_ITEMS = computed(() => {
   if (isDeveloperMode.value) {
     items.push({
       id: "developer",
+      type: 'generic',
       category: "developer",
       icon: "fas fa-binary",
       title: "Developer",

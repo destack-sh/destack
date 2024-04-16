@@ -3,7 +3,8 @@ import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType }
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView, type SplitLayout } from "@/utils/layout";
+import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/utils/layout";
+import type { SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -59,7 +60,7 @@ const getSplitFromContext = (ctx: ActionContext | undefined) => {
 };
 const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeFrame": {
-    enabled: computed(() => hasFocusedSplit.value && isWindow.value),
+    isEnabled: computed(() => hasFocusedSplit.value && isWindow.value),
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
@@ -67,7 +68,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusPreviousFrame": {
-    enabled: isWindow,
+    isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
       const focusedSplit = getSplitFromContext(ctx);
@@ -78,7 +79,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusNextFrame": {
-    enabled: isWindow,
+    isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
       const focusedSplit = getSplitFromContext(ctx);
@@ -89,7 +90,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.closeSplit": {
-    enabled: computed(() => hasFocusedSplit.value && !isWindow.value),
+    isEnabled: computed(() => hasFocusedSplit.value && !isWindow.value),
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
@@ -97,7 +98,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusNextSplit": {
-    enabled: hasFocusedSplit,
+    isEnabled: hasFocusedSplit,
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
@@ -106,7 +107,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     },
   },
   "view.navigate.focusPreviousSplit": {
-    enabled: hasFocusedSplit,
+    isEnabled: hasFocusedSplit,
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);

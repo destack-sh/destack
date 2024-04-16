@@ -132,7 +132,7 @@ export function actionIndex(): SearchIndex<ActionItem> {
   const index: SearchIndex<ActionItem> = {
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
-        .filter((a) => a.enabled == null || a.enabled.value)
+        .filter((a) => a.isEnabled == null || a.isEnabled.value)
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
         .map((a) => ({ ...a, title: toValue(a.title), metatype: "action" }) as ActionItem),
   };
