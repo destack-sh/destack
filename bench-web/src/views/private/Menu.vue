@@ -146,13 +146,6 @@ function onNavigateHorizontal(direction: "left" | "right") {
   }
 }
 
-// auto-focus when created
-onMounted(() => {
-  // NOTE: We must focus in the *next* tick even though we're already mounted.
-  //  Chromium has a bug where it gets confused about the actual position of the containing elements (I think?)
-  //    when this is used as part of a popover, which breaks our floating positioning.
-  nextTick(() => queryRef.value?.focus());
-});
 
 // highlight and focus best match when typing
 const uf = new uFuzzy({ intraMode: 1 });
@@ -253,7 +246,7 @@ defineExpose({ focus, clear, query });
         <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
         <!-- Checked, shortcut or nested menu -->
         <i
-          v-if="item.type == 'toggle' || item.type == 'picker'"
+          v-if="item.type == 'toggle' || item.type == 'option'"
           class="ml-auto pl-4 pr-1"
           :class="item.isChecked ? 'fas fa-check' : ''"
         />

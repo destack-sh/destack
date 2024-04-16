@@ -158,7 +158,7 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
-        :variant="Variant.V3"
+        :variant="Variant.ALTERNATE"
         @click="() => setState(state == 'log-in' ? 'sign-up' : 'log-in')"
       />
       <Button
@@ -167,7 +167,7 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-xmark' })"
         :title="'Close'"
         class="w-full"
-        :variant="Variant.V3"
+        :variant="Variant.ALTERNATE"
         @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>

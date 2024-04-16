@@ -46,7 +46,7 @@ import { computedValue, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
-import { useActiveElement, useEventListener } from "@vueuse/core";
+import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
   getCurrentInstance,
@@ -846,6 +846,22 @@ export class ViewCanvas {
     }
     this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
   }
+}
+
+export function focusInElement(element: MaybeElement): boolean {
+  while (element != null) {
+    if (element instanceof HTMLElement || element instanceof SVGElement) {
+      element.focus();
+      return true;
+    } else if ("focus" in element) {
+      const focusResult = (element as any).focus();
+      if (focusResult === true) return true;
+      else element = focusResult;
+    } else {
+      return false;
+    }
+  }
+  return false;
 }
 
 function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {

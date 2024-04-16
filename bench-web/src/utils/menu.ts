@@ -13,7 +13,7 @@ import { canvas } from "@/system/space";
 import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
 import type { ViewComponent } from "@/views";
-import { collectViewComponentsUp, getVueComponentType } from "@/views/canvas";
+import { collectViewComponentsUp } from "@/views/canvas";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, type Directive, type Ref } from "vue";
 
@@ -29,7 +29,7 @@ export type MenuInfo = {
   context?: MenuContext;
 };
 
-export const MENU_ITEM_TYPES = ["generic", "picker", "toggle"] as const;
+export const MENU_ITEM_TYPES = ["generic", "option", "toggle"] as const;
 export type MenuItemType = (typeof MENU_ITEM_TYPES)[number];
 
 export type MenuItem = {
@@ -113,7 +113,10 @@ type ComponentMenuInfo<T extends { props: object }> = {
   props: T["props"];
   context?: MenuContext;
 };
-export type OverlayMenuInfo = (({ kind: "menu" } & MenuInfo) | ComponentMenuInfo<any>) & FloatingOptions;
+export type OverlayMenuInfo = (({ kind: "menu" } & MenuInfo) | ComponentMenuInfo<any>) & {
+  onApply?(value?: any): void;
+  onClose?(): void;
+} & FloatingOptions;
 
 /** The triggering element with some extra state */
 type OverlayMenuTriggerElement = HTMLElement & {
@@ -124,7 +127,7 @@ type OverlayMenuInstance = {
   id: number;
   info: OverlayMenuInfo;
   trigger: HTMLElement;
-  reference: { x: number; y: number };
+  reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement;
 };
 
@@ -139,7 +142,7 @@ function newOverlayMenuId() {
 
 export function createOverlayMenu(
   trigger: HTMLElement,
-  reference: { x: number; y: number },
+  reference: { x: number; y: number } | HTMLElement | SVGElement,
   container: HTMLElement | SVGElement | undefined,
   info: OverlayMenuInfo | ((ctx: MenuContext) => OverlayMenuInfo),
 ): OverlayMenuInstance {
@@ -168,25 +171,28 @@ export function destroyOverlayMenu(instance?: OverlayMenuInstance) {
   }
 }
 
-function makeOverlayMenuDirective(event: "contextmenu" | "click"): Directive<MaybeElement, OverlayMenuInfo> {
+function makeOverlayMenuDirective(options: {
+  event: "contextmenu" | "click";
+  reference: "trigger" | "self";
+}): Directive<MaybeElement, OverlayMenuInfo> {
   return {
     mounted(el, binding) {
       const triggerEl = el as OverlayMenuTriggerElement;
       triggerEl.contextMenuOnEvent = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const reference = { x: e.clientX, y: e.clientY };
+        const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
         createOverlayMenu(triggerEl, reference, undefined, binding.value);
       };
-      triggerEl.addEventListener(event, triggerEl.contextMenuOnEvent);
+      triggerEl.addEventListener(options.event, triggerEl.contextMenuOnEvent);
     },
 
     unmounted(el) {
       const triggerEl = el as OverlayMenuTriggerElement;
-      if (triggerEl.contextMenuOnEvent) triggerEl.removeEventListener(event, triggerEl.contextMenuOnEvent);
+      if (triggerEl.contextMenuOnEvent) triggerEl.removeEventListener(options.event, triggerEl.contextMenuOnEvent);
     },
   };
 }
 
-export const CONTEXT_MENU_DIRECTIVE = makeOverlayMenuDirective("contextmenu");
-export const CLICK_MENU_DIRECTIVE = makeOverlayMenuDirective("click");
+export const CONTEXT_MENU_DIRECTIVE = makeOverlayMenuDirective({ event: "contextmenu", reference: "trigger" });
+export const MENU_DIRECTIVE = makeOverlayMenuDirective({ event: "click", reference: "self" });

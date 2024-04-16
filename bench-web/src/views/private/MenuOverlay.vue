@@ -1,13 +1,18 @@
 <script lang="tsx" setup>
 import { canvas } from "@/system/space";
+import { focusInElement } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
 import { activeOverlayMenu, destroyOverlayMenu } from "@/utils/menu";
 import Menu from "@/views/private/Menu.vue";
-import type { MaybeElement } from "@vueuse/core";
-import { ref, watch, type Ref } from "vue";
+import { useElementSize, whenever, type MaybeElement } from "@vueuse/core";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const menuRef: Ref<InstanceType<typeof Menu> | null> = ref(null);
+const menuRefContainer: Ref<MaybeElement> = ref(null);
+const menuRefInner: Ref<MaybeElement> = ref(null);
+const menuRef = computed(() => menuRefInner.value ?? menuRefContainer.value);
+const menuContainerSize = useElementSize(menuRefContainer);
+const menuRefValue: Ref<any> = ref(null);
 
 function getEnterFrom(placement: FloatingPlacement): string {
   if (placement.startsWith("left")) return "translate-x-[4px]";
@@ -16,12 +21,17 @@ function getEnterFrom(placement: FloatingPlacement): string {
   /* bottom */ else return "translate-y-[-4px]";
 }
 
-watch([menuRef, activeOverlayMenu], () => {
+// float position
+watch([menuRef, menuContainerSize.width, menuContainerSize.height, activeOverlayMenu], () => {
   if (menuRef.value == null || activeOverlayMenu.value == null) return;
+
   // get bounding
   const menu = activeOverlayMenu.value;
-  const el = getElement(menuRef.value as MaybeElement)!;
-  const referenceRect = { x: menu.reference.x, y: menu.reference.y, width: 1, height: 1 };
+  const el = getElement(menuRefContainer.value as MaybeElement)!;
+  const referenceRect =
+    menu.reference instanceof HTMLElement || menu.reference instanceof SVGElement
+      ? menu.reference.getBoundingClientRect()
+      : { x: menu.reference.x, y: menu.reference.y, width: 1, height: 1 };
   const containerRect =
     menu.container != null
       ? menu.container.getBoundingClientRect()
@@ -39,7 +49,31 @@ watch([menuRef, activeOverlayMenu], () => {
   el.style.top = y + "px";
 });
 
+// init menuRefValue if set
+whenever(activeOverlayMenu, () => {
+  if (activeOverlayMenu.value?.info.kind == "component") {
+    menuRefValue.value = activeOverlayMenu.value.info.props.modelValue;
+  }
+});
+
+// focus
+function focus() {
+  if (!focusInElement(menuRef.value)) throw new Error(`failed to focus in ${activeOverlayMenu.value?.info.kind}`);
+}
+whenever(menuRef, () => {
+  // auto-focus when created
+  // NOTE: We must focus in the *next* tick even though we're already mounted.
+  //  Chromium has a bug where it gets confused about the actual position of the containing elements (?)
+  //    if we immediately focus it, breaking our floating positioning.
+  nextTick(focus);
+});
+
+function apply() {
+  activeOverlayMenu.value?.info.onApply?.(menuRefValue.value);
+}
+
 function close() {
+  activeOverlayMenu.value?.info.onClose?.();
   destroyOverlayMenu();
   canvas.restoreComponentFocus();
 }
@@ -54,9 +88,9 @@ function close() {
     :leave-to-class="'opacity-0 ' + getEnterFrom(activeOverlayMenu?.info.placement ?? 'top')"
     mode="out-in"
   >
-    <!-- Classic context menu -->
+    <!-- Classic menu -->
     <Menu
-      ref="menuRef"
+      ref="menuRefContainer"
       v-if="activeOverlayMenu?.info.kind == 'menu'"
       :key="activeOverlayMenu.id"
       class="pointer-events-auto absolute z-70"
@@ -66,13 +100,19 @@ function close() {
     />
     <!-- Generic component menu -->
     <div
-      ref="menuRef"
+      ref="menuRefContainer"
       v-else-if="activeOverlayMenu?.info.kind == 'component'"
-      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white py-1 text-gray-900 shadow-md shadow-gray-400"
+      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white text-gray-900 shadow-md shadow-gray-400"
       v-outside.mousedown.stop="close"
+      @keydown.enter.stop="apply(), close()"
+      @keydown.esc.stop="close"
     >
-      nocheckin
-      {{ activeOverlayMenu?.info.props }}
+      <component
+        ref="menuRefInner"
+        :is="activeOverlayMenu.info.component"
+        v-bind="activeOverlayMenu.info.props"
+        v-model="menuRefValue"
+      />
     </div>
   </Transition>
 </template>

@@ -8119,25 +8119,25 @@ export enum Variant {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: VARIANT_V1 = 1;
+     * @generated from protobuf enum value: VARIANT_PRIMARY = 1;
      */
-    V1 = 1,
+    PRIMARY = 1,
     /**
-     * @generated from protobuf enum value: VARIANT_V2 = 2;
+     * @generated from protobuf enum value: VARIANT_SECONDARY = 2;
      */
-    V2 = 2,
+    SECONDARY = 2,
     /**
-     * @generated from protobuf enum value: VARIANT_V3 = 3;
+     * @generated from protobuf enum value: VARIANT_ALTERNATE = 3;
      */
-    V3 = 3,
+    ALTERNATE = 3,
     /**
-     * @generated from protobuf enum value: VARIANT_V4 = 4;
+     * @generated from protobuf enum value: VARIANT_STEALTH = 4;
      */
-    V4 = 4,
+    STEALTH = 4,
     /**
-     * @generated from protobuf enum value: VARIANT_V5 = 5;
+     * @generated from protobuf enum value: VARIANT_WEIRD = 5;
      */
-    V5 = 5
+    WEIRD = 5
 }
 /**
  * @generated from protobuf enum symbolx.bench.ViewType
