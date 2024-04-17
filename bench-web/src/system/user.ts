@@ -204,7 +204,7 @@ contributeActionMap<"user">({
   },
   "user.auth.logoutAll": {
     icon: "fas fa-right-to-bracket",
-    title: "Log Out All",
+    title: "Log Out Everywhere",
     text: "Log out all clients (including current).",
     isEnabled: isAuthenticated,
     action: () => logOut({ all: true }),

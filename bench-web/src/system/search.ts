@@ -2,9 +2,9 @@ import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType } f
 import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
-import { getNodeIcon, getNodeTypeIcon } from "@/system/lang";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
+import { getNodeIcon } from "@/system/icon";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   node: AnyNodeData;

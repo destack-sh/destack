@@ -292,11 +292,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
                 />
               </div>
-              <span
+              <button
                 class="-translate-y-[6px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
               >
                 &plus;
-              </span>
+              </button>
             </div>
 
             <!-- Drag above/below -->
