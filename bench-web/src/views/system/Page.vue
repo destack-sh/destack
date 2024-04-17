@@ -10,27 +10,25 @@ import {
   Orientation,
   ViewData,
 } from "@/proto/wire/";
-import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { canvas, inspectionPtr } from "@/system/space";
-import { makeSelection } from "@/views/canvas";
-import { ScrollbarWidth } from "@/utils/layout";
-import { viewEmits, type FocusAnchor } from "@/views/common";
-import Scroll from "@/views/containers/Scroll.vue";
-import Inaccessible from "@/views/private/Inaccessible.vue";
-import { computed, ref, toRef, type Ref, watch } from "vue";
-import { generateNodeName, isDescendantOf, makeNodeName, moveNode, walkDescendantsRef } from "@/system/graph";
-import NavigationBar from "@/views/private/NavigationBar.vue";
+import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import Block from "@/views/system/Block.vue";
-import Picker from "@/views/content/Picker.vue";
-import { computedValue } from "@/utils/ref";
-import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
-import { startDragging, useMultiDropZone } from "@/utils/drag";
-import { type ViewExposed } from "@/views/common";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
+import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { isDescendantOf, makeNodeName, moveNode, walkDescendantsRef } from "@/system/graph";
+import { getOrderKey, updateOrder } from "@/system/lang";
+import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { updateOrder } from "@/system/lang";
+import { startDragging, useMultiDropZone } from "@/utils/drag";
+import { ScrollbarWidth } from "@/utils/layout";
+import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
+import { computedValue } from "@/utils/ref";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
+import Picker from "@/views/content/Picker.vue";
+import Inaccessible from "@/views/private/Inaccessible.vue";
+import NavigationBar from "@/views/private/NavigationBar.vue";
+import Block from "@/views/system/Block.vue";
+import { computed, ref, toRef, watch, type Ref, nextTick } from "vue";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -129,8 +127,6 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-// nocheckin: Page.actions
-const hasMultipleBlocks = computed(() => expandedItems.value.length > 1);
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
   let block = expandedItems.value.find((item) => item.nodePtr.id == ctx?.triggerNode?.id)?.node;
   if (!block) block = expandedItems.value.find((item) => item.nodePtr.id == focusedNodePtr.value?.id)?.node;
@@ -139,6 +135,21 @@ const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData
   return { block, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
+  // create
+  "common.create.above": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      createBlock({ type: BlockType.TEXT }, "before", block);
+    },
+  },
+  "common.create.below": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      createBlock({ type: BlockType.TEXT }, "after", block);
+    },
+  },
   // edit
   "common.edit.delete": {
     action: (action, context) => {
@@ -185,25 +196,23 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   }),
 };
 function createBlock(
-  blockIn: { type: BlockType },
+  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
   anchor: "before" | "after",
-  targetPtr: TypedNodeReferenceData<NodeType.BLOCK>,
+  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
-  const target = pkgGraph.getOrFail(targetPtr);
+  const target = isNode(targetPtr) ? targetPtr : pkgGraph.getOrFail(targetPtr);
+  const siblings = pkgGraph.getChildren(target.parentPtr!, NodeType.BLOCK);
   const block = pkgConnection.tx.create({
     metatype: NodeType.BLOCK,
-    parentPtr: targetPtr,
+    parentPtr: target.parentPtr,
+    packagePtr: target.packagePtr,
     type: blockIn.type,
-    orderKey: "a0",
+    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
+    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
+    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
     name: makeNodeName(pkgGraph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
   });
-  updateOrder({
-    tx: pkgConnection.tx,
-    node: block,
-    position: anchor,
-    reference: target,
-    getNodes: () => pkgGraph.getChildren(target.parentPtr!, NodeType.BLOCK),
-  });
+  nextTick(() => focus(toNodeReference(block)));
 }
 
 // focus
@@ -312,33 +321,28 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               role="button"
-              class="group/create absolute z-10 h-[6px] w-full flex-shrink-0 text-center opacity-0 transition-colors duration-100 hover:opacity-100"
+              class="absolute z-10 h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-100 hover/create:text-primary-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
               :style="getAnchorPosition(anchor as 'start' | 'end', i, (anchor == 'start' || depth != expandedItems[i + 1]?.depth) ? 8  : 4)"
               v-menu="(): OverlayMenuInfo => ({
                 kind: 'component',
                 component: Picker,
                 placement: 'bottom',
+                referenceMargin: 4,
                 props: { isInline: true, valueType: makeTypeInfo({ 
                   benchType: BenchType.BLOCK_TYPE,
                   isRequired: true,
                 })},
-                onApply: (blockType: BlockType) => createBlock({ type: blockType}, anchor == 'start' ? 'before' : 'after', blockPtr),
+                onApply: (blockType: BlockType) => createBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
               })"
             >
               <!-- Line with a gap for the button -->
               <div class="relative">
-                <div
-                  class="absolute left-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-400"
-                />
-                <div
-                  class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-400"
-                />
+                <svg class="translate-y-1" width="100%" height="2px" viewBox="0 0 100 1" preserveAspectRatio="none">
+                  <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                  <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                </svg>
+                <button class="-translate-y-[8px] px-1">&plus;</button>
               </div>
-              <button
-                class="-translate-y-[6px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
-              >
-                &plus;
-              </button>
             </div>
 
             <!-- Drag above/below -->
@@ -359,7 +363,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="(): OverlayMenuInfo => {
-                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.edit.*', 'common.block.*'] }, { context: { triggerNode: blockPtr } })}
+                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.edit.*', 'common.create.above', 'common.create.below', 'common.block.*'] }, { context: { triggerNode: blockPtr } })}
               }"
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
@@ -377,6 +381,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Activity / Notices / ... -->
           </div>
         </div>
+
+        <!-- Footer -->
+        <!-- TODO: Incomplete: Page footer? -->
       </div>
     </Scroll>
   </div>

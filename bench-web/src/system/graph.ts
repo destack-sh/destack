@@ -10,6 +10,7 @@ import {
   type AnyNodeData,
   type AnyPropertyType,
   type NodeTypeMapping,
+  StepType,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { defaultSort, toCamelName, updateOrder } from "@/system/lang";
@@ -966,7 +967,9 @@ export function mergeNode<T extends NodeType>(
 
 /** Resolve the node in the given graph if it's a reference */
 export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
-  return node.metatype == ObjectType.NODE_REFERENCE ? graph.getOrFail(node as NodeReferenceData) : (node as AnyNodeData);
+  return node.metatype == ObjectType.NODE_REFERENCE
+    ? graph.getOrFail(node as NodeReferenceData)
+    : (node as AnyNodeData);
 }
 
 /** Moves the given node around the target. If the node has an 'orderKey' we respect the anchor. */
@@ -1102,7 +1105,9 @@ export function extractNameId(name: string): number | null {
 export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNodeData[]): string {
   if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW) {
     if (type == null) throw new Error(`expected type for ${metatype}, got ${type}`);
-    const typeName = toCasing(BlockType[type] ?? ViewType[type], Casing.CAMEL);
+    let typeName = BlockType[type] ?? ViewType[type] ?? StepType[type];
+    if (typeName == null) throw new Error(`unknown type ${type} for ${NodeType[metatype]}`);
+    typeName = toCasing(typeName, Casing.CAMEL);
     const maxId = Math.max(
       ...siblings.filter((n) => (n as any).type == type).map((n) => extractNameId((n as any).name) ?? 0),
       0,
