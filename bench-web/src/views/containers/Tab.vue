@@ -3,8 +3,8 @@ import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType }
 import { toNodeReference } from "@/proto/wiring";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
-import { IconInline } from "@/system/icon";
-import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, FULL_VIEW_TYPES } from "@/system/lang";
+import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/system/icon";
+import { FULL_VIEW_TYPES } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";

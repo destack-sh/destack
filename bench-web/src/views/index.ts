@@ -6,7 +6,7 @@ import { computed, getCurrentInstance, type ComponentInstance, type Ref } from "
 
 export type ViewComponent = {
   new (): ComponentInstance<any>;
-  props: { self?: NodeReferenceData } & Partial<
+  props: { self?: NodeReferenceData; modelValue?: any } & Partial<
     Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
   >;
   exposed: ViewExposed;

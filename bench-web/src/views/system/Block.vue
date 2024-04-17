@@ -3,8 +3,8 @@ import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/pro
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection } from "@/system/connection";
 import type { PreparedGetConnection } from "@/system/connection";
-import { IconInline } from "@/system/icon";
-import { getNodeIcon, toCamelName } from "@/system/lang";
+import { IconInline, getNodeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
 import { onMouseNotPressedOnce } from "@/utils/layout";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";

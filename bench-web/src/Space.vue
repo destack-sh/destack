@@ -2,8 +2,8 @@
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { IconInline } from "@/system/icon";
-import { getNodeIcon, toCamelName } from "@/system/lang";
+import { IconInline, getNodeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
 import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { _setDragImage, activeDragged } from "@/utils/drag";
