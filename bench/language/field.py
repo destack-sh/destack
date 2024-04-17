@@ -100,9 +100,9 @@ class TypeInfoBase(HasValues):
        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
-          [struct_type] | [base_type is newtype with bench_type]
+          [struct_type] | [base_type is newtype with object_type]
        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [node_type] | [base_type = Block aliased to bench_type]
+          [node_type] | [base_type = Block aliased to object_type]
        4. reference to a block (value is NodeReference that is an 'instance' of the block)
           [node_type & base_type = Block]
            type = Record, base = DatabaseBlock -> values must be Records in that database

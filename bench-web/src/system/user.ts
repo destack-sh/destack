@@ -1,7 +1,7 @@
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   BenchData,
-  BenchType,
+  ObjectType,
   ClientData,
   NodeReferenceData,
   NodeType,
@@ -31,7 +31,7 @@ export const { graph: userGraph, connection: userConnection } = useGetConnection
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: {
       descendantTypes: [NodeType.CLIENT],
-      includePropertiesPtr: [propertyReference(BenchType.USER, UserProperty.email)],
+      includePropertiesPtr: [propertyReference(ObjectType.USER, UserProperty.email)],
     },
     enabled: isAuthenticated.value,
   })),

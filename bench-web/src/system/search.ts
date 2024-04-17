@@ -1,4 +1,4 @@
-import type { AnyNodeData, BenchType, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
+import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";

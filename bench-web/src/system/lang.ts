@@ -3,7 +3,7 @@
  */
 
 import {
-  BenchType,
+  ObjectType,
   NodeType,
   type AnyNodeData,
   NodeReferenceData,
@@ -55,11 +55,11 @@ export const LOADED_SOURCE_NODE_TYPES = [
  * Gets the 'base' node defining a certain node. See HasBase.
  */
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
-  if (node.metatype == BenchType.RECORD) {
+  if (node.metatype == ObjectType.RECORD) {
     return (node as RecordData).parentPtr ?? null;
-  } else if (node.metatype == BenchType.RUN) {
+  } else if (node.metatype == ObjectType.RUN) {
     return (node as RunData).blockPtr ?? null;
-  } else if (node.metatype == BenchType.SIGNAL || node.metatype == BenchType.NOTIFICATION) {
+  } else if (node.metatype == ObjectType.SIGNAL || node.metatype == ObjectType.NOTIFICATION) {
     return (node as SignalData | NotificationData).senderPtr ?? null;
   } else {
     return null;
@@ -376,13 +376,13 @@ export function getViewTypeIcon(viewType: ViewType): IconData | null {
   return ICON_BY_VIEW_TYPE[viewType] ?? null;
 }
 
-export function getNodeIcon(node: AnyNodeData | { metatype: BenchType; type?: BlockType | ViewType }) {
+export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {
   if ((node as any).icon != null) {
     return (node as any).icon;
-  } else if (node.metatype == BenchType.BLOCK) {
+  } else if (node.metatype == ObjectType.BLOCK) {
     const icon = getBlockTypeIcon((node as BlockData).type! as BlockType);
     if (icon != null) return icon;
-  } else if (node.metatype == BenchType.VIEW) {
+  } else if (node.metatype == ObjectType.VIEW) {
     const icon = getViewTypeIcon((node as ViewData).type! as ViewType);
     if (icon != null) return icon;
   }

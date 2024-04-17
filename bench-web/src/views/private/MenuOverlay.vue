@@ -52,7 +52,7 @@ watch([menuRef, menuContainerSize.width, menuContainerSize.height, activeOverlay
 // init menuRefValue if set
 whenever(activeOverlayMenu, () => {
   if (activeOverlayMenu.value?.info.kind == "component") {
-    menuRefValue.value = activeOverlayMenu.value.info.props.modelValue;
+    menuRefValue.value = (activeOverlayMenu.value.info.props as any).modelValue ?? null;
   }
 });
 

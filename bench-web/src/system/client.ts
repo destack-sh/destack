@@ -1,4 +1,4 @@
-import { BenchType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
+import { ObjectType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
 import { describeNode, nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
@@ -177,7 +177,7 @@ const _localGraphs = useLocal("localGraphs") as Ref<LocalNodeGraph[] | null>;
 // Current local Space graph (not yet persisted).
 const _spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
 _spaceGraphLocal.add({
-  metatype: BenchType.SPACE,
+  metatype: ObjectType.SPACE,
   name: "Local",
   id: LOCAL_SPACE_ID,
   packagePtr: LOCAL_PACKAGE_PTR,

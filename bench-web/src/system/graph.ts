@@ -1,5 +1,5 @@
 import {
-  BenchType,
+  ObjectType,
   BlockType,
   CHILD_NODE_TYPES,
   GraphScope,
@@ -966,7 +966,7 @@ export function mergeNode<T extends NodeType>(
 
 /** Resolve the node in the given graph if it's a reference */
 export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
-  return node.metatype == BenchType.NODE_REFERENCE ? graph.getOrFail(node as NodeReferenceData) : (node as AnyNodeData);
+  return node.metatype == ObjectType.NODE_REFERENCE ? graph.getOrFail(node as NodeReferenceData) : (node as AnyNodeData);
 }
 
 /** Moves the given node around the target. If the node has an 'orderKey' we respect the anchor. */
@@ -1118,7 +1118,7 @@ export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNod
 /** Generates the name for a node in the given graph */
 export function makeNodeName(
   graph: ReadNodeGraph,
-  node: { metatype: BenchType; parentPtr?: NodeReferenceData; type: any },
+  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; type: any },
 ): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);

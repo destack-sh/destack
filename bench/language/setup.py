@@ -10,9 +10,9 @@ from bench.language.const import (
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
-    BenchType,
     EnumType,
     NodeType,
+    ObjectType,
     StructType,
 )
 from bench.utils.func import IdEnum, assert_collections_equal, bytetuple, get_subclasses
@@ -26,7 +26,7 @@ ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular import
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
-BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
+BENCH_CLASS_BY_TYPE: dict[ObjectType, type["Node"] | type["Struct"]] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
 FINAL_BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
 BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}

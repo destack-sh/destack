@@ -12,10 +12,10 @@ from bench.language.const import (
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
-    BenchType,
     NodeRelationFlag,
     NodeType,
     NRel,
+    ObjectType,
     PrimitiveType,
     ReferenceKind,
     StructType,
@@ -253,7 +253,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return self.component.__table__._columns_by_name[self.name]
 
     @property
-    def type(self) -> Optional[BenchType]:
+    def type(self) -> Optional[ObjectType]:
         return self.component.metatype
 
     @property
@@ -999,7 +999,7 @@ METATYPE_PROPERTY = Property(
     id=1,
     name="metatype",
     default=None,
-    py_type_raw=BenchType,
+    py_type_raw=ObjectType,
     is_internal=True,
     is_required=True,
     is_computed=True,  # is set statically by class decorator

@@ -1,4 +1,4 @@
-import { BenchType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
+import { ObjectType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { GraphConnection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
 import {
@@ -134,12 +134,12 @@ export function splitView(
       const update = { id: view.id, ck: view.ck };
       if (isAbsolute) {
         const newSize = isHorizontal ? { width: targetPx } : { height: targetPx };
-        return { ...update, size: { metatype: BenchType.BOX, ...newSize } };
+        return { ...update, size: { metatype: ObjectType.BOX, ...newSize } };
       } else {
         const total = getTotals();
         const targetRelativeUnits = roundToDigits((targetPx / total.relativePx) * total.relativeUnits, 3);
         const newSize = isHorizontal ? { widthRelative: targetRelativeUnits } : { heightRelative: targetRelativeUnits };
-        return { ...update, size: { metatype: BenchType.BOX, ...newSize } };
+        return { ...update, size: { metatype: ObjectType.BOX, ...newSize } };
       }
     };
 
@@ -211,12 +211,12 @@ export function useSplitView(
  */
 export function splitBox(size?: BoxData): BoxData {
   size = size ?? {
-    metatype: BenchType.BOX,
+    metatype: ObjectType.BOX,
     widthRelative: DEFAULT_RELATIVE_UNITS,
     heightRelative: DEFAULT_RELATIVE_UNITS,
   };
   return {
-    metatype: BenchType.BOX,
+    metatype: ObjectType.BOX,
     width: size.width != null ? size.width / 2 : undefined,
     widthRelative: size.width != null ? undefined : (size.widthRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
     height: size.height != null ? size.height / 2 : undefined,

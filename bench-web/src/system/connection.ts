@@ -6,7 +6,7 @@ import {
 } from "@/proto/services";
 import {
   AggregationData,
-  BenchType,
+  ObjectType,
   EditData,
   ExpressionData,
   NodeType,
@@ -47,7 +47,7 @@ import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
-    ...makeDefaultBenchProto(BenchType.READ_OPTIONS),
+    ...makeDefaultBenchProto(ObjectType.READ_OPTIONS),
     ...options,
   };
 }

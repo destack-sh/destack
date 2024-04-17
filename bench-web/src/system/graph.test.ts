@@ -1,10 +1,10 @@
 import {
-  BENCH_TYPES,
-  BENCH_TYPE_BY_MESSAGE_TYPE_NAME,
-  BenchType,
+  OBJECT_TYPES,
+  OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
+  ObjectType,
   ClientData,
   ClientProperty,
-  MESSAGE_TYPE_BY_BENCH_TYPE,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   PROPERTY_ENUM_BY_TYPE,
   UserData,
@@ -45,7 +45,7 @@ const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
   "google.protobuf.Struct": () => {},
   "google.protobuf.Timestamp": () => new Date().toISOString(),
   "google.protobuf.Duration": () => Math.random(),
-  "symbolx.bench.NodeReferenceData": () => ({ metatype: BenchType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
+  "symbolx.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
 };
 
 const PROP_NAME_GENERATORS: Record<string, () => any> = {
@@ -54,12 +54,12 @@ const PROP_NAME_GENERATORS: Record<string, () => any> = {
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};
 
-export function fabricate<T extends BenchType>(
+export function fabricate<T extends ObjectType>(
   metatype: T,
-  options?: { path?: BenchType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
+  options?: { path?: ObjectType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
 ): AnyTypeMapping[T] {
   const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype]!;
-  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[metatype]!;
 
   function fabricateScalarProp(propName: string, field: FieldInfo): any {
     let value: any;
@@ -80,8 +80,8 @@ export function fabricate<T extends BenchType>(
       }
       const members = MEMBERS_BY_ENUM[typeName];
       value = members[Math.floor(Math.random() * members.length)];
-    } else if (field.kind == "message" && BENCH_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
-      const benchType = BENCH_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
+    } else if (field.kind == "message" && OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
+      const benchType = OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
       if (options?.path?.includes(benchType)) {
         value = null;
       } else {
@@ -119,19 +119,19 @@ export function fabricate<T extends BenchType>(
   return struct as AnyTypeMapping[T];
 }
 
-const BENCH_TYPES_NAMES = BENCH_TYPES.map((t) => BenchType[t]);
-test.each(BENCH_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
-  fabricate(BenchType[metatype as any] as unknown as BenchType);
+const OBJECT_TYPES_NAMES = OBJECT_TYPES.map((t) => ObjectType[t]);
+test.each(OBJECT_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
+  fabricate(ObjectType[metatype as any] as unknown as ObjectType);
 });
 
 describe("node graph", () => {
   const graph = new NodeGraph();
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
-  let clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
-  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientC" } });
-  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientD" } });
+  let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  let clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
+  const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
+  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientC" } });
+  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientD" } });
   const nodes = [user1, clientA, clientB, user2, clientC, clientD];
 
   // take first refs
@@ -191,12 +191,12 @@ describe("layered node graph", () => {
   const overlay = new NodeGraph({ isOverlayOf: base });
   const graph = new LayerNodeGraph({ layers: [base] });
 
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  let clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
-  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
-  const clientC = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientC" } });
-  const clientD = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientD" } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
+  let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
+  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientC" } });
+  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientD" } });
+  const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
@@ -276,10 +276,10 @@ describe("proxy node graph", () => {
   const baseB = new NodeGraph();
   const graph = new ProxyNodeGraph();
 
-  let user1 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  const clientA = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
-  const user2 = fabricate(BenchType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
-  const clientB = fabricate(BenchType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientB" } });
+  let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
+  const clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
+  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientB" } });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
@@ -336,24 +336,24 @@ describe("proxy node graph", () => {
 });
 
 function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
-  let package1 = fabricate(BenchType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
-  const space11 = fabricate(BenchType.SPACE, {
+  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
+  const space11 = fabricate(ObjectType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(package1), id: "space11", orderKey: "a0" },
   });
-  let view111 = fabricate(BenchType.VIEW, {
+  let view111 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(space11), id: "view111", orderKey: "a0" },
   });
-  const view112 = fabricate(BenchType.VIEW, {
+  const view112 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(space11), id: "view112", orderKey: "a1" },
   });
-  let space12 = fabricate(BenchType.SPACE, {
+  let space12 = fabricate(ObjectType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(package1), id: "space12", orderKey: "a1" },
   });
-  const view121 = fabricate(BenchType.VIEW, {
+  const view121 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeReference(space12), id: "view121", orderKey: "a0" },
   });

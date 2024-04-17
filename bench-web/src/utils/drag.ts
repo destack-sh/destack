@@ -1,5 +1,5 @@
 import {
-  BenchType,
+  ObjectType,
   NodeType,
   Orientation,
   SelectionData,
@@ -60,14 +60,14 @@ export function startDragging(
 ) {
   let dragged: Dragged;
   if ("metatype" in data) {
-    if (data.metatype == BenchType.NODE_REFERENCE) {
+    if (data.metatype == ObjectType.NODE_REFERENCE) {
       dragged = {
         id: uuidt(),
         kind: "node",
         node: data as NodeReferenceData,
         nodes: [graph.getOrFail(data as NodeReferenceData)],
       };
-    } else if (data.metatype == BenchType.SELECTION) {
+    } else if (data.metatype == ObjectType.SELECTION) {
       dragged = {
         id: uuidt(),
         kind: "selection",

@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import {
-  BenchType,
+  ObjectType,
   BlockData,
   BoxData,
   NodeReferenceData,
@@ -85,7 +85,7 @@ const inspectedNodeTypes = computed(() => {
 });
 function isIncludedSelf(node: AnyNodeData) {
   if (props.type == ViewType.EXPLORE) {
-    if (node.metatype == BenchType.BLOCK) return (node as BlockData).isPage;
+    if (node.metatype == ObjectType.BLOCK) return (node as BlockData).isPage;
     else return true;
   } else if (props.type == ViewType.OUTLINE) {
     return true; // include everything
@@ -98,7 +98,7 @@ function isIncludedChildren(node: AnyNodeData) {
     return true;
   } else if (props.type == ViewType.OUTLINE) {
     // don't descend into pages for outline
-    if (node.metatype == BenchType.BLOCK) return !(node as BlockData).isPage;
+    if (node.metatype == ObjectType.BLOCK) return !(node as BlockData).isPage;
     else return true;
   } else {
     throw new Error(`unexpected view type: ${props.type}`);

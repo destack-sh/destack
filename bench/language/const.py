@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.17.1"
+VERSION = "2024.04.17.2"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -46,7 +46,8 @@ class EnumType(IdEnum):
     ENUM_TYPE = 2001  # so meta
     NODE_TYPE = 2002
     STRUCT_TYPE = 2003
-    BENCH_TYPE = 2004  # NodeType | StructType | EnumType
+    OBJECT_TYPE = 2004  # NodeType | StructType
+    BENCH_TYPE = 2005  # NodeType | StructType | EnumType
     NODE_VISIBILITY = 2010
 
     # access
@@ -285,12 +286,15 @@ class StructType(IdEnum):
 STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
 
 if typing.TYPE_CHECKING:
-    BenchType = NodeType | StructType
+    ObjectType = NodeType | StructType
+    BenchType = NodeType | StructType | EnumType
 else:
-    BenchType = IdEnum.combine("BenchType", NodeType, StructType)
+    ObjectType = IdEnum.combine("ObjectType", NodeType, StructType)
+    enum_(EnumType.OBJECT_TYPE)(ObjectType)
+    BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
-BENCH_TYPES: bytetuple[BenchType] = bytetuple(tuple(BenchType))
+OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(tuple(ObjectType))
 
 
 @enum_(EnumType.BLOCK_TYPE)
