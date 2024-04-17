@@ -103,10 +103,10 @@ function select(option: string | number | null) {
     resultsRefs[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
-// auto-select first result if nothing matches (anymore)
+// auto-select best match when searching
 watch(results, () => {
-  if (activeResultId.value == null || !results.value.some((r) => r.id === activeResultId.value)) {
-    activeResultId.value = results.value[0]?.id ?? null;
+  if (results.value.length > 0) {
+    activeResultId.value = results.value[0].id;
   }
 });
 
@@ -280,7 +280,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
                   role="button"
                   :data-selected="item.id === activeResultId"
-                  class="my-0.5 flex w-full flex-row items-center rounded-md border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
+                  class="fleyx-row my-0.5 flex w-full items-center rounded-md border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
                   @click.stop.prevent="() => fire(item.id)"
                 >
                   <!-- Content -->

@@ -112,6 +112,9 @@ const _activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
 export const activeTooltips = pretendReadonly(_activeTooltips);
 let tooltipId = 0;
 
+const TOOLTIP_DATA_SET_ATTRIBUTE = "tooltip";
+const TOOLTIP_DATA_ID_ATTRIBUTE = "tooltipid";
+
 function createTooltip(
   reference: TooltipTriggerElement,
   info: TooltipInfo,
@@ -119,11 +122,17 @@ function createTooltip(
 ): TooltipInstance {
   const instance = { id: tooltipId++, info, reference, container };
   _activeTooltips.value = [..._activeTooltips.value, instance];
+  reference.dataset[TOOLTIP_DATA_SET_ATTRIBUTE] = "true";
+  reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE] = instance.id.toString();
   return instance;
 }
 
 function destroyTooltip(instance: TooltipInstance) {
   _activeTooltips.value = _activeTooltips.value.filter((t) => t !== instance);
+  if (instance.reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE] == instance.id.toString()) {
+    delete instance.reference.dataset[TOOLTIP_DATA_SET_ATTRIBUTE];
+    delete instance.reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE];
+  }
 }
 
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
@@ -149,7 +158,9 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
     triggerEl.tooltipOnMouseLeave = (e: MouseEvent) => {
       if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
       triggerEl.tooltipHideTimeout = window.setTimeout(() => {
-        destroyTooltip(triggerEl.tooltipInstance!);
+        if (triggerEl.tooltipInstance != null) {
+          destroyTooltip(triggerEl.tooltipInstance);
+        }
       }, hideDelay);
     };
     triggerEl.addEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);

@@ -98,8 +98,11 @@ export function menuActionsLike(
 }
 
 //
-// Context menus
+// Overlay menus
 //
+
+const MENU_DATA_SET_ATTRIBUTE = "menu";
+const MENU_DATA_ID_ATTRIBUTE = "menuid";
 
 export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   placement: "bottom-right",
@@ -160,17 +163,18 @@ export function createOverlayMenu(
 
   const instance = { id: newOverlayMenuId(), info, trigger, reference, container };
   _activeOverlayMenu.value = instance;
-  trigger.dataset.contextmenu = "true";
+  trigger.dataset[MENU_DATA_SET_ATTRIBUTE] = "true";
+  trigger.dataset[MENU_DATA_ID_ATTRIBUTE] = instance.id.toString();
   return instance;
 }
 
-export function destroyOverlayMenu(instance?: OverlayMenuInstance) {
-  if (instance == null || _activeOverlayMenu.value === instance) {
-    if (activeOverlayMenu.value != null) {
-      _activeOverlayMenu.value!.trigger.dataset.contextmenu = undefined;
-    }
-    _activeOverlayMenu.value = null;
+export function destroyOverlayMenu(instance?: OverlayMenuInstance | null) {
+  if (instance == null) instance = _activeOverlayMenu.value;
+  if (instance != null && instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE] == instance?.id.toString()) {
+    delete instance.trigger.dataset[MENU_DATA_SET_ATTRIBUTE];
+    delete instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE];
   }
+  if (instance == _activeOverlayMenu.value) _activeOverlayMenu.value = null;
 }
 
 function makeOverlayMenuDirective(options: {
